@@ -2,5 +2,16 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>renovate/renovate-config"
-  ]
+  ],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "packagePatterns": ["*"],
+      "updateTypes": ["major"],
+      "enabled": false
+    }
+  ],
+  "assignees": ["shuber"]
+
+
 }
