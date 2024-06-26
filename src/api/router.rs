@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::api::handlers::health::__path_health_checker_handler;
 
 use crate::api::handlers::health::health_checker_handler;
+use crate::api::ws::ws_handler;
 use crate::app_state::SharedAppState;
 
 #[derive(OpenApi)]
@@ -32,6 +33,7 @@ impl ApiRoutes {
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
             .route("/api/v1/health", get(health_checker_handler))
+            .route("/ws", get(ws_handler))
             .with_state(state);
 
         router

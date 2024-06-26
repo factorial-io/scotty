@@ -1,6 +1,7 @@
 mod api;
 mod app_state;
 mod http;
+mod init_telemetry;
 mod settings;
 mod stop_flag;
 
@@ -13,8 +14,13 @@ async fn main() -> anyhow::Result<()> {
     let mut handles = vec![];
 
     let app_state = app_state::AppState::new().await?;
+    init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
 
-    let handle = setup_http_server(app_state.clone(), &app_state.settings.api.bind_address).await?;
+    let handle = setup_http_server(
+        app_state.clone(),
+        &app_state.clone().settings.api.bind_address,
+    )
+    .await?;
 
     handles.push(handle);
 

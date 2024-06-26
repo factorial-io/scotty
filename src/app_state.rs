@@ -1,10 +1,15 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
+
+use tokio::sync::{broadcast, Mutex};
+use uuid::Uuid;
 
 use crate::{settings::Settings, stop_flag};
 
+type WebSocketClients = HashMap<Uuid, broadcast::Sender<axum::extract::ws::Message>>;
 pub struct AppState {
     pub settings: Settings,
     pub stop_flag: stop_flag::StopFlag,
+    pub clients: Arc<Mutex<WebSocketClients>>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -19,6 +24,7 @@ impl AppState {
         Ok(Arc::new(AppState {
             settings,
             stop_flag: stop_flag.clone(),
+            clients: Arc::new(Mutex::new(HashMap::new())),
         }))
     }
 }
