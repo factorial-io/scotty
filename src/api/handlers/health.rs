@@ -1,7 +1,7 @@
 use axum::{response::IntoResponse, Json};
 #[utoipa::path(
     get,
-    path = "/api/health",
+    path = "/api/v1/health",
     responses(
     (status = 200, description = "Health check")
     )

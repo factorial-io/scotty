@@ -3,13 +3,18 @@ name = "yafbds"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "yafbdsctl"
+path = "src/yafbdsctl.rs"
+
 [dependencies]
 anyhow = "1.0.86"
-axum = { version = "0.7.5", features = ["ws"] }
+axum = { version = "0.7.5", features = ["ws", "macros"] }
 bollard = "0.16.1"
 config = "0.14.0"
 readonly = "0.2.12"
 serde = "1.0.203"
+clap = { version = "4.5", features = ["derive", "env"] }
 serde_json = { version = "1.0.114", features = [] }
 tokio = { version = "1.36.0", features = [
     "rt",
@@ -42,6 +47,14 @@ tower-http = { version = "0.5.2", features = ["cors", "fs"] }
 tokio-tungstenite = "*"
 futures-util = "0.3.30"
 uuid = { version = "0.8.2", features = ["v4"] }
+reqwest = { version = "0.12.5", features = ["json"] }
+thiserror = "1.0.61"
+clokwerk = { version = "0.4.0", features = ["async"] }
+walkdir = "2.5.0"
+chrono = { version = "0.4.38", features = ["serde"] }
+tokio-stream = "0.1.15"
+serde_yml = "0.0.10"
+regex = "1.10.5"
 [dependencies.opentelemetry_sdk]
 version = "0.22"
 features = ["rt-tokio"]

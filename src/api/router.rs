@@ -5,19 +5,33 @@ use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::api::handlers::apps::list::__path_list_apps_handler;
+use crate::api::handlers::apps::list::list_apps_handler;
+use crate::api::handlers::apps::run::__path_rm_app_handler;
+use crate::api::handlers::apps::run::__path_run_app_handler;
+use crate::api::handlers::apps::run::__path_stop_app_handler;
 use crate::api::handlers::health::__path_health_checker_handler;
-
 use crate::api::handlers::health::health_checker_handler;
 use crate::api::ws::ws_handler;
 use crate::app_state::SharedAppState;
+use crate::apps::app_data::AppData;
+use crate::apps::shared_app_list::AppDataVec;
+
+use super::handlers::apps::run::rm_app_handler;
+use super::handlers::apps::run::run_app_handler;
+use super::handlers::apps::run::stop_app_handler;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         health_checker_handler,
+        list_apps_handler,
+        run_app_handler,
+        stop_app_handler,
+        rm_app_handler,
     ),
     components(
-        schemas( )
+        schemas( AppData, AppDataVec)
     ),
     tags(
         (name = "yafbds-service", description = "yafbds api")
@@ -33,6 +47,10 @@ impl ApiRoutes {
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
             .route("/api/v1/health", get(health_checker_handler))
+            .route("/api/v1/apps/list", get(list_apps_handler))
+            .route("/api/v1/apps/run/:app_id", get(run_app_handler))
+            .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
+            .route("/api/v1/apps/rm/:app_id", get(rm_app_handler))
             .route("/ws", get(ws_handler))
             .with_state(state);
 

@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::api::message::WebSocketMessage;
 use crate::app_state::SharedAppState;
 
-use super::ws::{broadcast_message, send_message};
+use super::ws::send_message;
 
 #[instrument(skip(state))]
 pub async fn handle_websocket_message(
