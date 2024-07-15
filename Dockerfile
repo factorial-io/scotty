@@ -1,6 +1,6 @@
 FROM rust:1.79-slim-bookworm as chef
 RUN apt-get update -y && \
-    apt-get install --no-install-recommends -y pkg-config make g++ libssl-dev && \
+    apt-get install --no-install-recommends -y pkg-config make g++ libssl-dev curl && \
     rustup target add x86_64-unknown-linux-gnu && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-chef
