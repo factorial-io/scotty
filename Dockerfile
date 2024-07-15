@@ -1,4 +1,4 @@
-FROM rust:1.78-slim-bookworm as chef
+FROM rust:1.79-slim-bookworm as chef
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y pkg-config make g++ libssl-dev && \
     rustup target add x86_64-unknown-linux-gnu && \
