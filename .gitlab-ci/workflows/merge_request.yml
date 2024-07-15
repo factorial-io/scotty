@@ -1,0 +1,46 @@
+#  The rule is required otherwise gitlab merge request has problems to find the stages
+before_script:
+  - "cd ${CI_PROJECT_DIR}"
+  - "eval `ssh-agent`"
+  - "echo $SSH_AGENT_PID > SSH_AGENT_PID_FILE"
+  - "ssh-add ~/.ssh/bot.id_rsa"
+
+stages:
+  - init
+  - lint
+  - test
+  - setup
+
+variables:
+  TAG_VERSION_C: $CI_COMMIT_REF_SLUG
+
+lint:docker-images:
+  stage: lint
+  needs: []
+  extends: .lint:docker-images
+
+lint:yafbds:
+  stage: lint
+  needs: []
+  extends: .lint:yafbds
+
+test:yafbds:
+  stage: test
+  needs: []
+  extends: .test:yafbds
+
+build:progress:
+  stage: setup
+  needs: [test:yafbds, lint:yafbds]
+  variables:
+    TAG_VERSION_C: $CI_COMMIT_REF_SLUG
+  extends: .build:yafbds
+
+include:
+  - remote: "https://config.factorial.io/gitlab-ci/defaults.yml"
+  - local: ".gitlab-ci/components/init.yml"
+  - local: ".gitlab-ci/components/lint.yml"
+  - local: ".gitlab-ci/components/test.yml"
+  - local: ".gitlab-ci/components/build.yml"
+  - local: ".gitlab-ci/components/backup.yml"
+  - template: Security/SAST.gitlab-ci.yml

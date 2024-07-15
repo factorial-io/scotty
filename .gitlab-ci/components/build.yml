@@ -1,0 +1,26 @@
+.build:yafbds:
+  rules:
+    - if: $TAG_VERSION_C
+  script:
+    - "phab -cci script build:yafbds --arguments tag=$TAG_VERSION_C --no-interaction"
+    - "phab -cci script push:yafbds  --arguments tag=$TAG_VERSION_C --no-interaction"
+  tags:
+    - fabalicious
+
+.build:tobey:
+  rules:
+    - if: $TAG_VERSION_C
+  script:
+    - "phab -f./tobey/.fabfile.yaml -cci script build:tobey --arguments tag=$TAG_VERSION_C --no-interaction"
+    - "phab -f./tobey/.fabfile.yaml -cci script push:tobey  --arguments tag=$TAG_VERSION_C --no-interaction"
+  tags:
+    - fabalicious
+
+.build:metatag-reporter:
+  rules:
+    - if: $TAG_VERSION_C
+  script:
+    - "phab -f./metatag-reporter/.fabfile.yaml -cci script build:metatag-reporter --arguments tag=$TAG_VERSION_C --no-interaction"
+    - "phab -f./metatag-reporter/.fabfile.yaml -cci script push:metatag-reporter  --arguments tag=$TAG_VERSION_C --no-interaction"
+  tags:
+    - fabalicious

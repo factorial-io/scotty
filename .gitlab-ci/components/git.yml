@@ -1,0 +1,7 @@
+.tag:release:
+  script:
+    - git remote add origin-two $CI_REPOSITORY_URL || true
+    - git tag $OWN_TAG_INFO
+    - git push origin-two $OWN_TAG_INFO -o ci.skip
+  tags:
+    - fabalicious

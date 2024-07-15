@@ -1,0 +1,39 @@
+.test:yafbds:
+  tags:
+    - fabalicious
+  script:
+    - "phab -cci script test:yafbds --no-interaction"
+  rules:
+    - if: $TAG_VERSION_C
+  allow_failure: true
+  retry:
+    max: 2
+    when:
+      - stuck_or_timeout_failure
+
+.test:tobey:
+  tags:
+    - fabalicious
+  script:
+    - "phab -f./tobey/.fabfile.yaml -cci script test:tobey "
+  rules:
+    - if: $TAG_VERSION_C
+  allow_failure: true
+  retry:
+    max: 2
+    when:
+      - stuck_or_timeout_failure
+
+.test:metatag-reporter:
+  tags:
+    - fabalicious
+  script:
+    - echo "TODO add this"
+  #  - "phab -f./metatag-reporter/.fabfile.yaml -cci script test:metatag-reporter "
+  rules:
+    - if: $TAG_VERSION_C
+  allow_failure: true
+  retry:
+    max: 2
+    when:
+      - stuck_or_timeout_failure

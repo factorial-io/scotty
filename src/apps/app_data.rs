@@ -55,7 +55,9 @@ impl Default for ContainerState {
 
 impl ContainerState {
     pub fn get_url(&self) -> Option<String> {
-        self.domain.as_ref().map(|domain| format!("http://{}", domain))
+        self.domain
+            .as_ref()
+            .map(|domain| format!("http://{}", domain))
     }
 }
 

@@ -1,0 +1,93 @@
+name: "yafbds"
+requires: 3.8.24
+
+gitlab:
+  projectName: administration/yafbds
+  registry: registry.factorial.io
+  imageBaseTag: registry.factorial.io/administration/yafbds
+
+onePassword:
+  factorial:
+    endpoint: https://vault.factorial.io
+
+secrets:
+  ci-build-token:
+    question: Please provide the docker registry password for user `bot@factorial.io`
+    onePasswordId: tnl2nyal7g4sk2h6ukwobrwgsu
+    onePasswordVaultId: bkiebi7i6gkh4cjonj4uys24xe
+    tokenId: factorial
+
+repository: ssh://git@source.factorial.io/administration/yafbds
+
+needs:
+  - local
+
+inheritanceBaseUrl: "https://config.factorial.io"
+
+hosts:
+  ci:
+    scripts:
+      lint:docker:
+        context: docker-image
+        image: hadolint/hadolint:latest-debian
+        script:
+          - hadolint ./Dockerfile
+
+      "build:service":
+        defaults:
+          buildArg: "FOO=BAR"
+          dockerFile: Dockerfile
+          buildcontext: .
+          user: gitlab-ci-token
+        script:
+          - docker login -u %arguments.user% -p %secret.ci-build-token% %settings.gitlab.registry%
+          - >-
+            docker build
+            -f %arguments.dockerFile%
+            --build-arg %arguments.buildArg%
+            -t %settings.gitlab.imageBaseTag%/%arguments.service%:%arguments.tag%
+            %arguments.buildcontext%
+
+      "docker:login":
+        defaults:
+          user: gitlab-ci-token
+        script:
+          - docker login -u %arguments.user% -p %secret.ci-build-token% %settings.gitlab.registry%
+
+      "push:service":
+        defaults:
+          user: gitlab-ci-token
+        script:
+          - log_message(info, "Pushing new image for service %arguments.service%:%arguments.tag% to %settings.gitlab.registry%")
+          - execute(script, docker:login)
+          - docker push %settings.gitlab.imageBaseTag%/%arguments.service%:%arguments.tag%
+          - log_message(success, "Pushed new image for service %arguments.service%:%arguments.tag% to %settings.gitlab.registry%")
+
+      lint:yafbds:
+        context: docker-image
+        image: rust:latest
+        script:
+          - rustup component add rustfmt
+          - rustup component add clippy
+          - cargo clippy -- -D warnings
+          - cargo fmt -- --check
+
+      test:yafbds:
+        context: docker-image
+        image: rust:latest
+        script:
+          - export DATABASE_URL="sqlite::memory:"
+          - export PROGRESS_DATABASE_TEST="sqlite::memory:"
+          - cargo test
+        finally:
+          - rm -rf target
+
+      build:yafbds:
+        defaults:
+          user: gitlab-ci-token
+        script:
+          - docker login -u %arguments.user% -p %secret.ci-build-token% %settings.gitlab.registry%
+          - execute(script, build:service, --arguments service=yafbds)
+      push:yafbds:
+        script:
+          - execute(script, push:service, --arguments service=yafbds)

@@ -1,0 +1,5 @@
+.init-template:
+  script:
+    - echo "init"
+  tags:
+    - fabalicious
