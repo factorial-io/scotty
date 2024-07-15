@@ -44,10 +44,9 @@ impl IntoResponse for AppError {
                 format!("Internal server error: {}", &msg),
             ),
             AppError::InvalidInput => (StatusCode::BAD_REQUEST, "Invalid input".into()),
-            AppError::AppNotFound(app_id) => (
-                StatusCode::NOT_FOUND,
-                format!("App not found: {}", app_id),
-            ),
+            AppError::AppNotFound(app_id) => {
+                (StatusCode::NOT_FOUND, format!("App not found: {}", app_id))
+            }
         };
         let body = serde_json::json!({ "error": true, "message": body });
         (status, Json(body)).into_response()

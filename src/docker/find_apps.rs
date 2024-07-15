@@ -111,8 +111,7 @@ pub async fn inspect_app(
 
     let services = extract_services_from_docker_compose(&docker_compose_path).await?;
     let services = get_running_services(app_state, &docker_compose_path, &name, services).await?;
-    let settings = get_app_settings(&docker_compose_path)
-        .await.ok();
+    let settings = get_app_settings(&docker_compose_path).await.ok();
 
     let app_data = AppData::new(
         &name,
@@ -132,8 +131,6 @@ async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<AppSe
         "Trying to read app-settings from {}",
         &settings_path.display()
     );
-
-    
 
     if settings_path.exists() {
         let file = File::open(settings_path)?;
