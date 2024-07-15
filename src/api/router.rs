@@ -42,7 +42,9 @@ pub struct ApiRoutes;
 
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
-        let router = Router::new()
+        
+
+        Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
@@ -52,8 +54,6 @@ impl ApiRoutes {
             .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
             .route("/api/v1/apps/rm/:app_id", get(rm_app_handler))
             .route("/ws", get(ws_handler))
-            .with_state(state);
-
-        router
+            .with_state(state)
     }
 }
