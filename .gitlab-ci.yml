@@ -1,0 +1,16 @@
+before_script:
+  - "cd ${CI_PROJECT_DIR}"
+  - "eval `ssh-agent`"
+  - "echo $SSH_AGENT_PID > SSH_AGENT_PID_FILE"
+  - "ssh-add ~/.ssh/bot.id_rsa"
+
+stages:
+  - init
+
+variables:
+  DEV_PHAB_CONFIG_NAME: stage
+  STAGE_PHAB_CONFIG_NAME: stage
+
+include:
+    - remote: "https://config.factorial.io/gitlab-ci/defaults.yml"
+    - local: ".gitlab-ci/init.yml"
