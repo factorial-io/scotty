@@ -42,8 +42,6 @@ pub struct ApiRoutes;
 
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
-        
-
         Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
