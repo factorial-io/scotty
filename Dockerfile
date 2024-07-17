@@ -51,12 +51,8 @@ COPY --from=builder /app/target/release/yafbds ${APP}/yafbds
 COPY --from=builder /app/target/release/yafbdsctl ${APP}/yafbdsctl
 COPY --from=builder /app/config ${APP}/config
 COPY --from=frontend-builder /app/public ${APP}/frontend/
-RUN chown -R $APP_USER:$APP_USER ${APP}
-
-# we need to set the permissions for the docker docket
-RUN touch /var/run/docker.sock && chown $APP_USER:$APP_USER /var/run/docker.sock
-
-USER $APP_USER
+# RUN chown -R $APP_USER:$APP_USER ${APP}
+# USER $APP_USER
 WORKDIR ${APP}
 
 HEALTHCHECK --interval=30s --timeout=3s \
