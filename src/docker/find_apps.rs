@@ -9,7 +9,7 @@ use std::io::BufReader;
 use std::path::Path;
 use tokio::{sync::Semaphore, task};
 use tokio_stream::StreamExt;
-use tracing::{debug, info, instrument, Instrument};
+use tracing::{debug, error, info, instrument, Instrument};
 use walkdir::WalkDir;
 
 use crate::{
@@ -32,8 +32,8 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
     tracing::info!("Found {} potential app directories", paths.len());
     tracing::info!("{:?}", paths);
 
-    // Semaphore to limit concurrency to 4 workers
-    let semaphore = Arc::new(Semaphore::new(4));
+    // Semaphore to limit concurrency to 8 workers
+    let semaphore = Arc::new(Semaphore::new(8));
 
     // Vector to hold the join handles of the spawned tasks
     let mut handles = vec![];
@@ -212,14 +212,30 @@ async fn inspect_docker_compose(
 ) -> anyhow::Result<Vec<ContainerState>> {
     let output = run_docker_compose(file, vec!["ps", "-q", "-a"])?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
-
+    info!(
+        "Found containers for {}: {}",
+        &file.display(),
+        containers.join(", ")
+    );
     let mut stream = tokio_stream::iter(containers);
 
     let mut container_states = vec![];
     while let Some(item) = stream.next().await {
-        if let Ok(container_state) = inspect_docker_container(state, &item).await {
-            container_states.push(container_state);
+        async {
+            match inspect_docker_container(state, &item).await {
+                Ok(container_state) => container_states.push(container_state),
+                Err(e) => {
+                    error!(
+                        "Failed to inspect container {} for file {}: {}",
+                        &item,
+                        &file.display(),
+                        e
+                    );
+                }
+            }
         }
+        .instrument(tracing::info_span!("inspect_docker_container loop"))
+        .await;
     }
     Ok(container_states)
 }
