@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToResponse, ToSchema};
 
@@ -9,12 +10,37 @@ pub struct ServicePortMapping {
     pub port: u32,
 }
 
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone, ToSchema, ToResponse)]
+pub enum AppTtl {
+    Hours(u32),
+    Days(u32),
+    Forever,
+}
+impl From<AppTtl> for u32 {
+    fn from(val: AppTtl) -> Self {
+        match val {
+            AppTtl::Hours(h) => h * 3600,
+            AppTtl::Days(d) => d * 86400,
+            AppTtl::Forever => u32::MAX,
+        }
+    }
+}
+
+impl From<u64> for AppTtl {
+    fn from(val: u64) -> Self {
+        match val {
+            x if x == u64::MAX => AppTtl::Forever,
+            x if x % 86400 == 0 => AppTtl::Days((x / 86400) as u32),
+            x => AppTtl::Hours((x / 3600) as u32),
+        }
+    }
+}
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
     pub needs_setup: bool,
     pub public_services: Vec<ServicePortMapping>,
     pub domain: String,
-    pub time_to_live: u32,
+    pub time_to_live: AppTtl,
 }
 
 impl Default for AppSettings {
@@ -23,7 +49,7 @@ impl Default for AppSettings {
             needs_setup: false,
             public_services: Vec::new(),
             domain: "".to_string(),
-            time_to_live: 24 * 60 * 60,
+            time_to_live: AppTtl::Days(1),
         }
     }
 }
@@ -58,6 +84,16 @@ impl ContainerState {
         self.domain
             .as_ref()
             .map(|domain| format!("http://{}", domain))
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.status == ContainerStatus::RUNNING
+            || self.status == ContainerStatus::CREATED
+            || self.status == ContainerStatus::RESTARTING
+    }
+
+    pub fn running_since(&self) -> Option<TimeDelta> {
+        self.started_at.map(|started_at| chrono::Local::now() - started_at)
     }
 }
 
@@ -108,6 +144,23 @@ impl AppData {
 
     pub fn urls(&self) -> Vec<String> {
         self.services.iter().filter_map(|s| s.get_url()).collect()
+    }
+
+    pub fn get_ttl(&self) -> AppTtl {
+        self.settings
+            .as_ref()
+            .map(|s| s.time_to_live.clone())
+            .unwrap_or(AppTtl::Hours(24))
+    }
+    pub fn running_since(&self) -> Option<TimeDelta> {
+        let mut since: Option<TimeDelta> = None;
+        for service in &self.services {
+            if let Some(delta) = service.running_since() {
+                since = Some(delta);
+            }
+        }
+
+        since
     }
 }
 

@@ -7,6 +7,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
+use crate::api::handlers::apps::run::__path_info_app_handler;
 use crate::api::handlers::apps::run::__path_rm_app_handler;
 use crate::api::handlers::apps::run::__path_run_app_handler;
 use crate::api::handlers::apps::run::__path_stop_app_handler;
@@ -17,6 +18,7 @@ use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::shared_app_list::AppDataVec;
 
+use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::rm_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
@@ -29,6 +31,7 @@ use super::handlers::apps::run::stop_app_handler;
         run_app_handler,
         stop_app_handler,
         rm_app_handler,
+        info_app_handler,
     ),
     components(
         schemas( AppData, AppDataVec)
@@ -51,6 +54,7 @@ impl ApiRoutes {
             .route("/api/v1/apps/run/:app_id", get(run_app_handler))
             .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
             .route("/api/v1/apps/rm/:app_id", get(rm_app_handler))
+            .route("/api/v1/apps/info/:app_id", get(info_app_handler))
             .route("/ws", get(ws_handler))
             .with_state(state)
     }

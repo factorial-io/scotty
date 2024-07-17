@@ -63,7 +63,14 @@ owo-colors = "4.0.0"
 
 [workspace.metadata.release]
 sign-tag = true
-pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
+pre-release-hook = [
+    "git",
+    "cliff",
+    "-o",
+    "CHANGELOG.md",
+    "--tag",
+    "{{version}}",
+]
 pre-release-replacements = [
-  {file="README.md", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} ,
+    { file = "README.md", search = "Current release: [a-z0-9\\.-]+", replace = "Current release: {{version}}" },
 ]

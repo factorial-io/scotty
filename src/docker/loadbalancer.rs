@@ -11,6 +11,21 @@ pub enum LoadBalancerType {
 pub struct LoadBalancerInfo {
     pub domain: Option<String>,
     pub port: Option<u32>,
+    pub tls_enabled: bool,
+    pub http_auth_user: Option<String>,
+    pub http_auth_pass: Option<String>,
+}
+
+impl Default for LoadBalancerInfo {
+    fn default() -> Self {
+        LoadBalancerInfo {
+            domain: None,
+            port: Some(80),
+            tls_enabled: false,
+            http_auth_user: None,
+            http_auth_pass: None,
+        }
+    }
 }
 
 pub trait GetLoadBalancerInfo {
@@ -20,12 +35,46 @@ pub trait GetLoadBalancerInfo {
 pub struct HaproxyLoadBalancer;
 
 impl GetLoadBalancerInfo for HaproxyLoadBalancer {
-    fn get_load_balancer_info(&self, _insights: ContainerInspectResponse) -> LoadBalancerInfo {
-        // Implement logic to extract LoadBalancerInfo from ContainerState for Haproxy
-        LoadBalancerInfo {
-            domain: Some("haproxy.example.com".to_string()),
-            port: Some(80),
+    fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo {
+        let mut result = LoadBalancerInfo {
+            ..Default::default()
+        };
+        if let Some(env_vars) = insights.config.unwrap().env {
+            // Define the regular expression to match key-value pairs
+            let re = Regex::new(r"^\s*([\w.-]+)\s*=\s*(.*)\s*$").unwrap();
+
+            for var in env_vars {
+                if let Some(caps) = re.captures(&var) {
+                    let key = caps.get(1).map_or("", |m| m.as_str());
+                    let value = caps.get(2).map_or("", |m| m.as_str());
+
+                    match key.to_ascii_uppercase().as_str() {
+                        "VHOST" | "VIRTUAL_HOST" => {
+                            result.domain = Some(value.to_string());
+                        }
+                        "VPORT" | "VIRTUAL_PORT" => {
+                            if let Ok(port) = value.parse::<u32>() {
+                                result.port = Some(port);
+                            }
+                        }
+                        "HTTPS_ONLY" => {
+                            if value.to_lowercase() == "true" || value == "1" {
+                                result.tls_enabled = true;
+                            }
+                        }
+                        "HTTTP_AUTH_USER" => {
+                            result.http_auth_user = Some(value.to_string());
+                        }
+                        "HTTP_AUTH_PASS" => {
+                            result.http_auth_pass = Some(value.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
+
+        result
     }
 }
 
@@ -37,8 +86,7 @@ impl GetLoadBalancerInfo for TraefikLoadBalancer {
         let re_port =
             Regex::new(r"traefik\.http\.services\.[a-z]*\.loadbalancer.server.port=(.*)").unwrap();
         let mut result = LoadBalancerInfo {
-            domain: None,
-            port: Some(80),
+            ..Default::default()
         };
         if let Some(labels) = insights.config.unwrap().labels {
             // Filter for Traefik labels and find the host

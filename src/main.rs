@@ -6,6 +6,7 @@ mod http;
 mod init_telemetry;
 mod settings;
 mod stop_flag;
+mod utils;
 
 use docker::setup::setup_docker_integration;
 use http::setup_http_server;

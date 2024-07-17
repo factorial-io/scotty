@@ -62,6 +62,14 @@ impl SharedAppList {
         Ok(())
     }
 
+    pub async fn update_app(&self, app: AppData) -> anyhow::Result<AppData> {
+        self.apps
+            .write()
+            .await
+            .insert(app.name.clone(), app.clone());
+        Ok(app)
+    }
+
     pub async fn len(&self) -> usize {
         let t = self.apps.read().await;
         t.len()

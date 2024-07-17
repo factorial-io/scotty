@@ -53,6 +53,7 @@ pub struct ApiServer {
 #[readonly::make]
 pub struct Scheduler {
     pub running_app_check: SchedulerInterval,
+    pub ttl_check: SchedulerInterval,
 }
 
 #[derive(Debug, Deserialize, Clone)]

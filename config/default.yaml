@@ -2,10 +2,13 @@ debug: false
 api:
   bind_address: "127.0.0.1:21342"
 scheduler:
-  running_app_check: "10s"
+  running_app_check: "10m"
+  ttl_check: "10s"
 telemetry: traces
 apps:
   domain_suffix: "ddev.site"
   root_folder: "./apps" # Path to the folder where the apps are stored
 docker: local # local, socket or http, see bollard docs
-load_balancer_type: Traefik # HaproxyConfig or Traefik
+load_balancer_type: HaproxyConfig #HaproxyConfig or Traefik
+traefik:
+  network: "traefik"
