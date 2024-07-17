@@ -200,7 +200,7 @@ async fn traverse_directory(state: &SharedAppState, result: &mut PathBufVec) -> 
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip(state))]
 async fn inspect_docker_compose(
     state: &SharedAppState,
     file: &PathBuf,
