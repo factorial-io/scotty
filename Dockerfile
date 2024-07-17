@@ -58,6 +58,8 @@ WORKDIR ${APP}
 
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD curl -f http://localhost:21342/api/health || exit 1
+# we need to set the permissions for the docker docket
+RUN chown $APP_USER:$APP_USER /var/run/docker.sock
 
 ENV RUST_LOG=api
 CMD ["./yafbds"]
