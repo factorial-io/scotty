@@ -40,8 +40,8 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
         let handle = task::spawn(
             async move {
                 let app_state = app_state.clone();
-                let result = inspect_app(&app_state, path).await;
-                result
+
+                inspect_app(&app_state, path).await
             }
             .instrument(tracing::info_span!("inspect_app task")),
         );
