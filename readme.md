@@ -10,7 +10,7 @@ The repo contains two applications:
 
 * `yafbds` a rust based http-server providing an API to talk with the
   service and to start, stop and run docker-composed based applications
-  The service provides a ui at e.g. `http://localhost:21342/`
+  The service provides a ui at e.g. `http://localhost:21342/`. the api is documented at `http://localhost:21342/rapidoc`
 * `yafbdsctl` a cli application to talk with the service and execute
   commands from your shell
 
