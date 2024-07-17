@@ -3,12 +3,9 @@ RUN apt-get update -y && \
     apt-get install --no-install-recommends -y pkg-config make g++ libssl-dev curl jq && \
     rustup target add x86_64-unknown-linux-gnu && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
-# Set the Docker Compose version to install
-ENV DOCKER_COMPOSE_VERSION=2.21.0
 
-# Download and install Docker Compose
-RUN curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
-    chmod +x /usr/local/bin/docker-compose
+
+# Install cargo-chef
 RUN cargo install cargo-chef
 WORKDIR /app
 
@@ -34,6 +31,12 @@ ARG APP=/app
 RUN apt-get update \
     && apt-get --no-install-recommends install -y curl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Set the Docker Compose version to install
+ENV DOCKER_COMPOSE_VERSION=2.29.0
+# Download and install Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
 
 EXPOSE 21342
 
