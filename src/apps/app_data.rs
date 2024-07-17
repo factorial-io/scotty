@@ -93,7 +93,8 @@ impl ContainerState {
     }
 
     pub fn running_since(&self) -> Option<TimeDelta> {
-        self.started_at.map(|started_at| chrono::Local::now() - started_at)
+        self.started_at
+            .map(|started_at| chrono::Local::now() - started_at)
     }
 }
 
