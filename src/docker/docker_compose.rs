@@ -12,6 +12,11 @@ pub fn run_docker_compose(
         .current_dir(docker_compose_path.parent().unwrap())
         .output()?;
 
+    if !output.status.success() {
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        return Err(anyhow::anyhow!(stderr));
+    }
+
     let stdout = String::from_utf8(output.stdout).unwrap();
 
     Ok(stdout)
