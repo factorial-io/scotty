@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf};
 
 use bollard::container::InspectContainerOptions;
 use chrono::{DateTime, Local};
@@ -7,7 +7,7 @@ use serde_yml::Value;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use tokio::{sync::Semaphore, task};
+use tokio::task;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info, instrument, Instrument};
 use walkdir::WalkDir;
@@ -32,20 +32,15 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
     tracing::info!("Found {} potential app directories", paths.len());
     tracing::info!("{:?}", paths);
 
-    // Semaphore to limit concurrency to 8 workers
-    let semaphore = Arc::new(Semaphore::new(8));
-
     // Vector to hold the join handles of the spawned tasks
     let mut handles = vec![];
 
     for path in paths {
-        let permit = semaphore.clone().acquire_owned().await.unwrap();
         let app_state = app_state.clone();
         let handle = task::spawn(
             async move {
                 let app_state = app_state.clone();
                 let result = inspect_app(&app_state, path).await;
-                drop(permit);
                 result
             }
             .instrument(tracing::info_span!("inspect_app task")),
