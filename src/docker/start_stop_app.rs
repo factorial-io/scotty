@@ -10,7 +10,7 @@ pub async fn run_app(app_state: SharedAppState, app: &AppData) -> anyhow::Result
     let docker_compose_path = std::path::PathBuf::from(&app.docker_compose_path);
     run_docker_compose(&docker_compose_path, vec!["up", "-d"])?;
 
-    let app_data = inspect_app(&app_state, docker_compose_path).await?;
+    let app_data = inspect_app(&app_state, &docker_compose_path).await?;
     app_state.apps.update_app(app_data).await
 }
 
@@ -20,7 +20,7 @@ pub async fn stop_app(app_state: SharedAppState, app: &AppData) -> anyhow::Resul
     let docker_compose_path = std::path::PathBuf::from(&app.docker_compose_path);
     run_docker_compose(&docker_compose_path, vec!["stop"])?;
 
-    let app_data = inspect_app(&app_state, docker_compose_path).await?;
+    let app_data = inspect_app(&app_state, &docker_compose_path).await?;
     app_state.apps.update_app(app_data).await
 }
 
@@ -33,6 +33,6 @@ pub async fn rm_app(app_state: SharedAppState, app: &AppData) -> anyhow::Result<
     let docker_compose_path = std::path::PathBuf::from(&app.docker_compose_path);
     run_docker_compose(&docker_compose_path, vec!["rm", "-s", "-f"])?;
 
-    let app_data = inspect_app(&app_state, docker_compose_path).await?;
+    let app_data = inspect_app(&app_state, &docker_compose_path).await?;
     app_state.apps.update_app(app_data).await
 }

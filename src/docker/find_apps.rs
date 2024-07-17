@@ -41,7 +41,13 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
             async move {
                 let app_state = app_state.clone();
 
-                inspect_app(&app_state, path).await
+                match inspect_app(&app_state, &path).await {
+                    Ok(app) => Ok(app),
+                    Err(e) => {
+                        error!("Error inspecting app at {}: {}", &path.display(), e);
+                        Err(e)
+                    }
+                }
             }
             .instrument(tracing::info_span!("inspect_app task")),
         );
@@ -56,13 +62,7 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
         .collect();
 
     // Handle the results
-    let mut apps = vec![];
-    for result in results {
-        match result {
-            Ok(a) => apps.push(a),
-            Err(e) => tracing::error!("Error processing path: {}", e),
-        }
-    }
+    let apps = results.into_iter().filter_map(Result::ok).collect();
 
     Ok(AppDataVec { apps })
 }
@@ -88,7 +88,7 @@ async fn extract_services_from_docker_compose(path: &PathBuf) -> anyhow::Result<
 #[instrument(skip(app_state))]
 pub async fn inspect_app(
     app_state: &SharedAppState,
-    docker_compose_path: PathBuf,
+    docker_compose_path: &PathBuf,
 ) -> anyhow::Result<AppData> {
     let app_path = docker_compose_path.parent().unwrap();
     if app_path == Path::new(&app_state.settings.apps.root_folder) {
@@ -104,9 +104,9 @@ pub async fn inspect_app(
         .collect::<Vec<_>>()
         .join("--");
 
-    let services = extract_services_from_docker_compose(&docker_compose_path).await?;
-    let services = get_running_services(app_state, &docker_compose_path, &name, services).await?;
-    let settings = get_app_settings(&docker_compose_path).await.ok();
+    let services = extract_services_from_docker_compose(docker_compose_path).await?;
+    let services = get_running_services(app_state, docker_compose_path, &name, services).await?;
+    let settings = get_app_settings(docker_compose_path).await.ok();
 
     let app_data = AppData::new(
         &name,
