@@ -53,13 +53,14 @@ COPY --from=builder /app/config ${APP}/config
 COPY --from=frontend-builder /app/public ${APP}/frontend/
 RUN chown -R $APP_USER:$APP_USER ${APP}
 
+# we need to set the permissions for the docker docket
+RUN touch /var/run/docker.sock && chown $APP_USER:$APP_USER /var/run/docker.sock
+
 USER $APP_USER
 WORKDIR ${APP}
 
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD curl -f http://localhost:21342/api/health || exit 1
-# we need to set the permissions for the docker docket
-RUN chown $APP_USER:$APP_USER /var/run/docker.sock
 
 ENV RUST_LOG=api
 CMD ["./yafbds"]
