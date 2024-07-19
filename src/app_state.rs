@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::apps::shared_app_list::SharedAppList;
 use crate::settings::DockerConnectOptions;
+use crate::tasks::manager;
 use crate::{settings::Settings, stop_flag};
 
 type WebSocketClients = HashMap<Uuid, broadcast::Sender<axum::extract::ws::Message>>;
@@ -17,6 +18,7 @@ pub struct AppState {
     pub clients: Arc<Mutex<WebSocketClients>>,
     pub apps: SharedAppList,
     pub docker: Docker,
+    pub task_manager: manager::TaskManager,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -41,6 +43,7 @@ impl AppState {
             clients: Arc::new(Mutex::new(HashMap::new())),
             apps: SharedAppList::new(),
             docker,
+            task_manager: manager::TaskManager::new(),
         }))
     }
 }

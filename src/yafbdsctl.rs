@@ -107,7 +107,7 @@ async fn list_apps(server: &str) -> anyhow::Result<()> {
             &app.name,
             &app.status.to_string(),
             &format_since(&app.running_since()),
-            &urls.join(", "),
+            &urls.join("\n"),
         ]);
     }
 

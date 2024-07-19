@@ -6,6 +6,7 @@ use axum::{
     Json,
 };
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -23,6 +24,9 @@ pub enum AppError {
 
     #[error("App not found")]
     AppNotFound(String),
+
+    #[error("Task not found")]
+    TaskNotFound(Uuid),
 }
 
 impl From<anyhow::Error> for AppError {
@@ -47,6 +51,10 @@ impl IntoResponse for AppError {
             AppError::AppNotFound(app_id) => {
                 (StatusCode::NOT_FOUND, format!("App not found: {}", app_id))
             }
+            AppError::TaskNotFound(task_uuid) => (
+                StatusCode::NOT_FOUND,
+                format!("Task not found: {}", task_uuid),
+            ),
         };
         let body = serde_json::json!({ "error": true, "message": body });
         (status, Json(body)).into_response()

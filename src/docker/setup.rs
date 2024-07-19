@@ -47,6 +47,17 @@ pub async fn setup_docker_integration(
                 }
             });
     }
+    {
+        let app_state = app_state.clone();
+        scheduler
+            .every(app_state.settings.scheduler.task_cleanup.clone().into())
+            .run(move || {
+                let app_state = app_state.clone();
+                async move {
+                    app_state.task_manager.run_cleanup_task().await;
+                }
+            });
+    }
     // Handle the scheduler in a separate task.
     let handle = tokio::spawn({
         let stop_flag = stop_flag.clone();

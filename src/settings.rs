@@ -54,6 +54,7 @@ pub struct ApiServer {
 pub struct Scheduler {
     pub running_app_check: SchedulerInterval,
     pub ttl_check: SchedulerInterval,
+    pub task_cleanup: SchedulerInterval,
 }
 
 #[derive(Debug, Deserialize, Clone)]
