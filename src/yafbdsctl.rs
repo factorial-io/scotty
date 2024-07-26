@@ -176,14 +176,18 @@ async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {
 
 async fn stop_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/stop/{}", app_name)).await?;
-    let app_data: AppData = serde_json::from_value(result)?;
+    let app_data: TaskWithAppData =
+        serde_json::from_value(result).context("Failed to parse app data from API")?;
+    let app_data = wait_for_task(server, &app_data).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
 
 async fn rm_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/rm/{}", app_name)).await?;
-    let app_data: AppData = serde_json::from_value(result)?;
+    let app_data: TaskWithAppData =
+        serde_json::from_value(result).context("Failed to parse app data from API")?;
+    let app_data = wait_for_task(server, &app_data).await?;
     print_app_info(&app_data)?;
     Ok(())
 }

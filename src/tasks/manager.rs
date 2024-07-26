@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
@@ -74,9 +75,10 @@ impl TaskManager {
         Some(details.clone())
     }
 
-    pub async fn start_process(&self, cmd: &str, args: &[&str]) -> Uuid {
+    pub async fn start_process(&self, cwd: &PathBuf, cmd: &str, args: &[&str]) -> Uuid {
         let details = Arc::new(RwLock::new(TaskDetails::default()));
 
+        let cwd = cwd.clone();
         let cmd = cmd.to_string();
         let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
         let id = details.read().await.id;
@@ -91,7 +93,7 @@ impl TaskManager {
             let details = details.clone();
             let handle = tokio::task::spawn(async move {
                 let details = details.clone();
-                let exit_code = spawn_process(&cmd, &args, &details).await;
+                let exit_code = spawn_process(&cwd, &cmd, &args, &details).await;
                 match exit_code {
                     Ok(0) => {
                         let mut details = details.write().await;
@@ -144,12 +146,14 @@ impl TaskManager {
 }
 
 async fn spawn_process(
+    cwd: &PathBuf,
     cmd: &str,
     args: &Vec<String>,
     details: &Arc<RwLock<TaskDetails>>,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
+        .current_dir(cwd)
         .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("Failed to start command");
