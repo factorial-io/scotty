@@ -18,9 +18,10 @@ use crate::{
         app_data::{AppData, AppSettings, ContainerState},
         shared_app_list::AppDataVec,
     },
+    docker::docker_compose::run_docker_compose_now,
 };
 
-use super::{docker_compose::run_docker_compose, loadbalancer::LoadBalancerFactory};
+use super::loadbalancer::LoadBalancerFactory;
 
 type PathBufVec = Vec<PathBuf>;
 
@@ -205,7 +206,7 @@ async fn inspect_docker_compose(
     state: &SharedAppState,
     file: &PathBuf,
 ) -> anyhow::Result<Vec<ContainerState>> {
-    let output = run_docker_compose(file, vec!["ps", "-q", "-a"])?;
+    let output = run_docker_compose_now(file, vec!["ps", "-q", "-a"])?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
     info!(
         "Found containers for {}: {}",

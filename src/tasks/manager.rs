@@ -1,6 +1,10 @@
+#![allow(dead_code)]
+
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncBufReadExt, BufReader};
+
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -12,7 +16,7 @@ pub struct TaskManager {
     processes: Arc<RwLock<HashMap<Uuid, TaskState>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum State {
     Running,
     Finished,
@@ -21,13 +25,13 @@ pub enum State {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToResponse, utoipa::ToSchema)]
 pub struct TaskDetails {
-    id: Uuid,
-    command: String,
-    state: State,
-    output: String,
-    start_time: SystemTime,
-    finish_time: Option<SystemTime>,
-    last_read_position: usize,
+    pub id: Uuid,
+    pub command: String,
+    pub state: State,
+    pub output: String,
+    pub start_time: SystemTime,
+    pub finish_time: Option<SystemTime>,
+    pub last_read_position: usize,
 }
 
 impl Default for TaskDetails {
@@ -87,21 +91,23 @@ impl TaskManager {
             let details = details.clone();
             let handle = tokio::task::spawn(async move {
                 let details = details.clone();
-                let mut command = Command::new(cmd);
-                command.args(args);
-
-                match command.output().await {
-                    Ok(output) => {
+                let exit_code = spawn_process(&cmd, &args, &details).await;
+                match exit_code {
+                    Ok(0) => {
                         let mut details = details.write().await;
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        details.output = stdout.to_string();
                         details.state = State::Finished;
                         details.finish_time = Some(SystemTime::now());
                     }
-                    Err(_) => {
+                    Ok(_) => {
                         let mut details = details.write().await;
                         details.finish_time = Some(SystemTime::now());
                         details.state = State::Failed;
+                    }
+                    Err(e) => {
+                        let mut details = details.write().await;
+                        details.finish_time = Some(SystemTime::now());
+                        details.state = State::Failed;
+                        details.output = e.to_string();
                     }
                 }
             });
@@ -135,4 +141,38 @@ impl TaskManager {
             true
         });
     }
+}
+
+async fn spawn_process(
+    cmd: &str,
+    args: &Vec<String>,
+    details: &Arc<RwLock<TaskDetails>>,
+) -> anyhow::Result<i32> {
+    let mut child = Command::new(cmd)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("Failed to start command");
+
+    // Ensure we can get stdout
+    let stdout = child.stdout.take().expect("Failed to get stdout");
+
+    // Wrap stdout in a BufReader
+    let mut reader = BufReader::new(stdout).lines();
+
+    let mut output = String::new();
+    // Stream the stdout into the variable
+    while let Some(line) = reader.next_line().await? {
+        output.push_str(&line);
+        output.push('\n');
+        {
+            let mut details = details.write().await;
+            details.output = output.to_string();
+        }
+    }
+    // Wait for the command to complete
+    let status = child.wait().await?;
+
+    let exit_code = status.code().unwrap_or_default();
+    Ok(exit_code)
 }

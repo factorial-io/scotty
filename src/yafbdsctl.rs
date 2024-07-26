@@ -1,14 +1,23 @@
 mod apps;
+mod init_telemetry;
+mod tasks;
 mod utils;
 
+use anyhow::Context;
 use apps::{app_data::AppData, shared_app_list::AppDataVec};
 use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
+use init_telemetry::init_telemetry_and_tracing;
 use owo_colors::OwoColorize;
 use tabled::{
     builder::Builder,
     settings::{object::Columns, Style},
 };
+use tasks::{
+    manager::{State, TaskDetails},
+    task_with_app_data::TaskWithAppData,
+};
+use tracing::info;
 use utils::format_chrono_duration;
 
 #[derive(Parser)]
@@ -48,6 +57,7 @@ type InfoCommand = RunCommand;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    init_telemetry_and_tracing(&Some("traces".to_string()))?;
     let cli = Cli::parse();
 
     match &cli.command {
@@ -75,10 +85,14 @@ async fn main() -> anyhow::Result<()> {
 
 async fn get(server: &str, action: &str) -> anyhow::Result<serde_json::Value> {
     let url = format!("{}/api/v1/{}", server, action);
+    info!("Calling yafbds API at {}", &url);
     let response = reqwest::get(&url).await?;
 
     if response.status().is_success() {
-        let json = response.json::<serde_json::Value>().await?;
+        let json = response.json::<serde_json::Value>().await.context(format!(
+            "Failed to parse response from yafbds API at {}",
+            &url
+        ))?;
         Ok(json)
     } else {
         Err(anyhow::anyhow!(
@@ -97,7 +111,7 @@ fn format_since(duration: &Option<TimeDelta>) -> String {
 async fn list_apps(server: &str) -> anyhow::Result<()> {
     let result = get(server, "apps/list").await?;
 
-    let apps: AppDataVec = serde_json::from_value(result)?;
+    let apps: AppDataVec = serde_json::from_value(result).context("Failed to parse apps list")?;
 
     let mut builder = Builder::default();
     builder.push_record(vec!["Name", "Status", "Since", "URLs"]);
@@ -123,9 +137,39 @@ async fn list_apps(server: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn wait_for_task(server: &str, task_with_app: &TaskWithAppData) -> anyhow::Result<AppData> {
+    let mut done = false;
+    let mut last_position = 0;
+    while !done {
+        let result = get(server, &format!("task/{}", &task_with_app.task.id)).await?;
+
+        let task: TaskDetails = serde_json::from_value(result).context("Failed to parse task")?;
+        let partial_output = task.output[last_position..].to_string();
+        last_position = task.output.len();
+        print!("{}", partial_output);
+        done = task.state != State::Running;
+        if !done {
+            // Sleep for half a second
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        } else {
+            let app_data = get(
+                server,
+                &format!("apps/info/{}", &task_with_app.app_data.name),
+            )
+            .await?;
+            let app_data: AppData =
+                serde_json::from_value(app_data).context("Failed to parse app data")?;
+            return Ok(app_data);
+        }
+    }
+    Err(anyhow::Error::msg("Task is still running"))
+}
+
 async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/run/{}", app_name)).await?;
-    let app_data: AppData = serde_json::from_value(result)?;
+    let app_data: TaskWithAppData =
+        serde_json::from_value(result).context("Failed to parse app data from API")?;
+    let app_data = wait_for_task(server, &app_data).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
