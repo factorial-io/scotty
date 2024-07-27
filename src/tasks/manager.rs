@@ -1,84 +1,52 @@
 #![allow(dead_code)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
-use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use utoipa::ToResponse;
 use uuid::Uuid;
+
+use crate::tasks::task_details::{State, TaskDetails, TaskState};
 
 #[derive(Clone, Debug)]
 pub struct TaskManager {
     processes: Arc<RwLock<HashMap<Uuid, TaskState>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum State {
-    Running,
-    Finished,
-    Failed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToResponse, utoipa::ToSchema)]
-pub struct TaskDetails {
-    pub id: Uuid,
-    pub command: String,
-    pub state: State,
-    pub output: String,
-    pub start_time: SystemTime,
-    pub finish_time: Option<SystemTime>,
-    pub last_read_position: usize,
-}
-
-impl Default for TaskDetails {
-    fn default() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            command: "".to_string(),
-            state: State::Running,
-            output: "".to_string(),
-            start_time: SystemTime::now(),
-            finish_time: None,
-            last_read_position: 0,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct TaskState {
-    handle: Option<tokio::task::JoinHandle<()>>,
-    details: Arc<RwLock<TaskDetails>>,
-}
-
 impl TaskManager {
     pub fn new() -> Self {
-        let manager = Self {
+        Self {
             processes: Arc::new(RwLock::new(HashMap::new())),
-        };
-
-        manager
+        }
     }
 
     pub async fn get_task_details(&self, uuid: &Uuid) -> Option<TaskDetails> {
         let processes = self.processes.read().await;
         let task_state = processes.get(uuid);
-        if task_state.is_none() {
-            return None;
-        }
+        task_state?;
         let task_state = task_state.unwrap();
         let details = task_state.details.read().await;
         Some(details.clone())
     }
 
-    pub async fn start_process(&self, cwd: &PathBuf, cmd: &str, args: &[&str]) -> Uuid {
+    pub async fn start_process<F, Fut>(
+        &self,
+        cwd: &Path,
+        cmd: &str,
+        args: &[&str],
+        callback: F,
+    ) -> Uuid
+    where
+        F: Fn() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ()> + std::marker::Send,
+    {
         let details = Arc::new(RwLock::new(TaskDetails::default()));
 
-        let cwd = cwd.clone();
+        let cwd = cwd.to_path_buf();
         let cmd = cmd.to_string();
         let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
         let id = details.read().await.id;
@@ -91,9 +59,14 @@ impl TaskManager {
 
         let handle = {
             let details = details.clone();
-            let handle = tokio::task::spawn(async move {
+
+            tokio::task::spawn(async move {
                 let details = details.clone();
                 let exit_code = spawn_process(&cwd, &cmd, &args, &details).await;
+
+                // Give the system a chance to update its state.
+                callback().await;
+
                 match exit_code {
                     Ok(0) => {
                         let mut details = details.write().await;
@@ -112,8 +85,7 @@ impl TaskManager {
                         details.output = e.to_string();
                     }
                 }
-            });
-            handle
+            })
         };
         {
             let details = details.clone();

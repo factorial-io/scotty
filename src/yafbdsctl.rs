@@ -14,7 +14,7 @@ use tabled::{
     settings::{object::Columns, Style},
 };
 use tasks::{
-    manager::{State, TaskDetails},
+    task_details::{State, TaskDetails},
     task_with_app_data::TaskWithAppData,
 };
 use tracing::info;
@@ -26,6 +26,8 @@ use utils::format_chrono_duration;
 struct Cli {
     #[arg(long, env = "YAFBDS_SERVER", default_value = "http://localhost:21342")]
     server: String,
+    #[arg(long, default_value = "false")]
+    debug: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -57,8 +59,13 @@ type InfoCommand = RunCommand;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_telemetry_and_tracing(&Some("traces".to_string()))?;
     let cli = Cli::parse();
+
+    let tracing_option = match cli.debug {
+        true => Some("traces".to_string()),
+        false => None,
+    };
+    init_telemetry_and_tracing(&tracing_option)?;
 
     match &cli.command {
         Commands::List => {

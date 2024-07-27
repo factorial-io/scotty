@@ -5,7 +5,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::{api::error::AppError, app_state::SharedAppState, tasks::manager::TaskDetails};
+use crate::{api::error::AppError, app_state::SharedAppState, tasks::task_details::TaskDetails};
 
 #[utoipa::path(
     get,
@@ -20,7 +20,7 @@ pub async fn task_detail_handler(
 ) -> impl IntoResponse {
     let task_detail = state.task_manager.get_task_details(&uuid).await;
     if task_detail.is_none() {
-        return Err(AppError::TaskNotFound(uuid.clone()));
+        return Err(AppError::TaskNotFound(uuid));
     }
     let task_detail = task_detail.unwrap();
     Ok(Json(task_detail))

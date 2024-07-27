@@ -1,22 +1,27 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tracing::instrument;
 
-use crate::{app_state::SharedAppState, tasks::manager::TaskDetails};
+use crate::{app_state::SharedAppState, tasks::task_details::TaskDetails};
 
-#[instrument]
-pub async fn run_docker_compose(
+pub async fn run_docker_compose<F, Fut>(
     shared_app: &SharedAppState,
-    docker_compose_path: &PathBuf,
-    command: Vec<&str>,
-) -> anyhow::Result<TaskDetails> {
+    docker_compose_path: &Path,
+    command: &[&str],
+    callback: F,
+) -> anyhow::Result<TaskDetails>
+where
+    F: Fn() -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + std::marker::Send,
+{
     let manager = shared_app.task_manager.clone();
 
     let task_id = manager
-        .start_process(
-            &docker_compose_path.parent().unwrap().to_path_buf(),
+        .start_process::<F, Fut>(
+            docker_compose_path.parent().unwrap(),
             "docker-compose",
-            &command,
+            command,
+            callback,
         )
         .await;
 

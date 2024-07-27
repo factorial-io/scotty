@@ -23,7 +23,7 @@ use crate::apps::app_data::AppTtl;
 use crate::apps::app_data::ContainerState;
 use crate::apps::app_data::ServicePortMapping;
 use crate::apps::shared_app_list::AppDataVec;
-use crate::tasks::manager::TaskDetails;
+use crate::tasks::task_details::TaskDetails;
 
 use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::rm_app_handler;

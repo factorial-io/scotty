@@ -3,6 +3,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
+use tracing::instrument;
 
 use super::app_data::AppData;
 
@@ -42,6 +43,7 @@ impl SharedAppList {
         t.get(app_name).cloned()
     }
 
+    #[instrument]
     pub async fn get_apps(&self) -> AppDataVec {
         let t = self.apps.read().await;
         AppDataVec {
@@ -49,6 +51,7 @@ impl SharedAppList {
         }
     }
 
+    #[instrument]
     pub async fn set_apps(&self, new_apps: &AppDataVec) -> anyhow::Result<()> {
         let mut t = self.apps.write().await;
         t.clear();
@@ -62,6 +65,7 @@ impl SharedAppList {
         Ok(())
     }
 
+    #[instrument]
     pub async fn update_app(&self, app: AppData) -> anyhow::Result<AppData> {
         self.apps
             .write()
