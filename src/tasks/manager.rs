@@ -158,7 +158,6 @@ async fn spawn_process(
     let status = child.wait().await?;
 
     let exit_code = status.code().unwrap_or_default();
-    println!("Exit code: {}", exit_code);
     Ok(exit_code)
 }
 

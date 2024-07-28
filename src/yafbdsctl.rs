@@ -9,6 +9,7 @@ use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
 use owo_colors::OwoColorize;
+use spinners::{Spinner, Spinners};
 use tabled::{
     builder::Builder,
     settings::{object::Columns, Style},
@@ -148,6 +149,7 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
     let mut done = false;
     let mut last_position = 0;
     let mut last_err_position = 0;
+
     while !done {
         let result = get(server, &format!("task/{}", &context.task.id)).await?;
 
@@ -157,28 +159,26 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
         {
             let partial_output = task.stderr[last_err_position..].to_string();
             last_err_position = task.stderr.len();
-            eprint!("{}", partial_output);
+            eprint!("{}", partial_output.blue());
         }
         // Handle stdout
         {
             let partial_output = task.stdout[last_position..].to_string();
             last_position = task.stdout.len();
-            print!("{}", partial_output);
+            print!("{}", partial_output.blue());
         }
 
         // Check if task is done
         done = task.state != State::Running;
         if !done {
             // Sleep for half a second
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        } else {
-            let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
-            let app_data: AppData =
-                serde_json::from_value(app_data).context("Failed to parse app data")?;
-            return Ok(app_data);
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
-    Err(anyhow::Error::msg("Task is still running"))
+    let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
+    let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
+
+    return Ok(app_data);
 }
 
 async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {

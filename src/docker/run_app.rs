@@ -6,7 +6,7 @@ use tracing::{debug, info, instrument};
 use crate::{
     app_state::SharedAppState,
     apps::app_data::AppData,
-    state_machine::state_machine::{StateHandler, StateMachine},
+    state_machine::{StateHandler, StateMachine},
     tasks::{
         running_app_context::RunningAppContext,
         task_details::{State, TaskDetails},
@@ -135,7 +135,7 @@ pub async fn run_app(
         task: Arc::new(RwLock::new(TaskDetails::default())),
     }));
 
-    let _ = sm.spawn(context.clone()).await;
+    let _ = sm.spawn(context.clone());
 
     Ok(context.clone().read().await.as_running_app_context().await)
 }
