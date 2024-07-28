@@ -9,7 +9,6 @@ use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
 use owo_colors::OwoColorize;
-use spinners::{Spinner, Spinners};
 use tabled::{
     builder::Builder,
     settings::{object::Columns, Style},
@@ -178,7 +177,7 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
     let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
 
-    return Ok(app_data);
+    Ok(app_data)
 }
 
 async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {

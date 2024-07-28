@@ -62,7 +62,6 @@ regex = "1.10.5"
 tabled = { version = "0.15.0", features = ["ansi"] }
 owo-colors = "4.0.0"
 async-trait = "0.1.81"
-spinners = "4.1.1"
 
 [workspace.metadata.release]
 sign-tag = true
