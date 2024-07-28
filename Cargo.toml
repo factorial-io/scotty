@@ -61,6 +61,7 @@ serde_yml = "0.0.10"
 regex = "1.10.5"
 tabled = { version = "0.15.0", features = ["ansi"] }
 owo-colors = "4.0.0"
+async-trait = "0.1.81"
 
 [workspace.metadata.release]
 sign-tag = true

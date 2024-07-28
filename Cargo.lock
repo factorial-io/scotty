@@ -3645,6 +3645,7 @@ name = "yafbds"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum 0.7.5",
  "axum-tracing-opentelemetry",
  "bollard",

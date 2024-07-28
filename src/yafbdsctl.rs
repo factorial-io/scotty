@@ -14,8 +14,8 @@ use tabled::{
     settings::{object::Columns, Style},
 };
 use tasks::{
+    running_app_context::RunningAppContext,
     task_details::{State, TaskDetails},
-    task_with_app_data::TaskWithAppData,
 };
 use tracing::info;
 use utils::format_chrono_duration;
@@ -144,26 +144,35 @@ async fn list_apps(server: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn wait_for_task(server: &str, task_with_app: &TaskWithAppData) -> anyhow::Result<AppData> {
+async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Result<AppData> {
     let mut done = false;
     let mut last_position = 0;
+    let mut last_err_position = 0;
     while !done {
-        let result = get(server, &format!("task/{}", &task_with_app.task.id)).await?;
+        let result = get(server, &format!("task/{}", &context.task.id)).await?;
 
         let task: TaskDetails = serde_json::from_value(result).context("Failed to parse task")?;
-        let partial_output = task.output[last_position..].to_string();
-        last_position = task.output.len();
-        print!("{}", partial_output);
+
+        // Handle stderr
+        {
+            let partial_output = task.stderr[last_err_position..].to_string();
+            last_err_position = task.stderr.len();
+            eprint!("{}", partial_output);
+        }
+        // Handle stdout
+        {
+            let partial_output = task.stdout[last_position..].to_string();
+            last_position = task.stdout.len();
+            print!("{}", partial_output);
+        }
+
+        // Check if task is done
         done = task.state != State::Running;
         if !done {
             // Sleep for half a second
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         } else {
-            let app_data = get(
-                server,
-                &format!("apps/info/{}", &task_with_app.app_data.name),
-            )
-            .await?;
+            let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
             let app_data: AppData =
                 serde_json::from_value(app_data).context("Failed to parse app data")?;
             return Ok(app_data);
@@ -174,27 +183,27 @@ async fn wait_for_task(server: &str, task_with_app: &TaskWithAppData) -> anyhow:
 
 async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/run/{}", app_name)).await?;
-    let app_data: TaskWithAppData =
-        serde_json::from_value(result).context("Failed to parse app data from API")?;
-    let app_data = wait_for_task(server, &app_data).await?;
+    let context: RunningAppContext =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+    let app_data = wait_for_task(server, &context).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
 
 async fn stop_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/stop/{}", app_name)).await?;
-    let app_data: TaskWithAppData =
-        serde_json::from_value(result).context("Failed to parse app data from API")?;
-    let app_data = wait_for_task(server, &app_data).await?;
+    let context: RunningAppContext =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+    let app_data = wait_for_task(server, &context).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
 
 async fn rm_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/rm/{}", app_name)).await?;
-    let app_data: TaskWithAppData =
-        serde_json::from_value(result).context("Failed to parse app data from API")?;
-    let app_data = wait_for_task(server, &app_data).await?;
+    let context: RunningAppContext =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+    let app_data = wait_for_task(server, &context).await?;
     print_app_info(&app_data)?;
     Ok(())
 }

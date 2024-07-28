@@ -125,6 +125,19 @@ pub struct AppData {
     pub settings: Option<AppSettings>,
 }
 
+impl Default for AppData {
+    fn default() -> Self {
+        AppData {
+            status: AppState::Stopped,
+            name: "".to_string(),
+            root_directory: "".to_string(),
+            docker_compose_path: "".to_string(),
+            services: Vec::new(),
+            settings: None,
+        }
+    }
+}
+
 impl AppData {
     pub fn new(
         name: &str,

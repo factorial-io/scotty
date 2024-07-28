@@ -9,7 +9,10 @@ use crate::{
     api::error::AppError,
     app_state::SharedAppState,
     apps::app_data::AppData,
-    docker::start_stop_app::{rm_app, run_app, stop_app},
+    docker::{
+        run_app::run_app,
+        start_stop_app::{rm_app, stop_app},
+    },
 };
 
 #[utoipa::path(

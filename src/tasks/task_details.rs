@@ -17,10 +17,11 @@ pub struct TaskDetails {
     pub id: Uuid,
     pub command: String,
     pub state: State,
-    pub output: String,
-    pub start_time: SystemTime,
-    pub finish_time: Option<SystemTime>,
-    pub last_read_position: usize,
+    pub stdout: String,
+    pub stderr: String,
+    pub start_time: chrono::DateTime<chrono::Utc>,
+    pub finish_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_exit_code: Option<i32>,
 }
 
 impl Default for TaskDetails {
@@ -29,16 +30,17 @@ impl Default for TaskDetails {
             id: Uuid::new_v4(),
             command: "".to_string(),
             state: State::Running,
-            output: "".to_string(),
-            start_time: SystemTime::now(),
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            start_time: chrono::DateTime::from(SystemTime::now()),
             finish_time: None,
-            last_read_position: 0,
+            last_exit_code: None,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskState {
-    pub handle: Option<tokio::task::JoinHandle<()>>,
+    pub handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
     pub details: Arc<RwLock<TaskDetails>>,
 }
