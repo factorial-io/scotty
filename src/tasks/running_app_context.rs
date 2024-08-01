@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToResponse;
 
 use crate::apps::app_data::AppData;
 
 use super::task_details::TaskDetails;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema, ToResponse)]
 pub struct RunningAppContext {
     pub task: TaskDetails,
     pub app_data: AppData,
@@ -20,4 +20,3 @@ impl RunningAppContext {
         std::path::PathBuf::from(&self.app_data.docker_compose_path)
     }
 }
-

@@ -36,12 +36,16 @@ struct Cli {
 enum Commands {
     /// List all installed apps
     List,
-    /// Start an installed app
+    /// Rebuild an app
+    Rebuild(RebuildCommand),
+    /// Run an installed app
     Run(RunCommand),
+    /// Start an installed app, alias for run
+    Start(RunCommand),
     /// Stop an installed app
     Stop(StopCommand),
     /// Remove an installed app
-    Rm(RmCommand),
+    Purge(PurgeCommand),
     /// Get info of an installed app
     Info(InfoCommand),
     /// Add a new app
@@ -54,8 +58,9 @@ struct RunCommand {
 }
 
 type StopCommand = RunCommand;
-type RmCommand = RunCommand;
+type PurgeCommand = RunCommand;
 type InfoCommand = RunCommand;
+type RebuildCommand = RunCommand;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -71,14 +76,17 @@ async fn main() -> anyhow::Result<()> {
         Commands::List => {
             list_apps(&cli.server).await?;
         }
-        Commands::Run(cmd) => {
-            run_app(&cli.server, &cmd.app_name).await?;
+        Commands::Rebuild(cmd) => {
+            call_apps_api(&cli.server, "rebuild", &cmd.app_name).await?;
+        }
+        Commands::Start(cmd) | Commands::Run(cmd) => {
+            call_apps_api(&cli.server, "run", &cmd.app_name).await?;
         }
         Commands::Stop(cmd) => {
-            stop_app(&cli.server, &cmd.app_name).await?;
+            call_apps_api(&cli.server, "stop", &cmd.app_name).await?;
         }
-        Commands::Rm(cmd) => {
-            rm_app(&cli.server, &cmd.app_name).await?;
+        Commands::Purge(cmd) => {
+            call_apps_api(&cli.server, "purge", &cmd.app_name).await?;
         }
         Commands::Info(cmd) => {
             info_app(&cli.server, &cmd.app_name).await?;
@@ -180,26 +188,8 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
     Ok(app_data)
 }
 
-async fn run_app(server: &str, app_name: &str) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/run/{}", app_name)).await?;
-    let context: RunningAppContext =
-        serde_json::from_value(result).context("Failed to parse context from API")?;
-    let app_data = wait_for_task(server, &context).await?;
-    print_app_info(&app_data)?;
-    Ok(())
-}
-
-async fn stop_app(server: &str, app_name: &str) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/stop/{}", app_name)).await?;
-    let context: RunningAppContext =
-        serde_json::from_value(result).context("Failed to parse context from API")?;
-    let app_data = wait_for_task(server, &context).await?;
-    print_app_info(&app_data)?;
-    Ok(())
-}
-
-async fn rm_app(server: &str, app_name: &str) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/rm/{}", app_name)).await?;
+async fn call_apps_api(server: &str, verb: &str, app_name: &str) -> anyhow::Result<()> {
+    let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
     let app_data = wait_for_task(server, &context).await?;

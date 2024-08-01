@@ -3,10 +3,9 @@ use tracing::{info, instrument};
 use crate::{
     app_state::SharedAppState,
     apps::app_data::{AppData, AppTtl},
+    docker::stop_app::stop_app,
     utils::format_chrono_duration,
 };
-
-use super::start_stop_app::stop_app;
 
 #[instrument(skip(app_state))]
 pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::Result<()> {
