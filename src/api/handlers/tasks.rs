@@ -11,7 +11,7 @@ use crate::{api::error::AppError, app_state::SharedAppState, tasks::task_details
     get,
     path = "/api/v1/task/{uuid}",
     responses(
-    (status = 200, response = TaskDetails)
+    (status = 200, response = inline(TaskDetails))
     )
 )]
 pub async fn task_detail_handler(

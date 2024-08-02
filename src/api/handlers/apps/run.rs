@@ -19,7 +19,7 @@ use crate::{
     get,
     path = "/api/v1/apps/run/{app_id}",
     responses(
-    (status = 200, response = RunningAppContext)
+    (status = 200, response = inline(RunningAppContext))
     )
 )]
 #[debug_handler]
@@ -40,7 +40,7 @@ pub async fn run_app_handler(
     get,
     path = "/api/v1/apps/stop/{app_id}",
     responses(
-    (status = 200, response = RunningAppContext)
+    (status = 200, response = inline(RunningAppContext))
     )
 )]
 #[debug_handler]
@@ -61,7 +61,7 @@ pub async fn stop_app_handler(
     get,
     path = "/api/v1/apps/purge/{app_id}",
     responses(
-    (status = 200, response = RunningAppContext)
+    (status = 200, response = inline(RunningAppContext))
     )
 )]
 #[debug_handler]
@@ -82,7 +82,7 @@ pub async fn purge_app_handler(
     get,
     path = "/api/v1/apps/info/{app_id}",
     responses(
-    (status = 200, response = AppData)
+    (status = 200, response = inline(AppData))
     )
 )]
 #[debug_handler]
@@ -102,7 +102,7 @@ pub async fn info_app_handler(
     get,
     path = "/api/v1/apps/rebuild/{app_id}",
     responses(
-    (status = 200, response = RunningAppContext)
+    (status = 200, response = inline(RunningAppContext))
     )
 )]
 #[debug_handler]

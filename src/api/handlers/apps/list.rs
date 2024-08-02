@@ -5,7 +5,7 @@ use crate::{api::error::AppError, app_state::SharedAppState, apps::shared_app_li
     get,
     path = "/api/v1/apps/list",
     responses(
-    (status = 200, response = AppDataVec)
+    (status = 200, response = inline(AppDataVec))
     )
 )]
 #[debug_handler]

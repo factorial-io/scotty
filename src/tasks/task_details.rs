@@ -2,17 +2,16 @@ use std::{sync::Arc, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use utoipa::ToResponse;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
 pub enum State {
     Running,
     Finished,
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToResponse, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToResponse, utoipa::ToSchema)]
 pub struct TaskDetails {
     pub id: Uuid,
     pub command: String,
