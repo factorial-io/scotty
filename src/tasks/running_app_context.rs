@@ -5,7 +5,7 @@ use crate::apps::app_data::AppData;
 
 use super::task_details::TaskDetails;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema, ToResponse)]
+#[derive(Debug, Serialize, Deserialize, Default, utoipa::ToSchema, ToResponse)]
 pub struct RunningAppContext {
     pub task: TaskDetails,
     pub app_data: AppData,

@@ -13,6 +13,8 @@ use crate::{
     tasks::running_app_context::RunningAppContext,
 };
 
+use super::helper::run_sm;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum RunAppStates {
     RunDockerCompose,
@@ -20,11 +22,8 @@ enum RunAppStates {
     SetFinished,
     Done,
 }
-#[instrument(skip(app_state))]
-pub async fn run_app(
-    app_state: SharedAppState,
-    app: &AppData,
-) -> anyhow::Result<RunningAppContext> {
+#[instrument()]
+async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppStates, Context>> {
     info!("Running app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(RunAppStates::RunDockerCompose, RunAppStates::Done);
@@ -49,8 +48,14 @@ pub async fn run_app(
         }),
     );
 
-    let context = Context::create(app_state, app);
-    let _ = sm.spawn(context.clone());
+    Ok(sm)
+}
 
-    Ok(context.clone().read().await.as_running_app_context().await)
+#[instrument(skip(app_state))]
+pub async fn run_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    let sm = run_app_prepare(app).await?;
+    run_sm(app_state, app, sm).await
 }

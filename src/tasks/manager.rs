@@ -24,6 +24,16 @@ impl TaskManager {
         }
     }
 
+    pub async fn get_task_list(&self) -> Vec<TaskDetails> {
+        let processes = self.processes.read().await;
+        let mut task_list = Vec::new();
+        for task_state in processes.values() {
+            let details = task_state.details.read().await;
+            task_list.push(details.clone());
+        }
+        task_list
+    }
+
     pub async fn get_task_details(&self, uuid: &Uuid) -> Option<TaskDetails> {
         let processes = self.processes.read().await;
         let task_state = processes.get(uuid);
@@ -65,6 +75,12 @@ impl TaskManager {
             let details = details.clone();
 
             tokio::task::spawn(async move {
+                println!(
+                    "Starting process with uuid {}: {:?} {}",
+                    &id,
+                    cmd,
+                    args.join(" ")
+                );
                 let details = details.clone();
                 let exit_code = spawn_process(&cwd, &cmd, &args, &details).await;
 
@@ -90,17 +106,22 @@ impl TaskManager {
             })
         };
         {
-            let details = details.clone();
-            self.processes.write().await.insert(
-                id,
-                TaskState {
-                    handle: Some(Arc::new(RwLock::new(handle))),
-                    details: details.clone(),
-                },
-            );
+            self.add_task(&id, details.clone(), Some(Arc::new(RwLock::new(handle))))
+                .await;
         }
 
         id
+    }
+
+    pub async fn add_task(
+        &self,
+        id: &Uuid,
+        details: Arc<RwLock<TaskDetails>>,
+        handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
+    ) {
+        let mut processes = self.processes.write().await;
+        let task_state = TaskState { details, handle };
+        processes.insert(*id, task_state);
     }
 
     #[instrument]

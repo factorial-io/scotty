@@ -53,7 +53,9 @@ pub struct AppSettings {
     pub needs_setup: bool,
     pub public_services: Vec<ServicePortMapping>,
     pub domain: String,
+    pub use_tls: bool,
     pub time_to_live: AppTtl,
+    pub basic_auth: Option<(String, String)>,
 }
 
 impl Default for AppSettings {
@@ -63,11 +65,25 @@ impl Default for AppSettings {
             public_services: Vec::new(),
             domain: "".to_string(),
             time_to_live: AppTtl::Days(1),
+            use_tls: false,
+            basic_auth: None,
+        }
+    }
+}
+
+impl AppSettings {
+    pub fn merge_with_global_settings(&self, setting: &Apps, app_name: &str) -> AppSettings {
+        AppSettings {
+            domain: format!("{}.{}", app_name, setting.domain_suffix),
+            use_tls: setting.use_tls,
+            ..self.clone()
         }
     }
 }
 
 pub use bollard::models::ContainerStateStatusEnum as ContainerStatus;
+
+use crate::settings::Apps;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct ContainerState {

@@ -133,6 +133,7 @@ async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<AppSe
         let reader = BufReader::new(file);
         let yaml: Value = serde_yml::from_reader(reader)?;
         let settings: AppSettings = serde_yml::from_value(yaml)?;
+        info!("Read app-settings: {:?}", &settings);
 
         Ok(settings)
     } else {

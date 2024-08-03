@@ -1,8 +1,10 @@
 use axum::{
+    debug_handler,
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{api::error::AppError, app_state::SharedAppState, tasks::task_details::TaskDetails};
@@ -24,4 +26,27 @@ pub async fn task_detail_handler(
     }
     let task_detail = task_detail.unwrap();
     Ok(Json(task_detail))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToResponse, utoipa::ToSchema)]
+pub struct TaskList {
+    pub tasks: Vec<TaskDetails>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/tasks",
+    responses(
+    (status = 200, response = inline(TaskList))
+    )
+)]
+#[debug_handler]
+pub async fn task_list_handler(
+    State(state): State<SharedAppState>,
+) -> Result<Json<TaskList>, AppError> {
+    let task_list = TaskList {
+        tasks: state.task_manager.get_task_list().await,
+    };
+    let json = Json(task_list);
+    Ok(json)
 }

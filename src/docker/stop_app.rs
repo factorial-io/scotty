@@ -13,6 +13,8 @@ use crate::{
     tasks::running_app_context::RunningAppContext,
 };
 
+use super::helper::run_sm;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum StopAppStates {
     RunDockerCompose,
@@ -20,11 +22,10 @@ enum StopAppStates {
     SetFinished,
     Done,
 }
-#[instrument(skip(app_state))]
-pub async fn stop_app(
-    app_state: SharedAppState,
+#[instrument]
+pub async fn stop_app_prepare(
     app: &AppData,
-) -> anyhow::Result<RunningAppContext> {
+) -> anyhow::Result<StateMachine<StopAppStates, Context>> {
     info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(StopAppStates::RunDockerCompose, StopAppStates::Done);
@@ -48,9 +49,15 @@ pub async fn stop_app(
             next_state: StopAppStates::Done,
         }),
     );
-    let context = Context::create(app_state, app);
 
-    let _ = sm.spawn(context.clone());
+    Ok(sm)
+}
 
-    Ok(context.clone().read().await.as_running_app_context().await)
+#[instrument(skip(app_state))]
+pub async fn stop_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    let sm = stop_app_prepare(app).await?;
+    run_sm(app_state, app, sm).await
 }

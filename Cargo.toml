@@ -65,6 +65,7 @@ async-trait = "0.1.81"
 base64 = "0.22.1"
 slug = "0.1.5"
 path-clean = "1.0.1"
+bcrypt = "0.15.1"
 
 [workspace.metadata.release]
 sign-tag = true

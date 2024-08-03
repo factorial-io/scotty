@@ -13,8 +13,10 @@ use crate::{
     tasks::running_app_context::RunningAppContext,
 };
 
+use super::helper::run_sm;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-enum RebuildAppStates {
+pub enum RebuildAppStates {
     RunDockerComposePull,
     RunDockerComposeStop,
     RunDockerComposeRun,
@@ -22,11 +24,11 @@ enum RebuildAppStates {
     SetFinished,
     Done,
 }
-#[instrument(skip(app_state))]
-pub async fn rebuild_app(
-    app_state: SharedAppState,
+
+#[instrument]
+pub async fn rebuild_app_prepare(
     app: &AppData,
-) -> anyhow::Result<RunningAppContext> {
+) -> anyhow::Result<StateMachine<RebuildAppStates, Context>> {
     info!(
         "Rebuilding app {} at {}",
         app.name, &app.docker_compose_path
@@ -70,9 +72,14 @@ pub async fn rebuild_app(
             next_state: RebuildAppStates::Done,
         }),
     );
-    let context = Context::create(app_state, app);
+    Ok(sm)
+}
 
-    let _ = sm.spawn(context.clone());
-
-    Ok(context.clone().read().await.as_running_app_context().await)
+#[instrument(skip(app_state))]
+pub async fn rebuild_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    let sm = rebuild_app_prepare(app).await?;
+    run_sm(app_state, app, sm).await
 }

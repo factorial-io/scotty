@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{debug, error};
+use tracing::{error, info};
 
 #[async_trait::async_trait]
 pub trait StateHandler<S, C>
@@ -47,12 +47,12 @@ where
     pub async fn run(&mut self, context: Arc<RwLock<C>>) -> anyhow::Result<()> {
         while self.state != self.end_state {
             if let Some(handler) = self.handlers.get(&self.state) {
-                debug!("Running handler for state {:?}", self.state);
+                info!("Running handler for state {:?}", self.state);
                 let old_state = self.state;
                 match handler.transition(&self.state, context.clone()).await {
                     Ok(new_state) => {
                         self.state = new_state;
-                        debug!("Transitioned from {:?} to {:?}", old_state, self.state);
+                        info!("Transitioned from {:?} to {:?}", old_state, self.state);
                     }
                     Err(e) => {
                         return Err(e);

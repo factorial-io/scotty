@@ -16,7 +16,9 @@ use crate::api::handlers::apps::run::__path_run_app_handler;
 use crate::api::handlers::apps::run::__path_stop_app_handler;
 use crate::api::handlers::health::__path_health_checker_handler;
 use crate::api::handlers::health::health_checker_handler;
+use crate::api::handlers::tasks::TaskList;
 use crate::api::handlers::tasks::__path_task_detail_handler;
+use crate::api::handlers::tasks::__path_task_list_handler;
 use crate::api::ws::ws_handler;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
@@ -39,6 +41,7 @@ use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
 use super::handlers::tasks::task_detail_handler;
+use super::handlers::tasks::task_list_handler;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -52,9 +55,10 @@ use super::handlers::tasks::task_detail_handler;
         task_detail_handler,
         rebuild_app_handler,
         create_app_handler,
+        task_list_handler,
     ),
     components(
-        schemas( File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
+        schemas( TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
     ),
     tags(
         (name = "yafbds-service", description = "yafbds api")
@@ -77,6 +81,7 @@ impl ApiRoutes {
             .route("/api/v1/apps/rebuild/:app_id", get(rebuild_app_handler))
             .route("/api/v1/apps/info/:app_id", get(info_app_handler))
             .route("/api/v1/apps/create", post(create_app_handler))
+            .route("/api/v1/tasks", get(task_list_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))
             .route("/ws", get(ws_handler))
             .with_state(state)

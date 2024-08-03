@@ -13,6 +13,8 @@ use crate::{
     tasks::running_app_context::RunningAppContext,
 };
 
+use super::helper::run_sm;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum PurgeAppStates {
     RunDockerCompose,
@@ -20,11 +22,8 @@ enum PurgeAppStates {
     SetFinished,
     Done,
 }
-#[instrument(skip(app_state))]
-pub async fn purge_app(
-    app_state: SharedAppState,
-    app: &AppData,
-) -> anyhow::Result<RunningAppContext> {
+#[instrument]
+async fn purge_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
     info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
@@ -48,9 +47,14 @@ pub async fn purge_app(
             next_state: PurgeAppStates::Done,
         }),
     );
-    let context = Context::create(app_state, app);
+    Ok(sm)
+}
 
-    let _ = sm.spawn(context.clone());
-
-    Ok(context.clone().read().await.as_running_app_context().await)
+#[instrument(skip(app_state))]
+pub async fn purge_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    let sm = purge_app_prepare(app).await?;
+    run_sm(app_state, app, sm).await
 }

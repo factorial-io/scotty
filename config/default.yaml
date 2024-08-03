@@ -5,9 +5,10 @@ scheduler:
   running_app_check: "10m"
   ttl_check: "10m"
   task_cleanup: "1m"
-telemetry: traces
+telemetry: None
 apps:
   domain_suffix: "ddev.site"
+  use_tls: false
   root_folder: "./apps" # Path to the folder where the apps are stored
 docker: local # local, socket or http, see bollard docs
 load_balancer_type: Traefik #HaproxyConfig #HaproxyConfig or Traefik

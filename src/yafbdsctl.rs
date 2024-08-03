@@ -1,11 +1,12 @@
 mod apps;
 mod init_telemetry;
+mod settings;
 mod tasks;
 mod utils;
 
 use anyhow::Context;
 use apps::{
-    app_data::{AppData, AppSettings, ServicePortMapping},
+    app_data::{AppData, AppSettings, AppState, ServicePortMapping},
     create_app_request::CreateAppRequest,
     file_list::{File, FileList},
     shared_app_list::AppDataVec,
@@ -15,10 +16,7 @@ use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
 use owo_colors::OwoColorize;
-use tabled::{
-    builder::Builder,
-    settings::{object::Columns, Style},
-};
+use tabled::{builder::Builder, settings::Style};
 use tasks::{
     running_app_context::RunningAppContext,
     task_details::{State, TaskDetails},
@@ -61,6 +59,7 @@ enum Commands {
 
 #[derive(Debug, Parser)]
 struct RunCommand {
+    /// Name of the app
     app_name: String,
 }
 
@@ -71,11 +70,17 @@ type RebuildCommand = RunCommand;
 
 #[derive(Debug, Parser)]
 struct CreateCommand {
+    /// Name of the app
     app_name: String,
+    /// Path to the folder containing a docker-compose file and other needed files
     #[arg(name="folder", long, value_parser=parse_folder_containing_docker_compose)]
     docker_compose_path: String,
-    #[arg(long)]
-    service: Vec<String>,
+    /// Public service ports to expose, can be specified multiple times (e.g. web:80, api:8080)
+    #[arg(long, value_parser=parse_service_ports, required=true, value_name="SERVICE:PORT")]
+    service: Vec<ServicePortMapping>,
+    /// Basic auth credentials for the app (user:password)
+    #[arg(long, value_parser=parse_basic_auth, value_name="USER:PASSWORD")]
+    basic_auth: Option<(String, String)>,
 }
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -93,6 +98,28 @@ fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
     } else {
         Err("Folder does not contain a docker-compose.yml file".to_string())
     }
+}
+
+fn parse_basic_auth(s: &str) -> Result<(String, String), String> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err("Invalid basic auth format, should be user:password".to_string());
+    }
+    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err("Invalid service port format, should be service:port".to_string());
+    }
+    let port = parts[1]
+        .parse::<u32>()
+        .map_err(|_| "Invalid port number".to_string())?;
+    Ok(ServicePortMapping {
+        service: parts[0].to_string(),
+        port,
+    })
 }
 
 #[tokio::main]
@@ -223,6 +250,15 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
     Ok(app_data)
 }
 
+fn colored_by_status(name: &str, status: &AppState) -> String {
+    match status {
+        AppState::Starting | AppState::Running => name.green().to_string(),
+        AppState::Stopped => name.blue().to_string(),
+        AppState::Creating => name.bright_green().to_string(),
+        AppState::Destroying => name.bright_red().to_string(),
+    }
+}
+
 async fn list_apps(server: &str) -> anyhow::Result<()> {
     let result = get(server, "apps/list").await?;
 
@@ -233,7 +269,7 @@ async fn list_apps(server: &str) -> anyhow::Result<()> {
     for app in apps.apps {
         let urls = app.urls();
         builder.push_record(vec![
-            &app.name,
+            &colored_by_status(&app.name, &app.status),
             &app.status.to_string(),
             &format_since(&app.running_since()),
             &urls.join("\n"),
@@ -242,10 +278,7 @@ async fn list_apps(server: &str) -> anyhow::Result<()> {
 
     let mut table = builder.build();
 
-    table.with(Style::rounded()).modify(
-        Columns::single(0),
-        tabled::settings::Format::content(|s| s.blue().to_string()),
-    );
+    table.with(Style::rounded());
 
     println!("{}", table);
 
@@ -286,27 +319,17 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
             })
             .collect(),
     };
-    let services = cmd
-        .service
-        .iter()
-        .map(|s| {
-            let splits: Vec<&str> = s.split("=").collect();
-            ServicePortMapping {
-                service: splits[0].to_string(),
-                port: splits[1].parse().unwrap(),
-            }
-        })
-        .collect::<Vec<ServicePortMapping>>();
     let payload = CreateAppRequest {
         app_name: cmd.app_name.clone(),
         settings: AppSettings {
             needs_setup: true,
-            public_services: services,
+            public_services: cmd.service.clone(),
+            basic_auth: cmd.basic_auth.clone(),
             ..Default::default()
         },
         files: file_list,
     };
-    println!("Payload: {:?}", payload);
+
     let result = get_or_post(
         server,
         "apps/create",
@@ -317,7 +340,6 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
 
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
-    println!("RunninAppContext: {:?}", context);
 
     let app_data = wait_for_task(server, &context).await?;
     print_app_info(&app_data)?;
@@ -344,10 +366,7 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     }
 
     let mut table = builder.build();
-    table.with(Style::rounded()).modify(
-        Columns::single(0),
-        tabled::settings::Format::content(|s| s.blue().to_string()),
-    );
+    table.with(Style::rounded());
 
     println!("{}", table);
 

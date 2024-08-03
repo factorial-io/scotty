@@ -1,12 +1,10 @@
+use std::collections::HashMap;
+
 use bollard::secret::ContainerInspectResponse;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
-pub enum LoadBalancerType {
-    HaproxyConfig,
-    Traefik,
-}
+use crate::{apps::app_data::AppSettings, settings::LoadBalancerType};
 
 pub struct LoadBalancerInfo {
     pub domain: Option<String>,
@@ -28,13 +26,29 @@ impl Default for LoadBalancerInfo {
     }
 }
 
-pub trait GetLoadBalancerInfo {
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DockerComposeServiceConfig {
+    pub labels: Option<HashMap<String, String>>,
+    pub environment: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DockerComposeConfig {
+    pub services: HashMap<String, DockerComposeServiceConfig>,
+}
+
+pub trait LoadBalancerImpl {
     fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo;
+    fn get_docker_compose_override(
+        &self,
+        app_name: &str,
+        settings: &AppSettings,
+    ) -> anyhow::Result<DockerComposeConfig>;
 }
 
 pub struct HaproxyLoadBalancer;
 
-impl GetLoadBalancerInfo for HaproxyLoadBalancer {
+impl LoadBalancerImpl for HaproxyLoadBalancer {
     fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo {
         let mut result = LoadBalancerInfo {
             ..Default::default()
@@ -76,15 +90,25 @@ impl GetLoadBalancerInfo for HaproxyLoadBalancer {
 
         result
     }
+
+    fn get_docker_compose_override(
+        &self,
+        app_name: &str,
+        _settings: &AppSettings,
+    ) -> anyhow::Result<DockerComposeConfig> {
+        todo!()
+    }
 }
 
 pub struct TraefikLoadBalancer;
 
-impl GetLoadBalancerInfo for TraefikLoadBalancer {
+impl LoadBalancerImpl for TraefikLoadBalancer {
     fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo {
-        let re_host = Regex::new(r"traefik\.http\.routers\.[a-z]*\.rule=Host\(`(.*)`\)").unwrap();
+        let re_host =
+            Regex::new(r"traefik\.http\.routers\.[a-z-0-9]*\.rule=Host\(`(.*)`\)").unwrap();
         let re_port =
-            Regex::new(r"traefik\.http\.services\.[a-z]*\.loadbalancer.server.port=(.*)").unwrap();
+            Regex::new(r"traefik\.http\.services\.[a-z-0-9]*\.loadbalancer.server.port=(.*)")
+                .unwrap();
         let mut result = LoadBalancerInfo {
             ..Default::default()
         };
@@ -109,12 +133,87 @@ impl GetLoadBalancerInfo for TraefikLoadBalancer {
 
         result
     }
+
+    fn get_docker_compose_override(
+        &self,
+        app_name: &str,
+        settings: &AppSettings,
+    ) -> anyhow::Result<DockerComposeConfig> {
+        let mut config = DockerComposeConfig {
+            services: HashMap::new(),
+        };
+
+        for service in &settings.public_services {
+            let mut service_config = DockerComposeServiceConfig {
+                labels: Some(HashMap::new()),
+                environment: Some(HashMap::new()),
+            };
+            let labels = service_config.labels.as_mut().unwrap();
+
+            let service_name = format!("{}--{}", &service.service, &app_name);
+
+            // Add Traefik labels
+            labels.insert("traefik.enable".to_string(), "true".to_string());
+            labels.insert(
+                format!("traefik.http.routers.{}.rule", &service_name),
+                format!("Host(`{}.{}`)", &service.service, &settings.domain),
+            );
+            labels.insert(
+                format!(
+                    "traefik.http.services.{}.loadbalancer.server.port",
+                    &service_name,
+                ),
+                format!("{}", &service.port),
+            );
+            if settings.use_tls {
+                labels.insert(
+                    format!("traefik.http.routers.{}.tls", &service_name),
+                    "true".to_string(),
+                );
+            }
+
+            if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
+                labels.insert(
+                    format!("traefik.http.middlewares.{}.basicauth.users", &service_name),
+                    format!("{}:{}", basic_auth_user, htpasswd(basic_auth_pass, true)?),
+                );
+                labels.insert(
+                    format!(
+                        "traefik.http.middlewares.{}.basicauth.removeheader",
+                        &service_name
+                    ),
+                    "true".to_string(),
+                );
+                // Connect the middleware to the router
+                labels.insert(
+                    format!("traefik.http.routers.{}.middlewares", &service_name),
+                    service_name.clone(),
+                );
+            }
+
+            config
+                .services
+                .insert(service.service.clone(), service_config);
+        }
+
+        Ok(config)
+    }
+}
+
+fn htpasswd(password: &str, escape_dollars: bool) -> anyhow::Result<String> {
+    use bcrypt::{hash, DEFAULT_COST};
+
+    let mut hashed = hash(password, DEFAULT_COST)?;
+    if escape_dollars {
+        hashed = hashed.replace("$", "$$")
+    }
+    Ok(hashed)
 }
 
 pub struct LoadBalancerFactory;
 
 impl LoadBalancerFactory {
-    pub fn create(load_balancer_type: &LoadBalancerType) -> Box<dyn GetLoadBalancerInfo> {
+    pub fn create(load_balancer_type: &LoadBalancerType) -> Box<dyn LoadBalancerImpl> {
         match load_balancer_type {
             LoadBalancerType::HaproxyConfig => Box::new(HaproxyLoadBalancer),
             LoadBalancerType::Traefik => Box::new(TraefikLoadBalancer),

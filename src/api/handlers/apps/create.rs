@@ -42,6 +42,16 @@ pub async fn create_app_handler(
         .collect::<Vec<_>>();
 
     let file_list = FileList { files };
-    let app_data = create_app(state, &payload.app_name, &payload.settings, &file_list).await?;
-    Ok(Json(app_data))
+
+    // Set the domain.
+    let settings = payload.settings.clone();
+    let settings = settings.merge_with_global_settings(&state.settings.apps, &payload.app_name);
+
+    match create_app(state, &payload.app_name, &settings, &file_list).await {
+        Ok(app_data) => Ok(Json(app_data)),
+        Err(e) => {
+            error!("App create failed with: {:?}", e);
+            Err(AppError::from(e))
+        }
+    }
 }

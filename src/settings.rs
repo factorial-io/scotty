@@ -11,7 +11,11 @@ pub enum SchedulerInterval {
 }
 use serde::{de::Error, Deserializer};
 
-use crate::docker::loadbalancer::LoadBalancerType;
+#[derive(Debug, Deserialize, Clone)]
+pub enum LoadBalancerType {
+    HaproxyConfig,
+    Traefik,
+}
 
 impl<'de> Deserialize<'de> for SchedulerInterval {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -64,6 +68,7 @@ pub struct Apps {
     pub root_folder: String,
     pub max_depth: u32,
     pub domain_suffix: String,
+    pub use_tls: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
