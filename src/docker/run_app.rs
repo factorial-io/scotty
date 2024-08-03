@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
 use tracing::{info, instrument};
 
 use crate::{
     app_state::SharedAppState,
     apps::app_data::AppData,
     docker::state_machine_handlers::{
-        Context, RunDockerComposeHandler, SetFinishedHandler, UpdateAppDataHandler,
+        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
-    tasks::{running_app_context::RunningAppContext, task_details::TaskDetails},
+    tasks::running_app_context::RunningAppContext,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -48,12 +48,8 @@ pub async fn run_app(
             next_state: RunAppStates::Done,
         }),
     );
-    let context = Arc::new(RwLock::new(Context {
-        app_state: app_state.clone(),
-        app_data: app.clone(),
-        task: Arc::new(RwLock::new(TaskDetails::default())),
-    }));
 
+    let context = Context::create(app_state, app);
     let _ = sm.spawn(context.clone());
 
     Ok(context.clone().read().await.as_running_app_context().await)

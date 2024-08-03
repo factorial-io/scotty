@@ -1,3 +1,4 @@
+pub mod create_app;
 pub mod docker_compose;
 pub mod find_apps;
 pub mod loadbalancer;

@@ -6,7 +6,8 @@ use crate::{
     app_state::SharedAppState,
     apps::app_data::AppData,
     docker::state_machine_handlers::{
-        Context, RunDockerComposeHandler, SetFinishedHandler, UpdateAppDataHandler,
+        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
@@ -32,10 +33,7 @@ pub async fn purge_app(
         PurgeAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
             next_state: PurgeAppStates::UpdateAppData,
-            command: ["rm", "-s", "-f"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            command: ["rm", "-s", "-f"].iter().map(|s| s.to_string()).collect(),
         }),
     );
     sm.add_handler(

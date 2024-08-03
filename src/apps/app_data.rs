@@ -10,7 +10,7 @@ pub struct ServicePortMapping {
     pub port: u32,
 }
 
-#[derive(Debug, Serialize, PartialEq, Deserialize, Clone, ToSchema, ToResponse)]
+#[derive(Debug, PartialEq, Deserialize, Clone, ToSchema, ToResponse)]
 pub enum AppTtl {
     Hours(u32),
     Days(u32),
@@ -35,6 +35,19 @@ impl From<u64> for AppTtl {
         }
     }
 }
+impl Serialize for AppTtl {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match *self {
+            AppTtl::Hours(h) => serializer.serialize_newtype_variant("AppTtl", 0, "Hours", &h),
+            AppTtl::Days(d) => serializer.serialize_newtype_variant("AppTtl", 1, "Days", &d),
+            AppTtl::Forever => serializer.serialize_unit_variant("AppTtl", 2, "Forever"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
     pub needs_setup: bool,
@@ -103,6 +116,8 @@ pub enum AppState {
     Stopped,
     Starting,
     Running,
+    Creating,
+    Destroying,
 }
 
 impl std::fmt::Display for AppState {
@@ -111,6 +126,8 @@ impl std::fmt::Display for AppState {
             AppState::Stopped => write!(f, "Stopped"),
             AppState::Starting => write!(f, "Starting"),
             AppState::Running => write!(f, "Running"),
+            AppState::Creating => write!(f, "Creating"),
+            AppState::Destroying => write!(f, "Destroying"),
         }
     }
 }

@@ -4,7 +4,13 @@ mod tasks;
 mod utils;
 
 use anyhow::Context;
-use apps::{app_data::AppData, shared_app_list::AppDataVec};
+use apps::{
+    app_data::{AppData, AppSettings, ServicePortMapping},
+    create_app_request::CreateAppRequest,
+    file_list::{File, FileList},
+    shared_app_list::AppDataVec,
+};
+use base64::prelude::*;
 use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
@@ -19,6 +25,7 @@ use tasks::{
 };
 use tracing::info;
 use utils::format_chrono_duration;
+use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(name = "yafbdsctl")]
@@ -49,7 +56,7 @@ enum Commands {
     /// Get info of an installed app
     Info(InfoCommand),
     /// Add a new app
-    Add,
+    Create(CreateCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -61,6 +68,32 @@ type StopCommand = RunCommand;
 type PurgeCommand = RunCommand;
 type InfoCommand = RunCommand;
 type RebuildCommand = RunCommand;
+
+#[derive(Debug, Parser)]
+struct CreateCommand {
+    app_name: String,
+    #[arg(name="folder", long, value_parser=parse_folder_containing_docker_compose)]
+    docker_compose_path: String,
+    #[arg(long)]
+    service: Vec<String>,
+}
+
+fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
+    let path = std::path::Path::new(s);
+    if path.is_dir() && (path.join("docker-compose.yml").exists()) {
+        Ok(path
+            .join("docker-compose.yml")
+            .to_string_lossy()
+            .to_string())
+    } else if path.is_dir() && (path.join("docker-compose.yaml").exists()) {
+        Ok(path
+            .join("docker-compose.yaml")
+            .to_string_lossy()
+            .to_string())
+    } else {
+        Err("Folder does not contain a docker-compose.yml file".to_string())
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -91,17 +124,33 @@ async fn main() -> anyhow::Result<()> {
         Commands::Info(cmd) => {
             info_app(&cli.server, &cmd.app_name).await?;
         }
-        Commands::Add => {
-            unimplemented!();
+        Commands::Create(cmd) => {
+            create_app(&cli.server, cmd).await?;
         }
     }
     Ok(())
 }
 
-async fn get(server: &str, action: &str) -> anyhow::Result<serde_json::Value> {
+async fn get_or_post(
+    server: &str,
+    action: &str,
+    method: &str,
+    body: Option<serde_json::Value>,
+) -> anyhow::Result<serde_json::Value> {
     let url = format!("{}/api/v1/{}", server, action);
     info!("Calling yafbds API at {}", &url);
-    let response = reqwest::get(&url).await?;
+
+    let client = reqwest::Client::new();
+    let response = match method.to_lowercase().as_str() {
+        "post" => {
+            if let Some(body) = body {
+                client.post(&url).json(&body).send().await?
+            } else {
+                client.post(&url).send().await?
+            }
+        }
+        _ => client.get(&url).send().await?,
+    };
 
     if response.status().is_success() {
         let json = response.json::<serde_json::Value>().await.context(format!(
@@ -117,39 +166,25 @@ async fn get(server: &str, action: &str) -> anyhow::Result<serde_json::Value> {
         ))
     }
 }
+
+async fn get(server: &str, method: &str) -> anyhow::Result<serde_json::Value> {
+    get_or_post(server, method, "GET", None).await
+}
+
+async fn call_apps_api(server: &str, verb: &str, app_name: &str) -> anyhow::Result<()> {
+    let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
+    let context: RunningAppContext =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+    let app_data = wait_for_task(server, &context).await?;
+    print_app_info(&app_data)?;
+    Ok(())
+}
+
 fn format_since(duration: &Option<TimeDelta>) -> String {
     match duration {
         Some(d) => format_chrono_duration(d),
         None => "N/A".to_string(),
     }
-}
-async fn list_apps(server: &str) -> anyhow::Result<()> {
-    let result = get(server, "apps/list").await?;
-
-    let apps: AppDataVec = serde_json::from_value(result).context("Failed to parse apps list")?;
-
-    let mut builder = Builder::default();
-    builder.push_record(vec!["Name", "Status", "Since", "URLs"]);
-    for app in apps.apps {
-        let urls = app.urls();
-        builder.push_record(vec![
-            &app.name,
-            &app.status.to_string(),
-            &format_since(&app.running_since()),
-            &urls.join("\n"),
-        ]);
-    }
-
-    let mut table = builder.build();
-
-    table.with(Style::rounded()).modify(
-        Columns::single(0),
-        tabled::settings::Format::content(|s| s.blue().to_string()),
-    );
-
-    println!("{}", table);
-
-    Ok(())
 }
 
 async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Result<AppData> {
@@ -188,15 +223,106 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
     Ok(app_data)
 }
 
-async fn call_apps_api(server: &str, verb: &str, app_name: &str) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
+async fn list_apps(server: &str) -> anyhow::Result<()> {
+    let result = get(server, "apps/list").await?;
+
+    let apps: AppDataVec = serde_json::from_value(result).context("Failed to parse apps list")?;
+
+    let mut builder = Builder::default();
+    builder.push_record(vec!["Name", "Status", "Since", "URLs"]);
+    for app in apps.apps {
+        let urls = app.urls();
+        builder.push_record(vec![
+            &app.name,
+            &app.status.to_string(),
+            &format_since(&app.running_since()),
+            &urls.join("\n"),
+        ]);
+    }
+
+    let mut table = builder.build();
+
+    table.with(Style::rounded()).modify(
+        Columns::single(0),
+        tabled::settings::Format::content(|s| s.blue().to_string()),
+    );
+
+    println!("{}", table);
+
+    Ok(())
+}
+
+fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
+    let folder = std::path::Path::new(docker_compose_path)
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let mut files = vec![];
+    for entry in WalkDir::new(folder) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let path = entry.path().to_str().unwrap().to_string();
+            let content = std::fs::read_to_string(&path)?;
+            let relative_path = path.replace(folder, ".");
+            files.push(File {
+                name: relative_path,
+                content: content.as_bytes().to_vec(),
+            });
+        }
+    }
+    Ok(FileList { files })
+}
+async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
+    let file_list = collect_files(&cmd.docker_compose_path)?;
+    // Encode content base64
+    let file_list = FileList {
+        files: file_list
+            .files
+            .iter()
+            .map(|f| File {
+                name: f.name.clone(),
+                content: BASE64_STANDARD.encode(&f.content).into(),
+            })
+            .collect(),
+    };
+    let services = cmd
+        .service
+        .iter()
+        .map(|s| {
+            let splits: Vec<&str> = s.split("=").collect();
+            ServicePortMapping {
+                service: splits[0].to_string(),
+                port: splits[1].parse().unwrap(),
+            }
+        })
+        .collect::<Vec<ServicePortMapping>>();
+    let payload = CreateAppRequest {
+        app_name: cmd.app_name.clone(),
+        settings: AppSettings {
+            needs_setup: true,
+            public_services: services,
+            ..Default::default()
+        },
+        files: file_list,
+    };
+    println!("Payload: {:?}", payload);
+    let result = get_or_post(
+        server,
+        "apps/create",
+        "POST",
+        Some(serde_json::to_value(payload).unwrap()),
+    )
+    .await?;
+
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
+    println!("RunninAppContext: {:?}", context);
+
     let app_data = wait_for_task(server, &context).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
-
 async fn info_app(server: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/info/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(result)?;

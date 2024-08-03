@@ -27,6 +27,9 @@ pub enum AppError {
 
     #[error("Task not found")]
     TaskNotFound(Uuid),
+
+    #[error("File content could not be decoded!")]
+    FileContentDecodingError,
 }
 
 impl From<anyhow::Error> for AppError {
@@ -54,6 +57,10 @@ impl IntoResponse for AppError {
             AppError::TaskNotFound(task_uuid) => (
                 StatusCode::NOT_FOUND,
                 format!("Task not found: {}", task_uuid),
+            ),
+            AppError::FileContentDecodingError => (
+                StatusCode::BAD_REQUEST,
+                "File content could not be decoded!".into(),
             ),
         };
         let body = serde_json::json!({ "error": true, "message": body });

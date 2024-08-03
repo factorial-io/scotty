@@ -1,10 +1,12 @@
 use axum::routing::get;
+use axum::routing::post;
 use axum::Router;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::api::handlers::apps::create::__path_create_app_handler;
 use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
 use crate::api::handlers::apps::run::__path_info_app_handler;
@@ -23,10 +25,14 @@ use crate::apps::app_data::AppState;
 use crate::apps::app_data::AppTtl;
 use crate::apps::app_data::ContainerState;
 use crate::apps::app_data::ServicePortMapping;
+use crate::apps::create_app_request::CreateAppRequest;
+use crate::apps::file_list::File;
+use crate::apps::file_list::FileList;
 use crate::apps::shared_app_list::AppDataVec;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::tasks::task_details::TaskDetails;
 
+use super::handlers::apps::create::create_app_handler;
 use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::purge_app_handler;
 use super::handlers::apps::run::rebuild_app_handler;
@@ -45,9 +51,10 @@ use super::handlers::tasks::task_detail_handler;
         info_app_handler,
         task_detail_handler,
         rebuild_app_handler,
+        create_app_handler,
     ),
     components(
-        schemas( AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
+        schemas( File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
     ),
     tags(
         (name = "yafbds-service", description = "yafbds api")
@@ -69,6 +76,7 @@ impl ApiRoutes {
             .route("/api/v1/apps/purge/:app_id", get(purge_app_handler))
             .route("/api/v1/apps/rebuild/:app_id", get(rebuild_app_handler))
             .route("/api/v1/apps/info/:app_id", get(info_app_handler))
+            .route("/api/v1/apps/create", post(create_app_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))
             .route("/ws", get(ws_handler))
             .with_state(state)

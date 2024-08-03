@@ -6,7 +6,8 @@ use crate::{
     app_state::SharedAppState,
     apps::app_data::AppData,
     docker::state_machine_handlers::{
-        Context, RunDockerComposeHandler, SetFinishedHandler, UpdateAppDataHandler,
+        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
@@ -40,10 +41,7 @@ pub async fn rebuild_app(
         RebuildAppStates::RunDockerComposePull,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposeStop,
-            command: ["build", "--pull"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            command: ["build", "--pull"].iter().map(|s| s.to_string()).collect(),
         }),
     );
     sm.add_handler(
