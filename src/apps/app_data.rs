@@ -56,6 +56,7 @@ pub struct AppSettings {
     pub use_tls: bool,
     pub time_to_live: AppTtl,
     pub basic_auth: Option<(String, String)>,
+    pub disallow_robots: bool,
 }
 
 impl Default for AppSettings {
@@ -67,6 +68,7 @@ impl Default for AppSettings {
             time_to_live: AppTtl::Days(1),
             use_tls: false,
             basic_auth: None,
+            disallow_robots: true,
         }
     }
 }

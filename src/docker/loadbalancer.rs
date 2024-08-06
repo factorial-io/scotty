@@ -172,25 +172,45 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 );
             }
 
+            let mut middlewares = vec![];
+
             if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
+                let middleware_name = format!("{}--{}", &service_name, "basic-auth");
                 labels.insert(
-                    format!("traefik.http.middlewares.{}.basicauth.users", &service_name),
+                    format!(
+                        "traefik.http.middlewares.{}.basicauth.users",
+                        &middleware_name
+                    ),
                     format!("{}:{}", basic_auth_user, htpasswd(basic_auth_pass, true)?),
                 );
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.basicauth.removeheader",
-                        &service_name
+                        &middleware_name
                     ),
                     "true".to_string(),
                 );
-                // Connect the middleware to the router
-                labels.insert(
-                    format!("traefik.http.routers.{}.middlewares", &service_name),
-                    service_name.clone(),
-                );
+
+                middlewares.push(middleware_name.clone());
             }
 
+            if settings.disallow_robots {
+                let middleware_name = format!("{}--{}", &service_name, "robots");
+                labels.insert(
+                    format!(
+                        "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tags",
+                        &middleware_name
+                    ),
+                    "none, noarchive, nosnippet, notranslate, noimageindex".to_string(),
+                );
+
+                middlewares.push(middleware_name.clone());
+            }
+            // Connect the middleware to the router
+            labels.insert(
+                format!("traefik.http.routers.{}.middlewares", &service_name,),
+                middlewares.join(","),
+            );
             config
                 .services
                 .insert(service.service.clone(), service_config);
