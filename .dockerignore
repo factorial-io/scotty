@@ -1,4 +1,4 @@
 target/
 frontend/node_modules
-config/local.toml
+config/local.yaml
 .env
