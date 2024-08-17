@@ -1,7 +1,6 @@
 .lint:docker-images:
   rules:
     - if: $TAG_VERSION_C
-  allow_failure: true
   script:
     - "phab --config=ci script lint:docker --no-interaction"
   tags:
@@ -10,28 +9,7 @@
 .lint:yafbds:
   script:
     - "phab -cci script lint:yafbds --no-interaction"
-  allow_failure: true
   tags:
     - fabalicious
   rules:
     - if: $TAG_VERSION_C
-
-.lint:tobey:
-  # remove this later
-  allow_failure: true
-  rules:
-    - if: $TAG_VERSION_C
-  script:
-    - "phab -f./tobey/.fabfile.yaml -cci script lint:tobey --no-interaction"
-  tags:
-    - fabalicious
-
-.lint:metatag-reporter:
-  # remove this later
-  allow_failure: true
-  rules:
-    - if: $TAG_VERSION_C
-  script:
-    - "phab -f./metatag-reporter/.fabfile.yaml -cci script lint:metatag-reporter --no-interaction"
-  tags:
-    - fabalicious
