@@ -2,6 +2,7 @@
   before_script: []
   after_script: []
   script:
+    - echo $CI_DEPLOY_USER : "$CI_DEPLOY_PASSWORD"
     - docker login registry.factorial.io -u $CI_DEPLOY_USER -p "$CI_DEPLOY_PASSWORD"
     - cd /opt/containers/yafbds && docker compose pull && docker compose rm -f -s && docker compose up -d
   tags:
