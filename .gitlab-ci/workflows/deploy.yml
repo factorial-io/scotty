@@ -42,26 +42,12 @@ build:yafbds:
 # Deploy Options
 
 ## Dev individual
-deploy-dev:
+deploy-testbed:
   needs: [build:yafbds]
   stage: deploy
-  variables:
-    TAG_VERSION_C: $CI_COMMIT_REF_SLUG
-    PHAB_CONFIG_NAME: $DEV_PHAB_CONFIG_NAME
   rules:
-    - if: '$CI_COMMIT_REF_SLUG == "xxx_dev"'
-  extends: .deploy
-
-## Stage individual
-deploy-stage:
-  needs: [build:yafbds]
-  stage: deploy
-  variables:
-    TAG_VERSION_C: $CI_COMMIT_REF_SLUG
-    PHAB_CONFIG_NAME: $STAGE_PHAB_CONFIG_NAME
-  rules:
-    - if: '$CI_COMMIT_REF_SLUG == "xxx_main"'
-  extends: .deploy
+    - if: '$CI_COMMIT_REF_SLUG == "main"'
+  extends: .deploy-docker-compose
 
 include:
   - remote: "https://config.factorial.io/gitlab-ci/defaults.yml"

@@ -1,12 +1,6 @@
-.deploy:
-  script:
-    - "phab deploy --config $PHAB_CONFIG_NAME --no-interaction --arguments user=gitlab-ci-token --arguments password=$CI_BUILD_TOKEN --set kube.parameters.app_tag=$TAG_VERSION_C"
-  tags:
-    - fabalicious
-
 .deploy-docker-compose:
   script:
-    -  phab docker login pull rm run --config $PHAB_CONFIG_NAME --no-interaction
-    - "phab deploy --config $PHAB_CONFIG_NAME --no-interaction --arguments user=gitlab-ci-token --arguments password=$CI_BUILD_TOKEN --set app_tag=$TAG_VERSION_C"
+    - echo "$CI_DEPLOY_PASSWORD" | docker login $CI_REGISTRY -u $CI_DEPLOY_USER --password-stdin
+    - cd /opt/containers/yafbds && docker compose pull && docker compose rm -f -s && docker compose up -d
   tags:
-    - fabalicious
+    - yafbds-runner
