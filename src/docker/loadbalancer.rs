@@ -93,7 +93,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
 
     fn get_docker_compose_override(
         &self,
-        app_name: &str,
+        _app_name: &str,
         _settings: &AppSettings,
     ) -> anyhow::Result<DockerComposeConfig> {
         todo!()

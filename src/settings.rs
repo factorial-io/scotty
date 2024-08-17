@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 use std::env;
