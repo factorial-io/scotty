@@ -3,4 +3,4 @@
     - echo "$CI_DEPLOY_PASSWORD" | docker login $CI_REGISTRY -u $CI_DEPLOY_USER --password-stdin
     - cd /opt/containers/yafbds && docker compose pull && docker compose rm -f -s && docker compose up -d
   tags:
-    - yafbds-runner
+    - yafbds-testbed
