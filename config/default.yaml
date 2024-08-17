@@ -13,4 +13,8 @@ apps:
 docker: local # local, socket or http, see bollard docs
 load_balancer_type: Traefik #HaproxyConfig #HaproxyConfig or Traefik
 traefik:
-  network: "traefik"
+  network: "proxy"
+  use_tls: true
+  certresolver: "myresolver"
+haproxy:
+  use_tls: true

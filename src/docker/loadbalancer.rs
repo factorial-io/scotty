@@ -4,7 +4,10 @@ use bollard::secret::ContainerInspectResponse;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{apps::app_data::AppSettings, settings::LoadBalancerType};
+use crate::{
+    apps::app_data::AppSettings,
+    settings::{LoadBalancerType, Settings},
+};
 
 pub struct LoadBalancerInfo {
     pub domain: Option<String>,
@@ -28,19 +31,31 @@ impl Default for LoadBalancerInfo {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DockerComposeServiceConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub environment: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub networks: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DockerComposeNetworkConfig {
+    pub external: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DockerComposeConfig {
     pub services: HashMap<String, DockerComposeServiceConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub networks: Option<HashMap<String, DockerComposeNetworkConfig>>,
 }
 
 pub trait LoadBalancerImpl {
     fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo;
     fn get_docker_compose_override(
         &self,
+        global_settings: &Settings,
         app_name: &str,
         settings: &AppSettings,
     ) -> anyhow::Result<DockerComposeConfig>;
@@ -93,10 +108,50 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
 
     fn get_docker_compose_override(
         &self,
+        global_settings: &Settings,
         _app_name: &str,
-        _settings: &AppSettings,
+        settings: &AppSettings,
     ) -> anyhow::Result<DockerComposeConfig> {
-        todo!()
+        let mut config = DockerComposeConfig {
+            services: HashMap::new(),
+            networks: None,
+        };
+
+        for service in &settings.public_services {
+            let mut service_config = DockerComposeServiceConfig {
+                labels: None,
+                environment: Some(HashMap::new()),
+                networks: None,
+            };
+            let environment = service_config.environment.as_mut().unwrap();
+            environment.insert(
+                "VHOST".into(),
+                format!("{}.{}", &service.service, &settings.domain),
+            );
+            environment.insert("VPORT".into(), format!("{}", &service.port));
+
+            if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
+                environment.insert("HTTP_AUTH_USER".into(), basic_auth_user.clone());
+                environment.insert("HTTP_AUTH_PASS".into(), basic_auth_pass.clone());
+            }
+
+            if global_settings.haproxy.use_tls {
+                environment.insert("HTTPS_ONLY".into(), "1".into());
+            }
+
+            // Handle environment variables
+            if !&settings.environment.is_empty() {
+                for (key, value) in &settings.environment {
+                    environment.insert(key.clone(), value.clone());
+                }
+            }
+
+            config
+                .services
+                .insert(service.service.clone(), service_config);
+        }
+
+        Ok(config)
     }
 }
 
@@ -136,19 +191,33 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
 
     fn get_docker_compose_override(
         &self,
+        global_settings: &Settings,
         app_name: &str,
         settings: &AppSettings,
     ) -> anyhow::Result<DockerComposeConfig> {
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
+            networks: Some(HashMap::new()),
         };
+
+        // Setup external network with traefik
+        let networks = config.networks.as_mut().unwrap();
+        networks.insert(
+            global_settings.traefik.network.clone(),
+            DockerComposeNetworkConfig { external: true },
+        );
 
         for service in &settings.public_services {
             let mut service_config = DockerComposeServiceConfig {
                 labels: Some(HashMap::new()),
                 environment: Some(HashMap::new()),
+                networks: Some(vec![
+                    "default".into(),
+                    global_settings.traefik.network.clone(),
+                ]),
             };
             let labels = service_config.labels.as_mut().unwrap();
+            let environment = service_config.environment.as_mut().unwrap();
 
             let service_name = format!("{}--{}", &service.service, &app_name);
 
@@ -165,10 +234,16 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 ),
                 format!("{}", &service.port),
             );
-            if settings.use_tls {
+            if global_settings.traefik.use_tls {
                 labels.insert(
                     format!("traefik.http.routers.{}.tls", &service_name),
                     "true".to_string(),
+                );
+            }
+            if let Some(certresolver) = &global_settings.traefik.certresolver {
+                labels.insert(
+                    format!("traefik.http.routers.{}.tls.certresolver", &service_name),
+                    certresolver.clone(),
                 );
             }
 
@@ -211,11 +286,17 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 format!("traefik.http.routers.{}.middlewares", &service_name,),
                 middlewares.join(","),
             );
+
+            // Handle enviorment variables
+            if !&settings.environment.is_empty() {
+                for (key, value) in &settings.environment {
+                    environment.insert(key.clone(), value.clone());
+                }
+            }
             config
                 .services
                 .insert(service.service.clone(), service_config);
         }
-
         Ok(config)
     }
 }
@@ -238,5 +319,127 @@ impl LoadBalancerFactory {
             LoadBalancerType::HaproxyConfig => Box::new(HaproxyLoadBalancer),
             LoadBalancerType::Traefik => Box::new(TraefikLoadBalancer),
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::apps::app_data::{AppSettings, ServicePortMapping};
+    use crate::settings::{HaproxyConfigSettings, TraefikSettings};
+    use maplit::hashmap;
+
+    #[test]
+    fn test_haproxy_config_get_docker_compose_override() {
+        let global_settings = Settings {
+            haproxy: HaproxyConfigSettings::new(true),
+            ..Default::default()
+        };
+
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+            }],
+            basic_auth: Some(("user".to_string(), "pass".to_string())),
+            disallow_robots: true,
+            environment: hashmap! {
+                "FOO".to_string() => "BAR".to_string(),
+                "API_KEY".to_string() => "1234".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let load_balancer = HaproxyLoadBalancer;
+        let result = load_balancer
+            .get_docker_compose_override(&global_settings, "myapp", &app_settings)
+            .unwrap();
+
+        let service_config = result.services.get("web").unwrap();
+        let environment = service_config.environment.as_ref().unwrap();
+
+        assert_eq!(environment.get("VHOST").unwrap(), "web.example.com");
+        assert_eq!(environment.get("VPORT").unwrap(), "8080");
+        assert_eq!(environment.get("HTTP_AUTH_USER").unwrap(), "user");
+        assert_eq!(environment.get("HTTP_AUTH_PASS").unwrap(), "pass");
+        assert_eq!(environment.get("HTTPS_ONLY").unwrap(), "1");
+        assert_eq!(environment.get("FOO").unwrap(), "BAR");
+        assert_eq!(environment.get("API_KEY").unwrap(), "1234");
+    }
+    #[test]
+    fn test_traefik_get_docker_compose_override() {
+        let global_settings = Settings {
+            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into())),
+            ..Default::default()
+        };
+
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+            }],
+            basic_auth: Some(("user".to_string(), "pass".to_string())),
+            disallow_robots: true,
+            environment: hashmap! {
+                "FOO".to_string() => "BAR".to_string(),
+                "API_KEY".to_string() => "1234".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let load_balancer = TraefikLoadBalancer;
+        let result = load_balancer
+            .get_docker_compose_override(&global_settings, "myapp", &app_settings)
+            .unwrap();
+
+        let service_config = result.services.get("web").unwrap();
+        let labels = service_config.labels.as_ref().unwrap();
+        let environment = service_config.environment.as_ref().unwrap();
+
+        // check networks.
+        let networks = service_config.networks.as_ref().unwrap();
+        assert!(networks.contains(&"default".to_string()));
+        assert!(networks.contains(&"proxy".to_string()));
+
+        // Check labels.
+        assert_eq!(labels.get("traefik.enable").unwrap(), "true");
+        assert_eq!(
+            labels.get("traefik.http.routers.web--myapp.rule").unwrap(),
+            "Host(`web.example.com`)"
+        );
+        assert_eq!(
+            labels
+                .get("traefik.http.services.web--myapp.loadbalancer.server.port")
+                .unwrap(),
+            "8080"
+        );
+        assert_eq!(
+            labels.get("traefik.http.routers.web--myapp.tls").unwrap(),
+            "true"
+        );
+        assert_eq!(
+            labels
+                .get("traefik.http.routers.web--myapp.tls.certresolver")
+                .unwrap(),
+            "myresolver"
+        );
+        assert!(
+            labels.contains_key("traefik.http.middlewares.web--myapp--basic-auth.basicauth.users")
+        );
+        assert!(labels.contains_key(
+            "traefik.http.middlewares.web--myapp--basic-auth.basicauth.removeheader"
+        ));
+        assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tags"));
+        assert_eq!(
+            labels
+                .get("traefik.http.routers.web--myapp.middlewares")
+                .unwrap(),
+            "web--myapp--basic-auth,web--myapp--robots"
+        );
+
+        // check environment.
+        assert_eq!(environment.get("FOO").unwrap(), "BAR");
+        assert_eq!(environment.get("API_KEY").unwrap(), "1234");
     }
 }

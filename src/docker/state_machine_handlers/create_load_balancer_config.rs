@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use crate::{
     apps::app_data::AppSettings,
     docker::loadbalancer::{self, DockerComposeConfig},
-    settings::LoadBalancerType,
+    settings::{LoadBalancerType, Settings},
     state_machine::StateHandler,
 };
 
@@ -23,11 +23,13 @@ where
 
 fn get_docker_compose_override(
     load_balancer_type: &LoadBalancerType,
+    global_settings: &Settings,
     app_name: &str,
     settings: &AppSettings,
 ) -> anyhow::Result<DockerComposeConfig> {
     let lb = loadbalancer::LoadBalancerFactory::create(load_balancer_type);
-    let docker_compose_override = lb.get_docker_compose_override(app_name, settings)?;
+    let docker_compose_override =
+        lb.get_docker_compose_override(global_settings, app_name, settings)?;
     Ok(docker_compose_override)
 }
 
@@ -41,6 +43,7 @@ where
         let root_directory = std::path::PathBuf::from(&context.app_data.root_directory);
         let docker_compose_override = get_docker_compose_override(
             &self.load_balancer_type,
+            &context.app_state.settings,
             &context.app_data.name,
             &self.settings,
         )?;

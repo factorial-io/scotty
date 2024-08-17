@@ -82,7 +82,36 @@ pub enum DockerConnectOptions {
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
-#[readonly::make]
+pub struct TraefikSettings {
+    pub use_tls: bool,
+    pub network: String,
+    pub certresolver: Option<String>,
+}
+
+impl TraefikSettings {
+    pub fn new(use_tls: bool, network: String, certresolver: Option<String>) -> Self {
+        Self {
+            use_tls,
+            network,
+            certresolver,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
+pub struct HaproxyConfigSettings {
+    pub use_tls: bool,
+}
+
+impl HaproxyConfigSettings {
+    pub fn new(use_tls: bool) -> Self {
+        Self { use_tls }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
 pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
@@ -91,6 +120,38 @@ pub struct Settings {
     pub apps: Apps,
     pub docker: DockerConnectOptions,
     pub load_balancer_type: LoadBalancerType,
+    pub traefik: TraefikSettings,
+    pub haproxy: HaproxyConfigSettings,
+}
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            debug: false,
+            telemetry: None,
+            api: ApiServer {
+                bind_address: "0.0.0.0:21342".to_string(),
+            },
+            scheduler: Scheduler {
+                running_app_check: SchedulerInterval::Minutes(1),
+                ttl_check: SchedulerInterval::Hours(1),
+                task_cleanup: SchedulerInterval::Minutes(1),
+            },
+            apps: Apps {
+                root_folder: ".".to_string(),
+                max_depth: 3,
+                domain_suffix: "".to_string(),
+                use_tls: false,
+            },
+            docker: DockerConnectOptions::Local,
+            load_balancer_type: LoadBalancerType::Traefik,
+            traefik: TraefikSettings {
+                use_tls: false,
+                network: "proxy".to_string(),
+                certresolver: None,
+            },
+            haproxy: HaproxyConfigSettings { use_tls: false },
+        }
+    }
 }
 
 impl Settings {
