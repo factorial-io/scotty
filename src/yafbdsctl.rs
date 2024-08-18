@@ -75,16 +75,20 @@ type DestroyCommand = RunCommand;
 struct CreateCommand {
     /// Name of the app
     app_name: String,
+
     /// Path to the folder containing a docker-compose file and other needed files
     #[arg(name="folder", long, value_parser=parse_folder_containing_docker_compose)]
     docker_compose_path: String,
+
     /// Public service ports to expose, can be specified multiple times (e.g. web:80, api:8080)
     #[arg(long, value_parser=parse_service_ports, required=true, value_name="SERVICE:PORT")]
     service: Vec<ServicePortMapping>,
+
     /// Basic auth credentials for the app (user:password)
     #[arg(long, value_parser=parse_basic_auth, value_name="USER:PASSWORD")]
     basic_auth: Option<(String, String)>,
 
+    /// Pass environment variables to the app (e.g. KEY=VALUE), use multiple times for multiple variables
     #[arg(long, value_name = "KEY=VALUE", value_parser(parse_env_vars))]
     env: Vec<(String, String)>,
 }
