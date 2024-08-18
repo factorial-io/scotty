@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::state_machine::StateHandler;
 
@@ -25,7 +25,7 @@ where
         let context = context.read().await;
         let root_directory = std::path::PathBuf::from(&context.app_data.root_directory);
 
-        println!("Creating directory {}", root_directory.display());
+        info!("Creating directory {}", root_directory.display());
         if !root_directory.exists() {
             std::fs::create_dir_all(root_directory)?;
         }

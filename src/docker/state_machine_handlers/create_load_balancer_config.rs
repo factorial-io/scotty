@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::{
     apps::app_data::AppSettings,
@@ -48,7 +49,7 @@ where
             &self.settings,
         )?;
         let path = root_directory.join("docker-compose.override.yml");
-        println!("Saving docker-compose.override.yml to {}", path.display());
+        info!("Saving docker-compose.override.yml to {}", path.display());
         let yaml = serde_yml::to_string(&docker_compose_override)?;
         tokio::fs::write(&path, yaml).await?;
 

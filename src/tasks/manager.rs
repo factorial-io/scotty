@@ -7,7 +7,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 use tokio::process::Command;
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::tasks::task_details::{State, TaskDetails, TaskState};
@@ -75,7 +75,7 @@ impl TaskManager {
             let details = details.clone();
 
             tokio::task::spawn(async move {
-                println!(
+                info!(
                     "Starting process with uuid {}: {:?} {}",
                     &id,
                     cmd,

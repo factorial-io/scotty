@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{apps::file_list::FileList, state_machine::StateHandler};
 
@@ -40,7 +40,7 @@ where
                 tokio::fs::create_dir_all(parent).await?;
             }
 
-            println!("Saving file {} to {}", &file.name, file_path.display());
+            info!("Saving file {} to {}", &file.name, file_path.display());
             tokio::fs::write(&file_path, &file.content).await?;
         }
 

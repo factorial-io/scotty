@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{apps::app_data::AppSettings, state_machine::StateHandler};
 
@@ -27,7 +27,7 @@ where
         let root_directory = std::path::PathBuf::from(&context.app_data.root_directory);
 
         let settings_path = root_directory.join(".yafbds.yml");
-        println!("Saving settings to {}", settings_path.display());
+        info!("Saving settings to {}", settings_path.display());
         let settings_yaml = serde_yml::to_string(&self.settings)?;
         tokio::fs::write(&settings_path, settings_yaml).await?;
 

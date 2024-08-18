@@ -40,8 +40,7 @@ where
     if cfg!(debug_assertions) {
         Box::new(
             tracing_subscriber::fmt::layer()
-                .pretty()
-                .with_line_number(true)
+                .with_line_number(false)
                 .with_thread_names(true)
                 .with_timer(tracing_subscriber::fmt::time::uptime()),
         )
