@@ -16,6 +16,8 @@ The repo contains two applications:
 
 ## Installation
 
+### Docker
+
 Use the provided docker-image for best results. Map the directory with all your docker-composed apps to `/app/apps`.
 
 ```shell
@@ -43,6 +45,17 @@ docker run -it registry.factorial.io/administration/yafbds/yafbds:main \
   list
 ```
 
+### Install native apps
+
+Currently, we do not the apps in the ci, this might happen in a later state. You need the rust tooling on your local.
+
+For now you can build the apps either by checking out the repo and running `cargo build` or 
+if you are only interested in the executables you can also use
+
+```shell
+cargo install --git ssh://git@source.factorial.io/administration/yafbds.git --bin yafbdsctl # for the cli
+cargo install --git ssh://git@source.factorial.io/administration/yafbds.git --bin yafbds # for the server
+```
 
 ## CLI usage
 
