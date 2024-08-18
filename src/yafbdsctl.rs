@@ -55,6 +55,8 @@ enum Commands {
     Info(InfoCommand),
     /// Add a new app
     Create(CreateCommand),
+    /// Destroy an app
+    Destroy(DestroyCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -67,6 +69,7 @@ type StopCommand = RunCommand;
 type PurgeCommand = RunCommand;
 type InfoCommand = RunCommand;
 type RebuildCommand = RunCommand;
+type DestroyCommand = RunCommand;
 
 #[derive(Debug, Parser)]
 struct CreateCommand {
@@ -156,6 +159,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stop(cmd) => {
             call_apps_api(&cli.server, "stop", &cmd.app_name).await?;
         }
+        Commands::Destroy(cmd) => {
+            call_apps_api(&cli.server, "destroy", &cmd.app_name).await?;
+        }
         Commands::Purge(cmd) => {
             call_apps_api(&cli.server, "purge", &cmd.app_name).await?;
         }
@@ -197,10 +203,22 @@ async fn get_or_post(
         ))?;
         Ok(json)
     } else {
+        let status = &response.status();
+        let content = response.json::<serde_json::Value>().await.ok();
+        let error_message = if let Some(content) = content {
+            if let Some(message) = content.get("message") {
+                format!(": {}", message.as_str().unwrap_or("Unknown error"))
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
         Err(anyhow::anyhow!(
-            "Failed to call yafbds API at {} : {}",
+            "Failed to call yafbds API at {} : {}{}",
             &url,
-            response.status()
+            &status,
+            error_message
         ))
     }
 }

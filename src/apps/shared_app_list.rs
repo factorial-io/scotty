@@ -38,6 +38,11 @@ impl SharedAppList {
         Ok(())
     }
 
+    pub async fn remove_app(&self, app_name: &str) -> anyhow::Result<()> {
+        self.apps.write().await.remove(app_name);
+        Ok(())
+    }
+
     pub async fn get_app(&self, app_name: &str) -> Option<AppData> {
         let t = self.apps.read().await;
         t.get(app_name).cloned()

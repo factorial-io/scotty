@@ -16,14 +16,16 @@ use crate::{
 use super::helper::run_sm;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-enum PurgeAppStates {
+pub enum PurgeAppStates {
     RunDockerCompose,
     UpdateAppData,
     SetFinished,
     Done,
 }
 #[instrument]
-async fn purge_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
+pub async fn purge_app_prepare(
+    app: &AppData,
+) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
     info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);

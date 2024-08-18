@@ -8,7 +8,7 @@ use axum::{
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, utoipa::ToResponse)]
 pub enum AppError {
     #[error("Service unavailable")]
     ServiceUnavailable,
@@ -30,6 +30,9 @@ pub enum AppError {
 
     #[error("File content could not be decoded!")]
     FileContentDecodingError,
+
+    #[error("Cant destroy an unmanaged app!")]
+    CantDestroyUnmanagedApp(String),
 }
 
 impl From<anyhow::Error> for AppError {
@@ -61,6 +64,10 @@ impl IntoResponse for AppError {
             AppError::FileContentDecodingError => (
                 StatusCode::BAD_REQUEST,
                 "File content could not be decoded!".into(),
+            ),
+            AppError::CantDestroyUnmanagedApp(app_id) => (
+                StatusCode::BAD_REQUEST,
+                format!("Cant destroy app {} as it is not managed by us!", app_id),
             ),
         };
         let body = serde_json::json!({ "error": true, "message": body });
