@@ -19,13 +19,28 @@ The repo contains two applications:
 Use the provided docker-image for best results. Map the directory with all your docker-composed apps to `/app/apps`.
 
 ```shell
-docker run -v $PWD/apps:/app/apps registry.factorial.io/administration/yafbds/yafbds:main
+docker run \
+  -p 21342:21342 \
+  -v $PWD/apps:/app/apps \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  registry.factorial.io/administration/yafbds/yafbds:main
 ```
+
+You can then visit the docs at http://localhost:21342/rapidocs
 
 To run the cli use
 
 ```shell
 docker run -it registry.factorial.io/administration/yafbds/yafbds:main /app/yafbdsctl
+```
+
+If you are running the server also locally via docker, you need to adapt the --server argument, e.g.
+
+```shell
+docker run -it registry.factorial.io/administration/yafbds/yafbds:main \
+  /app/yafbdsctl \
+  --server http://host.docker.internal:21342 \
+  list
 ```
 
 
@@ -44,5 +59,7 @@ Here's a short list of avaiable commands
 * `yafbdsctl list` will list all apps and their their urls and states
 * `yafbdsctl run <app_name>` will start and run the named app
 * `yafbdsctl stop <app_name>` will stop the named app
-* `yabfbdsctl rm <app_name>` will remove runtime files for the named app
-  (similar to `docker-compose rm`)
+* `yafbdsctl purge <app_name>` will remove runtime files for the named app (similar to `docker-compose rm`)
+* `yafbdsctl create` Create a new app
+* `yafbdsctl destroy` Destroy a managed app
+* `yafbdsctl info` Display some info about the app
