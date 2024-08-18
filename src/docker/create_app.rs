@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
@@ -118,7 +119,7 @@ pub async fn create_app(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
-    println!("Creating app: {}", app_name);
+    info!("Creating app: {}", app_name);
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slug::slugify(app_name);
     let root_directory = format!("{}/{}", root_directory, app_folder);
