@@ -1,10 +1,12 @@
 version: "3.3"
 
 services:
-
   traefik:
     image: "traefik:v3.1"
     container_name: "traefik"
+    networks:
+      - proxy
+      - default
     command:
       #- "--log.level=DEBUG"
       - "--api.insecure=true"
@@ -24,3 +26,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.ddev.site`)"
       - "traefik.http.routers.whoami.entrypoints=web"
+
+networks:
+  proxy:
+    external: true
