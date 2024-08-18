@@ -81,6 +81,9 @@ struct CreateCommand {
     /// Basic auth credentials for the app (user:password)
     #[arg(long, value_parser=parse_basic_auth, value_name="USER:PASSWORD")]
     basic_auth: Option<(String, String)>,
+
+    #[arg(long, value_name = "KEY=VALUE", value_parser(parse_env_vars))]
+    env: Vec<(String, String)>,
 }
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -120,6 +123,14 @@ fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
         service: parts[0].to_string(),
         port,
     })
+}
+
+fn parse_env_vars(s: &str) -> Result<(String, String), String> {
+    let parts: Vec<&str> = s.split('=').collect();
+    if parts.len() != 2 {
+        return Err("Invalid env var format, should be key=value".to_string());
+    }
+    Ok((parts[0].to_string(), parts[1].to_string()))
 }
 
 #[tokio::main]
@@ -295,6 +306,12 @@ fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
     for entry in WalkDir::new(folder) {
         let entry = entry?;
         if entry.file_type().is_file() {
+            let file_name = entry.file_name().to_str().unwrap();
+            if file_name == ".DS_Store" || entry.path().to_str().unwrap().contains("/.git/") {
+                info!("Ignoring file {:?}", entry);
+                continue;
+            }
+            info!("Reading file {:?}", entry);
             let path = entry.path().to_str().unwrap().to_string();
             let content = std::fs::read_to_string(&path)?;
             let relative_path = path.replace(folder, ".");
@@ -325,6 +342,7 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
             needs_setup: true,
             public_services: cmd.service.clone(),
             basic_auth: cmd.basic_auth.clone(),
+            environment: cmd.env.iter().cloned().collect(),
             ..Default::default()
         },
         files: file_list,
