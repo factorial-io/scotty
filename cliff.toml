@@ -46,10 +46,11 @@ commit_parsers = [
     { message = "^refactor", group = "Refactor" },
     { message = "^style", group = "Styling" },
     { message = "^test", group = "Testing" },
+    { message = "^ci", group = "CI", skip = true },
     { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "^chore", group = "Miscellaneous Tasks" },
+    { message = "^chore", group = "Miscellaneous Tasks", skip = true },
     { body = ".*security", group = "Security" },
-    { body = ".*", group = "Other (unconventional)" },
+    { body = ".*", group = "Other (unconventional)", skip = true },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false
@@ -64,4 +65,4 @@ ignore_tags = ""
 # sort the tags topologically
 topo_order = false
 # sort the commits inside sections by oldest/newest order
-sort_commits = "oldest"
+sort_commits = "newest"
