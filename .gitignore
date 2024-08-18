@@ -1,3 +1,4 @@
 /target
 frontend/node_modules
 apps/test-nginx-creation
+/apps/test-nginx
