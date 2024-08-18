@@ -239,12 +239,13 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                     format!("traefik.http.routers.{}.tls", &service_name),
                     "true".to_string(),
                 );
-            }
-            if let Some(certresolver) = &global_settings.traefik.certresolver {
-                labels.insert(
-                    format!("traefik.http.routers.{}.tls.certresolver", &service_name),
-                    certresolver.clone(),
-                );
+
+                if let Some(certresolver) = &global_settings.traefik.certresolver {
+                    labels.insert(
+                        format!("traefik.http.routers.{}.tls.certresolver", &service_name),
+                        certresolver.clone(),
+                    );
+                }
             }
 
             let mut middlewares = vec![];
