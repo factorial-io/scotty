@@ -175,8 +175,8 @@ impl Settings {
     pub fn get_environment() -> Environment {
         Environment::default()
             .prefix("YAFBDS")
-            .prefix_separator("_")
-            .separator("_")
+            .prefix_separator("__")
+            .separator("__")
             .try_parsing(true)
     }
 
