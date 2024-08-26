@@ -59,6 +59,7 @@ pub struct AppSettings {
     pub basic_auth: Option<(String, String)>,
     pub disallow_robots: bool,
     pub environment: HashMap<String, String>,
+    pub registry: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -71,6 +72,7 @@ impl Default for AppSettings {
             basic_auth: None,
             disallow_robots: true,
             environment: HashMap::new(),
+            registry: None,
         }
     }
 }

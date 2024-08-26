@@ -31,7 +31,7 @@ impl AppState {
         let stop_flag = stop_flag::StopFlag::new();
         stop_flag::register_signal_handler(&stop_flag);
 
-        let docker = match &settings.docker {
+        let docker = match &settings.docker.connection {
             DockerConnectOptions::Local => Docker::connect_with_local_defaults()?,
             DockerConnectOptions::Socket => Docker::connect_with_socket_defaults()?,
             DockerConnectOptions::Http => Docker::connect_with_http_defaults()?,

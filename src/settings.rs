@@ -2,7 +2,7 @@
 
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
-use std::env;
+use std::{collections::HashMap, env};
 
 #[derive(Debug, Clone)]
 #[allow(unused)]
@@ -112,13 +112,26 @@ impl HaproxyConfigSettings {
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
+pub struct DockerRegistrySettings {
+    pub username: String,
+    pub password: String,
+}
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
+pub struct DockerSettings {
+    pub connection: DockerConnectOptions,
+    pub registries: HashMap<String, DockerRegistrySettings>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
 pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
     pub api: ApiServer,
     pub scheduler: Scheduler,
     pub apps: Apps,
-    pub docker: DockerConnectOptions,
+    pub docker: DockerSettings,
     pub load_balancer_type: LoadBalancerType,
     pub traefik: TraefikSettings,
     pub haproxy: HaproxyConfigSettings,
@@ -142,7 +155,10 @@ impl Default for Settings {
                 domain_suffix: "".to_string(),
                 use_tls: false,
             },
-            docker: DockerConnectOptions::Local,
+            docker: DockerSettings {
+                connection: DockerConnectOptions::Local,
+                registries: HashMap::new(),
+            },
             load_balancer_type: LoadBalancerType::Traefik,
             traefik: TraefikSettings {
                 use_tls: false,
@@ -155,24 +171,26 @@ impl Default for Settings {
 }
 
 impl Settings {
+    pub fn get_environment() -> Environment {
+        Environment::default()
+            .prefix("YAFBDS")
+            .prefix_separator("_")
+            .separator("_")
+            .try_parsing(true)
+    }
+
     pub fn new() -> Result<Self, ConfigError> {
         let run_mode = env::var("YAFBDS_RUN_MODE").unwrap_or_else(|_| "development".into());
 
         let s = Config::builder()
             .set_default("api.bind_address", "0.0.0.0:8080")?
             .set_default("apps.max_depth", 3u32)?
-            .set_default("docker", "local")?
+            .set_default("docker.connection", "local")?
             // Start off by merging in the "default" configuration file
             .add_source(File::with_name("config/default"))
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             .add_source(File::with_name("config/local").required(false))
-            .add_source(
-                Environment::default()
-                    .prefix("YAFBDS")
-                    .prefix_separator("_")
-                    .separator("_")
-                    .try_parsing(true),
-            )
+            .add_source(Self::get_environment())
             .build()?;
 
         let mut settings: Settings = s.try_deserialize()?;
@@ -197,5 +215,34 @@ impl Settings {
                 _ => Some(s.to_string()),
             },
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_docker_registry_password_from_env() {
+        env::set_var("YAFBDS_DOCKER_REGISTRIES_TEST_PASSWORD", "test_password");
+
+        let settings = Config::builder()
+            // Add in `./Settings.toml`
+            .add_source(config::File::with_name(
+                "tests/test_docker_registry_password.yaml",
+            ))
+            // Add in settings from the environment (with a prefix of APP)
+            // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
+            .add_source(Settings::get_environment())
+            .build()
+            .unwrap();
+
+        let settings: Settings = settings.try_deserialize().unwrap();
+        assert_eq!(
+            settings.docker.registries.get("test").unwrap().password,
+            "test_password"
+        );
+
+        env::remove_var("YAFBDS_DOCKER_REGISTRIES_TEST_PASSWORD");
     }
 }
