@@ -113,6 +113,7 @@ impl HaproxyConfigSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct DockerRegistrySettings {
+    pub registry: String,
     pub username: String,
     pub password: String,
 }

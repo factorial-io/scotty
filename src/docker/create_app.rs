@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::file_list::FileList;
@@ -113,12 +114,44 @@ async fn create_app_prepare(
     Ok(sm)
 }
 
+fn validate_app(settings: &AppSettings, files: &FileList) -> anyhow::Result<()> {
+    let docker_compose_file = files.files.iter().find(|f| {
+        f.name.ends_with("docker-compose.yml") || f.name.ends_with("docker-compose.yaml")
+    });
+
+    if docker_compose_file.is_none() {
+        return Err(AppError::NoDockerComposeFile.into());
+    }
+    // Parse docker-compose file
+    let docker_compose_content = docker_compose_file.unwrap().content.clone();
+    let docker_compose_data: serde_json::Value = serde_yml::from_slice(&docker_compose_content)
+        .map_err(|_| AppError::InvalidDockerComposeFile)?;
+
+    // Get list of available services
+    let available_services: Vec<String> = docker_compose_data["services"]
+        .as_object()
+        .ok_or(AppError::InvalidDockerComposeFile)?
+        .keys()
+        .cloned()
+        .collect();
+
+    // Check if all public_services are available in docker-compose
+    for public_service in &settings.public_services {
+        if !available_services.contains(&public_service.service) {
+            return Err(AppError::PublicServiceNotFound(public_service.service.clone()).into());
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn create_app(
     app_state: SharedAppState,
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
+    validate_app(settings, files)?;
     info!("Creating app: {}", app_name);
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slug::slugify(app_name);

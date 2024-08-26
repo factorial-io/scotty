@@ -14,7 +14,8 @@ docker:
   connection: local # local, socket or http, see bollard docs
   registries:
     factorial:
-      user: "deploybot"
+      registry: https://registry.factorial.io
+      username: "deploybot"
       password: "deploybot" # Override with env YAFBDS_DOCKER_REGISTRIES_FACTORIAL_PASSWORD
 
 load_balancer_type: Traefik #HaproxyConfig #HaproxyConfig or Traefik

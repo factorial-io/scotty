@@ -12,6 +12,7 @@ use apps::{
     shared_app_list::AppDataVec,
 };
 use base64::prelude::*;
+use bollard::secret::TaskState;
 use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
@@ -91,6 +92,10 @@ struct CreateCommand {
     /// Pass environment variables to the app (e.g. KEY=VALUE), use multiple times for multiple variables
     #[arg(long, value_name = "KEY=VALUE", value_parser(parse_env_vars))]
     env: Vec<(String, String)>,
+
+    /// Name of private docker registry to use (Needs to be configured on server-side)
+    #[arg(long)]
+    registry: Option<String>,
 }
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -276,7 +281,14 @@ async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Res
             // Sleep for half a second
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
+
+        if let Some(exit_code) = task.last_exit_code {
+            if done && exit_code != 0 {
+                return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+            }
+        }
     }
+
     let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
 
@@ -365,6 +377,7 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
             public_services: cmd.service.clone(),
             basic_auth: cmd.basic_auth.clone(),
             environment: cmd.env.iter().cloned().collect(),
+            registry: cmd.registry.clone(),
             ..Default::default()
         },
         files: file_list,

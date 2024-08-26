@@ -7,7 +7,8 @@ use crate::{
     apps::app_data::AppData,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
+        run_docker_login_handler::RunDockerLoginHandler, set_finished_handler::SetFinishedHandler,
+        update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
@@ -17,6 +18,7 @@ use super::helper::run_sm;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RebuildAppStates {
+    RunDockerLogin,
     RunDockerComposePull,
     RunDockerComposeStop,
     RunDockerComposeRun,
@@ -34,11 +36,18 @@ pub async fn rebuild_app_prepare(
         app.name, &app.docker_compose_path
     );
 
-    let mut sm = StateMachine::new(
-        RebuildAppStates::RunDockerComposePull,
-        RebuildAppStates::Done,
-    );
+    let mut sm = StateMachine::new(RebuildAppStates::RunDockerLogin, RebuildAppStates::Done);
 
+    sm.add_handler(
+        RebuildAppStates::RunDockerLogin,
+        Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunDockerComposePull,
+            registry: app
+                .settings
+                .as_ref()
+                .and_then(|settings| settings.registry.clone()),
+        }),
+    );
     sm.add_handler(
         RebuildAppStates::RunDockerComposePull,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {

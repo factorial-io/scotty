@@ -8,10 +8,11 @@ use tracing::instrument;
 
 use crate::{app_state::SharedAppState, tasks::task_details::TaskDetails};
 
-pub async fn run_docker_compose(
+pub async fn run_task(
     shared_app: &SharedAppState,
     docker_compose_path: &Path,
-    command: &[&str],
+    command: &str,
+    args: &[&str],
     task: Arc<RwLock<TaskDetails>>,
 ) -> anyhow::Result<TaskDetails> {
     let manager = shared_app.task_manager.clone();
@@ -19,8 +20,8 @@ pub async fn run_docker_compose(
     let task_id = manager
         .start_process(
             docker_compose_path.parent().unwrap(),
-            "docker-compose",
             command,
+            args,
             task.clone(),
         )
         .await;
@@ -29,6 +30,22 @@ pub async fn run_docker_compose(
         .get_task_details(&task_id)
         .await
         .ok_or(anyhow::Error::msg("Task not found"))
+}
+
+pub async fn run_docker_compose(
+    shared_app: &SharedAppState,
+    docker_compose_path: &Path,
+    command: &[&str],
+    task: Arc<RwLock<TaskDetails>>,
+) -> anyhow::Result<TaskDetails> {
+    run_task(
+        shared_app,
+        docker_compose_path,
+        "docker-compose",
+        command,
+        task,
+    )
+    .await
 }
 
 #[instrument]

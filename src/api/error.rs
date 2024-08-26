@@ -33,6 +33,14 @@ pub enum AppError {
 
     #[error("Cant destroy an unmanaged app!")]
     CantDestroyUnmanagedApp(String),
+
+    #[error("Missing docker-compose file in the payload")]
+    NoDockerComposeFile,
+    #[error("Invalid docker-compose file")]
+    InvalidDockerComposeFile,
+
+    #[error("Service not found in docker compose file!")]
+    PublicServiceNotFound(String),
 }
 
 impl From<anyhow::Error> for AppError {
@@ -68,6 +76,18 @@ impl IntoResponse for AppError {
             AppError::CantDestroyUnmanagedApp(app_id) => (
                 StatusCode::BAD_REQUEST,
                 format!("Cant destroy app {} as it is not managed by us!", app_id),
+            ),
+            AppError::NoDockerComposeFile => (
+                StatusCode::BAD_REQUEST,
+                "Missing docker-compose file in the payload".into(),
+            ),
+            AppError::InvalidDockerComposeFile => (
+                StatusCode::BAD_REQUEST,
+                "Invalid docker-compose file".into(),
+            ),
+            AppError::PublicServiceNotFound(service_name) => (
+                StatusCode::BAD_REQUEST,
+                format!("Service not found in docker compose file: {}", service_name),
             ),
         };
         let body = serde_json::json!({ "error": true, "message": body });

@@ -5,7 +5,8 @@ apps:
   domain_suffix: "ddev.site"
   use_tls: false
   root_folder: "./apps" # Path to the folder where the apps are stored
-docker: local # local, socket or http, see bollard docs
+docker:
+  connection: local # local, socket or http, see bollard docs
 load_balancer_type: Traefik #HaproxyConfig or Traefik
 traefik:
   use_tls: false
