@@ -24,5 +24,5 @@ where
     D: serde::Deserializer<'de>,
 {
     let app_name: String = serde::Deserialize::deserialize(deserializer)?;
-    Ok(slug::slugify(&app_name))
+    Ok(slug::slugify(app_name))
 }

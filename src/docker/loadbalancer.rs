@@ -307,7 +307,7 @@ fn htpasswd(password: &str, escape_dollars: bool) -> anyhow::Result<String> {
 
     let mut hashed = hash(password, DEFAULT_COST)?;
     if escape_dollars {
-        hashed = hashed.replace("$", "$$")
+        hashed = hashed.replace('$', "$$")
     }
     Ok(hashed)
 }

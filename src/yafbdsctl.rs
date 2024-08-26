@@ -12,7 +12,6 @@ use apps::{
     shared_app_list::AppDataVec,
 };
 use base64::prelude::*;
-use bollard::secret::TaskState;
 use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
