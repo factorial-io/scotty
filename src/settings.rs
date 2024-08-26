@@ -225,7 +225,10 @@ mod tests {
 
     #[test]
     fn test_docker_registry_password_from_env() {
-        env::set_var("YAFBDS_DOCKER_REGISTRIES_TEST_PASSWORD", "test_password");
+        env::set_var(
+            "YAFBDS__DOCKER__REGISTRIES__TEST__PASSWORD",
+            "test_password",
+        );
 
         let settings = Config::builder()
             // Add in `./Settings.toml`
@@ -244,6 +247,6 @@ mod tests {
             "test_password"
         );
 
-        env::remove_var("YAFBDS_DOCKER_REGISTRIES_TEST_PASSWORD");
+        env::remove_var("YAFBDS__DOCKER__REGISTRIES__TEST__PASSWORD");
     }
 }
