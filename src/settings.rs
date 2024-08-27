@@ -63,6 +63,23 @@ pub struct Scheduler {
     pub task_cleanup: SchedulerInterval,
 }
 
+#[derive(Clone, Deserialize, Debug, Hash, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)]
+pub enum ActionName {
+    PostCreate,
+    PostRun,
+    PostRebuild,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
+pub struct AppBlueprint {
+    pub name: String,
+    pub description: String,
+    pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 #[readonly::make]
@@ -71,6 +88,7 @@ pub struct Apps {
     pub max_depth: u32,
     pub domain_suffix: String,
     pub use_tls: bool,
+    pub blueprints: HashMap<String, AppBlueprint>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -155,6 +173,7 @@ impl Default for Settings {
                 max_depth: 3,
                 domain_suffix: "".to_string(),
                 use_tls: false,
+                blueprints: HashMap::new(),
             },
             docker: DockerSettings {
                 connection: DockerConnectOptions::Local,
@@ -248,5 +267,15 @@ mod tests {
         );
 
         env::remove_var("YAFBDS__DOCKER__REGISTRIES__TEST__PASSWORD");
+
+        let blueprint = settings.apps.blueprints.get("nginx-lagoon").unwrap();
+        assert_eq!(blueprint.name, "NGINX using lagoon base images");
+        let script = blueprint
+            .actions
+            .get(&ActionName::PostCreate)
+            .unwrap()
+            .get("nginx")
+            .unwrap();
+        assert_eq!(script[0], "echo \"Hello, World!\"".to_string());
     }
 }

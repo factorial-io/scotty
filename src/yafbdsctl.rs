@@ -95,6 +95,10 @@ struct CreateCommand {
     /// Name of private docker registry to use (Needs to be configured on server-side)
     #[arg(long)]
     registry: Option<String>,
+
+    /// Name of the app blueprint to use
+    #[arg(long)]
+    app_blueprint: Option<String>,
 }
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -377,6 +381,7 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
             basic_auth: cmd.basic_auth.clone(),
             environment: cmd.env.iter().cloned().collect(),
             registry: cmd.registry.clone(),
+            app_blueprint: cmd.app_blueprint.clone(),
             ..Default::default()
         },
         files: file_list,

@@ -42,8 +42,10 @@ pub enum AppError {
     #[error("Service not found in docker compose file: {0}")]
     PublicServiceNotFound(String),
 
-    #[error("Registry not found: {0}")]
+    #[error("Private registry not found in settings: {0}")]
     RegistryNotFound(String),
+    #[error("App blueprint not found in settings: {0}")]
+    AppBlueprintNotFound(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {

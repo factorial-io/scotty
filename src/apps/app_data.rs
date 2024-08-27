@@ -60,6 +60,7 @@ pub struct AppSettings {
     pub disallow_robots: bool,
     pub environment: HashMap<String, String>,
     pub registry: Option<String>,
+    pub app_blueprint: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -73,6 +74,7 @@ impl Default for AppSettings {
             disallow_robots: true,
             environment: HashMap::new(),
             registry: None,
+            app_blueprint: None,
         }
     }
 }

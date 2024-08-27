@@ -7,6 +7,7 @@ use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::file_list::{File, FileList};
+use crate::settings::ActionName;
 use crate::state_machine::StateHandler;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::{apps::app_data::AppSettings, state_machine::StateMachine};
@@ -16,6 +17,7 @@ use super::rebuild_app::rebuild_app_prepare;
 use super::state_machine_handlers::context::Context;
 use super::state_machine_handlers::create_directory_handler::CreateDirectoryHandler;
 use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalancerConfig;
+use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
 use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
 use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
@@ -48,6 +50,7 @@ enum CreateAppStates {
     SaveFiles,
     CreateLoadBalancerConfig,
     RunDockerComposeBuildAndRun,
+    RunPostActions,
     UpdateAppData,
     SetFinished,
     Done,
@@ -93,11 +96,19 @@ async fn create_app_prepare(
     sm.add_handler(
         CreateAppStates::RunDockerComposeBuildAndRun,
         Arc::new(RunDockerComposeBuildHandler::<CreateAppStates> {
-            next_state: CreateAppStates::UpdateAppData,
+            next_state: CreateAppStates::RunPostActions,
             app: app.clone(),
         }),
     );
 
+    sm.add_handler(
+        CreateAppStates::RunPostActions,
+        Arc::new(RunPostActionsHandler::<CreateAppStates> {
+            next_state: CreateAppStates::UpdateAppData,
+            action: ActionName::PostCreate,
+            settings: app.settings.clone(),
+        }),
+    );
     sm.add_handler(
         CreateAppStates::UpdateAppData,
         Arc::new(UpdateAppDataHandler::<CreateAppStates> {
@@ -151,6 +162,17 @@ fn validate_app(
     if let Some(registry) = &settings.registry {
         if !app_state.settings.docker.registries.contains_key(registry) {
             return Err(AppError::RegistryNotFound(registry.clone()).into());
+        }
+    }
+
+    if let Some(app_blueprint) = &settings.app_blueprint {
+        if !app_state
+            .settings
+            .apps
+            .blueprints
+            .contains_key(app_blueprint)
+        {
+            return Err(AppError::AppBlueprintNotFound(app_blueprint.clone()).into());
         }
     }
 

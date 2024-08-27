@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
-use tracing::{debug, instrument};
+use tracing::instrument;
 
-use crate::{docker::docker_compose::run_task, state_machine::StateHandler};
+use crate::state_machine::StateHandler;
 
-use super::context::Context;
+use super::{context::Context, run_task_and_wait::run_task_and_wait};
 
 #[derive(Debug)]
 pub struct RunDockerLoginHandler<S>
@@ -47,43 +47,15 @@ where
             "-p",
             &registry.password,
         ];
-        debug!("Running docker login for {}", &registry.registry);
-        let task_details = run_task(
-            &context.app_state,
+
+        run_task_and_wait(
+            &context,
             &docker_compose_path,
             "docker",
             &args,
-            context.task.clone(),
+            &format!("Log into registry {}", &registry.registry),
         )
         .await?;
-
-        let handle = context
-            .app_state
-            .task_manager
-            .get_task_handle(&task_details.id)
-            .await
-            .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
-
-        debug!("Waiting for docker login {} to finish", &registry.registry);
-        while !handle.read().await.is_finished() {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-
-        let task = context
-            .app_state
-            .task_manager
-            .get_task_details(&task_details.id)
-            .await
-            .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
-        if let Some(last_exit_code) = task.last_exit_code {
-            if last_exit_code != 0 {
-                return Err(anyhow::anyhow!(
-                    "Docker login failed with exit code {}",
-                    last_exit_code
-                ));
-            }
-        }
-        debug!("docker login finished");
 
         Ok(self.next_state.clone())
     }

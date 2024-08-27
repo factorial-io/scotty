@@ -32,22 +32,6 @@ pub async fn run_task(
         .ok_or(anyhow::Error::msg("Task not found"))
 }
 
-pub async fn run_docker_compose(
-    shared_app: &SharedAppState,
-    docker_compose_path: &Path,
-    command: &[&str],
-    task: Arc<RwLock<TaskDetails>>,
-) -> anyhow::Result<TaskDetails> {
-    run_task(
-        shared_app,
-        docker_compose_path,
-        "docker-compose",
-        command,
-        task,
-    )
-    .await
-}
-
 #[instrument]
 pub fn run_docker_compose_now(
     docker_compose_path: &PathBuf,

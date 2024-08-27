@@ -7,9 +7,11 @@ use crate::{
     apps::app_data::AppData,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        run_docker_login_handler::RunDockerLoginHandler, set_finished_handler::SetFinishedHandler,
+        run_docker_login_handler::RunDockerLoginHandler,
+        run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
+    settings::ActionName,
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -22,6 +24,7 @@ pub enum RebuildAppStates {
     RunDockerComposePull,
     RunDockerComposeStop,
     RunDockerComposeRun,
+    RunPostActions,
     UpdateAppData,
     SetFinished,
     Done,
@@ -65,8 +68,16 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerComposeRun,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::UpdateAppData,
+            next_state: RebuildAppStates::RunPostActions,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
+        }),
+    );
+    sm.add_handler(
+        RebuildAppStates::RunPostActions,
+        Arc::new(RunPostActionsHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::UpdateAppData,
+            action: ActionName::PostRebuild,
+            settings: app.settings.clone(),
         }),
     );
     sm.add_handler(

@@ -7,8 +7,10 @@ use crate::{
     apps::app_data::AppData,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
+        run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
+        update_app_data_handler::UpdateAppDataHandler,
     },
+    settings::ActionName,
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -18,6 +20,7 @@ use super::helper::run_sm;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum RunAppStates {
     RunDockerCompose,
+    RunPostActions,
     UpdateAppData,
     SetFinished,
     Done,
@@ -31,8 +34,16 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
     sm.add_handler(
         RunAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<RunAppStates> {
-            next_state: RunAppStates::UpdateAppData,
+            next_state: RunAppStates::RunPostActions,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
+        }),
+    );
+    sm.add_handler(
+        RunAppStates::RunPostActions,
+        Arc::new(RunPostActionsHandler::<RunAppStates> {
+            next_state: RunAppStates::UpdateAppData,
+            action: ActionName::PostRun,
+            settings: app.settings.clone(),
         }),
     );
     sm.add_handler(
