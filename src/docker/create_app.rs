@@ -6,7 +6,7 @@ use tracing::info;
 use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
-use crate::apps::file_list::FileList;
+use crate::apps::file_list::{File, FileList};
 use crate::state_machine::StateHandler;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::{apps::app_data::AppSettings, state_machine::StateMachine};
@@ -114,10 +114,15 @@ async fn create_app_prepare(
     Ok(sm)
 }
 
-fn validate_app(settings: &AppSettings, files: &FileList) -> anyhow::Result<()> {
-    let docker_compose_file = files.files.iter().find(|f| {
-        f.name.ends_with("docker-compose.yml") || f.name.ends_with("docker-compose.yaml")
-    });
+fn validate_app(
+    app_state: SharedAppState,
+    settings: &AppSettings,
+    files: &FileList,
+) -> anyhow::Result<File> {
+    let docker_compose_file = files
+        .files
+        .iter()
+        .find(|f| is_valid_docker_compose_file(&f.name));
 
     if docker_compose_file.is_none() {
         return Err(AppError::NoDockerComposeFile.into());
@@ -142,7 +147,14 @@ fn validate_app(settings: &AppSettings, files: &FileList) -> anyhow::Result<()> 
         }
     }
 
-    Ok(())
+    // Check if we know about the private registry.
+    if let Some(registry) = &settings.registry {
+        if !app_state.settings.docker.registries.contains_key(registry) {
+            return Err(AppError::RegistryNotFound(registry.clone()).into());
+        }
+    }
+
+    Ok(docker_compose_file.unwrap().clone())
 }
 
 pub async fn create_app(
@@ -151,25 +163,13 @@ pub async fn create_app(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
-    validate_app(settings, files)?;
     info!("Creating app: {}", app_name);
+    let candidate = validate_app(app_state.clone(), settings, files)?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slug::slugify(app_name);
     let root_directory = format!("{}/{}", root_directory, app_folder);
 
-    // Check if files has a docker-compose file.
-    // @TODO: Make more fool proof
-    let candidate = files
-        .files
-        .iter()
-        .find(|f| is_valid_docker_compose_file(&f.name));
-    if candidate.is_none() {
-        return Err(anyhow::anyhow!(
-            "No docker-compose file found in provided files."
-        ));
-    }
-
-    let docker_compose_path = format!("{}/{}", root_directory, candidate.unwrap().name);
+    let docker_compose_path = format!("{}/{}", root_directory, candidate.name);
     let app_data = AppData {
         name: app_name.to_string(),
         settings: Some(settings.clone()),
