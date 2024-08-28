@@ -52,6 +52,7 @@ impl From<SchedulerInterval> for clokwerk::Interval {
 #[readonly::make]
 pub struct ApiServer {
     pub bind_address: String,
+    pub access_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -162,6 +163,7 @@ impl Default for Settings {
             telemetry: None,
             api: ApiServer {
                 bind_address: "0.0.0.0:21342".to_string(),
+                access_token: None,
             },
             scheduler: Scheduler {
                 running_app_check: SchedulerInterval::Minutes(1),

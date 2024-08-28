@@ -31,6 +31,10 @@ use walkdir::WalkDir;
 struct Cli {
     #[arg(long, env = "YAFBDS_SERVER", default_value = "http://localhost:21342")]
     server: String,
+
+    #[arg(long, env = "YAFBDS_ACCESS_TOKEN")]
+    access_token: Option<String>,
+
     #[arg(long, default_value = "false")]
     debug: bool,
     #[command(subcommand)]
@@ -100,6 +104,10 @@ struct CreateCommand {
     #[arg(long)]
     app_blueprint: Option<String>,
 }
+struct ServerSettings {
+    server: String,
+    access_token: Option<String>,
+}
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
     let path = std::path::Path::new(s);
@@ -158,55 +166,66 @@ async fn main() -> anyhow::Result<()> {
     };
     init_telemetry_and_tracing(&tracing_option)?;
 
+    let server_settings = ServerSettings {
+        server: cli.server.clone(),
+        access_token: cli.access_token.clone(),
+    };
+
     match &cli.command {
         Commands::List => {
-            list_apps(&cli.server).await?;
+            list_apps(&server_settings).await?;
         }
         Commands::Rebuild(cmd) => {
-            call_apps_api(&cli.server, "rebuild", &cmd.app_name).await?;
+            call_apps_api(&server_settings, "rebuild", &cmd.app_name).await?;
         }
         Commands::Start(cmd) | Commands::Run(cmd) => {
-            call_apps_api(&cli.server, "run", &cmd.app_name).await?;
+            call_apps_api(&server_settings, "run", &cmd.app_name).await?;
         }
         Commands::Stop(cmd) => {
-            call_apps_api(&cli.server, "stop", &cmd.app_name).await?;
+            call_apps_api(&server_settings, "stop", &cmd.app_name).await?;
         }
         Commands::Destroy(cmd) => {
-            call_apps_api(&cli.server, "destroy", &cmd.app_name).await?;
+            call_apps_api(&server_settings, "destroy", &cmd.app_name).await?;
         }
         Commands::Purge(cmd) => {
-            call_apps_api(&cli.server, "purge", &cmd.app_name).await?;
+            call_apps_api(&server_settings, "purge", &cmd.app_name).await?;
         }
         Commands::Info(cmd) => {
-            info_app(&cli.server, &cmd.app_name).await?;
+            info_app(&server_settings, &cmd.app_name).await?;
         }
         Commands::Create(cmd) => {
-            create_app(&cli.server, cmd).await?;
+            create_app(&server_settings, cmd).await?;
         }
     }
     Ok(())
 }
 
 async fn get_or_post(
-    server: &str,
+    server: &ServerSettings,
     action: &str,
     method: &str,
     body: Option<serde_json::Value>,
 ) -> anyhow::Result<serde_json::Value> {
-    let url = format!("{}/api/v1/{}", server, action);
+    let url = format!("{}/api/v1/{}", server.server, action);
     info!("Calling yafbds API at {}", &url);
 
     let client = reqwest::Client::new();
     let response = match method.to_lowercase().as_str() {
         "post" => {
             if let Some(body) = body {
-                client.post(&url).json(&body).send().await?
+                client.post(&url).json(&body)
             } else {
-                client.post(&url).send().await?
+                client.post(&url)
             }
         }
-        _ => client.get(&url).send().await?,
+        _ => client.get(&url),
     };
+
+    let response = response
+        .bearer_auth(server.access_token.as_deref().unwrap_or_default())
+        .send()
+        .await
+        .context(format!("Failed to call yafbds API at {}", &url))?;
 
     if response.status().is_success() {
         let json = response.json::<serde_json::Value>().await.context(format!(
@@ -235,11 +254,11 @@ async fn get_or_post(
     }
 }
 
-async fn get(server: &str, method: &str) -> anyhow::Result<serde_json::Value> {
+async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<serde_json::Value> {
     get_or_post(server, method, "GET", None).await
 }
 
-async fn call_apps_api(server: &str, verb: &str, app_name: &str) -> anyhow::Result<()> {
+async fn call_apps_api(server: &ServerSettings, verb: &str, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
@@ -255,7 +274,10 @@ fn format_since(duration: &Option<TimeDelta>) -> String {
     }
 }
 
-async fn wait_for_task(server: &str, context: &RunningAppContext) -> anyhow::Result<AppData> {
+async fn wait_for_task(
+    server: &ServerSettings,
+    context: &RunningAppContext,
+) -> anyhow::Result<AppData> {
     let mut done = false;
     let mut last_position = 0;
     let mut last_err_position = 0;
@@ -307,7 +329,7 @@ fn colored_by_status(name: &str, status: &AppState) -> String {
     }
 }
 
-async fn list_apps(server: &str) -> anyhow::Result<()> {
+async fn list_apps(server: &ServerSettings) -> anyhow::Result<()> {
     let result = get(server, "apps/list").await?;
 
     let apps: AppDataVec = serde_json::from_value(result).context("Failed to parse apps list")?;
@@ -360,7 +382,7 @@ fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
     }
     Ok(FileList { files })
 }
-async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
+async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Result<()> {
     let file_list = collect_files(&cmd.docker_compose_path)?;
     // Encode content base64
     let file_list = FileList {
@@ -402,7 +424,7 @@ async fn create_app(server: &str, cmd: &CreateCommand) -> anyhow::Result<()> {
     print_app_info(&app_data)?;
     Ok(())
 }
-async fn info_app(server: &str, app_name: &str) -> anyhow::Result<()> {
+async fn info_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/info/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(result)?;
     print_app_info(&app_data)?;

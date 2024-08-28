@@ -1,3 +1,4 @@
+use axum::middleware;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
@@ -35,6 +36,7 @@ use crate::apps::shared_app_list::AppDataVec;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::tasks::task_details::TaskDetails;
 
+use super::basic_auth::auth;
 use super::handlers::apps::create::create_app_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
@@ -76,7 +78,6 @@ impl ApiRoutes {
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
-            .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/apps/list", get(list_apps_handler))
             .route("/api/v1/apps/run/:app_id", get(run_app_handler))
             .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
@@ -88,6 +89,9 @@ impl ApiRoutes {
             .route("/api/v1/tasks", get(task_list_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))
             .route("/ws", get(ws_handler))
+            .route_layer(middleware::from_fn_with_state(state.clone(), auth))
+            // without auth
+            .route("/api/v1/health", get(health_checker_handler))
             .with_state(state)
     }
 }

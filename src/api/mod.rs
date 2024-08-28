@@ -1,3 +1,4 @@
+pub mod basic_auth;
 pub mod error;
 pub mod handlers;
 pub mod message;
