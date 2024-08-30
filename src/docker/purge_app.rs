@@ -37,19 +37,16 @@ pub async fn purge_app_prepare(
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
 
-    let rm_command = match purge_method {
-        PurgeAppMethod::Down => "down",
-        PurgeAppMethod::Rm => "rm",
+    let command = match purge_method {
+        PurgeAppMethod::Down => vec!["down", "-v", "--rmi", "all"],
+        PurgeAppMethod::Rm => vec!["rm", "-s", "-f"],
     };
 
     sm.add_handler(
         PurgeAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
             next_state: PurgeAppStates::UpdateAppData,
-            command: [rm_command, "-s", "-f"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            command: command.iter().map(|s| s.to_string()).collect(),
         }),
     );
     sm.add_handler(

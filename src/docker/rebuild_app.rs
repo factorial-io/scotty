@@ -22,6 +22,7 @@ use super::helper::run_sm;
 pub enum RebuildAppStates {
     RunDockerLogin,
     RunDockerComposePull,
+    RunDockerComposeBuild,
     RunDockerComposeStop,
     RunDockerComposeRun,
     RunPostActions,
@@ -54,8 +55,15 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerComposePull,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunDockerComposeBuild,
+            command: ["pull"].iter().map(|s| s.to_string()).collect(),
+        }),
+    );
+    sm.add_handler(
+        RebuildAppStates::RunDockerComposeBuild,
+        Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposeStop,
-            command: ["build", "--pull"].iter().map(|s| s.to_string()).collect(),
+            command: ["build"].iter().map(|s| s.to_string()).collect(),
         }),
     );
     sm.add_handler(
