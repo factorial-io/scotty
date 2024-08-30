@@ -34,7 +34,7 @@ services:
     environment: *x-default-environment
 
   mysql:
-    image: registry.factorial.io/showcase/circle-dot/mariadb:test-db
+    image: registry.factorial.io/showcase/circle-dot/mariadb:main
     volumes:
       - "mariadb-data:/var/lib/mysql"
     environment:
