@@ -10,24 +10,25 @@ use crate::tasks::running_app_context::RunningAppContext;
 
 use super::helper::run_sm;
 use super::purge_app::purge_app_prepare;
+use super::purge_app::PurgeAppMethod;
 use super::state_machine_handlers::context::Context;
 use super::state_machine_handlers::remove_directory_handler::RemoveDirectoryHandler;
 use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
 
-struct RunDockerComposeRmHandler<S> {
+struct RunDockerComposeDownHandler<S> {
     next_state: S,
     app: AppData,
 }
 
 #[async_trait::async_trait]
-impl StateHandler<DestroyAppStates, Context> for RunDockerComposeRmHandler<DestroyAppStates> {
+impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<DestroyAppStates> {
     async fn transition(
         &self,
         _from: &DestroyAppStates,
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<DestroyAppStates> {
-        let sm = purge_app_prepare(&self.app).await?;
+        let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
         let handle = sm.spawn(context.clone());
         let _ = handle.await;
 
@@ -74,7 +75,7 @@ async fn destroy_app_prepare(
 
     sm.add_handler(
         DestroyAppStates::RemoveDockerContainers,
-        Arc::new(RunDockerComposeRmHandler::<DestroyAppStates> {
+        Arc::new(RunDockerComposeDownHandler::<DestroyAppStates> {
             next_state: DestroyAppStates::UpdateAppData,
             app: app.clone(),
         }),

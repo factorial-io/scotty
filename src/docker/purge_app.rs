@@ -22,19 +22,34 @@ pub enum PurgeAppStates {
     SetFinished,
     Done,
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum PurgeAppMethod {
+    Down,
+    Rm,
+}
 #[instrument]
 pub async fn purge_app_prepare(
     app: &AppData,
+    purge_method: PurgeAppMethod,
 ) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
-    info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
+    info!("Purging app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
+
+    let rm_command = match purge_method {
+        PurgeAppMethod::Down => "down",
+        PurgeAppMethod::Rm => "rm",
+    };
 
     sm.add_handler(
         PurgeAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
             next_state: PurgeAppStates::UpdateAppData,
-            command: ["rm", "-s", "-f"].iter().map(|s| s.to_string()).collect(),
+            command: [rm_command, "-s", "-f"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
         }),
     );
     sm.add_handler(
@@ -57,6 +72,6 @@ pub async fn purge_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
-    let sm = purge_app_prepare(app).await?;
+    let sm = purge_app_prepare(app, PurgeAppMethod::Rm).await?;
     run_sm(app_state, app, sm).await
 }
