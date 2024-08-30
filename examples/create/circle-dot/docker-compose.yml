@@ -1,0 +1,58 @@
+x-default-environment: &x-default-environment
+  MARIADB_DATABASE: "circledot__main_db"
+  MARIADB_USERNAME: "root"
+  MARIADB_PASSWORD: "admin"
+  MARIADB_HOST: "mysql"
+  MARIADB_PORT: "3306"
+  SENTRY_RELEASE: "main"
+  SENTRY_ENVIRONMENT: "main.circledot.oterma.factorial.io"
+  REDIS_HOST: redis
+  ENVIRONMENT_INDICATOR: "dev"
+  DEPLOYMENT_INDICATOR: "main"
+
+services:
+
+  cli:
+    image: registry.factorial.io/showcase/circle-dot/builder:main
+    volumes:
+      - ./private:/app/private
+      - ./web/sites/default/files:/app/web/sites/default/files
+    environment:
+      << : *x-default-environment
+      CRONJOBS: "* * * * * cd /app/web && drush cron"
+
+
+  nginx:
+    image: registry.factorial.io/showcase/circle-dot/nginx:main
+    volumes_from:
+      - cli
+
+  php:
+    image: registry.factorial.io/showcase/circle-dot/php:main
+    volumes_from:
+      - cli
+    environment: *x-default-environment
+
+  mysql:
+    image: registry.factorial.io/showcase/circle-dot/mariadb:test-db
+    volumes:
+      - "mariadb-data:/var/lib/mysql"
+    environment:
+      MYSQL_ROOT_PASSWORD: "admin"
+    command:
+      - mysqld
+      - --max_allowed_packet=64M
+
+  miyagi:
+    image: registry.factorial.io/showcase/circle-dot/miyagi:main
+
+  docs:
+    image: registry.factorial.io/showcase/circle-dot/docs:main
+
+  redis:
+    image: redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - "./redis.conf:/usr/local/etc/redis/redis.conf"
+volumes:
+  mariadb-data:
