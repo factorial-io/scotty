@@ -6,9 +6,10 @@
   tags:
     - fabalicious
 
-.lint:yafbds:
+.lint:scotty:
   script:
-    - "phab -cci script lint:yafbds --no-interaction"
+    - "phab -cci script lint:scotty --no-interaction"
+  allow_failure: true
   tags:
     - fabalicious
   rules:

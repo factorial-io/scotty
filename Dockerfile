@@ -17,7 +17,7 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --bin yafbds --bin yafbdsctl
+RUN cargo build --release --bin scotty --bin scottyctl
 
 FROM node:18 as frontend-builder
 WORKDIR /app
@@ -47,8 +47,8 @@ RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
     && mkdir -p ${APP}
 
-COPY --from=builder /app/target/release/yafbds ${APP}/yafbds
-COPY --from=builder /app/target/release/yafbdsctl ${APP}/yafbdsctl
+COPY --from=builder /app/target/release/scotty ${APP}/scotty
+COPY --from=builder /app/target/release/scottyctl ${APP}/scottyctl
 COPY --from=builder /app/config ${APP}/config
 COPY --from=frontend-builder /app/public ${APP}/frontend/
 # RUN chown -R $APP_USER:$APP_USER ${APP}
@@ -59,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD curl -f http://localhost:21342/api/v1/health || exit 1
 
 ENV RUST_LOG=api
-CMD ["./yafbds"]
+CMD ["./scotty"]

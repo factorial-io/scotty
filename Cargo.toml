@@ -1,11 +1,11 @@
 [package]
-name = "yafbds"
+name = "scotty"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "yafbdsctl"
-path = "src/yafbdsctl.rs"
+name = "scottyctl"
+path = "src/scottyctl.rs"
 
 [dependencies]
 anyhow = "1.0.86"

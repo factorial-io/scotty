@@ -3,6 +3,6 @@
   after_script: []
   script:
     - docker login registry.factorial.io -u gitlab-ci-token -p $CI_JOB_TOKEN
-    - "cd /opt/containers/yafbds && docker compose pull && docker compose rm -f -s && docker compose up -d"
+    - "cd /opt/containers/scotty && docker compose pull && docker compose rm -f -s && docker compose up -d"
   tags:
-    - yafbds-testbed
+    - scotty-testbed

@@ -66,7 +66,7 @@ use super::handlers::tasks::task_list_handler;
         schemas( TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
     ),
     tags(
-        (name = "yafbds-service", description = "yafbds api")
+        (name = "scotty-service", description = "scotty api")
     )
 )]
 struct ApiDoc;

@@ -22,28 +22,39 @@ lint:docker-images:
   needs: []
   extends: .lint:docker-images
 
-lint:yafbds:
+lint:scotty:
   stage: lint
   needs: []
-  extends: .lint:yafbds
+  extends: .lint:scotty
 
-test:yafbds:
+test:scotty:
   stage: test
   needs: []
-  extends: .test:yafbds
+  extends: .test:scotty
 
-build:yafbds:
+build:scotty:
   stage: setup
-  needs: [test:yafbds, lint:yafbds]
+  needs: [test:scotty, lint:scotty]
   variables:
     TAG_VERSION_C: $CI_COMMIT_REF_SLUG
-  extends: .build:yafbds
+  extends: .build:scotty
 
 # Deploy Options
 
 ## Dev individual
 deploy-testbed:
-  needs: [build:yafbds]
+  needs: [build:scotty]
+  stage: deploy
+  variables:
+    TAG_VERSION_C: $CI_COMMIT_REF_SLUG
+    PHAB_CONFIG_NAME: $DEV_PHAB_CONFIG_NAME
+  rules:
+    - if: '$CI_COMMIT_REF_SLUG == "xxx_dev"'
+  extends: .deploy
+
+## Stage individual
+deploy-stage:
+  needs: [build:scotty]
   stage: deploy
   rules:
     - if: '$CI_COMMIT_REF_SLUG == "main"'

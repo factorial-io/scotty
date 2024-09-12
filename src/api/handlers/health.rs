@@ -7,7 +7,7 @@ use axum::{response::IntoResponse, Json};
     )
 )]
 pub async fn health_checker_handler() -> impl IntoResponse {
-    const MESSAGE: &str = "yafbds is running!";
+    const MESSAGE: &str = "scotty is running!";
 
     let json_response = serde_json::json!({
         "status": "success",

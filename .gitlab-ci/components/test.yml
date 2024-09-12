@@ -1,8 +1,8 @@
-.test:yafbds:
+.test:scotty:
   tags:
     - fabalicious
   script:
-    - "phab -cci script test:yafbds --no-interaction"
+    - "phab -cci script test:scotty --no-interaction"
   rules:
     - if: $TAG_VERSION_C
   allow_failure: true

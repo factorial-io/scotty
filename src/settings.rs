@@ -195,14 +195,14 @@ impl Default for Settings {
 impl Settings {
     pub fn get_environment() -> Environment {
         Environment::default()
-            .prefix("YAFBDS")
+            .prefix("SCOTTY")
             .prefix_separator("__")
             .separator("__")
             .try_parsing(true)
     }
 
     pub fn new() -> Result<Self, ConfigError> {
-        let run_mode = env::var("YAFBDS_RUN_MODE").unwrap_or_else(|_| "development".into());
+        let run_mode = env::var("SCOTTY_RUN_MODE").unwrap_or_else(|_| "development".into());
 
         let s = Config::builder()
             .set_default("api.bind_address", "0.0.0.0:8080")?
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn test_docker_registry_password_from_env() {
         env::set_var(
-            "YAFBDS__DOCKER__REGISTRIES__TEST__PASSWORD",
+            "SCOTTY__DOCKER__REGISTRIES__TEST__PASSWORD",
             "test_password",
         );
 
@@ -268,7 +268,7 @@ mod tests {
             "test_password"
         );
 
-        env::remove_var("YAFBDS__DOCKER__REGISTRIES__TEST__PASSWORD");
+        env::remove_var("SCOTTY__DOCKER__REGISTRIES__TEST__PASSWORD");
 
         let blueprint = settings.apps.blueprints.get("nginx-lagoon").unwrap();
         assert_eq!(blueprint.name, "NGINX using lagoon base images");

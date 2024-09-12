@@ -1,6 +1,6 @@
 services:
-  yafbds:
-    image: registry.factorial.io/administration/yafbds/yafbds:main
+  scotty:
+    image: registry.factorial.io/administration/scotty/scotty:main
     volumes:
       - ..:/app/apps
       - /var/run/docker.sock:/var/run/docker.sock
@@ -9,8 +9,8 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.yafbds.rule=Host(`yafbds.ddev.site`)"
-      - "traefik.http.services.yafbds.loadbalancer.server.port=21342"
+      - "traefik.http.routers.scotty.rule=Host(`scotty.ddev.site`)"
+      - "traefik.http.services.scotty.loadbalancer.server.port=21342"
   jaeger:
     image: jaegertracing/all-in-one:${JAEGER_VERSION:-latest}
     environment:

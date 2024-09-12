@@ -1,10 +1,10 @@
-name: "yafbds"
+name: "scotty"
 requires: 3.8.24
 
 gitlab:
-  projectName: administration/yafbds
+  projectName: administration/scotty
   registry: registry.factorial.io
-  imageBaseTag: registry.factorial.io/administration/yafbds
+  imageBaseTag: registry.factorial.io/administration/scotty
 
 onePassword:
   factorial:
@@ -17,7 +17,7 @@ secrets:
     onePasswordVaultId: bkiebi7i6gkh4cjonj4uys24xe
     tokenId: factorial
 
-repository: ssh://git@source.factorial.io/administration/yafbds
+repository: ssh://git@source.factorial.io/administration/scotty
 
 needs:
   - local
@@ -63,7 +63,7 @@ hosts:
           - docker push %settings.gitlab.imageBaseTag%/%arguments.service%:%arguments.tag%
           - log_message(success, "Pushed new image for service %arguments.service%:%arguments.tag% to %settings.gitlab.registry%")
 
-      lint:yafbds:
+      lint:scotty:
         context: docker-image
         image: rust:latest
         script:
@@ -72,7 +72,7 @@ hosts:
           - cargo clippy -- -D warnings
           - cargo fmt -- --check
 
-      test:yafbds:
+      test:scotty:
         context: docker-image
         image: rust:latest
         script:
@@ -82,12 +82,12 @@ hosts:
         finally:
           - rm -rf target
 
-      build:yafbds:
+      build:scotty:
         defaults:
           user: gitlab-ci-token
         script:
           - docker login -u %arguments.user% -p %secret.ci-build-token% %settings.gitlab.registry%
-          - execute(script, build:service, --arguments service=yafbds)
-      push:yafbds:
+          - execute(script, build:service, --arguments service=scotty)
+      push:scotty:
         script:
-          - execute(script, push:service, --arguments service=yafbds)
+          - execute(script, push:service, --arguments service=scotty)

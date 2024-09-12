@@ -121,7 +121,7 @@ pub async fn inspect_app(
 
 #[instrument()]
 async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<AppSettings> {
-    let settings_path = docker_compose_path.with_file_name(".yafbds.yml");
+    let settings_path = docker_compose_path.with_file_name(".scotty.yml");
 
     info!(
         "Trying to read app-settings from {}",

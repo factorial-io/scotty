@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Kill any previous instances of the server and CLI app
-pkill -f yafbds
-pkill -f yafbdsctl
+pkill -f scotty
+pkill -f scottyctl
 
 export RUST_LOG=info
 
 # Start the server in the background
-./target/debug/yafbds &
+./target/debug/scotty &
 
 sleep 3
 # Run the CLI application
-./target/debug/yafbdsctl list
+./target/debug/scottyctl list

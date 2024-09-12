@@ -26,13 +26,13 @@ use utils::format_chrono_duration;
 use walkdir::WalkDir;
 
 #[derive(Parser)]
-#[command(name = "yafbdsctl")]
+#[command(name = "scottyctl")]
 #[command(about = "Yet another feature based deployment service control tool")]
 struct Cli {
-    #[arg(long, env = "YAFBDS_SERVER", default_value = "http://localhost:21342")]
+    #[arg(long, env = "SCOTTY_SERVER", default_value = "http://localhost:21342")]
     server: String,
 
-    #[arg(long, env = "YAFBDS_ACCESS_TOKEN")]
+    #[arg(long, env = "SCOTTY_ACCESS_TOKEN")]
     access_token: Option<String>,
 
     #[arg(long, default_value = "false")]
@@ -207,7 +207,7 @@ async fn get_or_post(
     body: Option<serde_json::Value>,
 ) -> anyhow::Result<serde_json::Value> {
     let url = format!("{}/api/v1/{}", server.server, action);
-    info!("Calling yafbds API at {}", &url);
+    info!("Calling scotty API at {}", &url);
 
     let client = reqwest::Client::new();
     let response = match method.to_lowercase().as_str() {
@@ -225,11 +225,11 @@ async fn get_or_post(
         .bearer_auth(server.access_token.as_deref().unwrap_or_default())
         .send()
         .await
-        .context(format!("Failed to call yafbds API at {}", &url))?;
+        .context(format!("Failed to call scotty API at {}", &url))?;
 
     if response.status().is_success() {
         let json = response.json::<serde_json::Value>().await.context(format!(
-            "Failed to parse response from yafbds API at {}",
+            "Failed to parse response from scotty API at {}",
             &url
         ))?;
         Ok(json)
@@ -246,7 +246,7 @@ async fn get_or_post(
             String::new()
         };
         Err(anyhow::anyhow!(
-            "Failed to call yafbds API at {} : {}{}",
+            "Failed to call scotty API at {} : {}{}",
             &url,
             &status,
             error_message

@@ -48,7 +48,7 @@ docker:
     factorial:
       registry: https://registry.factorial.io
       username: "deploybot"
-      password: "deploybot" # Override with env YAFBDS__DOCKER__REGISTRIES__FACTORIAL__PASSWORD
+      password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL__PASSWORD
 
 load_balancer_type: Traefik #HaproxyConfig #HaproxyConfig or Traefik
 traefik:
