@@ -1,5 +1,5 @@
 x-default-environment: &x-default-environment
-  MARIADB_DATABASE: "circledot__main_db"
+  MARIADB_DATABASE: "drupal"
   MARIADB_USERNAME: "root"
   MARIADB_PASSWORD: "admin"
   MARIADB_HOST: "mysql"
