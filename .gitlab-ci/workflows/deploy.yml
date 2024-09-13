@@ -39,18 +39,6 @@ build:scotty:
     TAG_VERSION_C: $CI_COMMIT_REF_SLUG
   extends: .build:scotty
 
-# Deploy Options
-
-## Dev individual
-deploy-testbed:
-  needs: [build:scotty]
-  stage: deploy
-  variables:
-    TAG_VERSION_C: $CI_COMMIT_REF_SLUG
-    PHAB_CONFIG_NAME: $DEV_PHAB_CONFIG_NAME
-  rules:
-    - if: '$CI_COMMIT_REF_SLUG == "xxx_dev"'
-  extends: .deploy
 
 ## Stage individual
 deploy-stage:
