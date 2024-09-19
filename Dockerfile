@@ -32,6 +32,9 @@ RUN apt-get update \
     && apt-get --no-install-recommends install -y curl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 
+# install docker
+RUN curl -fsSL https://get.docker.com | sh
+
 # Set the Docker Compose version to install
 ENV DOCKER_COMPOSE_VERSION=2.29.0
 # Download and install Docker Compose
