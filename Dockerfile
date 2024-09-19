@@ -33,7 +33,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # install docker
-RUN curl -fsSL https://get.docker.com | sh
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl -fsSL https://get.docker.com | bash
 
 # Set the Docker Compose version to install
 ENV DOCKER_COMPOSE_VERSION=2.29.0
