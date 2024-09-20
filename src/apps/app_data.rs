@@ -98,6 +98,7 @@ pub struct ContainerState {
     pub id: Option<String>,
     pub service: String,
     pub domain: Option<String>,
+    pub url: Option<String>,
     pub port: Option<u32>,
     pub started_at: Option<chrono::DateTime<chrono::Local>>,
 }
@@ -109,6 +110,7 @@ impl Default for ContainerState {
             id: None,
             service: "".to_string(),
             domain: None,
+            url: None,
             port: None,
             started_at: None,
         }
@@ -117,9 +119,7 @@ impl Default for ContainerState {
 
 impl ContainerState {
     pub fn get_url(&self) -> Option<String> {
-        self.domain
-            .as_ref()
-            .map(|domain| format!("http://{}", domain))
+        self.url.clone()
     }
 
     pub fn is_running(&self) -> bool {
