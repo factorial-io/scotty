@@ -1,26 +1,50 @@
 <script>
 	import 'tailwindcss/tailwind.css';
 	import logo from '$lib/assets/scotty.svg';
+	import { apiCall } from '$lib';
+	import { onMount } from 'svelte';
+
+	let site_info = {
+		domain: '...'
+	};
+
+	$: {
+		onMount(async () => {
+			async function getSiteInfo() {
+				const response = await apiCall('info');
+				return await response.json();
+			}
+
+			site_info = await getSiteInfo();
+		});
+	}
 </script>
 
-<div class="m-4 p-4 border-2 border-gray-100 rounded">
-	<div class="navbar bg-base-100 border-b-2 border-gray-100">
-		<div class="flex-1">
-			<div class="avatar">
-				<div class="w-16 rounded-full bg-gray-50">
-					<img alt="Scotty Logo" src={logo} />
+<div class="my-4 max-w-screen-md mx-auto">
+	<div class="my-4 p-4 border-2 border-gray-100 dark:border-gray-900 rounded shadow-sm">
+		<div class="navbar bg-base-100 border-b-2 border-gray-100 dark:border-gray-900">
+			<div class="flex-1">
+				<div class="avatar">
+					<div class="w-16 rounded-full bg-gray-50 dark:bg-gray-950">
+						<img alt="Scotty Logo" src={logo} />
+					</div>
 				</div>
+				<a href="/" class="btn btn-ghost text-xl">scotty @ {site_info.domain}</a>
 			</div>
-			<a href="/" class="btn btn-ghost text-xl">scotty</a>
+			<div class="flex-none">
+				<ul class="menu menu-horizontal px-1">
+					<li><a href="/rapidoc">API Documentation</a></li>
+				</ul>
+			</div>
 		</div>
-		<div class="flex-none">
-			<ul class="menu menu-horizontal px-1">
-				<li><a href="/rapidocs">API Documentation</a></li>
-			</ul>
-		</div>
-	</div>
 
-	<div class="m-4 p-4">
-		<slot />
+		<div class="my-4">
+			<slot />
+		</div>
 	</div>
+	<footer class="px-4 pb-4">
+		<p class="text-right text-sm text-gray-500">
+			Brought to you by <a class="link link-secondary" href="https://factorial.io/">Factorial.io</a>
+		</p>
+	</footer>
 </div>
