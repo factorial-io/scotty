@@ -3,9 +3,9 @@ api:
   bind_address: "0.0.0.0:21342"
   access_token: "mysecret"
 scheduler:
-  running_app_check: "10m"
-  ttl_check: "1m"
-  task_cleanup: "10m"
+  running_app_check: "1m"
+  ttl_check: "10m"
+  task_cleanup: "3m"
 telemetry: None
 apps:
   domain_suffix: "ddev.site"
