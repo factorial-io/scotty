@@ -1,7 +1,7 @@
 <script>
 	import 'tailwindcss/tailwind.css';
 	import logo from '$lib/assets/scotty.svg';
-	import { apiCall } from '$lib';
+	import { apiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
 
 	let site_info = {
@@ -10,6 +10,7 @@
 
 	$: {
 		onMount(async () => {
+			checkIfLoggedIn();
 			site_info = await apiCall('info');
 		});
 	}
@@ -24,10 +25,13 @@
 						<img alt="Scotty Logo" src={logo} />
 					</div>
 				</div>
-				<a href="/" class="btn btn-ghost text-xl">scotty @ {site_info.domain}</a>
+				<a href="/dashboard" class="btn btn-ghost text-xl">scotty @ {site_info.domain}</a>
 			</div>
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
+					<li>
+						<a href="/tasks">Tasks</a>
+					</li>
 					<li>
 						<a href="/rapidoc" target="_blank" rel="noopener noreferrer">API Documentation</a>
 					</li>

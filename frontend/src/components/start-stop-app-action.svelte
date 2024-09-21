@@ -10,24 +10,12 @@
 
 	let task_id: string = '';
 
-	function currentIcon() {
-		if (status === 'Running') {
-			return stop;
-		} else {
-			return play;
-		}
-	}
+	$: currentIcon = status === 'Running' ? stop : play;
 
 	async function handleClick() {
 		if (task_id !== '') return;
-		console.log(name, status);
-		if (status === 'Running') {
-			task_id = await stopApp(name);
-		} else {
-			task_id = await runApp(name);
-		}
-		console.log(task_id);
-		monitorTask(task_id, (result) => {
+		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
+		monitorTask(task_id, (result: unknown) => {
 			task_id = '';
 			console.log(result);
 			updateAppInfo(name);
@@ -39,6 +27,6 @@
 	{#if task_id !== ''}
 		<span class="loading loading-spinner"></span>
 	{:else}
-		<Icon icon={currentIcon()} />
+		<Icon icon={currentIcon} />
 	{/if}
 </button>
