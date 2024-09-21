@@ -149,6 +149,7 @@ pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
     pub api: ApiServer,
+    pub frontend_directory: Option<String>,
     pub scheduler: Scheduler,
     pub apps: Apps,
     pub docker: DockerSettings,
@@ -161,6 +162,7 @@ impl Default for Settings {
         Settings {
             debug: false,
             telemetry: None,
+            frontend_directory: None,
             api: ApiServer {
                 bind_address: "0.0.0.0:21342".to_string(),
                 access_token: None,

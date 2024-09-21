@@ -7,6 +7,7 @@ scheduler:
   ttl_check: "10m"
   task_cleanup: "3m"
 telemetry: None
+frontend_directory: ./frontend/build
 apps:
   domain_suffix: "ddev.site"
   use_tls: false

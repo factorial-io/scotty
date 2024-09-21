@@ -2,6 +2,8 @@ use axum::middleware;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
+use tower_http::services::ServeDir;
+use tower_http::services::ServeFile;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
@@ -84,7 +86,8 @@ pub struct ApiRoutes;
 
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
-        Router::new()
+        let frontend_directory = state.settings.frontend_directory.clone();
+        let router = Router::new()
             .route("/api/v1/apps/list", get(list_apps_handler))
             .route("/api/v1/apps/run/:app_id", get(run_app_handler))
             .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
@@ -105,6 +108,22 @@ impl ApiRoutes {
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
-            .with_state(state)
+            .with_state(state);
+        match &frontend_directory {
+            None => {
+                tracing::info!("No frontend directory provided, serving only the API.");
+                router // Return router directly
+            }
+            Some(frontend_directory) => {
+                tracing::info!("Using {} to serve the frontend ui.", frontend_directory);
+                let serve_dir = ServeDir::new(&frontend_directory).not_found_service(
+                    ServeFile::new(format!("{}/index.html", &frontend_directory)),
+                );
+
+                router
+                    .nest_service("/", serve_dir.clone())
+                    .fallback_service(serve_dir)
+            }
+        }
     }
 }

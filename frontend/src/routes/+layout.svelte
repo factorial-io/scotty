@@ -28,7 +28,9 @@
 			</div>
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
-					<li><a href="/rapidoc">API Documentation</a></li>
+					<li>
+						<a href="/rapidoc" target="_blank" rel="noopener noreferrer">API Documentation</a>
+					</li>
 				</ul>
 			</div>
 		</div>
