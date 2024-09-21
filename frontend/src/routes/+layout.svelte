@@ -10,12 +10,7 @@
 
 	$: {
 		onMount(async () => {
-			async function getSiteInfo() {
-				const response = await apiCall('info');
-				return await response.json();
-			}
-
-			site_info = await getSiteInfo();
+			site_info = await apiCall('info');
 		});
 	}
 </script>
