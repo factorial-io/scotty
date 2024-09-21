@@ -9,6 +9,7 @@
 	import AppServiceButton from '../../components/app-service-button.svelte';
 	import AppStatusPill from '../../components/app-status-pill.svelte';
 	import Icon from '@iconify/svelte';
+	import PageHeader from '../../components/page-header.svelte';
 
 	const filter = writable('');
 
@@ -17,17 +18,13 @@
 	});
 </script>
 
-<div class="grid grid-cols-2 gap-4 mb-4 mt-8">
-	<div>
-		<h2 class="card-title">List of apps</h2>
-	</div>
-	<div>
-		<label class="input input-bordered input-sm flex items-center gap-2">
-			<input type="text" bind:value={$filter} placeholder="Filter by name" class="grow" />
-			<Icon icon={MagnifyingGlass} />
-		</label>
-	</div>
-</div>
+<PageHeader>
+	<h2 slot="header" class="card-title">List of apps</h2>
+	<label slot="meta" class="input input-bordered input-sm flex items-center gap-2">
+		<input type="text" bind:value={$filter} placeholder="Filter by name" class="grow" />
+		<Icon icon={MagnifyingGlass} />
+	</label>
+</PageHeader>
 <table class="table">
 	<!-- head -->
 	<thead>
