@@ -11,9 +11,18 @@ export function monitorTask(taskId: string, callback) {
 			clearInterval(interval);
 			callback(result);
 		}
-	}, 1000);
 
-	tasks.update((tasks) => {
-		return { ...tasks, [taskId]: callback };
+		tasks.update((tasks) => {
+			return { ...tasks, [taskId]: result };
+		});
+	}, 1000);
+}
+
+export async function requestAllTasks() {
+	const results = await apiCall('tasks');
+	let tasks_by_id = {};
+	results.tasks.forEach((task) => {
+		tasks_by_id[task.id] = task;
 	});
+	tasks.set(tasks_by_id);
 }
