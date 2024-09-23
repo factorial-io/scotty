@@ -9,7 +9,6 @@
 .lint:scotty:
   script:
     - "phab -cci script lint:scotty --no-interaction"
-  allow_failure: true
   tags:
     - fabalicious
   rules:
