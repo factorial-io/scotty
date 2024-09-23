@@ -25,3 +25,11 @@ export async function requestAllTasks() {
 	});
 	tasks.set(tasks_by_id);
 }
+
+export async function requestTaskDetails(taskId: string) {
+	const result = await apiCall(`task/${taskId}`);
+	tasks.update((tasks) => {
+		return { ...tasks, [taskId]: result };
+	});
+	return result;
+}

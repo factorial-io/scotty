@@ -3,3 +3,4 @@ frontend/node_modules
 apps/test-nginx-creation
 /apps/test-nginx
 apps/cd-with-db/
+frontend/public

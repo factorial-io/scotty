@@ -39,7 +39,7 @@
 	<tbody>
 		{#each taskList.sort((a, b) => new Date(b.start_time) - new Date(a.start_time)) as task}
 			<tr>
-				<td>{task.id}</td>
+				<td><a href="/tasks/{task.id}">{task.id}</a></td>
 				<td><TaskStatusPill status={task.state} /></td>
 				<td><TimeAgo dateString={task.start_time} /></td>
 				<td><TimeAgo dateString={task.finish_time} /></td>
