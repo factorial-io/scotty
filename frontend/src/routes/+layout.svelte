@@ -16,7 +16,7 @@
 	}
 </script>
 
-<div class="my-4 max-w-screen-md mx-auto">
+<div class="my-4 max-w-screen-lg mx-auto">
 	<div class="my-4 p-4 border-2 border-gray-100 dark:border-gray-900 rounded shadow-sm">
 		<div class="navbar bg-base-100 border-b-2 border-gray-100 dark:border-gray-900">
 			<div class="flex-1">

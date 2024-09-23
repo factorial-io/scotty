@@ -76,8 +76,9 @@ impl TaskManager {
 
             tokio::task::spawn(async move {
                 info!(
-                    "Starting process with uuid {}: {:?} {}",
+                    "Starting process with uuid {} in folder {}: {:?} {}",
                     &id,
+                    cwd.display(),
                     cmd,
                     args.join(" ")
                 );

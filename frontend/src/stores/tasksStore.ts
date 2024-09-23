@@ -7,7 +7,7 @@ export function monitorTask(taskId: string, callback) {
 	const interval = setInterval(async () => {
 		console.log('monitorTask', taskId);
 		const result = await apiCall(`task/${taskId}`);
-		if (result.state === 'Finished') {
+		if (result.state === 'Finished' || result.state === 'Failed') {
 			clearInterval(interval);
 			callback(result);
 		}

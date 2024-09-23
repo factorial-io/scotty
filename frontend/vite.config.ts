@@ -5,8 +5,8 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	server: {
 		proxy: {
-			'/rapidoc': 'http://localhost:21342',
-			'/api': 'http://localhost:21342'
+			'/rapidoc': 'http://127.0.0.1:21342',
+			'/api': 'http://127.0.0.1:21342'
 		}
 	}
 });
