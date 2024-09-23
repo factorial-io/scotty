@@ -19,7 +19,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --bin scotty --bin scottyctl
 
-FROM node:18 as frontend-builder
+FROM node:20 as frontend-builder
 WORKDIR /app
 COPY ./frontend /app
 RUN yarn install && yarn build
@@ -55,7 +55,7 @@ RUN groupadd $APP_USER \
 COPY --from=builder /app/target/release/scotty ${APP}/scotty
 COPY --from=builder /app/target/release/scottyctl ${APP}/scottyctl
 COPY --from=builder /app/config ${APP}/config
-COPY --from=frontend-builder /app/public ${APP}/frontend/
+COPY --from=frontend-builder /app/build ${APP}/frontend/build
 # RUN chown -R $APP_USER:$APP_USER ${APP}
 # USER $APP_USER
 WORKDIR ${APP}
