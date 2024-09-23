@@ -25,10 +25,13 @@
 						<img alt="Scotty Logo" src={logo} />
 					</div>
 				</div>
-				<a href="/dashboard" class="btn btn-ghost text-xl">scotty @ {site_info.domain}</a>
+				<a href="/dashboard" class="text-xl ml-4 font-bold">scotty @ {site_info.domain}</a>
 			</div>
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
+					<li>
+						<a href="/dashboard">Apps</a>
+					</li>
 					<li>
 						<a href="/tasks">Tasks</a>
 					</li>

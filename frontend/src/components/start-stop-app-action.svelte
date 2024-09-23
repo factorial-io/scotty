@@ -24,7 +24,6 @@
 			}
 
 			task_id = '';
-			console.log(result);
 			updateAppInfo(name);
 		});
 	}

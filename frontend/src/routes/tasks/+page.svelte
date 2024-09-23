@@ -4,6 +4,7 @@
 	import { requestAllTasks } from '../../stores/tasksStore';
 	import { tasks } from '../../stores/tasksStore';
 	import TimeAgo from '../../components/time-ago.svelte';
+	import TaskStatusPill from '../../components/task-status-pill.svelte';
 	onMount(async () => {
 		function checkTasks() {
 			const hasRunningTask = Object.values($tasks).some((task) => task.state === 'Running');
@@ -39,7 +40,7 @@
 		{#each taskList.sort((a, b) => new Date(b.start_time) - new Date(a.start_time)) as task}
 			<tr>
 				<td>{task.id}</td>
-				<td>{task.state}</td>
+				<td><TaskStatusPill status={task.state} /></td>
 				<td><TimeAgo dateString={task.start_time} /></td>
 				<td><TimeAgo dateString={task.finish_time} /></td>
 			</tr>
