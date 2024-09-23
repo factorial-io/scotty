@@ -169,6 +169,7 @@ async fn get_running_services(
                     id: None,
                     service: s.to_string(),
                     domain: None,
+                    url: None,
                     port: None,
                     started_at: None,
                 }
@@ -262,11 +263,22 @@ async fn inspect_docker_container(
     let loadbalancer_info = LoadBalancerFactory::create(&app_state.settings.load_balancer_type)
         .get_load_balancer_info(insights.clone());
 
+    let domain = loadbalancer_info.domain.clone();
+    let url = domain.map(|domain| {
+        let protocol = if app_state.settings.apps.use_tls {
+            "https"
+        } else {
+            "http"
+        };
+        format!("{}://{}", protocol, domain)
+    });
+
     let container_state = ContainerState {
         status: state.status.unwrap(),
         id: Some(container_id.to_string()),
         service: service.to_string(),
         domain: loadbalancer_info.domain,
+        url: url.clone(),
         port: loadbalancer_info.port,
         started_at: Some(local_date),
     };

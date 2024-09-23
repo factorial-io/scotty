@@ -1,5 +1,6 @@
 api:
   bind_address: "127.0.0.1:21342"
+  access_token: hello-world
 telemetry: None
 apps:
   domain_suffix: "ddev.site"

@@ -3,10 +3,11 @@ api:
   bind_address: "0.0.0.0:21342"
   access_token: "mysecret"
 scheduler:
-  running_app_check: "10m"
+  running_app_check: "1m"
   ttl_check: "10m"
-  task_cleanup: "1m"
+  task_cleanup: "3m"
 telemetry: None
+frontend_directory: ./frontend/build
 apps:
   domain_suffix: "ddev.site"
   use_tls: false
