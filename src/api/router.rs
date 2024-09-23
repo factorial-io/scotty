@@ -116,7 +116,7 @@ impl ApiRoutes {
             }
             Some(frontend_directory) => {
                 tracing::info!("Using {} to serve the frontend ui.", frontend_directory);
-                let serve_dir = ServeDir::new(&frontend_directory).not_found_service(
+                let serve_dir = ServeDir::new(frontend_directory).not_found_service(
                     ServeFile::new(format!("{}/index.html", &frontend_directory)),
                 );
 
