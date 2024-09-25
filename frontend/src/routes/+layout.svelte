@@ -1,17 +1,21 @@
-<script>
+<script lang="ts">
 	import 'tailwindcss/tailwind.css';
 	import logo from '$lib/assets/scotty.svg';
 	import { apiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
 
-	let site_info = {
+	type SiteInfo = {
+		domain: string;
+	};
+
+	let site_info: SiteInfo = {
 		domain: '...'
 	};
 
 	$: {
 		onMount(async () => {
 			checkIfLoggedIn();
-			site_info = await apiCall('info');
+			site_info = (await apiCall('info')) as SiteInfo;
 		});
 	}
 </script>

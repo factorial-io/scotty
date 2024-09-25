@@ -1,28 +1,39 @@
 import { apiCall } from '$lib';
 import { writable } from 'svelte/store';
 // Create a writable store with an initial value
-export const apps = writable([]);
 
+interface AppService {
+	service: string;
+	domain: string;
+}
 interface App {
 	name: string;
+	status: string;
+	services: AppService[];
 }
 
-export function setApps(new_apps: Partial<App>[]) {
+export const apps = writable([] as App[]);
+
+export function setApps(new_apps: App[]) {
 	apps.set(new_apps);
 }
 
 export function getApp(name: string) {
-	return apps.find((app) => app.name === name);
+	let foundApp: App | undefined;
+	apps.subscribe((currentApps) => {
+		foundApp = currentApps.find((app: App) => app.name === name);
+	})();
+	return foundApp;
 }
 
 export async function loadApps() {
 	// Fetch the apps from the server
-	const result = await apiCall('apps/list');
+	const result = (await apiCall('apps/list')) as { apps: App[] };
 	apps.set(result.apps || []);
 }
 
 export async function dispatchAppCommand(command: string, name: string): Promise<string> {
-	const result = await apiCall(`apps/${command}/${name}`);
+	const result = (await apiCall(`apps/${command}/${name}`)) as { task: { id: string } };
 	return result.task.id;
 }
 
@@ -35,11 +46,13 @@ export async function stopApp(name: string): Promise<string> {
 }
 
 export async function updateAppInfo(name: string) {
-	const result = await apiCall(`apps/info/${name}`);
+	const result = (await apiCall(`apps/info/${name}`)) as App;
 
 	apps.update((apps) => {
 		const index = apps.findIndex((app) => app.name === name);
-		apps[index] = result;
+		if (index !== -1) {
+			apps[index] = result;
+		}
 		return apps;
 	});
 }

@@ -1,6 +1,7 @@
 use tracing::instrument;
 
 use crate::{
+    api::ws::broadcast_message,
     app_state::SharedAppState,
     docker::{find_apps::find_apps, ttl_checker::check_app_ttl},
 };
@@ -81,6 +82,11 @@ async fn schedule_app_check(app_state: SharedAppState) {
         Ok(apps) => {
             let _ = app_state.apps.set_apps(&apps).await;
             tracing::info!("Found {} apps {:?}", app_state.apps.len().await, &apps.apps);
+            broadcast_message(
+                &app_state,
+                crate::api::message::WebSocketMessage::AppListUpdated,
+            )
+            .await;
         }
         Err(e) => {
             tracing::error!("Error while checking running apps: {:?}", e);

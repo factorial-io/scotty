@@ -36,7 +36,7 @@
 		</tr>
 	</thead>
 	<tbody>
-		{#each taskList.sort((a, b) => new Date(b.start_time) - new Date(a.start_time)) as task}
+		{#each taskList.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) as task}
 			<tr>
 				<td>{task.id}</td>
 				<td>{task.state}</td>
