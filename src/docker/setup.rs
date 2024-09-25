@@ -56,6 +56,11 @@ pub async fn setup_docker_integration(
                 let app_state = app_state.clone();
                 async move {
                     app_state.task_manager.run_cleanup_task().await;
+                    broadcast_message(
+                        &app_state,
+                        crate::api::message::WebSocketMessage::TaskListUpdated,
+                    )
+                    .await;
                 }
             });
     }

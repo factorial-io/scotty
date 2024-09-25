@@ -2,16 +2,6 @@ import { apiCall } from '$lib';
 import { writable } from 'svelte/store';
 // Create a writable store with an initial value
 
-interface AppService {
-	service: string;
-	domain: string;
-}
-interface App {
-	name: string;
-	status: string;
-	services: AppService[];
-}
-
 export const apps = writable([] as App[]);
 
 export function setApps(new_apps: App[]) {

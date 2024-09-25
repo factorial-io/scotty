@@ -34,11 +34,8 @@ export async function checkIfLoggedIn() {
 	const token = localStorage.getItem('token');
 
 	if (!token && window.location.pathname !== '/login') {
-		console.log(window.location.pathname);
-		// If token is not found, redirect to the login page
 		window.location.href = '/login';
-	} else {
-		// Optionally, you can add further validation of the token by making an API call
+	} else if (token) {
 		validateToken(token);
 	}
 }

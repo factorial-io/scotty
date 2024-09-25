@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{state_machine::StateHandler, tasks::task_details::State};
+use crate::{api::ws::broadcast_message, state_machine::StateHandler, tasks::task_details::State};
 
 use super::context::Context;
 
@@ -25,6 +25,12 @@ where
         let context = context.read().await;
         let mut task_details = context.task.write().await;
         task_details.state = State::Finished;
+
+        broadcast_message(
+            &context.app_state,
+            crate::api::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
+        )
+        .await;
 
         Ok(self.next_state.clone())
     }

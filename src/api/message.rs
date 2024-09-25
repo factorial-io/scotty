@@ -8,7 +8,7 @@ pub enum WebSocketMessage {
     Pong,
     AppListUpdated,
     AppInfoUpdated(String),
-    TaskListUpdated(),
+    TaskListUpdated,
     TaskInfoUpdated(TaskDetails),
     Error(String),
 }

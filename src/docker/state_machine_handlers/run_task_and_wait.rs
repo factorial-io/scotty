@@ -45,6 +45,7 @@ pub async fn run_task_and_wait(
             .get_task_details(&task_details.id)
             .await
             .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
+
         broadcast_message(
             &context.app_state,
             crate::api::message::WebSocketMessage::TaskInfoUpdated(task.clone()),

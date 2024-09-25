@@ -15,9 +15,8 @@
 	async function handleClick() {
 		if (task_id !== '') return;
 		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
-		monitorTask(task_id, (result: unknown) => {
+		monitorTask(task_id, () => {
 			task_id = '';
-			console.log(result);
 			updateAppInfo(name);
 		});
 	}

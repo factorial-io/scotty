@@ -3,6 +3,7 @@
 	import logo from '$lib/assets/scotty.svg';
 	import { apiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
+	import { setupWsListener } from '$lib/ws';
 
 	type SiteInfo = {
 		domain: string;
@@ -14,6 +15,8 @@
 
 	$: {
 		onMount(async () => {
+			setupWsListener('/ws');
+
 			checkIfLoggedIn();
 			site_info = (await apiCall('info')) as SiteInfo;
 		});

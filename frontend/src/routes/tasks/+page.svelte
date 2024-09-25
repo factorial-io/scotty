@@ -5,15 +5,6 @@
 	import { tasks } from '../../stores/tasksStore';
 	import TimeAgo from '../../components/time-ago.svelte';
 	onMount(async () => {
-		function checkTasks() {
-			const hasRunningTask = Object.values($tasks).some((task) => task.state === 'Running');
-			const interval = hasRunningTask ? 1000 : 5000;
-			setTimeout(async () => {
-				await requestAllTasks();
-				checkTasks();
-			}, interval);
-		}
-		checkTasks();
 		await requestAllTasks();
 	});
 
