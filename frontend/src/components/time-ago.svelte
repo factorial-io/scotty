@@ -1,19 +1,17 @@
-<script>
+<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
-	export let dateString;
+	export let dateString: string | null = null;
 
-	let timeAgoText = '';
-	let interval;
+	let timeAgoText: string = '';
+	let interval: number;
 
-	function getTimeAgo(dateString) {
+	function getTimeAgo(dateString: string) {
 		const now = new Date();
 		const past = new Date(dateString);
-		const diffSeconds = Math.floor((now - past) / 1000);
+		const diffSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
 
-		if (dateString === null || isNaN(diffSeconds)) {
-			return '';
-		} else if (diffSeconds < 60) {
+		if (diffSeconds < 60) {
 			return `${diffSeconds} seconds ago`;
 		} else if (diffSeconds < 3600) {
 			const diffMinutes = Math.floor(diffSeconds / 60);
@@ -25,22 +23,27 @@
 	}
 
 	function updateTime() {
-		timeAgoText = getTimeAgo(dateString);
-		scheduleNextUpdate();
+		timeAgoText = dateString ? getTimeAgo(dateString) : '';
+		scheduleNextUpdate(dateString);
 	}
 
-	function scheduleNextUpdate() {
-		const now = new Date();
-		const past = new Date(dateString);
-		const diffSeconds = Math.floor((now - past) / 1000);
+	function scheduleNextUpdate(dateString: string | null) {
+		let milliseconds: number;
+		if (dateString == null) {
+			milliseconds = 1000;
+		} else {
+			const now = new Date();
+			const past = new Date(dateString);
+			const diffSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+			if (past == null || isNaN(diffSeconds) || diffSeconds < 60) {
+				milliseconds = 1000;
+			} else {
+				milliseconds = 60000;
+			}
+		}
 
 		if (interval) clearInterval(interval);
-
-		if (past == null || isNaN(diffSeconds) || diffSeconds < 60) {
-			interval = setInterval(updateTime, 1000);
-		} else {
-			interval = setInterval(updateTime, 60000);
-		}
+		interval = setInterval(updateTime, milliseconds);
 	}
 
 	onMount(() => {

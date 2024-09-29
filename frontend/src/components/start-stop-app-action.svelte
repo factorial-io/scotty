@@ -18,7 +18,7 @@
 		failed_task = null;
 		if (task_id !== '') return;
 		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
-		monitorTask(task_id, (result: unknown) => {
+		monitorTask(task_id, () => {
 			if (result.state === 'Failed') {
 				failed_task = result;
 			}

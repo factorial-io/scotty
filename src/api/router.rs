@@ -99,9 +99,9 @@ impl ApiRoutes {
             .route("/api/v1/tasks", get(task_list_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))
             .route("/api/v1/validate-token", post(validate_token_handler))
-            .route("/ws", get(ws_handler))
             .route_layer(middleware::from_fn_with_state(state.clone(), auth))
             // all routes below this line are public and not protected by basic auth
+            .route("/ws", get(ws_handler))
             .route("/api/v1/login", post(login_handler))
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))

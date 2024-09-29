@@ -1,17 +1,24 @@
-<script>
+<script lang="ts">
 	import 'tailwindcss/tailwind.css';
 	import logo from '$lib/assets/scotty.svg';
 	import { apiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
+	import { setupWsListener } from '$lib/ws';
 
-	let site_info = {
+	type SiteInfo = {
+		domain: string;
+	};
+
+	let site_info: SiteInfo = {
 		domain: '...'
 	};
 
 	$: {
 		onMount(async () => {
+			setupWsListener('/ws');
+
 			checkIfLoggedIn();
-			site_info = await apiCall('info');
+			site_info = (await apiCall('info')) as SiteInfo;
 		});
 	}
 </script>

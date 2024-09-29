@@ -18,5 +18,6 @@ pub async fn handle_websocket_message(
         }
         WebSocketMessage::Pong => {}
         WebSocketMessage::Error(_) => {}
+        _ => {}
     }
 }
