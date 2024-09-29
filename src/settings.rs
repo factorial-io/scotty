@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use config::{Config, ConfigError, Environment, File};
-use opentelemetry::trace::FutureExt;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 
