@@ -1,6 +1,6 @@
 import { apiCall } from '$lib';
 import { writable } from 'svelte/store';
-// Create a writable store with an initial value
+import type { ApiError, App } from '../types';
 
 export const apps = writable([] as App[]);
 
@@ -35,7 +35,7 @@ export async function stopApp(name: string): Promise<string> {
 	return dispatchAppCommand('stop', name);
 }
 
-export async function updateAppInfo(name: string) {
+export async function updateAppInfo(name: string): Promise<App | ApiError> {
 	const result = (await apiCall(`apps/info/${name}`)) as App;
 
 	apps.update((apps) => {
@@ -45,4 +45,6 @@ export async function updateAppInfo(name: string) {
 		}
 		return apps;
 	});
+
+	return result;
 }

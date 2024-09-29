@@ -41,7 +41,7 @@
 			.sort((a, b) => a.name.localeCompare(b.name)) as app}
 			<tr>
 				<td><StartStopAppAction name={app.name} status={app.status} /></td>
-				<td>{app.name}</td>
+				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
 				<td
 					>{#each app.services as service}
 						{#if service.domain}

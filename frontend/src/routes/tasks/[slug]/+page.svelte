@@ -1,12 +1,17 @@
-<script>
+<script lang="ts">
 	import CodeOutput from '../../../components/code-output.svelte';
 	import PageHeader from '../../../components/page-header.svelte';
 	import TaskStatusPill from '../../../components/task-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
+	import { tasks } from '../../../stores/tasksStore';
+	import type { TaskDetail } from '../../../types';
 
-	/** @type {import('./$types').PageData} */
-	export let data;
-	console.log(data);
+	export let data: TaskDetail;
+
+	tasks.subscribe((new_tasks) => {
+		console.log(new_tasks, data.id);
+		data = Object.values(new_tasks).find((t) => t.id === data.id) || data;
+	});
 </script>
 
 <PageHeader>

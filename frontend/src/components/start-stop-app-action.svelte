@@ -5,12 +5,13 @@
 	import errorIcon from '@iconify-icons/heroicons/exclamation-triangle';
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
 	import { monitorTask } from '../stores/tasksStore';
+	import type { TaskDetail } from '../types';
 
 	export let name = '';
 	export let status = 'Stopped';
 
 	let task_id: string = '';
-	let failed_task: unknown = null;
+	let failed_task: TaskDetail | null = null;
 
 	$: currentIcon = status === 'Running' ? stop : play;
 
@@ -18,7 +19,7 @@
 		failed_task = null;
 		if (task_id !== '') return;
 		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
-		monitorTask(task_id, () => {
+		monitorTask(task_id, (result) => {
 			if (result.state === 'Failed') {
 				failed_task = result;
 			}

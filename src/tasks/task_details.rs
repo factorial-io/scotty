@@ -21,6 +21,7 @@ pub struct TaskDetails {
     pub start_time: chrono::DateTime<chrono::Utc>,
     pub finish_time: Option<chrono::DateTime<chrono::Utc>>,
     pub last_exit_code: Option<i32>,
+    pub app_name: Option<String>,
 }
 
 impl Default for TaskDetails {
@@ -34,6 +35,7 @@ impl Default for TaskDetails {
             start_time: chrono::DateTime::from(SystemTime::now()),
             finish_time: None,
             last_exit_code: None,
+            app_name: None,
         }
     }
 }

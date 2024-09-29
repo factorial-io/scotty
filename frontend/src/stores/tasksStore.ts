@@ -1,6 +1,7 @@
 import { apiCall } from '$lib';
 import { writable } from 'svelte/store';
-// Create a writable store with an initial value
+import type { TaskDetail } from '../types';
+
 export const tasks = writable({} as Record<string, TaskDetail>);
 
 export function monitorTask(taskId: string, callback: (result: TaskDetail) => void) {
@@ -28,7 +29,7 @@ export function updateTask(taskId: string, payload: TaskDetail) {
 }
 
 export async function requestAllTasks() {
-	const results = (await apiCall('tasks')) as { tasks: { id: string }[] };
+	const results = (await apiCall('tasks')) as { tasks: TaskDetail[] };
 	const tasks_by_id = {} as Record<string, TaskDetail>;
 	results.tasks.forEach((task) => {
 		tasks_by_id[task.id] = task;
@@ -37,7 +38,7 @@ export async function requestAllTasks() {
 }
 
 export async function requestTaskDetails(taskId: string) {
-	const result = await apiCall(`task/${taskId}`);
+	const result = (await apiCall(`task/${taskId}`)) as TaskDetail;
 	tasks.update((tasks) => {
 		return { ...tasks, [taskId]: result };
 	});

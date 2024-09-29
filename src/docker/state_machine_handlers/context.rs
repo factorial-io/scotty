@@ -26,7 +26,10 @@ impl Context {
         Arc::new(RwLock::new(Context {
             app_state: app_state.clone(),
             app_data: app_data.clone(),
-            task: Arc::new(RwLock::new(TaskDetails::default())),
+            task: Arc::new(RwLock::new(TaskDetails {
+                app_name: Some(app_data.name.clone()),
+                ..TaskDetails::default()
+            })),
         }))
     }
 }
