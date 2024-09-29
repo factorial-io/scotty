@@ -12,37 +12,6 @@ apps:
   domain_suffix: "ddev.site"
   use_tls: false
   root_folder: "./apps" # Path to the folder where the apps are stored
-  blueprints:
-    nginx-lagoon:
-      name: "NGINX using lagoon base images"
-      description: "A simple NGINX container using lagoon base images"
-      actions:
-        post_create:
-          nginx:
-            - echo "Hello, World from post_create"
-            - env
-        post_rebuild:
-          nginx:
-            - echo "Hello, World from post_rebuild"
-            - env
-        post_run:
-          nginx:
-            - echo "Hello, World from post_run"
-            - env
-    drupal-lagoon:
-      name: "Drupal using lagoon base images"
-      description: "A simple Drupal application using lagoon base images (cli, php, nginx)"
-      actions:
-        post_create:
-          cli:
-            - drush deploy
-        post_rebuild:
-          cli:
-            - drush deploy
-        post_run:
-          cli:
-            - drush uli
-
 docker:
   connection: local # local, socket or http, see bollard docs
   registries:

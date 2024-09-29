@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
 use config::{Config, ConfigError, Environment, File};
-use serde::Deserialize;
+use opentelemetry::trace::FutureExt;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 
 #[derive(Debug, Clone)]
@@ -73,7 +74,9 @@ pub struct Scheduler {
     pub task_cleanup: SchedulerInterval,
 }
 
-#[derive(Clone, Deserialize, Debug, Hash, Eq, PartialEq)]
+#[derive(
+    Clone, Serialize, Deserialize, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse,
+)]
 #[serde(rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
 pub enum ActionName {
@@ -82,12 +85,13 @@ pub enum ActionName {
     PostRebuild,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, utoipa::ToSchema, utoipa::ToResponse)]
 #[allow(unused)]
 pub struct AppBlueprint {
     pub name: String,
     pub description: String,
     pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
+    pub public_services: HashMap<String, u16>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -220,7 +224,8 @@ impl Settings {
             .set_default("apps.max_depth", 3u32)?
             .set_default("docker.connection", "local")?
             // Start off by merging in the "default" configuration file
-            .add_source(File::with_name("config/default"))
+            .add_source(File::with_name("config/default").))
+            .add_source(File::with_name("config/blueprints"))
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             .add_source(File::with_name("config/local").required(false))
             .add_source(Self::get_environment())
