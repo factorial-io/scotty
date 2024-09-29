@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::settings::SchedulerInterval;
 use crate::tasks::task_details::{State, TaskDetails, TaskState};
 
 #[derive(Clone, Debug)]
@@ -126,7 +127,8 @@ impl TaskManager {
     }
 
     #[instrument]
-    pub async fn run_cleanup_task(&self) {
+    pub async fn run_cleanup_task(&self, interval: SchedulerInterval) {
+        let ttl = interval.into();
         let processes = self.processes.clone();
         let mut processes_lock = processes.write().await;
 
@@ -134,7 +136,12 @@ impl TaskManager {
 
         for (uuid, state) in processes_lock.iter() {
             if let Some(handle) = &state.handle {
-                if handle.read().await.is_finished() {
+                let details = state.details.read().await;
+                if handle.read().await.is_finished()
+                    && details.finish_time.map_or(false, |finish_time| {
+                        chrono::Utc::now().signed_duration_since(finish_time) > ttl
+                    })
+                {
                     handle.write().await.abort();
                     to_remove.push(*uuid);
                 }

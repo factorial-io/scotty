@@ -55,7 +55,10 @@ pub async fn setup_docker_integration(
             .run(move || {
                 let app_state = app_state.clone();
                 async move {
-                    app_state.task_manager.run_cleanup_task().await;
+                    app_state
+                        .task_manager
+                        .run_cleanup_task(app_state.settings.scheduler.task_cleanup.clone())
+                        .await;
                     broadcast_message(
                         &app_state,
                         crate::api::message::WebSocketMessage::TaskListUpdated,

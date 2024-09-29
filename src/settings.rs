@@ -46,6 +46,15 @@ impl From<SchedulerInterval> for clokwerk::Interval {
         }
     }
 }
+impl From<SchedulerInterval> for chrono::Duration {
+    fn from(val: SchedulerInterval) -> Self {
+        match val {
+            SchedulerInterval::Seconds(s) => chrono::Duration::seconds(s as i64),
+            SchedulerInterval::Minutes(m) => chrono::Duration::minutes(m as i64),
+            SchedulerInterval::Hours(h) => chrono::Duration::hours(h as i64),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
