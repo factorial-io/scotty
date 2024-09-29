@@ -224,7 +224,7 @@ impl Settings {
             .set_default("apps.max_depth", 3u32)?
             .set_default("docker.connection", "local")?
             // Start off by merging in the "default" configuration file
-            .add_source(File::with_name("config/default").))
+            .add_source(File::with_name("config/default"))
             .add_source(File::with_name("config/blueprints"))
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             .add_source(File::with_name("config/local").required(false))
