@@ -22,7 +22,6 @@ pub async fn blueprints_handler(State(state): State<SharedAppState>) -> impl Int
     let blueprints = AppBlueprintList {
         blueprints: state.settings.apps.blueprints.clone(),
     };
-    
 
     Json(blueprints)
 }
