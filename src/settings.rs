@@ -90,7 +90,7 @@ pub struct AppBlueprint {
     pub name: String,
     pub description: String,
     pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
-    pub public_services: HashMap<String, u16>,
+    pub public_services: Option<HashMap<String, u16>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
