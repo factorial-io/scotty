@@ -8,15 +8,15 @@ name = "scottyctl"
 path = "src/scottyctl.rs"
 
 [dependencies]
-anyhow = "1.0.86"
-axum = { version = "0.7.5", features = ["ws", "macros"] }
-bollard = "0.16.1"
+anyhow = "1.0.89"
+axum = { version = "0.7.6", features = ["ws", "macros"] }
+bollard = "0.17.0"
 config = "0.14.0"
 readonly = "0.2.12"
-serde = "1.0.203"
+serde = "1.0.210"
 clap = { version = "4.5", features = ["derive", "env"] }
-serde_json = { version = "1.0.114", features = [] }
-tokio = { version = "1.36.0", features = [
+serde_json = { version = "1.0.128", features = [] }
+tokio = { version = "1.40.0", features = [
     "rt",
     "rt-multi-thread",
     "macros",
@@ -25,45 +25,45 @@ tokio = { version = "1.36.0", features = [
 ] }
 tracing = "0.1.40"
 tracing-subscriber = "*"
-opentelemetry = { version = "0.23.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.23", features = [
+opentelemetry = { version = "0.25.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.25", features = [
     "rt-tokio",
 ], default-features = false }
-tracing-opentelemetry = "0.24"
-init-tracing-opentelemetry = { version = "0.19.0", features = [
+tracing-opentelemetry = "0.26"
+init-tracing-opentelemetry = { version = "0.22.0", features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
-axum-tracing-opentelemetry = "0.19.0"
-opentelemetry-otlp = { version = "0.16.0", features = [
+axum-tracing-opentelemetry = "0.21.0"
+opentelemetry-otlp = { version = "0.25.0", features = [
     "reqwest-client",
     "reqwest-rustls",
     "http-proto",
     "tls",
 ] }
 
-utoipa = { version = "4.2.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa = { version = "4.2.3", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "7.1", features = ["axum", "reqwest"] }
 utoipa-redoc = { version = "4.0", features = ["axum"] }
 utoipa-rapidoc = { version = "4.0", features = ["axum"] }
 
-tower-http = { version = "0.5.2", features = ["cors", "fs"] }
+tower-http = { version = "0.6.0", features = ["cors", "fs"] }
 tokio-tungstenite = "*"
 futures-util = "0.3.30"
 uuid = { version = "1.10", features = ["v4", "serde"] }
-reqwest = { version = "0.12.5", features = ["json"] }
-thiserror = "1.0.61"
+reqwest = { version = "0.12.7", features = ["json"] }
+thiserror = "1.0.64"
 clokwerk = { version = "0.4.0", features = ["async"] }
 walkdir = "2.5.0"
 chrono = { version = "0.4.38", features = ["serde"] }
-tokio-stream = "0.1.15"
-serde_yml = "0.0.10"
-regex = "1.10.5"
-tabled = { version = "0.15.0", features = ["ansi"] }
-owo-colors = "4.0.0"
-async-trait = "0.1.81"
+tokio-stream = "0.1.16"
+serde_yml = "0.0.12"
+regex = "1.11.0"
+tabled = { version = "0.16.0", features = ["ansi"] }
+owo-colors = "4.1.0"
+async-trait = "0.1.82"
 base64 = "0.22.1"
-slug = "0.1.5"
+slug = "0.1.6"
 path-clean = "1.0.1"
 bcrypt = "0.15.1"
 maplit = "1.0.2"
