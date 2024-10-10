@@ -1,23 +1,27 @@
 use anyhow::Result;
-use init_tracing_opentelemetry::resource::DetectResource;
 use init_tracing_opentelemetry::tracing_subscriber_ext::build_logger_text;
-use init_tracing_opentelemetry::{init_propagator, otlp};
-use opentelemetry::trace::TraceError;
+use opentelemetry::trace::{TraceError, TracerProvider};
 use opentelemetry_sdk::trace::Tracer;
 use tracing::{info, warn, Subscriber};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, registry::LookupSpan, Layer};
 use tracing_subscriber::{registry, EnvFilter};
 
-fn build_otel_layer<S>() -> std::result::Result<OpenTelemetryLayer<S, Tracer>, TraceError>
+pub fn build_otel_layer<S>() -> Result<OpenTelemetryLayer<S, Tracer>, TraceError>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
+    use init_tracing_opentelemetry::{
+        init_propagator, //stdio,
+        otlp,
+        resource::DetectResource,
+    };
+    use opentelemetry::global;
     let otel_rsrc = DetectResource::default()
         .with_fallback_service_name(env!("CARGO_PKG_NAME"))
         .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
         .build();
-    let otel_tracer = otlp::init_tracer(otel_rsrc, otlp::identity)?;
+    let tracerprovider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
     // to not send trace somewhere, but continue to create and propagate,...
     // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
     // or to `std::io::stdout()` to print
@@ -28,9 +32,11 @@ where
     //     stdio::WriteNoWhere::default(),
     // )?;
     init_propagator()?;
-    Ok(tracing_opentelemetry::layer()
+    let layer = tracing_opentelemetry::layer()
         .with_error_records_to_exceptions(true)
-        .with_tracer(otel_tracer))
+        .with_tracer(tracerprovider.tracer(""));
+    global::set_tracer_provider(tracerprovider);
+    Ok(layer)
 }
 
 pub fn build_reduced_logger_text<S>() -> Box<dyn Layer<S> + Send + Sync + 'static>
@@ -90,17 +96,10 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
         metrics_enabled = splitted.contains(&"metrics");
     }
 
-    info!(
-        "Tracing enabled: {}, metrics enabled: {}",
-        tracing_enabled, metrics_enabled
-    );
-
     let tracing_result = match tracing_enabled {
         true => {
-            let otel_layer = build_otel_layer()?;
-
-            let subscriber = registry()
-                .with(otel_layer)
+            let subscriber = tracing_subscriber::registry()
+                .with(build_otel_layer()?)
                 .with(build_loglevel_filter_layer())
                 .with(build_reduced_logger_text());
             tracing::subscriber::set_global_default(subscriber)?;
