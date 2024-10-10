@@ -5,7 +5,11 @@ meta {
 }
 
 get {
-  url: api/v1/blueprints
+  url: {{base_url}}/api/v1/blueprints
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
 }
