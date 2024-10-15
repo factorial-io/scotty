@@ -46,6 +46,8 @@ pub enum AppError {
     RegistryNotFound(String),
     #[error("App blueprint not found in settings: {0}")]
     AppBlueprintNotFound(String),
+    #[error("App blueprint mismatch:: {0}")]
+    AppBlueprintMismatch(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -55,7 +57,7 @@ impl AppError {
             AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::AppNotFound(_) => StatusCode::NOT_FOUND,
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
-            _ => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status, self.to_string())

@@ -62,6 +62,7 @@ async fn create_app_prepare(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
+    let settings = settings.apply_blueprint(&app_state.settings.apps.blueprints);
     let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
     sm.add_handler(
         CreateAppStates::CreateDirectory,
@@ -173,6 +174,24 @@ fn validate_app(
             .contains_key(app_blueprint)
         {
             return Err(AppError::AppBlueprintNotFound(app_blueprint.clone()).into());
+        }
+
+        let app_blueprint = &app_state.settings.apps.blueprints[app_blueprint];
+
+        // Check if docker-compose services match required services
+        let required_services = &app_blueprint.required_services;
+        let missing_services: Vec<String> = required_services
+            .iter()
+            .filter(|service| !available_services.contains(service))
+            .cloned()
+            .collect();
+
+        if !missing_services.is_empty() {
+            return Err(AppError::AppBlueprintMismatch(format!(
+                "docker compose does not contain all required services: {:?}",
+                missing_services,
+            ))
+            .into());
         }
     }
 

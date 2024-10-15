@@ -85,7 +85,7 @@ struct CreateCommand {
     docker_compose_path: String,
 
     /// Public service ports to expose, can be specified multiple times (e.g. web:80, api:8080)
-    #[arg(long, value_parser=parse_service_ports, required=true, value_name="SERVICE:PORT")]
+    #[arg(long, value_parser=parse_service_ports, value_name="SERVICE:PORT", required_unless_present="app_blueprint")]
     service: Vec<ServicePortMapping>,
 
     /// Basic auth credentials for the app (user:password)
@@ -101,7 +101,7 @@ struct CreateCommand {
     registry: Option<String>,
 
     /// Name of the app blueprint to use
-    #[arg(long)]
+    #[arg(long, required_unless_present = "service")]
     app_blueprint: Option<String>,
 }
 struct ServerSettings {

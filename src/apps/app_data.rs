@@ -86,11 +86,31 @@ impl AppSettings {
             ..self.clone()
         }
     }
+
+    pub(crate) fn apply_blueprint(&self, blueprints: &AppBlueprintMap) -> AppSettings {
+        if let Some(blueprint_name) = &self.app_blueprint {
+            let bp = blueprints.get(blueprint_name).expect("Blueprint not found");
+            if let Some(public_services) = &bp.public_services {
+                if self.public_services.is_empty() {
+                    let mut new_settings = self.clone();
+                    new_settings.public_services = public_services
+                        .iter()
+                        .map(|(service, port)| ServicePortMapping {
+                            service: service.clone(),
+                            port: *port as u32,
+                        })
+                        .collect();
+                    return new_settings;
+                }
+            }
+        }
+        self.clone()
+    }
 }
 
 pub use bollard::models::ContainerStateStatusEnum as ContainerStatus;
 
-use crate::settings::Apps;
+use crate::settings::{AppBlueprintMap, Apps};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct ContainerState {

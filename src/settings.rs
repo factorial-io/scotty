@@ -155,6 +155,8 @@ impl std::convert::TryFrom<AppBlueprintShadow> for AppBlueprint {
     }
 }
 
+pub type AppBlueprintMap = HashMap<String, AppBlueprint>;
+
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 #[readonly::make]
@@ -163,7 +165,7 @@ pub struct Apps {
     pub max_depth: u32,
     pub domain_suffix: String,
     pub use_tls: bool,
-    pub blueprints: HashMap<String, AppBlueprint>,
+    pub blueprints: AppBlueprintMap,
 }
 
 #[derive(Debug, Deserialize, Clone)]
