@@ -185,7 +185,12 @@ async fn main() -> anyhow::Result<()> {
             call_apps_api(&server_settings, "stop", &cmd.app_name).await?;
         }
         Commands::Destroy(cmd) => {
-            call_apps_api(&server_settings, "destroy", &cmd.app_name).await?;
+            let result = get(&server_settings, &format!("apps/destroy/{}", &cmd.app_name)).await?;
+            let context: RunningAppContext =
+                serde_json::from_value(result).context("Failed to parse context from API")?;
+            wait_for_task(&server_settings, &context).await?;
+
+            println!("App {} destroyed", &cmd.app_name);
         }
         Commands::Purge(cmd) => {
             call_apps_api(&server_settings, "purge", &cmd.app_name).await?;
@@ -262,7 +267,8 @@ async fn call_apps_api(server: &ServerSettings, verb: &str, app_name: &str) -> a
     let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
-    let app_data = wait_for_task(server, &context).await?;
+    wait_for_task(server, &context).await?;
+    let app_data = get_app_info(server, &context).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
@@ -274,10 +280,7 @@ fn format_since(duration: &Option<TimeDelta>) -> String {
     }
 }
 
-async fn wait_for_task(
-    server: &ServerSettings,
-    context: &RunningAppContext,
-) -> anyhow::Result<AppData> {
+async fn wait_for_task(server: &ServerSettings, context: &RunningAppContext) -> anyhow::Result<()> {
     let mut done = false;
     let mut last_position = 0;
     let mut last_err_position = 0;
@@ -314,6 +317,13 @@ async fn wait_for_task(
         }
     }
 
+    Ok(())
+}
+
+async fn get_app_info(
+    server: &ServerSettings,
+    context: &RunningAppContext,
+) -> anyhow::Result<AppData> {
     let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
 
@@ -420,7 +430,9 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
 
-    let app_data = wait_for_task(server, &context).await?;
+    wait_for_task(server, &context).await?;
+    let app_data = get_app_info(server, &context).await?;
+
     print_app_info(&app_data)?;
     Ok(())
 }
@@ -447,6 +459,7 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     let mut table = builder.build();
     table.with(Style::rounded());
 
+    println!("Info for {}", app_data.name);
     println!("{}", table);
 
     Ok(())
