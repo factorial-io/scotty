@@ -3,6 +3,8 @@ apps:
     nginx-lagoon:
       name: "NGINX using lagoon base images"
       description: "A simple NGINX container using lagoon base images"
+      required_services:
+        - nginx
       public_services:
         nginx: 80
       actions:
@@ -21,6 +23,10 @@ apps:
     drupal-lagoon:
       name: "Drupal using lagoon base images"
       description: "A simple Drupal application using lagoon base images (cli, php, nginx)"
+      required_services:
+        - cli
+        - php
+        - nginx
       public_services:
         nginx: 8080
       actions:
