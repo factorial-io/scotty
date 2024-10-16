@@ -1,7 +1,0 @@
-.test:scotty:
-  tags:
-    - fabalicious
-  script:
-    - "phab -cci script test:scotty --no-interaction"
-  rules:
-    - if: $TAG_VERSION_C

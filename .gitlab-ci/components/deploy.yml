@@ -1,8 +1,0 @@
-.deploy-docker-compose:
-  before_script: []
-  after_script: []
-  script:
-    - docker login registry.factorial.io -u gitlab-ci-token -p $CI_JOB_TOKEN
-    - "cd /opt/containers/scotty && docker compose pull && docker compose rm -f -s && docker compose up -d"
-  tags:
-    - scotty-testbed
