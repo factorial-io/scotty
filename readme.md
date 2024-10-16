@@ -25,7 +25,7 @@ docker run \
   -p 21342:21342 \
   -v $PWD/apps:/app/apps \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  registry.factorial.io/administration/scotty/scotty:main
+  ghcr.io/factorial-io/scotty:main
 ```
 
 You can then visit the docs at http://localhost:21342/rapidocs
@@ -39,7 +39,7 @@ docker run -it registry.factorial.io/administration/scotty/scotty:main /app/scot
 If you are running the server also locally via docker, you need to adapt the --server argument, e.g.
 
 ```shell
-docker run -it registry.factorial.io/administration/scotty/scotty:main \
+docker run -it ghcr.io/factorial-io/scotty:main \
   /app/scottyctl \
   --server http://host.docker.internal:21342 \
   list
@@ -47,14 +47,14 @@ docker run -it registry.factorial.io/administration/scotty/scotty:main \
 
 ### Install native apps
 
-Currently, we do not the apps in the ci, this might happen in a later state. You need the rust tooling on your local.
+Currently, we do not build the apps in the ci, this might happen in a later state. You need the rust tooling on your local.
 
 For now you can build the apps either by checking out the repo and running `cargo build` or
 if you are only interested in the executables you can also use
 
 ```shell
-cargo install --git ssh://git@source.factorial.io/administration/scotty.git --bin scottyctl # for the cli
-cargo install --git ssh://git@source.factorial.io/administration/scotty.git --bin scotty # for the server
+cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl # for the cli
+cargo install --git https://github.com/factorial-io/scotty.git --bin scotty # for the server
 ```
 
 ## CLI usage
