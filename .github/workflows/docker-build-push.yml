@@ -4,12 +4,9 @@ on:
   push:
     branches:
       - main
+      - next
     tags:
       - "*"
-  workflow_run:
-    workflows: ["Continuous integration"] # Name of the first workflow
-    types:
-      - completed
 
 jobs:
   build:
