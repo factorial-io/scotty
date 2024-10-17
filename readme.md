@@ -106,8 +106,8 @@ For a future version it is planned to introduce JWTs and SSO.
 ## Configuring the cli
 
 The cli needs only two environment variables to work:
-* ` SCOTTY_SERVER` the address of the server
-* ` SCOTTY_ACCESS_TOKEN` the bearer token to use
+* `SCOTTY_SERVER` the address of the server
+* `SCOTTY_ACCESS_TOKEN` the bearer token to use
 
 You can provide the information either via env-vars or by passing the
 `--server` and `--access-token` arguments to the cli.
@@ -116,11 +116,11 @@ You can provide the information either via env-vars or by passing the
 
 * It provides a REST-Api to administer the lifecycle of apps located in the
   `/apps`-folder
-* It scans the folder on a regular basis and updates the states of the apps
-* it also checks if apps are running longer thant their configured TTL and
+* It scans the apps-folder on a regular basis and updates the states of the apps
+* it also checks if apps are running longer than their configured TTL and
   kill them, if necessary
 * the server provides a svelte-based UI, so you can interact with the API
-  from the browser. You need to login using the same access-token
+  from the browser. You need to log in using the same access-token
 * It allows you to create new apps based on a bunch of files and a docker-
   compose.yml-file. It will automtically create a `docker-compose.override.yml`
   file for your app so it can be reached from the outside.
