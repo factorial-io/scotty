@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.4] - 2024-10-17
+
+### CI
+
+- Enable changelog for ci changes ✔️
+
 ## [0.1.0-alpha.2] - 2024-10-17
 
 ### Bug Fixes
@@ -42,6 +48,25 @@ All notable changes to this project will be documented in this file.
 - Better error reporting ✔️
 - Add docker-compose to the docker image ✔️
 - Add docker-compose to the docker image ✔️
+
+### CI
+
+- Cleanup double action runs ✔️
+- Add workflow to build executables for all major platforms ✔️
+- Fix tests ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Deploy latest image to testbed ✔️
+- Fix ci ✔️
+- Fix CI ✔️
+- Add to ci ✔️
+- Add to ci ✔️
 
 ### Documentation
 
