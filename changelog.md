@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.1.0-alpha.2] - 2024-10-17
 
 ### Bug Fixes
 
@@ -45,6 +45,9 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- Fixing typos ✔️
+- Add some more context what the server is actually doing ✔️
+- Some typo fixes ✔️
 - Add documentation and local development sections to the readme ✔️
 - Update readme ✔️
 - Update readme ✔️
