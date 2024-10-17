@@ -86,3 +86,8 @@ pre-release-hook = [
 pre-release-replacements = [
     { file = "README.md", search = "Current release: [a-z0-9\\.-]+", replace = "Current release: {{version}}" },
 ]
+
+# Required for cross-compilation in our CI release pipeline
+[dependencies.openssl]
+version = "0.10.59"
+features = ["vendored"]

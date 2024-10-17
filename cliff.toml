@@ -50,7 +50,7 @@ commit_parsers = [
     { message = "^chore\\(release\\): prepare for", skip = true },
     { message = "^chore", group = "Miscellaneous Tasks", skip = true },
     { body = ".*security", group = "Security" },
-    { body = ".*", group = "Other (unconventional)", skip = true },
+    { body = ".*", group = "Other (unconventional)", skip = false },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false
