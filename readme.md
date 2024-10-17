@@ -10,7 +10,8 @@ The repo contains two applications:
 
 * `scotty` a rust based http-server providing an API to talk with the
   service and to start, stop and run docker-composed based applications
-  The service provides a ui at e.g. `http://localhost:21342/`. the api is documented at `http://localhost:21342/rapidoc`
+  The service provides a ui at e.g. `http://localhost:21342/`. the api is
+  documented at `http://localhost:21342/rapidoc`
 * `scottyctl` a cli application to talk with the service and execute
   commands from your shell
 
@@ -18,7 +19,8 @@ The repo contains two applications:
 
 ### Docker
 
-Use the provided docker-image for best results. Map the directory with all your docker-composed apps to `/app/apps`.
+Use the provided docker-image for best results. Map the directory with
+all your docker-composed apps to `/app/apps`.
 
 ```shell
 docker run \
@@ -36,7 +38,8 @@ To run the cli use
 docker run -it registry.factorial.io/administration/scotty/scotty:main /app/scottyctl
 ```
 
-If you are running the server also locally via docker, you need to adapt the --server argument, e.g.
+If you are running the server also locally via docker, you need to adapt the
+`--server` argument, e.g.
 
 ```shell
 docker run -it ghcr.io/factorial-io/scotty:main \
@@ -47,32 +50,95 @@ docker run -it ghcr.io/factorial-io/scotty:main \
 
 ### Install native apps
 
-Currently, we do not build the apps in the ci, this might happen in a later state. You need the rust tooling on your local.
+Currently, we do not build the apps in the ci, this might happen in a later
+state. You need the rust tooling on your local.
 
-For now you can build the apps either by checking out the repo and running `cargo build` or
-if you are only interested in the executables you can also use
+For now you can build the apps either by checking out the repo and running
+`cargo build` or if you are only interested in the executables you can also
+use
 
 ```shell
-cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl # for the cli
-cargo install --git https://github.com/factorial-io/scotty.git --bin scotty # for the server
+# for the cli
+cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl
+# for the server
+cargo install --git https://github.com/factorial-io/scotty.git --bin scotty
 ```
 
 ## CLI usage
 
-You need to pass the address to the server to the cli, either by providing the `--server`-argument or by setting the `SCOTTY_SERVER` env-var.
+You need to pass the address to the server to the cli, either by providing
+the `--server`-argument or by setting the `SCOTTY_SERVER` env-var.
 
 ```shell
 scottyctl help
 ```
 
-will show some help and a list of available commands. You can get help with `scottyctl help <command>`
+will show some help and a list of available commands. You can get help
+with `scottyctl help <command>`
 
 Here's a short list of avaiable commands
 
 * `scottyctl list` will list all apps and their their urls and states
 * `scottyctl run <app_name>` will start and run the named app
 * `scottyctl stop <app_name>` will stop the named app
-* `scottyctl purge <app_name>` will remove runtime files for the named app (similar to `docker-compose rm`)
+* `scottyctl purge <app_name>` will remove runtime files for the named
+  app (similar to `docker-compose rm`)
 * `scottyctl create` Create a new app
 * `scottyctl destroy` Destroy a managed app
 * `scottyctl info` Display some info about the app
+
+## Configuring the server
+
+You'll find all configuration options in `config/detault.yaml`. Create a
+`config/local.yaml` and override the parts you want to change. You can
+override the config also by setting environment variables following the
+pattern `SCOTTY__GROUP__KEY` e.g. `SCOTTY__API__BIND_ADRESS=0.0.0.0:80`.
+
+To use the api you need to add a bearer token to your requests. The
+bearer token can be set in your configuration (`api.access_token`) or
+also via an environment variable, e.g. `SCOTTY__API__ACCESS_TOKEN`.
+
+It is advised to protect the service with a bearer token, as it gives
+its users full access to docker and docker-compose.
+
+For a future version it is planned to introduce JWTs and SSO.
+
+## Configuring the cli
+
+The cli needs only two environment variables to work:
+* ` SCOTTY_SERVER` the address of the server
+* ` SCOTTY_ACCESS_TOKEN` the bearer token to use
+
+You can provide the information either via env-vars or by passing the
+`--server` and `--access-token` arguments to the cli.
+
+## Developing/ contributing
+
+We welcome contributions! Please fork the repository, create a
+feature branch and submit a pull-request.
+
+### Requirements
+
+To run the server locally you need to have docker and docker-compose
+installed on your local. You also need a recent rust toolchain.
+To get things up and running please start traefik with
+
+```shell
+cd apps/traefik
+docker-compose up -d
+```
+
+and then start the server with
+
+```shell
+cargo run --bin scotty  or your preferred way to run a rust binary
+```
+
+### Updating the changelog
+
+We are using clippy to enforce a changelog. Please update the changelog with
+the following command
+
+```shell
+git cliff > changelog.md
+```
