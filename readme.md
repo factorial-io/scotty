@@ -112,6 +112,29 @@ The cli needs only two environment variables to work:
 You can provide the information either via env-vars or by passing the
 `--server` and `--access-token` arguments to the cli.
 
+## What is the server doing?
+
+* It provides a REST-Api to administer the lifecycle of apps located in the
+  `/apps`-folder
+* It scans the folder on a regular basis and updates the states of the apps
+* it also checks if apps are running longer thant their configured TTL and
+  kill them, if necessary
+* the server provides a svelte-based UI, so you can interact with the API
+  from the browser. You need to login using the same access-token
+* It allows you to create new apps based on a bunch of files and a docker-
+  compose.yml-file. It will automtically create a `docker-compose.override.yml`
+  file for your app so it can be reached from the outside.
+
+  Currently there is support for two reverse-proxies:
+  * [traefik](https://traefik.io/traefik/) -- scotty will create the necessary labels to instruct traefik
+    to forward traffic to the app
+  * [haproxy_config](https://github.com/factorial-io/haproxy-config) -- scotty will create the necessary environment variables
+    to forward traffic to the app (legacy)
+    
+  When you create a new app you provide a list of public services,
+  which then will be used as domain-names for the reverse-rpoxy
+  configuration.
+
 ## Developing/ contributing
 
 We welcome contributions! Please fork the repository, create a
