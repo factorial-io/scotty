@@ -4,15 +4,15 @@
 
 **scotty -- yet another feature based deployment service** is a rust
 server providing an api to create, start, stop or destroy a
-docker-composed-based application.
+docker-composed-based applications.
 
 The repo contains two applications:
 
 * `scotty` a rust based http-server providing an API to talk with the
   service and to start, stop and run docker-composed based applications
-  The service provides a ui at e.g. `http://localhost:21342/`. the api is
-  documented at `http://localhost:21342/rapidoc`
-* `scottyctl` a cli application to talk with the service and execute
+  The service provides a user interface at e.g. `http://localhost:21342/`.
+  the api is documented at `http://localhost:21342/rapidoc`
+* `scottyctl`, a cli application to talk with the service and execute
   commands from your shell
 
 ## Installation
@@ -35,7 +35,7 @@ You can then visit the docs at http://localhost:21342/rapidocs
 To run the cli use
 
 ```shell
-docker run -it registry.factorial.io/administration/scotty/scotty:main /app/scottyctl
+docker run -it ghcr.io/factorial-io/scotty:main /app/scottyctl
 ```
 
 If you are running the server also locally via docker, you need to adapt the
@@ -117,6 +117,9 @@ You can provide the information either via env-vars or by passing the
 We welcome contributions! Please fork the repository, create a
 feature branch and submit a pull-request.
 
+* Try to add tests for your bug fixes and features.
+* Use conventional commits
+
 ### Requirements
 
 To run the server locally you need to have docker and docker-compose
@@ -136,7 +139,7 @@ cargo run --bin scotty  or your preferred way to run a rust binary
 
 ### Updating the changelog
 
-We are using clippy to enforce a changelog. Please update the changelog with
+We are using [git-cliff](https://git-cliff.org) to enforce a changelog. Please update the changelog with
 the following command
 
 ```shell
