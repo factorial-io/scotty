@@ -1,5 +1,7 @@
 # scotty
 
+Current release: 0.1.1
+
 ## About
 
 **scotty -- yet another feature based deployment service** is a rust
