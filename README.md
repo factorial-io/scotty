@@ -170,3 +170,13 @@ the following command
 ```shell
 git cliff > changelog.md
 ```
+### Create a new release
+
+We are using `cargo-release` to patch up a new release, this is a typical 
+command to create a new release:
+
+```shell
+cargo release --no-publish alpha -x
+```
+
+Adapt to your current needs.
