@@ -1,6 +1,6 @@
 services:
   scotty:
-    image: registry.factorial.io/administration/scotty/scotty:main
+    image: ghcr.io/factorial-io/scotty:main
     volumes:
       - ..:/app/apps
       - /var/run/docker.sock:/var/run/docker.sock

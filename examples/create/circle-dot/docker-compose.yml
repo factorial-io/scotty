@@ -5,22 +5,19 @@ x-default-environment: &x-default-environment
   MARIADB_HOST: "mysql"
   MARIADB_PORT: "3306"
   SENTRY_RELEASE: "main"
-  SENTRY_ENVIRONMENT: "main.circledot.oterma.factorial.io"
   REDIS_HOST: redis
   ENVIRONMENT_INDICATOR: "dev"
   DEPLOYMENT_INDICATOR: "main"
 
 services:
-
   cli:
     image: registry.factorial.io/showcase/circle-dot/builder:main
     volumes:
       - ./private:/app/private
       - ./web/sites/default/files:/app/web/sites/default/files
     environment:
-      << : *x-default-environment
+      <<: *x-default-environment
       CRONJOBS: "* * * * * cd /app/web && drush cron"
-
 
   nginx:
     image: registry.factorial.io/showcase/circle-dot/nginx:main
