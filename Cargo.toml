@@ -47,7 +47,7 @@ opentelemetry-otlp = { version = "0.25.0", features = [
     "tls",
 ] }
 
-utoipa = { version = "4.2.3", features = ["axum_extras", "uuid", "chrono"] }
+utoipa = { version = "5.0.0", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "7.1", features = ["axum", "reqwest"] }
 utoipa-redoc = { version = "4.0", features = ["axum"] }
 utoipa-rapidoc = { version = "4.0", features = ["axum"] }
