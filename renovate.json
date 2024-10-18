@@ -1,6 +1,79 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
+  "labels": ["dependencies", "renovate"],
+  "packageRules": [
+    {
+      "matchManagers": ["cargo"],
+      "addLabels": ["rust"]
+    },
+    {
+      "packageNames": ["capnp", "capnpc"],
+      "groupName": "capnp packages"
+    },
+    {
+      "packagePatterns": ["^futures[-_]?"],
+      "groupName": "futures packages"
+    },
+    {
+      "packagePatterns": [
+        "^opentelemetry[-_]?",
+        "^tracing-opentelemetry$",
+        "^init-tracing-opentelemetry$",
+        "^axum-tracing-opentelemetry$"
+      ],
+      "groupName": "opentelemetry packages"
+    },
+    {
+      "packagePatterns": ["^prost[-_]?", "^tonic[-_]?"],
+      "groupName": "gRPC-related packages"
+    },
+    {
+      "packagePatterns": ["^rusoto[-_]?"],
+      "groupName": "rusoto packages"
+    },
+    {
+      "packagePatterns": ["^serde[-_]?"],
+      "groupName": "serde packages"
+    },
+    {
+      "packagePatterns": ["^tokio[-_]?"],
+      "groupName": "tokio packages"
+    },
+    {
+      "packagePatterns": ["^tracing[-_]?"],
+      "excludePackageNames": ["tracing-opentelemetry"],
+      "groupName": "tracing packages"
+    },
+    {
+      "matchPackageNames": [
+        "hyper-rustls",
+        "rustls",
+        "rustls-native-certs",
+        "tokio-rustls",
+        "webpki",
+        "webpki-roots"
+      ],
+      "groupName": "rustls packages"
+    },
+    {
+      "matchManagers": ["rust"],
+      "automerge": true,
+      "platformAutomerge": true,
+      "gitLabIgnoreApprovals": true,
+      "updateTypes": ["patch"],
+      "groupName": "Rust dependencies auto-merge (patch)"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "addLabels": ["docker"]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackagePatterns": ["^uselagoon/"],
+      "updateTypes": ["patch", "minor", "major"],
+      "groupName": "Lagoon Base images",
+      "rebaseWhen": "behind-base-branch"
+    }
+  ],
+  "extends": ["config:recommended"]
 }
