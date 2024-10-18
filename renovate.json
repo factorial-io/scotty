@@ -56,7 +56,7 @@
       "groupName": "rustls packages"
     },
     {
-      "matchManagers": ["rust"],
+      "matchManagers": ["cargo"],
       "automerge": true,
       "platformAutomerge": true,
       "gitLabIgnoreApprovals": true,
