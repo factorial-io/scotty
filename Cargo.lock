@@ -2176,7 +2176,7 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
- "utoipa",
+ "utoipa 4.2.3",
  "utoipa-rapidoc",
  "utoipa-redoc",
  "utoipa-swagger-ui",
@@ -3039,7 +3039,19 @@ dependencies = [
  "indexmap 2.5.0",
  "serde",
  "serde_json",
- "utoipa-gen",
+ "utoipa-gen 4.3.0",
+]
+
+[[package]]
+name = "utoipa"
+version = "5.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8861811f7213bb866cd02319acb69a15b0ef8ca46874e805bd92d488c779036a"
+dependencies = [
+ "indexmap 2.5.0",
+ "serde",
+ "serde_json",
+ "utoipa-gen 5.1.1",
 ]
 
 [[package]]
@@ -3057,15 +3069,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "utoipa-rapidoc"
-version = "4.0.0"
+name = "utoipa-gen"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a32488b691c135d58eb78efcf8258ebb3db1ec7447964c6a83bd5e1ab7a39d9"
+checksum = "5fadf94f07d67df4b15e6490dd9a9d59d7374849413e7f137eafe52fdcbd0db5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.79",
+]
+
+[[package]]
+name = "utoipa-rapidoc"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f5e784e313457e79d65c378bdfc2f74275f0db91a72252be7d34360ec2afbe1"
 dependencies = [
  "axum",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.1.1",
 ]
 
 [[package]]
@@ -3077,7 +3100,7 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 4.2.3",
 ]
 
 [[package]]
@@ -3094,7 +3117,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
- "utoipa",
+ "utoipa 4.2.3",
  "zip",
 ]
 
