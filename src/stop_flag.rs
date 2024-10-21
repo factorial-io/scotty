@@ -47,11 +47,25 @@ pub fn register_signal_handler(stop_flag: &StopFlag) {
         let stop_flag = stop_flag.clone();
 
         tokio::spawn(async move {
-            signal::unix::signal(signal::unix::SignalKind::terminate())
-                .expect("failed to install signal handler")
-                .recv()
-                .await;
-            info!("Terminate signal received, initiating graceful shutdown...");
+            let mut terminate = signal::unix::signal(signal::unix::SignalKind::terminate())
+                .expect("failed to install SIGTERM handler");
+            let mut interrupt = signal::unix::signal(signal::unix::SignalKind::interrupt())
+                .expect("failed to install SIGINT handler");
+            let mut hangup = signal::unix::signal(signal::unix::SignalKind::hangup())
+                .expect("failed to install SIGHUP handler");
+
+            tokio::select! {
+                _ = terminate.recv() => {
+                    info!("SIGTERM received, initiating graceful shutdown...");
+                }
+                _ = interrupt.recv() => {
+                    info!("SIGINT received, initiating graceful shutdown...");
+                }
+                _ = hangup.recv() => {
+                    info!("SIGHUP received, initiating graceful shutdown...");
+                }
+            }
+
             stop_flag.stop();
         });
     }

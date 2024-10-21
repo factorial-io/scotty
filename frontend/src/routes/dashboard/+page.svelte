@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { apps } from '../../stores/appsStore';
 	import { loadApps } from '../../stores/appsStore';
@@ -10,11 +10,49 @@
 	import AppStatusPill from '../../components/app-status-pill.svelte';
 	import Icon from '@iconify/svelte';
 	import PageHeader from '../../components/page-header.svelte';
+	import type { App } from '../../types';
+	import TableHeaderSort from '../../components/table-header-sort.svelte';
+	import LastStarted from '../../components/last-started.svelte';
 
 	const filter = writable('');
+	const sortBy = writable('status');
 
-	onMount(() => {
-		loadApps();
+	function setSort(event: CustomEvent<string>) {
+		sortBy.set(event.detail.sortBy);
+	}
+
+	function doSort(a: App, b: App): number {
+		if ($sortBy === 'name') {
+			return a.name.localeCompare(b.name);
+		}
+		if ($sortBy === 'status') {
+			const result = a.status.localeCompare(b.status);
+			if (result === 0) {
+				return a.name.localeCompare(b.name);
+			} else {
+				return result;
+			}
+		}
+		return 0;
+	}
+
+	const filteredAndSortedApps = writable([] as App[]);
+	function updateAppList() {
+		$filteredAndSortedApps = $apps
+			.filter((app) => app.name.toLowerCase().includes($filter.toLowerCase()))
+			.sort((a, b) => doSort(a, b));
+	}
+
+	sortBy.subscribe(() => {
+		updateAppList();
+	});
+	filter.subscribe(() => {
+		updateAppList();
+	});
+
+	onMount(async () => {
+		await loadApps();
+		updateAppList();
 	});
 </script>
 
@@ -30,15 +68,20 @@
 	<thead>
 		<tr>
 			<th class="w-1"></th>
-			<th>Name</th>
+			<th
+				><TableHeaderSort on:setSort={setSort} sortBy={$sortBy} key="name" name="Name"
+				></TableHeaderSort></th
+			>
 			<th>Services</th>
-			<th>Status</th>
+			<th
+				><TableHeaderSort on:setSort={setSort} sortBy={$sortBy} key="status" name="Status"
+				></TableHeaderSort></th
+			>
+			<th>Last time started</th>
 		</tr>
 	</thead>
 	<tbody>
-		{#each $apps
-			.filter((app) => app.name.toLowerCase().includes($filter.toLowerCase()))
-			.sort((a, b) => a.name.localeCompare(b.name)) as app}
+		{#each $filteredAndSortedApps as app}
 			<tr>
 				<td><StartStopAppAction name={app.name} status={app.status} /></td>
 				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
@@ -50,7 +93,8 @@
 					{/each}</td
 				>
 				<td><AppStatusPill status={app.status} /></td>
-			</tr>
+				<td><LastStarted services={app.services}></LastStarted> </td></tr
+			>
 		{/each}
 	</tbody>
 </table>
