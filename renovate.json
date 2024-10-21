@@ -7,6 +7,10 @@
       "addLabels": ["rust"]
     },
     {
+      "packageNames": ["utoipa", "^utoipa[-_]?"],
+      "groupName": "utoipa packages"
+    },
+    {
       "packageNames": ["capnp", "capnpc"],
       "groupName": "capnp packages"
     },
