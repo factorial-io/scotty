@@ -7,7 +7,7 @@
       "addLabels": ["rust"]
     },
     {
-      "packageNames": ["utoipa", "^utoipa[-_]?"],
+      "packagePatterns": ["^utoipa[-_]?"],
       "groupName": "utoipa packages"
     },
     {
