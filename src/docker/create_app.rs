@@ -187,7 +187,7 @@ fn validate_docker_compose_content(
     docker_compose_content: &[u8],
     public_services: &Vec<ServicePortMapping>,
 ) -> Result<Vec<String>, AppError> {
-    let docker_compose_data: serde_json::Value = serde_yml::from_slice(&docker_compose_content)
+    let docker_compose_data: serde_json::Value = serde_yml::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)?;
 
     // Get list of available services
@@ -201,7 +201,7 @@ fn validate_docker_compose_content(
     // Check if all public_services are available in docker-compose
     for public_service in public_services {
         if !available_services.contains(&public_service.service) {
-            return Err(AppError::PublicServiceNotFound(public_service.service.clone()).into());
+            return Err(AppError::PublicServiceNotFound(public_service.service.clone()));
         }
     }
 
@@ -211,7 +211,7 @@ fn validate_docker_compose_content(
             .as_object()
             .unwrap();
         if service_data.get("ports").is_some() {
-            return Err(AppError::PublicPortsNotSupported(service.clone()).into());
+            return Err(AppError::PublicPortsNotSupported(service.clone()));
         }
     }
 
@@ -220,7 +220,7 @@ fn validate_docker_compose_content(
     let env_var_regex = regex::Regex::new(r"\$\{?\w+\}?").unwrap();
     if let Some(found_match) = env_var_regex.find(&content_str) {
         return Err(
-            AppError::EnvironmentVariablesNotSupported(found_match.as_str().to_string()).into(),
+            AppError::EnvironmentVariablesNotSupported(found_match.as_str().to_string()),
         );
     }
 
