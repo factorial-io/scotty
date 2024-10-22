@@ -1,6 +1,6 @@
 [package]
 name = "scotty"
-version = "0.1.0-alpha.5"
+version = "0.1.0-alpha.6"
 edition = "2021"
 description = "scotty is a small PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
 authors = ["Stephan Maximilian Huber <stephan@factorial.io>"]

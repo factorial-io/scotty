@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.6] - 2024-10-22
+
+### Bug Fixes
+
+- Update rust crate serde to v1.0.211 ✔️
+- Update rust crate serde_json to v1.0.132 ✔️
+- Update rust crate serde_json to v1.0.131 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update rust crate uuid to v1.11.0 ✔️
+- Update rust dependencies auto-merge (patch) (#3) ✔️
+
+### CI
+
+- Fix cross compiling for linux ✔️
+- Do not run ci actions in parallel ✔️
+- Fine-tune docker cleanup ✔️
+- Add docker cleanup action, dry-run for now ✔️
+- Remove arm64 docker builds again, as they are slow as hell ✔️
+- Remove openssl again, as it breaks docker-builds ✔️
+
+### Features
+
+- Smaller improvements to the frontend ui ✔️
+
+### Other (unconventional)
+
+- Merge pull request #24 from factorial-io/renovate/sveltejs-kit-2.x-lockfile
+
+chore(deps): update dependency @sveltejs/kit to v2.7.2 ❌
+- Merge pull request #21 from factorial-io/renovate/rust-dependencies-auto-merge-(patch)
+
+fix(deps): update rust crate serde_json to v1.0.132 ❌
+- Merge pull request #14 from factorial-io/renovate/mariadb-11.x
+
+chore(deps): update mariadb docker tag to v11 ❌
+- Merge pull request #16 from factorial-io/renovate/eslint-monorepo
+
+chore(deps): update dependency eslint to v9.13.0 ❌
+- Merge pull request #10 from factorial-io/renovate/docker-build-push-action-6.x
+
+chore(deps): update docker/build-push-action action to v6 ❌
+- Merge pull request #6 from factorial-io/renovate/rust-1.x
+
+chore(deps): update rust docker tag to v1.82 ❌
+- Merge pull request #13 from factorial-io/renovate/docker-setup-buildx-action-3.x
+
+chore(deps): update docker/setup-buildx-action action to v3 ❌
+- Merge pull request #11 from factorial-io/renovate/docker-login-action-3.x
+
+chore(deps): update docker/login-action action to v3 ❌
+- Merge pull request #8 from factorial-io/renovate/uuid-1.x-lockfile
+
+fix(deps): update rust crate uuid to v1.11.0 ❌
+- Merge pull request #9 from factorial-io/renovate/actions-checkout-4.x
+
+chore(deps): update actions/checkout action to v4 ❌
+- Merge pull request #4 from factorial-io/renovate/typescript-eslint-monorepo
+
+chore(deps): update dependency typescript-eslint to v8.10.0 ❌
+
 ## [0.1.0-alpha.5] - 2024-10-17
 
 ### CI
@@ -18,7 +78,7 @@ All notable changes to this project will be documented in this file.
 
 - Enable changelog for ci changes ✔️
 
-## [0.1.0-alpha.2] - 2024-10-17
+## [0.1.0-alpha.3] - 2024-10-17
 
 ### Bug Fixes
 
