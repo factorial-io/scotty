@@ -27,7 +27,8 @@ use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(name = "scottyctl")]
-#[command(about = "Yet another feature based deployment service control tool")]
+#[command(about = "Yet another micro platform as a service controlling tool")]
+#[command(version)]
 struct Cli {
     #[arg(long, env = "SCOTTY_SERVER", default_value = "http://localhost:21342")]
     server: String,

@@ -13,6 +13,7 @@ use crate::app_state::SharedAppState;
 pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoResponse {
     let json_response = serde_json::json!({
         "domain": state.settings.apps.domain_suffix.clone(),
+        "version": env!("CARGO_PKG_VERSION"),
     });
     Json(json_response)
 }

@@ -15,8 +15,18 @@ use http::setup_http_server;
 use tokio::time::sleep;
 use tracing::info;
 
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "scotty")]
+#[command(about = "Yet another micro platform as a service")]
+#[clap(version)]
+struct Cli {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _cli = Cli::parse();
+
     let mut handles = vec![];
 
     let app_state = app_state::AppState::new().await?;
