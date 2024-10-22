@@ -4,9 +4,9 @@ Current release: 0.1.1
 
 ## About
 
-**scotty -- yet another feature based deployment service** is a rust
+**scotty -- yet another micro platform as a service** is a rust
 server providing an api to create, start, stop or destroy a
-docker-composed-based applications.
+docker-composed-based application on your own hardware.
 
 The repo contains two applications:
 
