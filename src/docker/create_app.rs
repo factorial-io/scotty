@@ -201,7 +201,9 @@ fn validate_docker_compose_content(
     // Check if all public_services are available in docker-compose
     for public_service in public_services {
         if !available_services.contains(&public_service.service) {
-            return Err(AppError::PublicServiceNotFound(public_service.service.clone()));
+            return Err(AppError::PublicServiceNotFound(
+                public_service.service.clone(),
+            ));
         }
     }
 
@@ -219,9 +221,9 @@ fn validate_docker_compose_content(
     let content_str = String::from_utf8_lossy(docker_compose_content);
     let env_var_regex = regex::Regex::new(r"\$\{?\w+\}?").unwrap();
     if let Some(found_match) = env_var_regex.find(&content_str) {
-        return Err(
-            AppError::EnvironmentVariablesNotSupported(found_match.as_str().to_string()),
-        );
+        return Err(AppError::EnvironmentVariablesNotSupported(
+            found_match.as_str().to_string(),
+        ));
     }
 
     Ok(available_services)
