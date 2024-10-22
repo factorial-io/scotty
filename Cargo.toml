@@ -73,6 +73,16 @@ path-clean = "1.0.1"
 bcrypt = "0.15.1"
 maplit = "1.0.2"
 
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false # Disable features which are enabled by default
+features = [
+    "prepush-hook",
+    "run-cargo-test",
+    "run-cargo-clippy",
+    "run-cargo-fmt",
+]
+
 [workspace.metadata.release]
 sign-tag = true
 pre-release-hook = [
@@ -90,10 +100,10 @@ pre-release-replacements = [
 [workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
-    "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH"
+    "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH",
 ]
 [workspace.metadata.cross.target.x86_64-unknown-linux-gnu]
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
-    "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH"
+    "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH",
 ]

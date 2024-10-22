@@ -162,6 +162,10 @@ and then start the server with
 cargo run --bin scotty  or your preferred way to run a rust binary
 ```
 
+### Pre-push git hook via [cargo-husky](https://github.com/rhysd/cargo-husky)
+
+This project uses a pre-push git-hook installed by cargo husky. It shoud be installed automatically.
+
 ### Updating the changelog
 
 We are using [git-cliff](https://git-cliff.org) to enforce a changelog. Please update the changelog with
