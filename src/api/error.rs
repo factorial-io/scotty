@@ -36,16 +36,25 @@ pub enum AppError {
 
     #[error("Missing docker-compose file in the payload")]
     NoDockerComposeFile,
+
     #[error("Invalid docker-compose file")]
     InvalidDockerComposeFile,
 
     #[error("Service not found in docker compose file: {0}")]
     PublicServiceNotFound(String),
 
+    #[error("Public ports for service {0} are not supported")]
+    PublicPortsNotSupported(String),
+
+    #[error("Environment variables for variable substitution like {0} are not supported")]
+    EnvironmentVariablesNotSupported(String),
+
     #[error("Private registry not found in settings: {0}")]
     RegistryNotFound(String),
+
     #[error("App blueprint not found in settings: {0}")]
     AppBlueprintNotFound(String),
+
     #[error("App blueprint mismatch:: {0}")]
     AppBlueprintMismatch(String),
 }

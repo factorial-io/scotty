@@ -1,0 +1,13 @@
+services:
+  nginx:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=Host(`simple-nginx.ddev.site`)"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
+
+    image: nginx:latest
+    # Ports are not supported by scotty, as there is a chance of port-collisions
+    ports:
+      - 8888:80
+    volumes:
+      - ./html:/usr/share/nginx/html
