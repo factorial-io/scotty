@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.8] - 2024-10-22
+
+### CI
+
+- Fix cross compiling for linux, disable linux arm for now ✔️
+
 ## [0.1.0-alpha.7] - 2024-10-22
 
 ### CI
