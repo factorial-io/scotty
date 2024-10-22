@@ -17,7 +17,7 @@
 	const filter = writable('');
 	const sortBy = writable('status');
 
-	function setSort(event: CustomEvent<string>) {
+	function setSort(event: CustomEvent<{ sortBy: string }>) {
 		sortBy.set(event.detail.sortBy);
 	}
 
