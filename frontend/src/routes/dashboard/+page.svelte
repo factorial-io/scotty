@@ -43,6 +43,10 @@
 			.sort((a, b) => doSort(a, b));
 	}
 
+	apps.subscribe(() => {
+		updateAppList();
+	});
+
 	sortBy.subscribe(() => {
 		updateAppList();
 	});
