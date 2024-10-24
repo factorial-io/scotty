@@ -337,6 +337,7 @@ fn colored_by_status(name: &str, status: &AppState) -> String {
         AppState::Stopped => name.blue().to_string(),
         AppState::Creating => name.bright_green().to_string(),
         AppState::Destroying => name.bright_red().to_string(),
+        AppState::Unsupported => name.white().to_string(),
     }
 }
 

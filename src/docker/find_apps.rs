@@ -21,7 +21,7 @@ use crate::{
     docker::docker_compose::run_docker_compose_now,
 };
 
-use super::loadbalancer::LoadBalancerFactory;
+use super::{loadbalancer::LoadBalancerFactory, validation::validate_docker_compose_content};
 
 type PathBufVec = Vec<PathBuf>;
 
@@ -69,16 +69,14 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
 }
 
 #[instrument()]
-async fn extract_services_from_docker_compose(path: &PathBuf) -> anyhow::Result<Vec<String>> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let yaml: Value = serde_yml::from_reader(reader)?;
+async fn extract_services_from_docker_compose(content: &str) -> anyhow::Result<Vec<String>> {
+    let yaml: Value = serde_yml::from_str(content)?;
 
     let services = yaml
         .get("services")
-        .ok_or_else(|| anyhow::anyhow!("No services found in {}", path.display()))?
+        .ok_or_else(|| anyhow::anyhow!("No services found in docker-compose file"))?
         .as_mapping()
-        .ok_or_else(|| anyhow::anyhow!("Invalid services format in {}", path.display()))?
+        .ok_or_else(|| anyhow::anyhow!("Invalid services format in docker-compose file"))?
         .keys()
         .filter_map(|key| key.as_str().map(String::from))
         .collect();
@@ -105,9 +103,12 @@ pub async fn inspect_app(
         .collect::<Vec<_>>()
         .join("--");
 
-    let services = extract_services_from_docker_compose(docker_compose_path).await?;
-    let services = get_running_services(app_state, docker_compose_path, &name, services).await?;
+    let content = std::fs::read_to_string(docker_compose_path)?;
+    let dc_services = extract_services_from_docker_compose(&content).await?;
+    let services = get_running_services(app_state, docker_compose_path, &name, dc_services).await?;
     let settings = get_app_settings(docker_compose_path).await.ok();
+
+    let docker_compose_valid = validate_docker_compose_content(content.as_bytes(), dc_services);
 
     let app_data = AppData::new(
         &name,

@@ -161,6 +161,7 @@ pub enum AppState {
     Running,
     Creating,
     Destroying,
+    Unsupported,
 }
 
 impl std::fmt::Display for AppState {
@@ -171,6 +172,7 @@ impl std::fmt::Display for AppState {
             AppState::Running => write!(f, "Running"),
             AppState::Creating => write!(f, "Creating"),
             AppState::Destroying => write!(f, "Destroying"),
+            AppState::Unsupported => write!(f, "Unsupported"),
         }
     }
 }
