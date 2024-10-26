@@ -42,7 +42,7 @@ services:
     environment: *x-default-environment
 
   mysql:
-    image: mariadb:10.5
+    image: mariadb:11.5
     volumes:
       - "mariadb-data:/var/lib/mysql"
     environment:
