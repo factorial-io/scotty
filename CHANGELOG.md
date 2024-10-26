@@ -2,10 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.1.0-alpha.9] - 2024-10-26
+
+### Bug Fixes
+
+- Update rust crate regex to v1.11.1 ✔️
+- Update rust crate config to v0.14.1 ✔️
+- Frontend app list did not update on changes, made reactive ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+
+### Dependencies
+
+- Update dependency @sveltejs/adapter-auto to v3.3.1 ✔️
+- Update dependency typescript-eslint to v8.11.0 ✔️
+- Update dependency @sveltejs/adapter-static to v3.0.6 ✔️
+- Update dependency @sveltejs/kit to v2.7.3 ✔️
+- Update dependency vite to v5.4.10 ✔️
 
 ### Features
 
+- Add unsupported status to Apps, prevent running commands against unsupported apps ✔️
 - Validate docker-compose for the create task better ✔️
 - Expose version via API and CLI for both ctl and server ✔️
 
