@@ -2,6 +2,7 @@
 	import Icon from '@iconify/svelte';
 	import play from '@iconify-icons/heroicons/play-solid';
 	import stop from '@iconify-icons/heroicons/stop-solid';
+	import unsupported from '@iconify-icons/heroicons/no-symbol';
 	import errorIcon from '@iconify-icons/heroicons/exclamation-triangle';
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
 	import { monitorTask } from '../stores/tasksStore';
@@ -13,9 +14,14 @@
 	let task_id: string = '';
 	let failed_task: TaskDetail | null = null;
 
-	$: currentIcon = status === 'Running' ? stop : play;
+	function isSupported() {
+		return status !== 'Unsupported';
+	}
+
+	$: currentIcon = status === 'Running' ? stop : !isSupported() ? unsupported : play;
 
 	async function handleClick() {
+		if (!isSupported()) return;
 		failed_task = null;
 		if (task_id !== '') return;
 		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
@@ -37,7 +43,7 @@
 		</button>
 	</div>
 {:else}
-	<button class="btn btn-circle btn-xs" on:click={handleClick}>
+	<button class="btn btn-circle btn-xs" on:click={handleClick} disabled={!isSupported()}>
 		{#if task_id !== ''}
 			<span class="loading loading-spinner"></span>
 		{:else}

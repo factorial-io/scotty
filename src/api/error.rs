@@ -49,6 +49,9 @@ pub enum AppError {
     #[error("Environment variables for variable substitution like {0} are not supported")]
     EnvironmentVariablesNotSupported(String),
 
+    #[error("Operation not supported for legacy/ unsupported app {0}")]
+    OperationNotSupportedForLegacyApp(String),
+
     #[error("Private registry not found in settings: {0}")]
     RegistryNotFound(String),
 

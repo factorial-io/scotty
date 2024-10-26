@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
-use crate::apps::app_data::{AppData, ServicePortMapping};
+use crate::apps::app_data::AppData;
 use crate::apps::file_list::{File, FileList};
 use crate::settings::ActionName;
 use crate::state_machine::StateHandler;
@@ -22,6 +22,7 @@ use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
 use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
+use super::validation::validate_docker_compose_content;
 
 struct RunDockerComposeBuildHandler<S> {
     next_state: S,
@@ -142,8 +143,15 @@ fn validate_app(
     // Parse docker-compose file
     let docker_compose_content = docker_compose_file.unwrap().content.clone();
 
+    // Create a vector with all the public service names
+    let public_service_names: Vec<String> = settings
+        .public_services
+        .iter()
+        .map(|service| service.service.clone())
+        .collect();
+
     let available_services =
-        validate_docker_compose_content(&docker_compose_content, &settings.public_services)?;
+        validate_docker_compose_content(&docker_compose_content, &public_service_names)?;
     // Check if we know about the private registry.
     if let Some(registry) = &settings.registry {
         if !app_state.settings.docker.registries.contains_key(registry) {
@@ -183,52 +191,6 @@ fn validate_app(
     Ok(docker_compose_file.unwrap().clone())
 }
 
-fn validate_docker_compose_content(
-    docker_compose_content: &[u8],
-    public_services: &Vec<ServicePortMapping>,
-) -> Result<Vec<String>, AppError> {
-    let docker_compose_data: serde_json::Value = serde_yml::from_slice(docker_compose_content)
-        .map_err(|_| AppError::InvalidDockerComposeFile)?;
-
-    // Get list of available services
-    let available_services: Vec<String> = docker_compose_data["services"]
-        .as_object()
-        .ok_or(AppError::InvalidDockerComposeFile)?
-        .keys()
-        .cloned()
-        .collect();
-
-    // Check if all public_services are available in docker-compose
-    for public_service in public_services {
-        if !available_services.contains(&public_service.service) {
-            return Err(AppError::PublicServiceNotFound(
-                public_service.service.clone(),
-            ));
-        }
-    }
-
-    // Check if there is a port settings for each service
-    for service in &available_services {
-        let service_data = docker_compose_data["services"][&service]
-            .as_object()
-            .unwrap();
-        if service_data.get("ports").is_some() {
-            return Err(AppError::PublicPortsNotSupported(service.clone()));
-        }
-    }
-
-    // Check if docker_compose_content depends on any environment variables
-    let content_str = String::from_utf8_lossy(docker_compose_content);
-    let env_var_regex = regex::Regex::new(r"\$\{?\w+\}?").unwrap();
-    if let Some(found_match) = env_var_regex.find(&content_str) {
-        return Err(AppError::EnvironmentVariablesNotSupported(
-            found_match.as_str().to_string(),
-        ));
-    }
-
-    Ok(available_services)
-}
-
 pub async fn create_app(
     app_state: SharedAppState,
     app_name: &str,
@@ -248,7 +210,7 @@ pub async fn create_app(
         services: vec![],
         docker_compose_path,
         root_directory,
-        status: crate::apps::app_data::AppState::Creating,
+        status: crate::apps::app_data::AppStatus::Creating,
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await
@@ -265,74 +227,6 @@ fn is_valid_docker_compose_file(file_path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::apps::app_data::ServicePortMapping;
-
-    #[test]
-    fn test_invalid_docker_compose_file() {
-        let invalid_content = b"invalid yaml content";
-        let result = validate_docker_compose_content(invalid_content, &vec![]);
-        assert!(matches!(result, Err(AppError::InvalidDockerComposeFile)));
-    }
-
-    #[test]
-    fn test_public_service_not_found() {
-        let content = b"
-services:
-  service1:
-    image: test
-";
-        let public_services = vec![ServicePortMapping {
-            service: "non_existent_service".to_string(),
-            port: 80,
-        }];
-        let result = validate_docker_compose_content(content, &public_services);
-        assert!(
-            matches!(result, Err(AppError::PublicServiceNotFound(service)) if service == "non_existent_service")
-        );
-    }
-
-    #[test]
-    fn test_public_ports_not_supported() {
-        let content = b"
-services:
-  service1:
-    image: test
-    ports:
-      - 80:80
-";
-        let result = validate_docker_compose_content(content, &vec![]);
-        assert!(matches!(
-            result,
-            Err(AppError::PublicPortsNotSupported(service)) if service == "service1"
-        ));
-    }
-
-    #[test]
-    fn test_environment_variables_not_supported() {
-        let content = b"
-services:
-  service1:
-    image: test
-    environment:
-      - VAR=${SOME_VAR}
-";
-        let result = validate_docker_compose_content(content, &vec![]);
-        assert!(matches!(
-            result,
-            Err(AppError::EnvironmentVariablesNotSupported(var)) if var == "${SOME_VAR}"
-        ));
-    }
-
-    #[test]
-    fn test_valid_docker_compose() {
-        let content = b"
-services:
-  service1:
-    image: test
-";
-        let result = validate_docker_compose_content(content, &vec![]);
-        assert!(result.is_ok());
-    }
 
     #[test]
     fn test_is_valid_docker_compose_file() {
