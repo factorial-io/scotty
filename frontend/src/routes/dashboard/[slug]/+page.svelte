@@ -28,6 +28,10 @@
 		});
 	}
 
+	function isSupported() {
+		return data.status !== 'Unsupported';
+	}
+
 	let app_tasks: TaskDetail[] = [];
 	tasks.subscribe((new_tasks) => {
 		app_tasks = Object.values(new_tasks).filter((t) => t.app_name === data.name);
@@ -45,7 +49,7 @@
 <div class="join">
 	{#each actions as action}
 		<button
-			disabled={current_task !== null}
+			disabled={current_task !== null || !isSupported()}
 			class="btn btn-sm join-item"
 			on:click={() => handleClick(action)}
 			>{#if action === current_action}
