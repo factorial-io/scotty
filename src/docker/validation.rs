@@ -55,7 +55,7 @@ services:
   service1:
     image: test
 ";
-        let public_services = vec!["non_existant_service".to_string()];
+        let public_services = vec!["non_existent_service".to_string()];
         let result = validate_docker_compose_content(content, &public_services);
         assert!(
             matches!(result, Err(AppError::PublicServiceNotFound(service)) if service == "non_existent_service")
