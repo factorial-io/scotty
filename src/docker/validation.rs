@@ -1,8 +1,8 @@
-use crate::{api::error::AppError, apps::app_data::ServicePortMapping};
+use crate::api::error::AppError;
 
 pub fn validate_docker_compose_content(
     docker_compose_content: &[u8],
-    public_services: &Vec<ServicePortMapping>,
+    public_service_names: &Vec<String>,
 ) -> Result<Vec<String>, AppError> {
     let docker_compose_data: serde_json::Value = serde_yml::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)?;
@@ -16,11 +16,9 @@ pub fn validate_docker_compose_content(
         .collect();
 
     // Check if all public_services are available in docker-compose
-    for public_service in public_services {
-        if !available_services.contains(&public_service.service) {
-            return Err(AppError::PublicServiceNotFound(
-                public_service.service.clone(),
-            ));
+    for public_service in public_service_names {
+        if !available_services.contains(public_service) {
+            return Err(AppError::PublicServiceNotFound(public_service.clone()));
         }
     }
 
@@ -57,10 +55,7 @@ services:
   service1:
     image: test
 ";
-        let public_services = vec![ServicePortMapping {
-            service: "non_existent_service".to_string(),
-            port: 80,
-        }];
+        let public_services = vec!["non_existant_service".to_string()];
         let result = validate_docker_compose_content(content, &public_services);
         assert!(
             matches!(result, Err(AppError::PublicServiceNotFound(service)) if service == "non_existent_service")

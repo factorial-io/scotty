@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
+use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
+use crate::apps::app_data::AppStatus;
 use crate::state_machine::StateHandler;
 use crate::state_machine::StateMachine;
 use crate::tasks::running_app_context::RunningAppContext;
@@ -116,6 +118,9 @@ pub async fn destroy_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
+    if app.status == AppStatus::Unsupported {
+        return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
+    }
     let sm = destroy_app_prepare(app).await?;
     run_sm(app_state, app, sm).await
 }

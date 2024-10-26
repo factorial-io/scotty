@@ -6,7 +6,7 @@ mod utils;
 
 use anyhow::Context;
 use apps::{
-    app_data::{AppData, AppSettings, AppState, ServicePortMapping},
+    app_data::{AppData, AppSettings, AppStatus, ServicePortMapping},
     create_app_request::CreateAppRequest,
     file_list::{File, FileList},
     shared_app_list::AppDataVec,
@@ -331,13 +331,13 @@ async fn get_app_info(
     Ok(app_data)
 }
 
-fn colored_by_status(name: &str, status: &AppState) -> String {
+fn colored_by_status(name: &str, status: &AppStatus) -> String {
     match status {
-        AppState::Starting | AppState::Running => name.green().to_string(),
-        AppState::Stopped => name.blue().to_string(),
-        AppState::Creating => name.bright_green().to_string(),
-        AppState::Destroying => name.bright_red().to_string(),
-        AppState::Unsupported => name.white().to_string(),
+        AppStatus::Starting | AppStatus::Running => name.green().to_string(),
+        AppStatus::Stopped => name.blue().to_string(),
+        AppStatus::Creating => name.bright_green().to_string(),
+        AppStatus::Destroying => name.bright_red().to_string(),
+        AppStatus::Unsupported => name.white().to_string(),
     }
 }
 

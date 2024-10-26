@@ -3,8 +3,9 @@ use std::sync::Arc;
 use tracing::{info, instrument};
 
 use crate::{
+    api::error::AppError,
     app_state::SharedAppState,
-    apps::app_data::AppData,
+    apps::app_data::{AppData, AppStatus},
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
@@ -108,6 +109,9 @@ pub async fn rebuild_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
+    if app.status == AppStatus::Unsupported {
+        return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
+    }
     let sm = rebuild_app_prepare(app).await?;
     run_sm(app_state, app, sm).await
 }

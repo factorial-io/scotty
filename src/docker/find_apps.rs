@@ -15,7 +15,7 @@ use walkdir::WalkDir;
 use crate::{
     app_state::SharedAppState,
     apps::{
-        app_data::{AppData, AppSettings, ContainerState},
+        app_data::{AppData, AppSettings, AppStatus, ContainerState},
         shared_app_list::AppDataVec,
     },
     docker::docker_compose::run_docker_compose_now,
@@ -105,18 +105,20 @@ pub async fn inspect_app(
 
     let content = std::fs::read_to_string(docker_compose_path)?;
     let dc_services = extract_services_from_docker_compose(&content).await?;
-    let services = get_running_services(app_state, docker_compose_path, &name, dc_services).await?;
+    let services =
+        get_running_services(app_state, docker_compose_path, &name, &dc_services).await?;
     let settings = get_app_settings(docker_compose_path).await.ok();
 
-    let docker_compose_valid = validate_docker_compose_content(content.as_bytes(), dc_services);
-
-    let app_data = AppData::new(
+    let mut app_data = AppData::new(
         &name,
         app_path.to_str().unwrap(),
         docker_compose_path.to_str().unwrap(),
         services,
         settings,
     );
+    if validate_docker_compose_content(content.as_bytes(), &dc_services).is_err() {
+        app_data.status = AppStatus::Unsupported;
+    }
     Ok(app_data)
 }
 
@@ -150,7 +152,7 @@ async fn get_running_services(
     app_state: &SharedAppState,
     docker_compose_path: &PathBuf,
     app_name: &str,
-    service_names: Vec<String>,
+    service_names: &Vec<String>,
 ) -> anyhow::Result<Vec<ContainerState>> {
     let running_containers = inspect_docker_compose(app_state, docker_compose_path).await?;
     let mut running_services: HashMap<String, ContainerState> = HashMap::new();

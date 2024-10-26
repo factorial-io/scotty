@@ -143,8 +143,15 @@ fn validate_app(
     // Parse docker-compose file
     let docker_compose_content = docker_compose_file.unwrap().content.clone();
 
+    // Create a vector with all the public service names
+    let public_service_names: Vec<String> = settings
+        .public_services
+        .iter()
+        .map(|service| service.service.clone())
+        .collect();
+
     let available_services =
-        validate_docker_compose_content(&docker_compose_content, &settings.public_services)?;
+        validate_docker_compose_content(&docker_compose_content, &public_service_names)?;
     // Check if we know about the private registry.
     if let Some(registry) = &settings.registry {
         if !app_state.settings.docker.registries.contains_key(registry) {
@@ -203,7 +210,7 @@ pub async fn create_app(
         services: vec![],
         docker_compose_path,
         root_directory,
-        status: crate::apps::app_data::AppState::Creating,
+        status: crate::apps::app_data::AppStatus::Creating,
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await

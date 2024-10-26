@@ -3,8 +3,9 @@ use std::sync::Arc;
 use tracing::{info, instrument};
 
 use crate::{
+    api::error::AppError,
     app_state::SharedAppState,
-    apps::app_data::AppData,
+    apps::app_data::{AppData, AppStatus},
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
         set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
@@ -69,6 +70,9 @@ pub async fn purge_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
+    if app.status == AppStatus::Unsupported {
+        return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
+    }
     let sm = purge_app_prepare(app, PurgeAppMethod::Rm).await?;
     run_sm(app_state, app, sm).await
 }

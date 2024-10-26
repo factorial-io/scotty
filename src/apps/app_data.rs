@@ -154,8 +154,8 @@ impl ContainerState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
-pub enum AppState {
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse, PartialEq, Eq)]
+pub enum AppStatus {
     Stopped,
     Starting,
     Running,
@@ -164,22 +164,22 @@ pub enum AppState {
     Unsupported,
 }
 
-impl std::fmt::Display for AppState {
+impl std::fmt::Display for AppStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            AppState::Stopped => write!(f, "Stopped"),
-            AppState::Starting => write!(f, "Starting"),
-            AppState::Running => write!(f, "Running"),
-            AppState::Creating => write!(f, "Creating"),
-            AppState::Destroying => write!(f, "Destroying"),
-            AppState::Unsupported => write!(f, "Unsupported"),
+            AppStatus::Stopped => write!(f, "Stopped"),
+            AppStatus::Starting => write!(f, "Starting"),
+            AppStatus::Running => write!(f, "Running"),
+            AppStatus::Creating => write!(f, "Creating"),
+            AppStatus::Destroying => write!(f, "Destroying"),
+            AppStatus::Unsupported => write!(f, "Unsupported"),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppData {
-    pub status: AppState,
+    pub status: AppStatus,
     pub name: String,
     pub root_directory: String,
     pub docker_compose_path: String,
@@ -190,7 +190,7 @@ pub struct AppData {
 impl Default for AppData {
     fn default() -> Self {
         AppData {
-            status: AppState::Stopped,
+            status: AppStatus::Stopped,
             name: "".to_string(),
             root_directory: "".to_string(),
             docker_compose_path: "".to_string(),
@@ -246,11 +246,11 @@ fn count_state(services: &[ContainerState], required: ContainerStatus) -> usize 
         .fold(0, |acc, x| if x.status == required { acc + 1 } else { acc })
 }
 
-fn get_app_status_from_services(services: &[ContainerState]) -> AppState {
+fn get_app_status_from_services(services: &[ContainerState]) -> AppStatus {
     let count_running_services = count_state(services, ContainerStatus::RUNNING);
     match count_running_services {
-        0 => AppState::Stopped,
-        x if x == services.len() => AppState::Running,
-        _ => AppState::Starting,
+        0 => AppStatus::Stopped,
+        x if x == services.len() => AppStatus::Running,
+        _ => AppStatus::Starting,
     }
 }

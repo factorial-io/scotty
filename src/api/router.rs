@@ -32,7 +32,7 @@ use crate::api::ws::ws_handler;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::app_data::AppSettings;
-use crate::apps::app_data::AppState;
+use crate::apps::app_data::AppStatus;
 use crate::apps::app_data::AppTtl;
 use crate::apps::app_data::ContainerState;
 use crate::apps::app_data::ServicePortMapping;
@@ -78,7 +78,7 @@ use super::handlers::tasks::task_list_handler;
         blueprints_handler,
     ),
     components(
-        schemas( TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppState, AppTtl, ServicePortMapping, RunningAppContext)
+        schemas( TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppStatus, AppTtl, ServicePortMapping, RunningAppContext)
     ),
     tags(
         (name = "scotty-service", description = "scotty api")
