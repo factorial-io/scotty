@@ -19,7 +19,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --bin scotty --bin scottyctl
 
-FROM node:20 as frontend-builder
+FROM node:22 as frontend-builder
 WORKDIR /app
 COPY ./frontend /app
 RUN yarn install && yarn build
