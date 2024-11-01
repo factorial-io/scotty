@@ -164,7 +164,6 @@ pub struct Apps {
     pub root_folder: String,
     pub max_depth: u32,
     pub domain_suffix: String,
-    pub use_tls: bool,
     pub blueprints: AppBlueprintMap,
 }
 
@@ -252,7 +251,6 @@ impl Default for Settings {
                 root_folder: ".".to_string(),
                 max_depth: 3,
                 domain_suffix: "".to_string(),
-                use_tls: false,
                 blueprints: HashMap::new(),
             },
             docker: DockerSettings {

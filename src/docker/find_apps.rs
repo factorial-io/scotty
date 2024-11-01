@@ -268,7 +268,7 @@ async fn inspect_docker_container(
 
     let domain = loadbalancer_info.domain.clone();
     let url = domain.map(|domain| {
-        let protocol = if app_state.settings.apps.use_tls {
+        let protocol = if loadbalancer_info.tls_enabled {
             "https"
         } else {
             "http"
