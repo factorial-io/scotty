@@ -6,7 +6,7 @@ mod utils;
 
 use anyhow::Context;
 use apps::{
-    app_data::{AppData, AppSettings, AppStatus, ServicePortMapping},
+    app_data::{AppData, AppSettings, AppStatus, AppTtl, ServicePortMapping},
     create_app_request::CreateAppRequest,
     file_list::{File, FileList},
     shared_app_list::AppDataVec,
@@ -104,10 +104,30 @@ struct CreateCommand {
     /// Name of the app blueprint to use
     #[arg(long, required_unless_present = "service")]
     app_blueprint: Option<String>,
+
+    #[arg(long, value_parser=parse_app_ttl, default_value="7d", value_name="<DAYS>d|<HOURS>h|FOREVER")]
+    ttl: AppTtl,
 }
 struct ServerSettings {
     server: String,
     access_token: Option<String>,
+}
+
+fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
+    if s.eq_ignore_ascii_case("forever") {
+        return Ok(AppTtl::Forever);
+    }
+    if let Some(days) = s.strip_suffix("d") {
+        if let Ok(num_days) = days.parse::<u32>() {
+            return Ok(AppTtl::Days(num_days));
+        }
+    }
+    if let Some(hours) = s.strip_suffix("h") {
+        if let Ok(num_hours) = hours.parse::<u32>() {
+            return Ok(AppTtl::Hours(num_hours)); // Assuming AppTtl has a variant called `Hours`
+        }
+    }
+    Err(format!("Invalid TTL format: {}", s))
 }
 
 fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -416,6 +436,7 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
             environment: cmd.env.iter().cloned().collect(),
             registry: cmd.registry.clone(),
             app_blueprint: cmd.app_blueprint.clone(),
+            time_to_live: cmd.ttl.clone(),
             ..Default::default()
         },
         files: file_list,

@@ -18,6 +18,7 @@ pub enum AppTtl {
     Days(u32),
     Forever,
 }
+
 impl From<AppTtl> for u32 {
     fn from(val: AppTtl) -> Self {
         match val {
