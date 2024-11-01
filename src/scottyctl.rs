@@ -112,7 +112,15 @@ struct CreateCommand {
     /// Time to live (ttl) for the app, can be in days, hours or forever
     #[arg(long, value_parser=parse_app_ttl, default_value="7d", value_name="<DAYS>d|<HOURS>h|FOREVER")]
     ttl: AppTtl,
+
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Allow search engines to index the app"
+    )]
+    allow_robots: bool,
 }
+
 struct ServerSettings {
     server: String,
     access_token: Option<String>,
@@ -456,6 +464,7 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
             registry: cmd.registry.clone(),
             app_blueprint: cmd.app_blueprint.clone(),
             time_to_live: cmd.ttl.clone(),
+            disallow_robots: !cmd.allow_robots,
             ..Default::default()
         },
         files: file_list,
