@@ -1,6 +1,7 @@
 services:
   scotty:
     image: ghcr.io/factorial-io/scotty:main
+    platform: linux/amd64
     volumes:
       - ..:/app/apps
       - /var/run/docker.sock:/var/run/docker.sock
