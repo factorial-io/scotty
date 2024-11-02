@@ -289,13 +289,11 @@ impl Settings {
 
         // Add every file in config/blueprints to the configuration.
         if let Ok(entries) = std::fs::read_dir("config/blueprints") {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if let Some(ext) = path.extension() {
-                        if ext == "yaml" || ext == "yml" {
-                            builder = builder.add_source(File::from(path));
-                        }
+            for entry in entries.into_iter().flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "yaml" || ext == "yml" {
+                        builder = builder.add_source(File::from(path));
                     }
                 }
             }
