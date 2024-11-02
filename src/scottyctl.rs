@@ -22,7 +22,7 @@ use tasks::{
     task_details::{State, TaskDetails},
 };
 use tracing::info;
-use utils::format_chrono_duration;
+use utils::{format_bytes, format_chrono_duration};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -471,11 +471,7 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
     };
 
     let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
-    let size = match payload.to_string().len() {
-        bytes if bytes < 1024 => format!("{}b", bytes),
-        kilobytes if kilobytes < 1024 * 1024 => format!("{:.2}kb", kilobytes as f64 / 1024.0),
-        megabytes => format!("{:.2}mb", megabytes as f64 / (1024.0 * 1024.0)),
-    };
+    let size = format_bytes(payload.to_string().len());
     println!(
         "🚀 Beaming your app {} up to {} ({})... \n",
         &cmd.app_name.yellow(),

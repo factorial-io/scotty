@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use chrono::TimeDelta;
 
 pub fn format_chrono_duration(duration: &TimeDelta) -> String {
@@ -25,4 +26,20 @@ pub fn format_chrono_duration(duration: &TimeDelta) -> String {
     );
 
     formatted
+}
+
+pub fn format_bytes(bytes: usize) -> String {
+    let kb = bytes as f64 / 1024.0;
+    let mb = kb / 1024.0;
+    let gb = mb / 1024.0;
+
+    if gb >= 1f64 {
+        format!("{:.2} GB", gb)
+    } else if mb >= 1f64 {
+        format!("{:.2} MB", mb)
+    } else if kb >= 1f64 {
+        format!("{:.2} KB", kb)
+    } else {
+        format!("{} B", bytes)
+    }
 }
