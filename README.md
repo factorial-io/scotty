@@ -96,18 +96,18 @@ You'll find all configuration options in `config/detault.yaml`. Create a
 override the config also by setting environment variables following the
 pattern `SCOTTY__GROUP__KEY` e.g. `SCOTTY__API__BIND_ADRESS=0.0.0.0:80`.
 
+If you use scotty using docker, then make sure, that you use the same
+path for the apps as on the root host, otherwise relative paths in
+the docker-compose files will not work. So if your apps are located in
+`/srv/apps` on the host, then you need to mount `/srv/apps` to
+`/srv/apps` and adjust the config-file accordingly.
+
 To use the api you need to add a bearer token to your requests. The
 bearer token can be set in your configuration (`api.access_token`) or
 also via an environment variable, e.g. `SCOTTY__API__ACCESS_TOKEN`.
 
 It is advised to protect the service with a bearer token, as it gives
 its users full access to docker and docker-compose.
-
-If you use scotty using docker, then make sure, that you use the same
-path for the apps as on the root host, otherwise relative paths in
-the docker-compose files will not work. So if your apps are located in
-`/srv/apps` on the host, then you need to mount `/srv/apps` to
-`/srv/apps` and adjust the config-file accordingly.
 
 For a future version it is planned to introduce JWTs and SSO.
 
