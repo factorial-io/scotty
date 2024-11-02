@@ -59,7 +59,7 @@ enum Commands {
     /// Get info of an installed app
     Info(InfoCommand),
     /// Add a new app
-    Create(CreateCommand),
+    Create(Box<CreateCommand>),
     /// Destroy an app
     Destroy(DestroyCommand),
 }
