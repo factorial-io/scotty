@@ -43,9 +43,18 @@ pub async fn create_app_handler(
 
     let file_list = FileList { files };
 
-    // Set the domain.
+    // Set the default settings for the app.
     let settings = payload.settings.clone();
     let settings = settings.merge_with_global_settings(&state.settings.apps, &payload.app_name);
+
+    // Apply blueprint settings, if any.
+    let settings = settings.apply_blueprint(&state.settings.apps.blueprints);
+    println!("settings: {:?}", settings);
+
+    // Apply custom domains, if any.
+    let settings = settings.apply_custom_domains(&payload.custom_domains)?;
+
+    println!("settings: {:?}", settings);
 
     match create_app(state, &payload.app_name, &settings, &file_list).await {
         Ok(app_data) => Ok(Json(app_data)),

@@ -10,6 +10,7 @@ use utoipa::{ToResponse, ToSchema};
 pub struct ServicePortMapping {
     pub service: String,
     pub port: u32,
+    pub domain: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Clone, ToSchema, ToResponse)]
@@ -99,6 +100,7 @@ impl AppSettings {
                         .map(|(service, port)| ServicePortMapping {
                             service: service.clone(),
                             port: *port as u32,
+                            domain: None,
                         })
                         .collect();
                     return new_settings;
@@ -107,11 +109,37 @@ impl AppSettings {
         }
         self.clone()
     }
+
+    pub fn apply_custom_domains(
+        &self,
+        custom_domains: &Vec<CustomDomainMapping>,
+    ) -> anyhow::Result<AppSettings> {
+        let mut new_settings = self.clone();
+        for custom_domain in custom_domains {
+            let mut found = false;
+            for service in &mut new_settings.public_services {
+                if service.service == custom_domain.service {
+                    service.domain = Some(custom_domain.domain.clone());
+                    found = true;
+                }
+            }
+            if !found {
+                return Err(anyhow::anyhow!(
+                    "Service {} for custom domain {} not found",
+                    &custom_domain.service,
+                    &custom_domain.domain
+                ));
+            }
+        }
+        Ok(new_settings)
+    }
 }
 
 pub use bollard::models::ContainerStateStatusEnum as ContainerStatus;
 
 use crate::settings::{AppBlueprintMap, Apps};
+
+use super::create_app_request::CustomDomainMapping;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct ContainerState {

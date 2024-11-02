@@ -63,7 +63,6 @@ async fn create_app_prepare(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
-    let settings = settings.apply_blueprint(&app_state.settings.apps.blueprints);
     let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
     sm.add_handler(
         CreateAppStates::CreateDirectory,

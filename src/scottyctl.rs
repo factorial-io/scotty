@@ -7,7 +7,7 @@ mod utils;
 use anyhow::Context;
 use apps::{
     app_data::{AppData, AppSettings, AppStatus, AppTtl, ServicePortMapping},
-    create_app_request::CreateAppRequest,
+    create_app_request::{CreateAppRequest, CustomDomainMapping},
     file_list::{File, FileList},
     shared_app_list::AppDataVec,
 };
@@ -89,6 +89,10 @@ struct CreateCommand {
     #[arg(long, value_parser=parse_service_ports, value_name="SERVICE:PORT", required_unless_present="app_blueprint")]
     service: Vec<ServicePortMapping>,
 
+    /// Custom domain(s) to use for the app (e.g. example.com:my-service)
+    #[arg(long, value_name="DOMAIN:SERVICE", value_parser=parse_custom_domain_mapping)]
+    custom_domain: Vec<CustomDomainMapping>,
+
     /// Basic auth credentials for the app (user:password)
     #[arg(long, value_parser=parse_basic_auth, value_name="USER:PASSWORD")]
     basic_auth: Option<(String, String)>,
@@ -155,6 +159,17 @@ fn parse_basic_auth(s: &str) -> Result<(String, String), String> {
     Ok((parts[0].to_string(), parts[1].to_string()))
 }
 
+fn parse_custom_domain_mapping(s: &str) -> Result<CustomDomainMapping, String> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err("Invalid custom domain format, should be domain:service".to_string());
+    }
+    Ok(CustomDomainMapping {
+        domain: parts[0].to_string(),
+        service: parts[1].to_string(),
+    })
+}
+
 fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
     let parts: Vec<&str> = s.split(':').collect();
     if parts.len() != 2 {
@@ -166,6 +181,7 @@ fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
     Ok(ServicePortMapping {
         service: parts[0].to_string(),
         port,
+        domain: None,
     })
 }
 
@@ -427,8 +443,10 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
             })
             .collect(),
     };
+
     let payload = CreateAppRequest {
         app_name: cmd.app_name.clone(),
+        custom_domains: cmd.custom_domain.clone(),
         settings: AppSettings {
             needs_setup: true,
             public_services: cmd.service.clone(),

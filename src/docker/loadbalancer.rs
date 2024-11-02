@@ -126,7 +126,10 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
-                format!("{}.{}", &service.service, &settings.domain),
+                match &service.domain {
+                    Some(domain) => domain.clone(),
+                    None => format!("{}.{}", &service.service, &settings.domain),
+                },
             );
             environment.insert("VPORT".into(), format!("{}", &service.port));
 
@@ -225,7 +228,10 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             labels.insert("traefik.enable".to_string(), "true".to_string());
             labels.insert(
                 format!("traefik.http.routers.{}.rule", &service_name),
-                format!("Host(`{}.{}`)", &service.service, &settings.domain),
+                match &service.domain {
+                    Some(domain) => format!("Host(`{}`)", domain),
+                    None => format!("Host(`{}.{}`)", &service.service, &settings.domain),
+                },
             );
             labels.insert(
                 format!(
@@ -341,6 +347,7 @@ mod tests {
             public_services: vec![ServicePortMapping {
                 service: "web".to_string(),
                 port: 8080,
+                domain: None,
             }],
             basic_auth: Some(("user".to_string(), "pass".to_string())),
             disallow_robots: true,
@@ -379,6 +386,7 @@ mod tests {
             public_services: vec![ServicePortMapping {
                 service: "web".to_string(),
                 port: 8080,
+                domain: None,
             }],
             basic_auth: Some(("user".to_string(), "pass".to_string())),
             disallow_robots: true,
