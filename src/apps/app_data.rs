@@ -227,7 +227,7 @@ impl AppData {
         self.settings
             .as_ref()
             .map(|s| s.time_to_live.clone())
-            .unwrap_or(AppTtl::Hours(24))
+            .unwrap_or(AppTtl::Days(7))
     }
     pub fn running_since(&self) -> Option<TimeDelta> {
         let mut since: Option<TimeDelta> = None;
