@@ -89,7 +89,7 @@ struct CreateCommand {
     #[arg(long, value_parser=parse_service_ports, value_name="SERVICE:PORT", required_unless_present="app_blueprint")]
     service: Vec<ServicePortMapping>,
 
-    /// Custom domain(s) to use for the app (e.g. example.com:my-service)
+    /// Custom domain(s) to use for the app (e.g. example.com:my-service), add an option for every service
     #[arg(long, value_name="DOMAIN:SERVICE", value_parser=parse_custom_domain_mapping)]
     custom_domain: Vec<CustomDomainMapping>,
 
@@ -109,6 +109,7 @@ struct CreateCommand {
     #[arg(long, required_unless_present = "service")]
     app_blueprint: Option<String>,
 
+    /// Time to live (ttl) for the app, can be in days, hours or forever
     #[arg(long, value_parser=parse_app_ttl, default_value="7d", value_name="<DAYS>d|<HOURS>h|FOREVER")]
     ttl: AppTtl,
 }
