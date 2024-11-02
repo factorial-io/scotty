@@ -65,3 +65,12 @@ pub async fn stop_app(
     let sm = stop_app_prepare(app).await?;
     run_sm(app_state, app, sm).await
 }
+
+#[instrument(skip(app_state))]
+pub async fn force_stop_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    let sm = stop_app_prepare(app).await?;
+    run_sm(app_state, app, sm).await
+}

@@ -3,7 +3,7 @@ use tracing::{info, instrument};
 use crate::{
     app_state::SharedAppState,
     apps::app_data::{AppData, AppTtl},
-    docker::stop_app::stop_app,
+    docker::stop_app::force_stop_app,
     utils::format_chrono_duration,
 };
 
@@ -47,7 +47,7 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
             "Stopping app, because TTL {} reached for {}",
             app_ttl_seconds, app.name
         );
-        let _ = stop_app(app_state, app).await?;
+        let _ = force_stop_app(app_state, app).await?;
     }
     Ok(())
 }
