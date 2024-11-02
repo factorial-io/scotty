@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.10] - 2024-11-02
+
+### Bug Fixes
+
+- Cleanup will also work with unsupported apps ✔️
+- Increase default cleanup ttl to 7 days ✔️
+- Update rust crate anyhow to v1.0.92 ✔️
+- Update rust crate thiserror to v1.0.66 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+
+### Dependencies
+
+- Update dependency @sveltejs/kit to v2.7.4 ✔️
+- Update dependency eslint to v9.14.0 ✔️
+- Update dependency typescript-eslint to v8.12.1 ✔️
+- Update dependency typescript-eslint to v8.12.0 ✔️
+- Update dependency daisyui to v4.12.14 (#39) ✔️
+
+### Documentation
+
+- Better help texts ✔️
+- Add clarifying comment on how to map the apps folder into the docker-container ✔️
+
+### Features
+
+- Try to get registry from docker metadata for legacy apps and use that when needed ✔️
+- Add support for custom domain per service ✔️
+- Allow separate blueprint config files in config/blueprints ✔️
+- Add ttl-option for scottyctl create ✔️
+
 ## [0.1.0-alpha.9] - 2024-10-26
 
 ### Bug Fixes
