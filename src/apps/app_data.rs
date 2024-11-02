@@ -150,6 +150,7 @@ pub struct ContainerState {
     pub url: Option<String>,
     pub port: Option<u32>,
     pub started_at: Option<chrono::DateTime<chrono::Local>>,
+    pub used_registry: Option<String>,
 }
 
 impl Default for ContainerState {
@@ -162,6 +163,7 @@ impl Default for ContainerState {
             url: None,
             port: None,
             started_at: None,
+            used_registry: None,
         }
     }
 }
@@ -266,6 +268,13 @@ impl AppData {
         }
 
         since
+    }
+
+    pub fn get_registry(&self) -> Option<String> {
+        if let Some(settings) = &self.settings {
+            return settings.registry.clone();
+        }
+        self.services.iter().find_map(|s| s.used_registry.clone())
     }
 }
 

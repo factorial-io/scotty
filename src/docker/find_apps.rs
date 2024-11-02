@@ -175,6 +175,7 @@ async fn get_running_services(
                     url: None,
                     port: None,
                     started_at: None,
+                    used_registry: None,
                 }
             }
         })
@@ -276,6 +277,27 @@ async fn inspect_docker_container(
         format!("{}://{}", protocol, domain)
     });
 
+    let mut used_registry: Option<String> = None;
+
+    // Inspect the image and try to get the registry from the first repo tag
+    if let Some(image) = insights.image {
+        let image_info = app_state.docker.inspect_image(&image).await?;
+        if let Some(tags) = image_info.repo_tags.filter(|t| !t.is_empty()) {
+            if let Some(parts) = tags[0].split('/').next() {
+                let found = app_state.settings.docker.registries.iter().find(|(_, s)| {
+                    s.registry
+                        .trim_start_matches("http://")
+                        .trim_start_matches("https://")
+                        == parts
+                });
+
+                if let Some((name, _)) = found {
+                    used_registry = Some(name.to_string());
+                }
+            }
+        }
+    }
+
     let container_state = ContainerState {
         status: state.status.unwrap(),
         id: Some(container_id.to_string()),
@@ -284,6 +306,7 @@ async fn inspect_docker_container(
         url: url.clone(),
         port: loadbalancer_info.port,
         started_at: Some(local_date),
+        used_registry,
     };
 
     Ok(container_state)

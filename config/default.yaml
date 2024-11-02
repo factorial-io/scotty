@@ -14,12 +14,16 @@ apps:
 docker:
   connection: local # local, socket or http, see bollard docs
   registries:
+    factorial_legacy:
+      registry: https://registry.factorial.io:8443
+      username: "deploybot"
+      password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL_LEGACY__PASSWORD
     factorial:
       registry: https://registry.factorial.io
       username: "deploybot"
       password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL__PASSWORD
 
-load_balancer_type: Traefik #HaproxyConfig #HaproxyConfig or Traefik
+load_balancer_type: Traefik #HaproxyConfig or Traefik
 traefik:
   network: "proxy"
   use_tls: true

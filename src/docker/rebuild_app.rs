@@ -47,10 +47,7 @@ pub async fn rebuild_app_prepare(
         RebuildAppStates::RunDockerLogin,
         Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposePull,
-            registry: app
-                .settings
-                .as_ref()
-                .and_then(|settings| settings.registry.clone()),
+            registry: app.get_registry(),
         }),
     );
     sm.add_handler(
