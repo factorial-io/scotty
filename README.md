@@ -103,6 +103,12 @@ also via an environment variable, e.g. `SCOTTY__API__ACCESS_TOKEN`.
 It is advised to protect the service with a bearer token, as it gives
 its users full access to docker and docker-compose.
 
+If you use scotty using docker, then make sure, that you use the same
+path for the apps as on the root host, otherwise relative paths in
+the docker-compose files will not work. So if your apps are located in
+`/srv/apps` on the host, then you need to mount `/srv/apps` to
+`/srv/apps` and adjust the config-file accordingly.
+
 For a future version it is planned to introduce JWTs and SSO.
 
 ## Configuring the cli
@@ -132,7 +138,7 @@ You can provide the information either via env-vars or by passing the
     to forward traffic to the app
   * [haproxy_config](https://github.com/factorial-io/haproxy-config) -- scotty will create the necessary environment variables
     to forward traffic to the app (legacy)
-    
+
   When you create a new app you provide a list of public services,
   which then will be used as domain-names for the reverse-rpoxy
   configuration.
@@ -176,7 +182,7 @@ git cliff > changelog.md
 ```
 ### Create a new release
 
-We are using `cargo-release` to patch up a new release, this is a typical 
+We are using `cargo-release` to patch up a new release, this is a typical
 command to create a new release:
 
 ```shell
