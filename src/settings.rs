@@ -280,13 +280,29 @@ impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let run_mode = env::var("SCOTTY_RUN_MODE").unwrap_or_else(|_| "development".into());
 
-        let s = Config::builder()
+        let mut builder = Config::builder()
             .set_default("api.bind_address", "0.0.0.0:8080")?
             .set_default("apps.max_depth", 3u32)?
             .set_default("docker.connection", "local")?
             // Start off by merging in the "default" configuration file
-            .add_source(File::with_name("config/default"))
-            .add_source(File::with_name("config/blueprints"))
+            .add_source(File::with_name("config/default"));
+
+        // Add every file in config/blueprints to the configuration.
+        if let Ok(entries) = std::fs::read_dir("config/blueprints") {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension() {
+                        if ext == "yaml" || ext == "yml" {
+                            builder = builder.add_source(File::from(path));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add the rest of the configuration files.
+        let s = builder
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             .add_source(File::with_name("config/local").required(false))
             .add_source(Self::get_environment())

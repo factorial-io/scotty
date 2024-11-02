@@ -1,0 +1,21 @@
+apps:
+  blueprints:
+    drupal-lagoon:
+      name: "Drupal using lagoon base images"
+      description: "A simple Drupal application using lagoon base images (cli, php, nginx)"
+      required_services:
+        - cli
+        - php
+        - nginx
+      public_services:
+        nginx: 8080
+      actions:
+        post_create:
+          cli:
+            - drush deploy
+        post_rebuild:
+          cli:
+            - drush deploy
+        post_run:
+          cli:
+            - drush uli
