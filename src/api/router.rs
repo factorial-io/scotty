@@ -1,3 +1,4 @@
+use axum::extract::DefaultBodyLimit;
 use axum::middleware;
 use axum::routing::get;
 use axum::routing::post;
@@ -98,7 +99,12 @@ impl ApiRoutes {
             .route("/api/v1/apps/rebuild/:app_id", get(rebuild_app_handler))
             .route("/api/v1/apps/info/:app_id", get(info_app_handler))
             .route("/api/v1/apps/destroy/:app_id", get(destroy_app_handler))
-            .route("/api/v1/apps/create", post(create_app_handler))
+            .route(
+                "/api/v1/apps/create",
+                post(create_app_handler).layer(DefaultBodyLimit::max(
+                    state.settings.api.create_app_max_size,
+                )),
+            )
             .route("/api/v1/tasks", get(task_list_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))
             .route("/api/v1/validate-token", post(validate_token_handler))

@@ -62,6 +62,27 @@ impl From<SchedulerInterval> for chrono::Duration {
 pub struct ApiServer {
     pub bind_address: String,
     pub access_token: Option<String>,
+    #[serde(deserialize_with = "deserialize_bytes")]
+    pub create_app_max_size: usize,
+}
+
+fn deserialize_bytes<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    let s = s.trim().to_uppercase();
+
+    let (num_part, suffix) = s.split_at(s.len().saturating_sub(1));
+    let multiplier = match suffix {
+        "G" => 1_024 * 1_024 * 1_024,
+        "M" => 1_024 * 1_024,
+        "K" => 1_024,
+        _ => 1,
+    };
+
+    let num: usize = num_part.parse().map_err(serde::de::Error::custom)?;
+    Ok(num * multiplier)
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -241,6 +262,7 @@ impl Default for Settings {
             api: ApiServer {
                 bind_address: "0.0.0.0:21342".to_string(),
                 access_token: None,
+                create_app_max_size: 1024 * 1024 * 10,
             },
             scheduler: Scheduler {
                 running_app_check: SchedulerInterval::Minutes(1),
@@ -282,6 +304,7 @@ impl Settings {
 
         let mut builder = Config::builder()
             .set_default("api.bind_address", "0.0.0.0:8080")?
+            .set_default("api.create_app_max_size", 10 * 1024 * 1024)?
             .set_default("apps.max_depth", 3u32)?
             .set_default("docker.connection", "local")?
             // Start off by merging in the "default" configuration file
@@ -347,8 +370,6 @@ mod tests {
             .add_source(config::File::with_name(
                 "tests/test_docker_registry_password.yaml",
             ))
-            // Add in settings from the environment (with a prefix of APP)
-            // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
             .add_source(Settings::get_environment())
             .build()
             .unwrap();

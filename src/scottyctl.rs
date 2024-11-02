@@ -470,13 +470,19 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
         files: file_list,
     };
 
-    let result = get_or_post(
-        server,
-        "apps/create",
-        "POST",
-        Some(serde_json::to_value(payload).unwrap()),
-    )
-    .await?;
+    let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
+    let size = match payload.to_string().len() {
+        bytes if bytes < 1024 => format!("{}b", bytes),
+        kilobytes if kilobytes < 1024 * 1024 => format!("{:.2}kb", kilobytes as f64 / 1024.0),
+        megabytes => format!("{:.2}mb", megabytes as f64 / (1024.0 * 1024.0)),
+    };
+    println!(
+        "🚀 Beaming your app {} up to {} ({})... \n",
+        &cmd.app_name.yellow(),
+        &server.server.yellow(),
+        size.blue()
+    );
+    let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
 
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
