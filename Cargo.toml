@@ -30,17 +30,17 @@ tokio = { version = "1.38.1", features = [
 ] }
 tracing = "0.1.40"
 tracing-subscriber = "*"
-opentelemetry = { version = "0.25.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.25", features = [
+opentelemetry = { version = "0.26.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.26", features = [
     "rt-tokio",
 ], default-features = false }
-tracing-opentelemetry = "0.26"
-init-tracing-opentelemetry = { version = "0.22.0", features = [
+tracing-opentelemetry = "0.27"
+init-tracing-opentelemetry = { version = "0.23.0", features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
-axum-tracing-opentelemetry = "0.21.1"
-opentelemetry-otlp = { version = "0.25.0", features = [
+axum-tracing-opentelemetry = "0.23.0"
+opentelemetry-otlp = { version = "0.26.0", features = [
     "reqwest-client",
     "reqwest-rustls",
     "http-proto",
