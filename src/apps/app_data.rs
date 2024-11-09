@@ -53,6 +53,19 @@ impl Serialize for AppTtl {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitlabContext {
+    pub project_id: u32,
+    pub mr_id: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NotificationReceiver {
+    Log,
+    Webhook,
+    Gitlab(GitlabContext),
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
     pub needs_setup: bool,
@@ -64,6 +77,8 @@ pub struct AppSettings {
     pub environment: HashMap<String, String>,
     pub registry: Option<String>,
     pub app_blueprint: Option<String>,
+    #[serde(default)]
+    pub notify: Vec<NotificationReceiver>,
 }
 
 impl Default for AppSettings {
@@ -78,6 +93,7 @@ impl Default for AppSettings {
             environment: HashMap::new(),
             registry: None,
             app_blueprint: None,
+            notify: vec![],
         }
     }
 }

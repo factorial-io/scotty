@@ -31,3 +31,8 @@ traefik:
   certresolver: "myresolver"
 haproxy:
   use_tls: true
+notification_services:
+  gitlab:
+    host: https://source.factorial.io
+    user: deploybot
+    token: deploybot $ # Override with env SCOTTY__NOTIFICATION_SERVICES__GITLAB__TOKEN

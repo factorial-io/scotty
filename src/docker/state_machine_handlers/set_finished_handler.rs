@@ -3,7 +3,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{api::ws::broadcast_message, state_machine::StateHandler, tasks::task_details::State};
+use crate::{
+    api::ws::broadcast_message, notification::notify, state_machine::StateHandler,
+    tasks::task_details::State,
+};
 
 use super::context::Context;
 
@@ -31,6 +34,10 @@ where
             crate::api::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
         )
         .await;
+
+        if let Some(app_settings) = &context.app_data.settings {
+            notify(&context.app_state, &app_settings.notify, "hello world").await?;
+        }
 
         Ok(self.next_state.clone())
     }

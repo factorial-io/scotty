@@ -107,7 +107,14 @@ pub async fn inspect_app(
     let dc_services = extract_services_from_docker_compose(&content).await?;
     let services =
         get_running_services(app_state, docker_compose_path, &name, &dc_services).await?;
-    let settings = get_app_settings(docker_compose_path).await.ok();
+
+    let settings = match get_app_settings(docker_compose_path).await {
+        Ok(result) => Some(result),
+        Err(err) => {
+            error!("{}", err);
+            None
+        }
+    };
 
     let mut app_data = AppData::new(
         &name,
