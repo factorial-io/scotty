@@ -60,6 +60,14 @@
       "groupName": "rustls packages"
     },
     {
+      "matchManagers": ["npm"],
+      "automerge": true,
+      "platformAutomerge": true,
+      "gitLabIgnoreApprovals": true,
+      "updateTypes": ["patch"],
+      "groupName": "Npm dependencies auto-merge (patch)"
+    },
+    {
       "matchManagers": ["cargo"],
       "automerge": true,
       "platformAutomerge": true,
