@@ -70,7 +70,7 @@ async-trait = "0.1.83"
 base64 = "0.22.1"
 slug = "0.1.6"
 path-clean = "1.0.1"
-bcrypt = "0.15.1"
+bcrypt = "0.16.0"
 maplit = "1.0.2"
 
 [dev-dependencies.cargo-husky]
