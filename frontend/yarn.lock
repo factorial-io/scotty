@@ -413,9 +413,9 @@
   integrity sha512-MGJcesnJWj7FxDcB/GbrdYD3q24Uk0PIL4QIX149ku+hlJuj//nxUbb0HxUTpjkecWfHjVveSUnUaQWnPRXlpg==
 
 "@sveltejs/kit@^2.0.0":
-  version "2.8.1"
-  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.8.1.tgz#f6d244d60217b44741c88e6ba099374d2cda9469"
-  integrity sha512-uuOfFwZ4xvnfPsiTB6a4H1ljjTUksGhWnYq5X/Y9z4x5+3uM2Md8q/YVeHL+7w+mygAwoEFdgKZ8YkUuk+VKww==
+  version "2.8.2"
+  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.8.2.tgz#abfc58326f0544724690923a579f134e609c9aed"
+  integrity sha512-c9My0AnojYtaa96XDAcxcMUdMd3iIhWfrj6BLNtOFz55lMtA/Jima54ZLcYcvfMqei3c86fGRXYa2aIHO+vzFg==
   dependencies:
     "@types/cookie" "^0.6.0"
     cookie "^0.6.0"
@@ -1389,10 +1389,17 @@ lru-cache@^10.2.0:
   resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-10.4.3.tgz#410fc8a17b70e598013df257c2446b7f3383f119"
   integrity sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==
 
-magic-string@^0.30.10, magic-string@^0.30.4, magic-string@^0.30.5:
+magic-string@^0.30.10, magic-string@^0.30.4:
   version "0.30.12"
   resolved "https://registry.yarnpkg.com/magic-string/-/magic-string-0.30.12.tgz#9eb11c9d072b9bcb4940a5b2c2e1a217e4ee1a60"
   integrity sha512-Ea8I3sQMVXr8JhN4z+H/d8zwo+tYDgHE9+5G4Wnrwhs0gaK9fXTKx0Tw5Xwsd/bCPTTZNRAdpyzvoeORe9LYpw==
+  dependencies:
+    "@jridgewell/sourcemap-codec" "^1.5.0"
+
+magic-string@^0.30.5:
+  version "0.30.13"
+  resolved "https://registry.yarnpkg.com/magic-string/-/magic-string-0.30.13.tgz#92438e3ff4946cf54f18247c981e5c161c46683c"
+  integrity sha512-8rYBO+MsWkgjDSOvLomYnzhdwEG51olQ4zL5KXnNJWV5MNmrb4rTZdrtkhxjnD/QyZUqR/Z/XDsUs/4ej2nx0g==
   dependencies:
     "@jridgewell/sourcemap-codec" "^1.5.0"
 
