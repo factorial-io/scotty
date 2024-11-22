@@ -64,7 +64,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 tokio-stream = "0.1.16"
 serde_yml = "0.0.12"
 regex = "1.11.0"
-tabled = { version = "0.16.0", features = ["ansi"] }
+tabled = { version = "0.17.0", features = ["ansi"] }
 owo-colors = "4.1.0"
 async-trait = "0.1.83"
 base64 = "0.22.1"
