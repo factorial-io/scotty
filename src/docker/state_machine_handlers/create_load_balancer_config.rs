@@ -6,6 +6,7 @@ use tracing::info;
 use crate::{
     apps::app_data::AppSettings,
     docker::loadbalancer::{self, DockerComposeConfig},
+    onepassword::lookup::resolve_environment_variables,
     settings::{LoadBalancerType, Settings},
     state_machine::StateHandler,
 };
@@ -27,10 +28,11 @@ fn get_docker_compose_override(
     global_settings: &Settings,
     app_name: &str,
     settings: &AppSettings,
+    resolved_environment: &std::collections::HashMap<String, String>,
 ) -> anyhow::Result<DockerComposeConfig> {
     let lb = loadbalancer::LoadBalancerFactory::create(load_balancer_type);
     let docker_compose_override =
-        lb.get_docker_compose_override(global_settings, app_name, settings)?;
+        lb.get_docker_compose_override(global_settings, app_name, settings, resolved_environment)?;
     Ok(docker_compose_override)
 }
 
@@ -42,11 +44,15 @@ where
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
         let context = context.read().await;
         let root_directory = std::path::PathBuf::from(&context.app_data.root_directory);
+        let resolved_environment =
+            resolve_environment_variables(&context.app_state.settings, &self.settings.environment)
+                .await;
         let docker_compose_override = get_docker_compose_override(
             &self.load_balancer_type,
             &context.app_state.settings,
             &context.app_data.name,
             &self.settings,
+            &resolved_environment,
         )?;
         let path = root_directory.join("docker-compose.override.yml");
         info!("Saving docker-compose.override.yml to {}", path.display());
