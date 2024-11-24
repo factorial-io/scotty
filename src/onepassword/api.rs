@@ -45,49 +45,49 @@ mod test {
     #[ignore]
     async fn test_get_item() {
         let result = request_item("n33i6edy47edsntxuj3a7lgiz4", "br47sla67ebp7e57lvpizumq4q").await;
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         let result = result.unwrap();
 
         assert_eq!(result.id, "br47sla67ebp7e57lvpizumq4q");
         assert_eq!(result.vault.id, "n33i6edy47edsntxuj3a7lgiz4");
-        assert_eq!(result.has_field("username"), true);
+        assert!(result.has_field("username"));
         assert_eq!(
             result.get_field_value("username", None),
             Some("marvin@factorial.io")
         );
-        assert_eq!(result.get_password().is_some(), true);
+        assert!(result.get_password().is_some());
     }
 
     #[tokio::test]
     #[ignore] // This indicates the test won't run by default.
     async fn test_get_non_existent_item() {
         let result = request_item("n33i6edy47edsntxuj3a7lgiz4", "r47sla67ebp7e57lvpizumq4q").await;
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_item_2() {
         let result = request_item("n33i6edy47edsntxuj3a7lgiz4", "7j7uxs6rx6w5ggku4zrhimwuye").await;
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         let result = result.unwrap();
 
         assert_eq!(result.id, "7j7uxs6rx6w5ggku4zrhimwuye");
         assert_eq!(result.vault.id, "n33i6edy47edsntxuj3a7lgiz4");
         let password = result.get_password().unwrap();
-        assert_eq!(password.is_empty(), false);
+        assert!(!password.is_empty());
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_get_item_from_section() {
         let result = request_item("n33i6edy47edsntxuj3a7lgiz4", "ida4izoksx4mwdpvt7wbbq6d7y").await;
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         let result = result.unwrap();
 
         assert_eq!(result.id, "ida4izoksx4mwdpvt7wbbq6d7y");
         assert_eq!(result.vault.id, "n33i6edy47edsntxuj3a7lgiz4");
         let password = result.get_field_value("server", Some("Section A")).unwrap();
-        assert_eq!(password.is_empty(), false);
+        assert!(!password.is_empty());
     }
 }
