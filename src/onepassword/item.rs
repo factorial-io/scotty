@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
