@@ -241,6 +241,13 @@ pub struct DockerSettings {
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
+pub struct OnePasswordSettings {
+    pub jwt_token: String,
+    pub server: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
 pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
@@ -252,6 +259,7 @@ pub struct Settings {
     pub load_balancer_type: LoadBalancerType,
     pub traefik: TraefikSettings,
     pub haproxy: HaproxyConfigSettings,
+    pub onepassword: HashMap<String, OnePasswordSettings>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -286,6 +294,7 @@ impl Default for Settings {
                 certresolver: None,
             },
             haproxy: HaproxyConfigSettings { use_tls: false },
+            onepassword: HashMap::new(),
         }
     }
 }
@@ -365,6 +374,8 @@ mod tests {
             "test_password",
         );
 
+        env::set_var("SCOTTY__ONEPASSWARD__TEST__JWT_TOKEN", "test_jwt");
+
         let settings = Config::builder()
             // Add in `./Settings.toml`
             .add_source(config::File::with_name(
@@ -376,11 +387,16 @@ mod tests {
 
         let settings: Settings = settings.try_deserialize().unwrap();
         assert_eq!(
-            settings.docker.registries.get("test").unwrap().password,
+            &settings.docker.registries.get("test").unwrap().password,
             "test_password"
+        );
+        assert_eq!(
+            &settings.onepassword.get("test").unwrap().jwt_token,
+            "test_jwt"
         );
 
         env::remove_var("SCOTTY__DOCKER__REGISTRIES__TEST__PASSWORD");
+        env::remove_var("SCOTTY__ONEPASSWORD__TEST__JWT_TOKEN");
 
         let blueprint = settings.apps.blueprints.get("nginx-lagoon").unwrap();
         assert_eq!(blueprint.name, "NGINX using lagoon base images");

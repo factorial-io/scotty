@@ -4,7 +4,7 @@ import { updateAppInfo } from '../../../stores/appsStore';
 export const ssr = false;
 export const prerender = false;
 
-export async function load({ params }) {
+export async function load({ params }: { params: { slug: string } }) {
 	const result = await updateAppInfo(params.slug);
 	if ('error' in result && result.error === true) {
 		error(404, result.message);

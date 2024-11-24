@@ -58,6 +58,7 @@ pub trait LoadBalancerImpl {
         global_settings: &Settings,
         app_name: &str,
         settings: &AppSettings,
+        resolved_environment: &HashMap<String, String>,
     ) -> anyhow::Result<DockerComposeConfig>;
 }
 
@@ -111,6 +112,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
         global_settings: &Settings,
         _app_name: &str,
         settings: &AppSettings,
+        resolved_environment: &HashMap<String, String>,
     ) -> anyhow::Result<DockerComposeConfig> {
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
@@ -143,8 +145,8 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
             }
 
             // Handle environment variables
-            if !&settings.environment.is_empty() {
-                for (key, value) in &settings.environment {
+            if !resolved_environment.is_empty() {
+                for (key, value) in resolved_environment {
                     environment.insert(key.clone(), value.clone());
                 }
             }
@@ -197,6 +199,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
         global_settings: &Settings,
         app_name: &str,
         settings: &AppSettings,
+        resolved_environment: &HashMap<String, String>,
     ) -> anyhow::Result<DockerComposeConfig> {
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
@@ -295,7 +298,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             );
 
             // Handle enviorment variables
-            if !&settings.environment.is_empty() {
+            if !&resolved_environment.is_empty() {
                 for (key, value) in &settings.environment {
                     environment.insert(key.clone(), value.clone());
                 }
@@ -360,7 +363,12 @@ mod tests {
 
         let load_balancer = HaproxyLoadBalancer;
         let result = load_balancer
-            .get_docker_compose_override(&global_settings, "myapp", &app_settings)
+            .get_docker_compose_override(
+                &global_settings,
+                "myapp",
+                &app_settings,
+                &app_settings.environment,
+            )
             .unwrap();
 
         let service_config = result.services.get("web").unwrap();
@@ -399,7 +407,12 @@ mod tests {
 
         let load_balancer = TraefikLoadBalancer;
         let result = load_balancer
-            .get_docker_compose_override(&global_settings, "myapp", &app_settings)
+            .get_docker_compose_override(
+                &global_settings,
+                "myapp",
+                &app_settings,
+                &app_settings.environment,
+            )
             .unwrap();
 
         let service_config = result.services.get("web").unwrap();
