@@ -258,6 +258,7 @@ pub struct Settings {
     pub load_balancer_type: LoadBalancerType,
     pub traefik: TraefikSettings,
     pub haproxy: HaproxyConfigSettings,
+    #[serde(default)]
     pub onepassword: HashMap<String, OnePasswordSettings>,
 }
 impl Default for Settings {
