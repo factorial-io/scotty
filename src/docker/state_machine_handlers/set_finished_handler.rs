@@ -4,8 +4,8 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::{
-    api::ws::broadcast_message, notification::notify, state_machine::StateHandler,
-    tasks::task_details::State,
+    api::ws::broadcast_message, notification::notify::notify, notification_types::Message,
+    state_machine::StateHandler, tasks::task_details::State,
 };
 
 use super::context::Context;
@@ -16,6 +16,7 @@ where
     S: Send + Sync + Clone + std::fmt::Debug,
 {
     pub next_state: S,
+    pub notification: Option<Message>,
 }
 
 #[async_trait::async_trait]
@@ -35,8 +36,10 @@ where
         )
         .await;
 
-        if let Some(app_settings) = &context.app_data.settings {
-            notify(&context.app_state, &app_settings.notify, "hello world").await?;
+        if let (Some(app_settings), Some(notification)) =
+            (&context.app_data.settings, &self.notification)
+        {
+            notify(&context.app_state, &app_settings.notify, notification).await?;
         }
 
         Ok(self.next_state.clone())

@@ -7,7 +7,7 @@ use crate::{
     apps::app_data::AppSettings,
     docker::loadbalancer::{self, DockerComposeConfig},
     onepassword::lookup::resolve_environment_variables,
-    settings::{LoadBalancerType, Settings},
+    settings::{config::Settings, loadbalancer::LoadBalancerType},
     state_machine::StateHandler,
 };
 

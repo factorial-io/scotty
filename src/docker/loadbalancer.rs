@@ -5,8 +5,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    apps::app_data::AppSettings,
-    settings::{LoadBalancerType, Settings},
+    apps::app_data::AppSettings, settings::config::Settings,
+    settings::loadbalancer::LoadBalancerType,
 };
 
 pub struct LoadBalancerInfo {
@@ -335,7 +335,8 @@ impl LoadBalancerFactory {
 mod tests {
     use super::*;
     use crate::apps::app_data::{AppSettings, ServicePortMapping};
-    use crate::settings::{HaproxyConfigSettings, TraefikSettings};
+    use crate::settings::loadbalancer::HaproxyConfigSettings;
+    use crate::settings::loadbalancer::TraefikSettings;
     use maplit::hashmap;
 
     #[test]

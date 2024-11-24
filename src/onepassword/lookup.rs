@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tracing::error;
 
-use crate::settings::Settings;
+use crate::settings::config::Settings;
 
 use super::api::get_item;
 
@@ -79,8 +79,9 @@ async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<St
 }
 #[cfg(test)]
 mod tests {
+    use crate::settings::config::OnePasswordSettings;
+
     use super::*;
-    use crate::settings::{OnePasswordSettings, Settings};
     use maplit::hashmap;
     use std::collections::HashMap;
     use tokio;

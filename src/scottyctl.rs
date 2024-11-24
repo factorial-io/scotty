@@ -1,5 +1,6 @@
 mod apps;
 mod init_telemetry;
+mod notification_types;
 mod settings;
 mod tasks;
 mod utils;

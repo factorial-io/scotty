@@ -5,9 +5,10 @@ use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
 use crate::apps::shared_app_list::SharedAppList;
-use crate::settings::DockerConnectOptions;
+use crate::settings::config::Settings;
+use crate::settings::docker::DockerConnectOptions;
+use crate::stop_flag;
 use crate::tasks::manager;
-use crate::{settings::Settings, stop_flag};
 
 type WebSocketClients = HashMap<Uuid, broadcast::Sender<axum::extract::ws::Message>>;
 

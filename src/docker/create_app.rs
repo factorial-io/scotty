@@ -7,7 +7,8 @@ use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::file_list::{File, FileList};
-use crate::settings::ActionName;
+use crate::notification_types::{Message, MessageType};
+use crate::settings::app_blueprint::ActionName;
 use crate::state_machine::StateHandler;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::{apps::app_data::AppSettings, state_machine::StateMachine};
@@ -121,6 +122,7 @@ async fn create_app_prepare(
         CreateAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<CreateAppStates> {
             next_state: CreateAppStates::Done,
+            notification: Some(Message::new(MessageType::AppCreated, app)),
         }),
     );
     Ok(sm)
