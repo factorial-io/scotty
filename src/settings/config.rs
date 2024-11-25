@@ -9,7 +9,7 @@ use super::{
     app_blueprint::AppBlueprintMap,
     docker::{DockerConnectOptions, DockerSettings},
     loadbalancer::{HaproxyConfigSettings, LoadBalancerType, TraefikSettings},
-    notification_services::NotificationService,
+    notification_services::NotificationServiceSettings,
     scheduler_interval::SchedulerInterval,
 };
 
@@ -55,7 +55,7 @@ pub struct Settings {
     #[serde(default)]
     pub onepassword: HashMap<String, OnePasswordSettings>,
     #[serde(default)]
-    pub notification_services: HashMap<String, NotificationService>,
+    pub notification_services: NotificationServiceSettings,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -87,7 +87,7 @@ impl Default for Settings {
             },
             haproxy: HaproxyConfigSettings { use_tls: false },
             onepassword: HashMap::new(),
-            notification_services: HashMap::new(),
+            notification_services: NotificationServiceSettings::default(),
         }
     }
 }
@@ -155,6 +155,7 @@ impl Settings {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::settings::app_blueprint::ActionName;
@@ -202,5 +203,33 @@ mod tests {
             .get("nginx")
             .unwrap();
         assert_eq!(script[0], "echo \"Hello, World!\"".to_string());
+    }
+
+    #[test]
+    fn test_notificaction_service_settings() {
+        let settings = Config::builder()
+            // Add in `./Settings.toml`
+            .add_source(config::File::with_name(
+                "tests/test_docker_registry_password.yaml",
+            ))
+            .add_source(Settings::get_environment())
+            .build()
+            .unwrap();
+
+        let settings: Settings = settings.try_deserialize().unwrap();
+
+        let mattermost_settings = settings
+            .notification_services
+            .get_mattermost("test-mattermost");
+        assert!(mattermost_settings.is_some());
+        let mattermost_settings = mattermost_settings.unwrap();
+        assert_eq!(mattermost_settings.host, "https://mattermost.example.com");
+        assert_eq!(mattermost_settings.hook_id, "my-mattermost-hook");
+
+        let gitlab_settings = settings.notification_services.get_gitlab("test-gitlab");
+        assert!(gitlab_settings.is_some());
+        let gitlab_settings = gitlab_settings.unwrap();
+        assert_eq!(gitlab_settings.host, "https://gitlab.example.com");
+        assert_eq!(gitlab_settings.token, "my-secret-gitlab-token");
     }
 }

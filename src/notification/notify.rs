@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use tracing::info;
+
 use crate::app_state::AppState;
 
 use super::{
@@ -13,11 +15,30 @@ async fn get_notification_receiver_impl(
 ) -> anyhow::Result<Box<dyn NotificationImpl>> {
     match to {
         NotificationReceiver::Log => Ok(Box::new(NotifyLog::new())),
-        NotificationReceiver::Gitlab(context) => Ok(Box::new(NotifyGitlab::new(state, context))),
+        NotificationReceiver::Gitlab(context) => Ok(Box::new(NotifyGitlab::new(
+            state
+                .settings
+                .notification_services
+                .get_gitlab(&context.service_id)
+                .ok_or(anyhow::anyhow!(
+                    "gitlab service {} not found in settings",
+                    context.service_id
+                ))?,
+            context,
+        ))),
         NotificationReceiver::Webhook => Ok(Box::new(NotifyWebhook::new())),
-        NotificationReceiver::Mattermost(context) => {
-            Ok(Box::new(NotifyMattermost::new(state, context)))
-        }
+        NotificationReceiver::Mattermost(context) => Ok(Box::new(NotifyMattermost::new(
+            state
+                .settings
+                .notification_services
+                .get_mattermost(&context.service_id)
+                .ok_or(anyhow::anyhow!(
+                    "mattermost service {} not found in settings {:?}",
+                    context.service_id,
+                    state.settings.notification_services
+                ))?,
+            context,
+        ))),
     }
 }
 
@@ -26,6 +47,7 @@ pub async fn notify(
     receivers: &[NotificationReceiver],
     msg: &Message,
 ) -> anyhow::Result<()> {
+    info!("Notifying receivers: {:?}", receivers);
     let results: Vec<anyhow::Result<()>> =
         futures_util::future::join_all(receivers.iter().map(|to| async {
             match get_notification_receiver_impl(app_state, to).await {

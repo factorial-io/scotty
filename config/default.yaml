@@ -31,14 +31,3 @@ traefik:
   certresolver: "myresolver"
 haproxy:
   use_tls: true
-notification_services:
-  chat.factorial.io:
-    type: mattermost
-    host: https://chat.factorial.io
-    channel: 17rf175n67f4mdae161fjgzzor
-    token: mattermost # Override with env SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__TOKEN
-  source.factorial.io:
-    type: gitlab
-    host: https://source.factorial.io
-    user: deploybot
-    token: deploybot # Override with env SCOTTY__NOTIFICATION_SERVICES__SOURCE_FACTORIAL_IO__TOKEN

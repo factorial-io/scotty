@@ -89,7 +89,7 @@ async fn schedule_app_check(app_state: SharedAppState) {
     match find_apps(&app_state).await {
         Ok(apps) => {
             let _ = app_state.apps.set_apps(&apps).await;
-            tracing::info!("Found {} apps {:?}", app_state.apps.len().await, &apps.apps);
+            tracing::info!("Found {} apps", app_state.apps.len().await);
             broadcast_message(
                 &app_state,
                 crate::api::message::WebSocketMessage::AppListUpdated,

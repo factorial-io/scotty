@@ -13,3 +13,8 @@ traefik:
   use_tls: false
 haproxy:
   use_tls: false
+notification_services:
+  chat.factorial.io:
+    type: mattermost
+    host: https://chat.factorial.io
+    hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__HOOK_ID

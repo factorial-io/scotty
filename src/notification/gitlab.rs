@@ -1,17 +1,20 @@
+#![allow(dead_code)]
+
 use axum::async_trait;
 
-use crate::app_state::AppState;
-
 use crate::notification_types::{GitlabContext, Message, NotificationImpl};
+use crate::settings::notification_services::GitlabSettings;
 
 pub struct NotifyGitlab {
     context: GitlabContext,
+    settings: GitlabSettings,
 }
 
 impl NotifyGitlab {
-    pub fn new(_state: &AppState, context: &GitlabContext) -> Self {
+    pub fn new(settings: &GitlabSettings, context: &GitlabContext) -> Self {
         // @todo
         NotifyGitlab {
+            settings: settings.to_owned(),
             context: context.to_owned(),
         }
     }

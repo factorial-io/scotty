@@ -11,3 +11,6 @@ registry: factorial
 app_blueprint: nginx-lagoon
 notify:
   - Log
+  - !Mattermost
+    service_id: chat.factorial.io
+    channel: test-test-test

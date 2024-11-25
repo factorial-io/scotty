@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -69,4 +71,23 @@ impl Message {
 #[async_trait]
 pub trait NotificationImpl: Send {
     async fn notify(&self, msg: &Message) -> anyhow::Result<()>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_message_creation() {
+        let value = NotificationReceiver::Mattermost(MattermostContext {
+            service_id: "mattermost".to_string(),
+            channel: "test".to_string(),
+        });
+        let yaml_string = serde_yml::to_string(&value).expect("Failed to serialize to YAML");
+
+        assert_eq!(
+            yaml_string,
+            "!Mattermost\nservice_id: mattermost\nchannel: test\n"
+        );
+    }
 }
