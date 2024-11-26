@@ -13,6 +13,11 @@ pub struct GitlabContext {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookContext {
+    pub service_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MattermostContext {
     pub service_id: String,
     pub channel: String,
@@ -21,12 +26,12 @@ pub struct MattermostContext {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NotificationReceiver {
     Log,
-    Webhook,
+    Webhook(WebhookContext),
     Gitlab(GitlabContext),
     Mattermost(MattermostContext),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum MessageType {
     AppStarted,
     AppStopped,
@@ -49,7 +54,7 @@ impl MessageType {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
     pub message_type: MessageType,
     pub app_name: String,

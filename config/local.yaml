@@ -18,3 +18,7 @@ notification_services:
     type: mattermost
     host: https://chat.factorial.io
     hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__HOOK_ID
+  webhook-test:
+    type: webhook
+    method: post
+    url: https://wh66e463ada4ac505d47.free.beeceptor.com

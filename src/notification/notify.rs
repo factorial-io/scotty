@@ -13,25 +13,26 @@ async fn get_notification_receiver_impl(
     state: &AppState,
     to: &NotificationReceiver,
 ) -> anyhow::Result<Box<dyn NotificationImpl>> {
+    let ns = &state.settings.notification_services;
     match to {
         NotificationReceiver::Log => Ok(Box::new(NotifyLog::new())),
         NotificationReceiver::Gitlab(context) => Ok(Box::new(NotifyGitlab::new(
-            state
-                .settings
-                .notification_services
-                .get_gitlab(&context.service_id)
-                .ok_or(anyhow::anyhow!(
-                    "gitlab service {} not found in settings",
-                    context.service_id
-                ))?,
+            ns.get_gitlab(&context.service_id).ok_or(anyhow::anyhow!(
+                "gitlab service {} not found in settings",
+                context.service_id
+            ))?,
             context,
         ))),
-        NotificationReceiver::Webhook => Ok(Box::new(NotifyWebhook::new())),
+        NotificationReceiver::Webhook(context) => Ok(Box::new(NotifyWebhook::new(
+            ns.get_webhook(&context.service_id).ok_or(anyhow::anyhow!(
+                "webhook service {} not found in settings {:?}",
+                context.service_id,
+                state.settings.notification_services
+            ))?,
+            context,
+        ))),
         NotificationReceiver::Mattermost(context) => Ok(Box::new(NotifyMattermost::new(
-            state
-                .settings
-                .notification_services
-                .get_mattermost(&context.service_id)
+            ns.get_mattermost(&context.service_id)
                 .ok_or(anyhow::anyhow!(
                     "mattermost service {} not found in settings {:?}",
                     context.service_id,

@@ -14,3 +14,5 @@ notify:
   - !Mattermost
     service_id: chat.factorial.io
     channel: test-test-test
+  - !Webhook
+    service_id: webhook-test

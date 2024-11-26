@@ -1,5 +1,6 @@
 use axum::async_trait;
 use serde::Serialize;
+use tracing::info;
 
 use crate::notification_types::{MattermostContext, Message, NotificationImpl};
 use crate::settings::notification_services::MattermostSettings;
@@ -28,6 +29,11 @@ struct MattermostMessage {
 #[async_trait]
 impl NotificationImpl for NotifyMattermost {
     async fn notify(&self, msg: &Message) -> anyhow::Result<()> {
+        info!(
+            "Sending mattermost notification to channel {} at {}",
+            &self.context.channel, &self.settings.host
+        );
+
         let client = reqwest::Client::new();
         let url = format!("{}/hooks/{}", self.settings.host, self.settings.hook_id);
 

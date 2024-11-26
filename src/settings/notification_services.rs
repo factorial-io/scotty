@@ -29,6 +29,10 @@ impl<'de> Deserialize<'de> for NotificationServiceSettings {
                     Ok(settings) => NotificationServiceType::Gitlab(settings),
                     Err(e) => return Err(serde::de::Error::custom(e.to_string())),
                 },
+                Some("webhook") => match WebhookSettings::deserialize(value) {
+                    Ok(settings) => NotificationServiceType::Webhook(settings),
+                    Err(e) => return Err(serde::de::Error::custom(e.to_string())),
+                },
                 _ => {
                     return Err(serde::de::Error::custom(format!(
                         "Unknown service type: {}",
@@ -57,6 +61,13 @@ impl NotificationServiceSettings {
             _ => None,
         }
     }
+
+    pub fn get_webhook(&self, service_is: &str) -> Option<&WebhookSettings> {
+        match self.services.get(service_is) {
+            Some(NotificationServiceType::Webhook(settings)) => Some(settings),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -74,7 +85,15 @@ pub struct GitlabSettings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[readonly::make]
+pub struct WebhookSettings {
+    pub url: String,
+    pub method: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub enum NotificationServiceType {
     Mattermost(MattermostSettings),
     Gitlab(GitlabSettings),
+    Webhook(WebhookSettings),
 }
