@@ -2,7 +2,7 @@ use axum::{debug_handler, extract::State, response::IntoResponse, Json};
 
 use crate::app_state::SharedAppState;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct FormData {
     pub password: String,
 }
