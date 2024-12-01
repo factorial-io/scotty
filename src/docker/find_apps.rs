@@ -168,7 +168,7 @@ async fn get_running_services(
                 container_state.clone()
             } else {
                 ContainerState {
-                    status: bollard::secret::ContainerStateStatusEnum::EMPTY,
+                    status: crate::apps::app_data::ContainerStatus::Empty,
                     id: None,
                     service: s.to_string(),
                     domain: None,
@@ -299,7 +299,7 @@ async fn inspect_docker_container(
     }
 
     let container_state = ContainerState {
-        status: state.status.unwrap(),
+        status: state.status.unwrap().into(),
         id: Some(container_id.to_string()),
         service: service.to_string(),
         domain: loadbalancer_info.domain,
