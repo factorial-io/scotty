@@ -284,16 +284,16 @@ impl AppData {
         self.services.iter().find_map(|s| s.used_registry.clone())
     }
 
-    pub fn add_notifications(&self, service_ids: &Vec<NotificationReceiver>) -> AppData {
+    pub fn add_notifications(&self, service_ids: &[NotificationReceiver]) -> AppData {
         let mut new_settings = self.settings.clone().unwrap_or_default();
-        new_settings.notify.extend(service_ids.clone());
+        new_settings.notify.extend(service_ids.to_owned());
         AppData {
             settings: Some(new_settings),
             ..self.clone()
         }
     }
 
-    pub fn remove_notifications(&self, service_ids: &Vec<NotificationReceiver>) -> AppData {
+    pub fn remove_notifications(&self, service_ids: &[NotificationReceiver]) -> AppData {
         let mut new_settings = self.settings.clone().unwrap_or_default();
         new_settings.notify.retain(|x| !service_ids.contains(x));
         AppData {

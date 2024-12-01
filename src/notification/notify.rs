@@ -62,11 +62,8 @@ pub async fn notify(
 
     // We print errors
     for result in results {
-        match result {
-            Err(err) => {
-                error!("Error notifying: {:?}", err);
-            }
-            _ => {}
+        if let Err(err) = result {
+            error!("Error notifying: {:?}", err);
         }
     }
     Ok(())

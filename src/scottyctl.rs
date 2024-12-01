@@ -172,7 +172,7 @@ fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
     let service_type = parts[0];
 
     let parts = parts[1].split("/").collect::<Vec<&str>>();
-    if parts.len() < 1 {
+    if parts.is_empty() {
         return Err("Invalid service ID format".to_string());
     }
     let service_id = parts[0];
@@ -609,7 +609,7 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     println!("Info for {}", app_data.name);
     println!("{}", table);
 
-    if app_data.settings.is_some() && app_data.settings.as_ref().unwrap().notify.len() > 0 {
+    if app_data.settings.is_some() && !app_data.settings.as_ref().unwrap().notify.is_empty() {
         println!("Notification services");
         let mut builder = Builder::default();
         builder.push_record(["Type", "Service-Id", "Context"]);

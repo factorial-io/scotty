@@ -35,7 +35,7 @@ pub async fn add_notification_handler(
     let service_settings = &state.settings;
     let invalid_service_ids: Vec<_> = service_ids
         .iter()
-        .filter(|id| !service_settings.notification_services.contains(&id))
+        .filter(|id| !service_settings.notification_services.contains(id))
         .collect();
 
     if !invalid_service_ids.is_empty() {

@@ -174,14 +174,14 @@ with `scottyctl help <command>`
 
 Here's a short list of avaiable commands
 
-* `scottyctl list` will list all apps and their their urls and states
-* `scottyctl run <app_name>` will start and run the named app
-* `scottyctl stop <app_name>` will stop the named app
-* `scottyctl purge <app_name>` will remove runtime files for the named
+* `scottyctl app:list` will list all apps and their their urls and states
+* `scottyctl app:run <app_name>` will start and run the named app
+* `scottyctl app:stop <app_name>` will stop the named app
+* `scottyctl app:purge <app_name>` will remove runtime files for the named
   app (similar to `docker-compose rm`)
-* `scottyctl create` Create a new app
-* `scottyctl destroy` Destroy a managed app
-* `scottyctl info` Display some info about the app
+* `scottyctl app:create` Create a new app
+* `scottyctl app:destroy` Destroy a managed app
+* `scottyctl app:info` Display some info about the app
 
 ## Configuring the server
 

@@ -16,7 +16,6 @@ pub enum ActionName {
 #[derive(Debug, Serialize, Deserialize, Clone, utoipa::ToSchema, utoipa::ToResponse)]
 #[allow(unused)]
 #[serde(try_from = "AppBlueprintShadow")]
-
 pub struct AppBlueprint {
     pub name: String,
     pub description: String,
