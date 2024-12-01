@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use tracing::info;
+use tracing::{error, info, instrument};
 
 use crate::app_state::AppState;
 
@@ -9,6 +9,7 @@ use super::{
 };
 use crate::notification_types::{Message, NotificationImpl, NotificationReceiver};
 
+#[instrument(skip(state))]
 async fn get_notification_receiver_impl(
     state: &AppState,
     to: &NotificationReceiver,
@@ -43,6 +44,7 @@ async fn get_notification_receiver_impl(
     }
 }
 
+#[instrument(skip(app_state))]
 pub async fn notify(
     app_state: &AppState,
     receivers: &[NotificationReceiver],
@@ -58,8 +60,14 @@ pub async fn notify(
         }))
         .await;
 
+    // We print errors
     for result in results {
-        result?
+        match result {
+            Err(err) => {
+                error!("Error notifying: {:?}", err);
+            }
+            _ => {}
+        }
     }
     Ok(())
 }

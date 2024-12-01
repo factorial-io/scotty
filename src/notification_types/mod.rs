@@ -5,25 +5,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::apps::app_data::AppData;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
 pub struct GitlabContext {
     pub service_id: String,
     pub project_id: u32,
     pub mr_id: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
 pub struct WebhookContext {
     pub service_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
 pub struct MattermostContext {
     pub service_id: String,
     pub channel: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
 pub enum NotificationReceiver {
     Log,
     Webhook(WebhookContext),
@@ -95,4 +95,16 @@ mod tests {
             "!Mattermost\nservice_id: mattermost\nchannel: test\n"
         );
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AddNotificationRequest {
+    pub app_name: String,
+    pub service_ids: Vec<NotificationReceiver>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct RemoveNotificationRequest {
+    pub app_name: String,
+    pub service_ids: Vec<NotificationReceiver>,
 }

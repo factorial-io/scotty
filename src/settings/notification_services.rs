@@ -2,6 +2,8 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+use crate::notification_types::NotificationReceiver;
+
 #[derive(Debug, Clone, Default)]
 pub struct NotificationServiceSettings {
     services: HashMap<String, NotificationServiceType>,
@@ -66,6 +68,15 @@ impl NotificationServiceSettings {
         match self.services.get(service_is) {
             Some(NotificationServiceType::Webhook(settings)) => Some(settings),
             _ => None,
+        }
+    }
+
+    pub fn contains(&self, service_id: &NotificationReceiver) -> bool {
+        match service_id {
+            NotificationReceiver::Log => true,
+            NotificationReceiver::Mattermost(id) => self.services.contains_key(&id.service_id),
+            NotificationReceiver::Gitlab(id) => self.services.contains_key(&id.service_id),
+            NotificationReceiver::Webhook(id) => self.services.contains_key(&id.service_id),
         }
     }
 }

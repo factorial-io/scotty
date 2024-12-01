@@ -58,8 +58,12 @@ pub enum AppError {
     #[error("App blueprint not found in settings: {0}")]
     AppBlueprintNotFound(String),
 
-    #[error("App blueprint mismatch:: {0}")]
+    #[error("App blueprint mismatch: {0}")]
     AppBlueprintMismatch(String),
+    #[error("App settings not found for app: {0}")]
+    AppSettingsNotFound(String),
+    #[error("Found invalid notification service ids: {0}")]
+    InvalidNotificationServiceIds(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {

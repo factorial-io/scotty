@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
@@ -281,6 +282,35 @@ impl AppData {
             return settings.registry.clone();
         }
         self.services.iter().find_map(|s| s.used_registry.clone())
+    }
+
+    pub fn add_notifications(&self, service_ids: &Vec<NotificationReceiver>) -> AppData {
+        let mut new_settings = self.settings.clone().unwrap_or_default();
+        new_settings.notify.extend(service_ids.clone());
+        AppData {
+            settings: Some(new_settings),
+            ..self.clone()
+        }
+    }
+
+    pub fn remove_notifications(&self, service_ids: &Vec<NotificationReceiver>) -> AppData {
+        let mut new_settings = self.settings.clone().unwrap_or_default();
+        new_settings.notify.retain(|x| !service_ids.contains(x));
+        AppData {
+            settings: Some(new_settings),
+            ..self.clone()
+        }
+    }
+
+    pub async fn save_settings(&self) -> anyhow::Result<()> {
+        let root_directory = std::path::PathBuf::from(&self.root_directory);
+
+        let settings_path = root_directory.join(".scotty.yml");
+        info!("Saving settings to {}", settings_path.display());
+        let settings_yaml = serde_yml::to_string(&self.settings)?;
+        tokio::fs::write(&settings_path, settings_yaml).await?;
+
+        Ok(())
     }
 }
 
