@@ -4,8 +4,6 @@ use bollard::container::InspectContainerOptions;
 use chrono::{DateTime, Local};
 use futures_util::future::join_all;
 use serde_yml::Value;
-use std::fs::File;
-use std::io::BufReader;
 use std::path::Path;
 use tokio::task;
 use tokio_stream::StreamExt;
@@ -132,26 +130,7 @@ pub async fn inspect_app(
 #[instrument()]
 async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<AppSettings> {
     let settings_path = docker_compose_path.with_file_name(".scotty.yml");
-
-    info!(
-        "Trying to read app-settings from {}",
-        &settings_path.display()
-    );
-
-    if settings_path.exists() {
-        let file = File::open(settings_path)?;
-        let reader = BufReader::new(file);
-        let yaml: Value = serde_yml::from_reader(reader)?;
-        let settings: AppSettings = serde_yml::from_value(yaml)?;
-        info!("Read app-settings: {:?}", &settings);
-
-        Ok(settings)
-    } else {
-        Err(anyhow::Error::msg(format!(
-            "No settings file found at {}",
-            &settings_path.display(),
-        )))
-    }
+    AppSettings::from_file(&settings_path)
 }
 
 #[instrument(skip(app_state))]

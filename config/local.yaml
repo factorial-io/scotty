@@ -14,7 +14,7 @@ traefik:
 haproxy:
   use_tls: false
 notification_services:
-  chat.factorial.io:
+  chat_factorial_io:
     type: mattermost
     host: https://chat.factorial.io
     hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__HOOK_ID
@@ -22,3 +22,7 @@ notification_services:
     type: webhook
     method: post
     url: https://wh66e463ada4ac505d47.free.beeceptor.com
+  source_factorial_io:
+    type: gitlab
+    host: https://source.factorial.io
+    token: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__SOURCE_FACTORIAL_IO__TOKEN

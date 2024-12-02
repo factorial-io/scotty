@@ -198,11 +198,11 @@ fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
             }))
         }
         "gitlab" => {
-            if parts.len() != 3 {
+            if parts.len() < 3 {
                 return Err("Invalid service ID format for gitlab".to_string());
             }
-            let project_id = parts[1].parse::<u32>().unwrap();
-            let mr_id = parts[2].parse::<u32>().unwrap();
+            let project_id = parts[1..parts.len() - 1].join("/").to_string();
+            let mr_id = parts.last().unwrap().parse::<u64>().unwrap();
             Ok(NotificationReceiver::Gitlab(GitlabContext {
                 service_id: service_id.to_string(),
                 project_id,

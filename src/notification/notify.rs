@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::app_state::AppState;
 
@@ -44,15 +44,12 @@ async fn get_notification_receiver_impl(
     }
 }
 
-#[instrument(skip(app_state))]
-pub async fn notify(
-    app_state: &AppState,
-    receivers: &[NotificationReceiver],
-    msg: &Message,
-) -> anyhow::Result<()> {
-    info!("Notifying receivers: {:?}", receivers);
+pub async fn notify<'a, I>(app_state: &AppState, receivers: I, msg: &Message) -> anyhow::Result<()>
+where
+    I: IntoIterator<Item = &'a NotificationReceiver>,
+{
     let results: Vec<anyhow::Result<()>> =
-        futures_util::future::join_all(receivers.iter().map(|to| async {
+        futures_util::future::join_all(receivers.into_iter().map(|to| async {
             match get_notification_receiver_impl(app_state, to).await {
                 Ok(helper) => helper.notify(msg).await,
                 Err(err) => Err(err),

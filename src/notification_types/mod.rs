@@ -5,25 +5,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::apps::app_data::AppData;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
 pub struct GitlabContext {
     pub service_id: String,
-    pub project_id: u32,
-    pub mr_id: u32,
+    pub project_id: String,
+    pub mr_id: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
 pub struct WebhookContext {
     pub service_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
 pub struct MattermostContext {
     pub service_id: String,
     pub channel: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
 pub enum NotificationReceiver {
     Log,
     Webhook(WebhookContext),

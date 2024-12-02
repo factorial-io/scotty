@@ -1,9 +1,17 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    fs::File,
+    io::BufReader,
+    path::Path,
+};
 
+use bollard::secret::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
+use serde_yml::Value;
 use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
@@ -65,7 +73,7 @@ pub struct AppSettings {
     pub registry: Option<String>,
     pub app_blueprint: Option<String>,
     #[serde(default)]
-    pub notify: Vec<NotificationReceiver>,
+    pub notify: HashSet<NotificationReceiver>,
 }
 
 impl Default for AppSettings {
@@ -80,7 +88,7 @@ impl Default for AppSettings {
             environment: HashMap::new(),
             registry: None,
             app_blueprint: None,
-            notify: vec![],
+            notify: HashSet::new(),
         }
     }
 }
@@ -137,16 +145,81 @@ impl AppSettings {
         }
         Ok(new_settings)
     }
+
+    pub fn from_file(settings_path: &Path) -> anyhow::Result<AppSettings> {
+        info!(
+            "Trying to read app-settings from {}",
+            &settings_path.display()
+        );
+
+        if settings_path.exists() {
+            let file = File::open(settings_path)?;
+            let reader = BufReader::new(file);
+            let yaml: Value = serde_yml::from_reader(reader)?;
+            let settings: AppSettings = serde_yml::from_value(yaml)?;
+            info!(
+                "Successfully read app-settings from {}",
+                &settings_path.display()
+            );
+
+            Ok(settings)
+        } else {
+            Err(anyhow::Error::msg(format!(
+                "No settings file found at {}",
+                &settings_path.display(),
+            )))
+        }
+    }
 }
 
-pub use bollard::models::ContainerStateStatusEnum as ContainerStatus;
-
 use crate::{
-    notification_types::NotificationReceiver, settings::app_blueprint::AppBlueprintMap,
-    settings::config::Apps,
+    notification_types::NotificationReceiver,
+    settings::{app_blueprint::AppBlueprintMap, config::Apps},
 };
 
 use super::create_app_request::CustomDomainMapping;
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse, PartialEq)]
+pub enum ContainerStatus {
+    Empty,
+    Created,
+    Restarting,
+    Running,
+    Paused,
+    Removing,
+    Exited,
+    Dead,
+}
+
+impl From<ContainerStateStatusEnum> for ContainerStatus {
+    fn from(status: ContainerStateStatusEnum) -> Self {
+        match status {
+            ContainerStateStatusEnum::EMPTY => ContainerStatus::Empty,
+            ContainerStateStatusEnum::CREATED => ContainerStatus::Created,
+            ContainerStateStatusEnum::RESTARTING => ContainerStatus::Restarting,
+            ContainerStateStatusEnum::RUNNING => ContainerStatus::Running,
+            ContainerStateStatusEnum::PAUSED => ContainerStatus::Paused,
+            ContainerStateStatusEnum::REMOVING => ContainerStatus::Removing,
+            ContainerStateStatusEnum::EXITED => ContainerStatus::Exited,
+            ContainerStateStatusEnum::DEAD => ContainerStatus::Dead,
+        }
+    }
+}
+
+impl Display for ContainerStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContainerStatus::Empty => write!(f, "empty"),
+            ContainerStatus::Created => write!(f, "created"),
+            ContainerStatus::Restarting => write!(f, "restarting"),
+            ContainerStatus::Running => write!(f, "running"),
+            ContainerStatus::Paused => write!(f, "paused"),
+            ContainerStatus::Removing => write!(f, "removing"),
+            ContainerStatus::Exited => write!(f, "exited"),
+            ContainerStatus::Dead => write!(f, "dead"),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct ContainerState {
@@ -163,7 +236,7 @@ pub struct ContainerState {
 impl Default for ContainerState {
     fn default() -> Self {
         ContainerState {
-            status: ContainerStatus::EMPTY,
+            status: ContainerStatus::Empty,
             id: None,
             service: "".to_string(),
             domain: None,
@@ -181,9 +254,9 @@ impl ContainerState {
     }
 
     pub fn is_running(&self) -> bool {
-        self.status == ContainerStatus::RUNNING
-            || self.status == ContainerStatus::CREATED
-            || self.status == ContainerStatus::RESTARTING
+        self.status == ContainerStatus::Running
+            || self.status == ContainerStatus::Created
+            || self.status == ContainerStatus::Restarting
     }
 
     pub fn running_since(&self) -> Option<TimeDelta> {
@@ -286,7 +359,9 @@ impl AppData {
 
     pub fn add_notifications(&self, service_ids: &[NotificationReceiver]) -> AppData {
         let mut new_settings = self.settings.clone().unwrap_or_default();
-        new_settings.notify.extend(service_ids.to_owned());
+        for id in service_ids {
+            new_settings.notify.insert(id.clone());
+        }
         AppData {
             settings: Some(new_settings),
             ..self.clone()
@@ -321,7 +396,7 @@ fn count_state(services: &[ContainerState], required: ContainerStatus) -> usize 
 }
 
 fn get_app_status_from_services(services: &[ContainerState]) -> AppStatus {
-    let count_running_services = count_state(services, ContainerStatus::RUNNING);
+    let count_running_services = count_state(services, ContainerStatus::Running);
     match count_running_services {
         0 => AppStatus::Stopped,
         x if x == services.len() => AppStatus::Running,
