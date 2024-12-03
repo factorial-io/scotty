@@ -1,10 +1,18 @@
 #![allow(dead_code)]
 
-use std::{collections::HashMap, fmt::Display};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    fs::File,
+    io::BufReader,
+    path::Path,
+};
 
 use bollard::secret::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
+use serde_yml::Value;
+use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
@@ -64,6 +72,8 @@ pub struct AppSettings {
     pub environment: HashMap<String, String>,
     pub registry: Option<String>,
     pub app_blueprint: Option<String>,
+    #[serde(default)]
+    pub notify: HashSet<NotificationReceiver>,
 }
 
 impl Default for AppSettings {
@@ -78,6 +88,7 @@ impl Default for AppSettings {
             environment: HashMap::new(),
             registry: None,
             app_blueprint: None,
+            notify: HashSet::new(),
         }
     }
 }
@@ -134,9 +145,37 @@ impl AppSettings {
         }
         Ok(new_settings)
     }
+
+    pub fn from_file(settings_path: &Path) -> anyhow::Result<AppSettings> {
+        info!(
+            "Trying to read app-settings from {}",
+            &settings_path.display()
+        );
+
+        if settings_path.exists() {
+            let file = File::open(settings_path)?;
+            let reader = BufReader::new(file);
+            let yaml: Value = serde_yml::from_reader(reader)?;
+            let settings: AppSettings = serde_yml::from_value(yaml)?;
+            info!(
+                "Successfully read app-settings from {}",
+                &settings_path.display()
+            );
+
+            Ok(settings)
+        } else {
+            Err(anyhow::Error::msg(format!(
+                "No settings file found at {}",
+                &settings_path.display(),
+            )))
+        }
+    }
 }
 
-use crate::settings::{AppBlueprintMap, Apps};
+use crate::{
+    notification_types::NotificationReceiver,
+    settings::{app_blueprint::AppBlueprintMap, config::Apps},
+};
 
 use super::create_app_request::CustomDomainMapping;
 
@@ -316,6 +355,37 @@ impl AppData {
             return settings.registry.clone();
         }
         self.services.iter().find_map(|s| s.used_registry.clone())
+    }
+
+    pub fn add_notifications(&self, service_ids: &[NotificationReceiver]) -> AppData {
+        let mut new_settings = self.settings.clone().unwrap_or_default();
+        for id in service_ids {
+            new_settings.notify.insert(id.clone());
+        }
+        AppData {
+            settings: Some(new_settings),
+            ..self.clone()
+        }
+    }
+
+    pub fn remove_notifications(&self, service_ids: &[NotificationReceiver]) -> AppData {
+        let mut new_settings = self.settings.clone().unwrap_or_default();
+        new_settings.notify.retain(|x| !service_ids.contains(x));
+        AppData {
+            settings: Some(new_settings),
+            ..self.clone()
+        }
+    }
+
+    pub async fn save_settings(&self) -> anyhow::Result<()> {
+        let root_directory = std::path::PathBuf::from(&self.root_directory);
+
+        let settings_path = root_directory.join(".scotty.yml");
+        info!("Saving settings to {}", settings_path.display());
+        let settings_yaml = serde_yml::to_string(&self.settings)?;
+        tokio::fs::write(&settings_path, settings_yaml).await?;
+
+        Ok(())
     }
 }
 

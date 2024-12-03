@@ -1,4 +1,4 @@
-use crate::settings::OnePasswordSettings;
+use crate::settings::config::OnePasswordSettings;
 
 use super::item::Item;
 

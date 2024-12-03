@@ -10,6 +10,7 @@ use crate::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
         set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
     },
+    notification_types::{Message, MessageType},
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -48,6 +49,7 @@ pub async fn stop_app_prepare(
         StopAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<StopAppStates> {
             next_state: StopAppStates::Done,
+            notification: Some(Message::new(MessageType::AppStopped, app)),
         }),
     );
 

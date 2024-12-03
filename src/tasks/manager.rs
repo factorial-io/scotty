@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::settings::SchedulerInterval;
+use crate::settings::scheduler_interval::SchedulerInterval;
 use crate::tasks::task_details::{State, TaskDetails, TaskState};
 
 #[derive(Clone, Debug)]

@@ -10,6 +10,7 @@ use crate::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
         set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
     },
+    notification_types::{Message, MessageType},
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -60,6 +61,7 @@ pub async fn purge_app_prepare(
         PurgeAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<PurgeAppStates> {
             next_state: PurgeAppStates::Done,
+            notification: Some(Message::new(MessageType::AppPurged, app)),
         }),
     );
     Ok(sm)

@@ -6,6 +6,8 @@ use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use crate::apps::app_data::AppData;
 use crate::apps::app_data::AppStatus;
+use crate::notification_types::Message;
+use crate::notification_types::MessageType;
 use crate::state_machine::StateHandler;
 use crate::state_machine::StateMachine;
 use crate::tasks::running_app_context::RunningAppContext;
@@ -109,6 +111,7 @@ async fn destroy_app_prepare(
         DestroyAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<DestroyAppStates> {
             next_state: DestroyAppStates::Done,
+            notification: Some(Message::new(MessageType::AppDestroyed, app)),
         }),
     );
     Ok(sm)

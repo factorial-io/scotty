@@ -13,6 +13,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::api::handlers::apps::create::__path_create_app_handler;
 use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
+use crate::api::handlers::apps::notify::__path_add_notification_handler;
+use crate::api::handlers::apps::notify::__path_remove_notification_handler;
 use crate::api::handlers::apps::run::__path_destroy_app_handler;
 use crate::api::handlers::apps::run::__path_info_app_handler;
 use crate::api::handlers::apps::run::__path_purge_app_handler;
@@ -41,11 +43,18 @@ use crate::apps::create_app_request::CreateAppRequest;
 use crate::apps::file_list::File;
 use crate::apps::file_list::FileList;
 use crate::apps::shared_app_list::AppDataVec;
+use crate::notification_types::AddNotificationRequest;
+use crate::notification_types::GitlabContext;
+use crate::notification_types::MattermostContext;
+use crate::notification_types::NotificationReceiver;
+use crate::notification_types::WebhookContext;
 use crate::tasks::running_app_context::RunningAppContext;
 use crate::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
 use super::handlers::apps::create::create_app_handler;
+use super::handlers::apps::notify::add_notification_handler;
+use super::handlers::apps::notify::remove_notification_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::purge_app_handler;
@@ -77,9 +86,11 @@ use super::handlers::tasks::task_list_handler;
         login_handler,
         info_handler,
         blueprints_handler,
+        add_notification_handler,
+        remove_notification_handler,
     ),
     components(
-        schemas( TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppStatus, AppTtl, ServicePortMapping, RunningAppContext)
+        schemas( GitlabContext, WebhookContext, MattermostContext, NotificationReceiver, AddNotificationRequest, TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppStatus, AppTtl, ServicePortMapping, RunningAppContext)
     ),
     tags(
         (name = "scotty-service", description = "scotty api")
@@ -104,6 +115,11 @@ impl ApiRoutes {
                 post(create_app_handler).layer(DefaultBodyLimit::max(
                     state.settings.api.create_app_max_size,
                 )),
+            )
+            .route("/api/v1/apps/notify/add", post(add_notification_handler))
+            .route(
+                "/api/v1/apps/notify/remove",
+                post(remove_notification_handler),
             )
             .route("/api/v1/tasks", get(task_list_handler))
             .route("/api/v1/task/:uuid", get(task_detail_handler))

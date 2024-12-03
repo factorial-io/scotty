@@ -12,7 +12,8 @@ use crate::{
         run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
-    settings::ActionName,
+    notification_types::{Message, MessageType},
+    settings::app_blueprint::ActionName,
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -96,6 +97,7 @@ pub async fn rebuild_app_prepare(
         RebuildAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::Done,
+            notification: Some(Message::new(MessageType::AppRebuilt, app)),
         }),
     );
     Ok(sm)

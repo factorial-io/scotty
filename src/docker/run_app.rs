@@ -11,7 +11,8 @@ use crate::{
         run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
-    settings::ActionName,
+    notification_types::{Message, MessageType},
+    settings::app_blueprint::ActionName,
     state_machine::StateMachine,
     tasks::running_app_context::RunningAppContext,
 };
@@ -57,6 +58,7 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
         RunAppStates::SetFinished,
         Arc::new(SetFinishedHandler::<RunAppStates> {
             next_state: RunAppStates::Done,
+            notification: Some(Message::new(MessageType::AppStarted, app)),
         }),
     );
 

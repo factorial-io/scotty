@@ -1,0 +1,18 @@
+needs_setup: true
+public_services:
+  - service: nginx
+    port: 80
+domain: simple_nginx.ddev.site
+time_to_live: !Days 7
+basic_auth: null
+disallow_robots: true
+environment: {}
+registry: factorial
+app_blueprint: nginx-lagoon
+notify:
+  - Log
+  - !Mattermost
+    service_id: chat.factorial.io
+    channel: test-test-test
+  - !Webhook
+    service_id: webhook-test

@@ -1,5 +1,6 @@
 mod apps;
 mod init_telemetry;
+mod notification_types;
 mod settings;
 mod tasks;
 mod utils;
@@ -15,6 +16,10 @@ use base64::prelude::*;
 use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use init_telemetry::init_telemetry_and_tracing;
+use notification_types::{
+    AddNotificationRequest, GitlabContext, MattermostContext, NotificationReceiver,
+    RemoveNotificationRequest, WebhookContext,
+};
 use owo_colors::OwoColorize;
 use tabled::{builder::Builder, settings::Style};
 use tasks::{
@@ -45,23 +50,40 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// List all installed apps
+    #[command(name = "app:list")]
     List,
     /// Rebuild an app
+    #[command(name = "app:rebuild")]
     Rebuild(RebuildCommand),
     /// Run an installed app
+    #[command(name = "app:run")]
     Run(RunCommand),
     /// Start an installed app, alias for run
+    #[command(name = "app:start")]
     Start(RunCommand),
     /// Stop an installed app
+    #[command(name = "app:stop")]
     Stop(StopCommand),
     /// Remove an installed app
+    #[command(name = "app:purge")]
     Purge(PurgeCommand),
     /// Get info of an installed app
+    #[command(name = "app:info")]
     Info(InfoCommand),
     /// Add a new app
+    #[command(name = "app:create")]
     Create(Box<CreateCommand>),
     /// Destroy an app
+    #[command(name = "app:destroy")]
     Destroy(DestroyCommand),
+
+    /// setup notificattions to other services
+    #[command(name = "notify:add")]
+    NotifyAdd(NotifyAddCommand),
+
+    /// remove notificattions to other services
+    #[command(name = "notify:remove")]
+    NotifyRemove(NotifyRemoveCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -75,6 +97,21 @@ type PurgeCommand = RunCommand;
 type InfoCommand = RunCommand;
 type RebuildCommand = RunCommand;
 type DestroyCommand = RunCommand;
+
+#[derive(Debug, Parser)]
+struct NotifyAddCommand {
+    /// Name of the app
+    app_name: String,
+
+    /// List of service-ids to subscribe to.
+    /// Some service-ids support additional parameters e.g.
+    /// the mattermost-channel or
+    /// the gitlab project-id and mergerequest-id.
+    #[arg(long,value_parser=parse_service_ids, value_name="SERVICE_TYPE://SERVICE_ID/(CHANNEL|PROJECT_ID/MR_ID)")]
+    service_id: Vec<NotificationReceiver>,
+}
+
+type NotifyRemoveCommand = NotifyAddCommand;
 
 #[derive(Debug, Parser)]
 struct CreateCommand {
@@ -124,6 +161,59 @@ struct CreateCommand {
 struct ServerSettings {
     server: String,
     access_token: Option<String>,
+}
+
+fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
+    let parts: Vec<&str> = s.split("://").collect();
+
+    if parts.len() < 2 {
+        return Err("Invalid service ID format".to_string());
+    }
+    let service_type = parts[0];
+
+    let parts = parts[1].split("/").collect::<Vec<&str>>();
+    if parts.is_empty() {
+        return Err("Invalid service ID format".to_string());
+    }
+    let service_id = parts[0];
+
+    match service_type {
+        "log" => Ok(NotificationReceiver::Log),
+        "webhook" => {
+            if parts.len() != 1 {
+                return Err("Invalid service ID format for webhook".to_string());
+            }
+            Ok(NotificationReceiver::Webhook(WebhookContext {
+                service_id: service_id.to_string(),
+            }))
+        }
+        "mattermost" => {
+            if parts.len() != 2 {
+                return Err("Invalid service ID format for mattermost".to_string());
+            }
+            let channel = parts[1];
+            Ok(NotificationReceiver::Mattermost(MattermostContext {
+                service_id: service_id.to_string(),
+                channel: channel.to_string(),
+            }))
+        }
+        "gitlab" => {
+            if parts.len() < 3 {
+                return Err("Invalid service ID format for gitlab".to_string());
+            }
+            let project_id = parts[1..parts.len() - 1].join("/").to_string();
+            let mr_id = parts.last().unwrap().parse::<u64>().unwrap();
+            Ok(NotificationReceiver::Gitlab(GitlabContext {
+                service_id: service_id.to_string(),
+                project_id,
+                mr_id,
+            }))
+        }
+        _ => Err(format!(
+            "Unknown service type {}, allowed values are log, mattermost, webhook and gitlab",
+            service_type
+        )),
+    }
 }
 
 fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
@@ -247,6 +337,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::Create(cmd) => {
             create_app(&server_settings, cmd).await?;
         }
+        Commands::NotifyAdd(cmd) => {
+            add_notification(&server_settings, cmd).await?;
+        }
+        Commands::NotifyRemove(cmd) => {
+            remove_notification(&server_settings, cmd).await?;
+        }
     }
     Ok(())
 }
@@ -314,7 +410,7 @@ async fn call_apps_api(server: &ServerSettings, verb: &str, app_name: &str) -> a
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
     wait_for_task(server, &context).await?;
-    let app_data = get_app_info(server, &context).await?;
+    let app_data = get_app_info(server, &context.app_data.name).await?;
     print_app_info(&app_data)?;
     Ok(())
 }
@@ -366,11 +462,8 @@ async fn wait_for_task(server: &ServerSettings, context: &RunningAppContext) -> 
     Ok(())
 }
 
-async fn get_app_info(
-    server: &ServerSettings,
-    context: &RunningAppContext,
-) -> anyhow::Result<AppData> {
-    let app_data = get(server, &format!("apps/info/{}", &context.app_data.name)).await?;
+async fn get_app_info(server: &ServerSettings, app_name: &str) -> anyhow::Result<AppData> {
+    let app_data = get(server, &format!("apps/info/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
 
     Ok(app_data)
@@ -484,11 +577,12 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
         serde_json::from_value(result).context("Failed to parse context from API")?;
 
     wait_for_task(server, &context).await?;
-    let app_data = get_app_info(server, &context).await?;
+    let app_data = get_app_info(server, &context.app_data.name).await?;
 
     print_app_info(&app_data)?;
     Ok(())
 }
+
 async fn info_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/info/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(result)?;
@@ -515,5 +609,62 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     println!("Info for {}", app_data.name);
     println!("{}", table);
 
+    if app_data.settings.is_some() && !app_data.settings.as_ref().unwrap().notify.is_empty() {
+        println!("Notification services");
+        let mut builder = Builder::default();
+        builder.push_record(["Type", "Service-Id", "Context"]);
+        for notification in &app_data.settings.as_ref().unwrap().notify {
+            #[allow(unused_assignments)]
+            let mut context: String = "".into();
+            builder.push_record(match notification {
+                NotificationReceiver::Log => ["Log", "Log", ""],
+                NotificationReceiver::Webhook(ctx) => ["Webhook", &ctx.service_id, ""],
+                NotificationReceiver::Mattermost(ctx) => {
+                    ["Mattermost", &ctx.service_id, &ctx.channel]
+                }
+                NotificationReceiver::Gitlab(ctx) => {
+                    context = format!("Project-Id: {}  MR-Id: {}", ctx.project_id, ctx.mr_id);
+                    ["Gitlab", &ctx.service_id, &context]
+                }
+            });
+        }
+        println!("{}", builder.build().with(Style::rounded()));
+    }
+
+    Ok(())
+}
+
+async fn add_notification(server: &ServerSettings, cmd: &NotifyAddCommand) -> anyhow::Result<()> {
+    let payload = AddNotificationRequest {
+        app_name: cmd.app_name.clone(),
+        service_ids: cmd.service_id.clone(),
+    };
+
+    let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
+    let result = get_or_post(server, "apps/notify/add", "POST", Some(payload)).await?;
+
+    let app_data: AppData =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+
+    print_app_info(&app_data)?;
+    Ok(())
+}
+
+async fn remove_notification(
+    server: &ServerSettings,
+    cmd: &NotifyRemoveCommand,
+) -> anyhow::Result<()> {
+    let payload = RemoveNotificationRequest {
+        app_name: cmd.app_name.clone(),
+        service_ids: cmd.service_id.clone(),
+    };
+
+    let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
+    let result = get_or_post(server, "apps/notify/remove", "POST", Some(payload)).await?;
+
+    let app_data: AppData =
+        serde_json::from_value(result).context("Failed to parse context from API")?;
+
+    print_app_info(&app_data)?;
     Ok(())
 }

@@ -5,7 +5,7 @@ use tracing::instrument;
 
 use crate::{
     apps::app_data::AppSettings,
-    settings::{ActionName, AppBlueprint},
+    settings::app_blueprint::{ActionName, AppBlueprint},
     state_machine::StateHandler,
 };
 
