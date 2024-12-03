@@ -182,6 +182,8 @@ Here's a short list of avaiable commands
 * `scottyctl app:create` Create a new app
 * `scottyctl app:destroy` Destroy a managed app
 * `scottyctl app:info` Display some info about the app
+* `scottyctl notify:add` Adds a new service to notify on app changes
+* `scottyctl notify:remove` Removes a notification to a service
 
 ## Configuring the server
 
@@ -236,6 +238,48 @@ You can provide the information either via env-vars or by passing the
   When you create a new app you provide a list of public services,
   which then will be used as domain-names for the reverse-rpoxy
   configuration.
+
+## Notifications
+
+Scotty supports notifications to other services, e.g. Gitlab, Mattermost or 
+via webhooks. Notifications recipients need to be configured on the server 
+side, but `scottyctl` can provide parameters to steer the delivery, e.g.
+the channel-name for mattermost or the merge-request-id for gitlab.
+
+Here's a config-sample-snippet for mattermost (Create an incoming webhook 
+and note down the hook_id):
+
+```yaml
+notification_services:
+  our-mattermost:
+    type: mattermost
+    host: https://chat.example.com
+    hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__OUR_MATTERMOST__HOOK_ID
+```
+To enable notifications for an app, run
+
+```bash
+scottyctl notify:add <APP> --service-id mattermost://our-mattermost/my-custom-channel
+```
+
+Similar for gitlab (create a personal access token and note it down):
+
+
+```yaml
+notification_services:
+  our-gitlab:
+    type: gitlab
+    host: https://our.gitlab.com
+    token: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__OUR_GITLAB__TOKEN
+```
+To enable notifications for an app, run
+
+```bash
+scottyctl notify:add <APP> --service-id gitlab://our-gitlab/my-group/my-project/3
+```
+
+This will add notes to the MR 3 of that particular project.
+
 
 ## Developing/ contributing
 
