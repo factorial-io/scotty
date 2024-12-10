@@ -159,8 +159,8 @@ async fn get_running_services(
                     status: crate::apps::app_data::ContainerStatus::Empty,
                     id: None,
                     service: s.to_string(),
-                    domain: None,
-                    url: None,
+                    domains: vec![],
+                    use_tls: false,
                     port: None,
                     started_at: None,
                     used_registry: None,
@@ -255,16 +255,6 @@ async fn inspect_docker_container(
     let loadbalancer_info = LoadBalancerFactory::create(&app_state.settings.load_balancer_type)
         .get_load_balancer_info(insights.clone());
 
-    let domain = loadbalancer_info.domain.clone();
-    let url = domain.map(|domain| {
-        let protocol = if loadbalancer_info.tls_enabled {
-            "https"
-        } else {
-            "http"
-        };
-        format!("{}://{}", protocol, domain)
-    });
-
     let mut used_registry: Option<String> = None;
 
     // Inspect the image and try to get the registry from the first repo tag
@@ -290,8 +280,8 @@ async fn inspect_docker_container(
         status: state.status.unwrap().into(),
         id: Some(container_id.to_string()),
         service: service.to_string(),
-        domain: loadbalancer_info.domain,
-        url: url.clone(),
+        domains: loadbalancer_info.domains.clone(),
+        use_tls: loadbalancer_info.tls_enabled,
         port: loadbalancer_info.port,
         started_at: Some(local_date),
         used_registry,

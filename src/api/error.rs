@@ -67,6 +67,9 @@ pub enum AppError {
     #[error("Found invalid notification service ids: {0}")]
     InvalidNotificationServiceIds(String),
 
+    #[error("Can't create app from an existing .scotty.yml file")]
+    CantCreateAppWithScottyYmlFile,
+
     #[error(
         "Cant migrate app {0} with existing settings, app can already be controlled by scotty!"
     )]

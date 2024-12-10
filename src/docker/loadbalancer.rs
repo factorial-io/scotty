@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub struct LoadBalancerInfo {
-    pub domain: Option<String>,
+    pub domains: Vec<String>,
     pub port: Option<u32>,
     pub tls_enabled: bool,
     pub http_auth_user: Option<String>,
@@ -20,7 +20,7 @@ pub struct LoadBalancerInfo {
 impl Default for LoadBalancerInfo {
     fn default() -> Self {
         LoadBalancerInfo {
-            domain: None,
+            domains: vec![],
             port: Some(80),
             tls_enabled: false,
             http_auth_user: None,
@@ -80,7 +80,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
 
                     match key.to_ascii_uppercase().as_str() {
                         "VHOST" | "VIRTUAL_HOST" => {
-                            result.domain = Some(value.to_string());
+                            result.domains = value.split(" ").map(|s| s.to_string()).collect();
                         }
                         "VPORT" | "VIRTUAL_PORT" => {
                             if let Ok(port) = value.parse::<u32>() {
@@ -128,9 +128,9 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
-                match &service.domain {
-                    Some(domain) => domain.clone(),
-                    None => format!("{}.{}", &service.service, &settings.domain),
+                match &service.domains.is_empty() {
+                    false => service.domains.join(" "),
+                    true => format!("{}.{}", &service.service, &settings.domain),
                 },
             );
             environment.insert("VPORT".into(), format!("{}", &service.port));
@@ -178,7 +178,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 let haystack = format!("{}={}", key, value);
                 if re_host.is_match(&haystack) {
                     if let Some(caps) = re_host.captures(&haystack) {
-                        result.domain = Some(caps[1].to_string());
+                        result.domains.push(caps[1].to_string());
                     }
                 }
                 if re_port.is_match(&haystack) {
@@ -229,13 +229,18 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
 
             // Add Traefik labels
             labels.insert("traefik.enable".to_string(), "true".to_string());
-            labels.insert(
-                format!("traefik.http.routers.{}.rule", &service_name),
-                match &service.domain {
-                    Some(domain) => format!("Host(`{}`)", domain),
-                    None => format!("Host(`{}.{}`)", &service.service, &settings.domain),
-                },
-            );
+
+            let domains = match &service.domains.is_empty() {
+                false => &service.domains,
+                true => &vec![format!("{}.{}", &service.service, &settings.domain)],
+            };
+            for (idx, domain) in domains.iter().enumerate() {
+                labels.insert(
+                    format!("traefik.http.routers.{}-{}.rule", &service_name, idx),
+                    format!("Host(`{}`)", domain),
+                );
+            }
+
             labels.insert(
                 format!(
                     "traefik.http.services.{}.loadbalancer.server.port",
@@ -351,7 +356,7 @@ mod tests {
             public_services: vec![ServicePortMapping {
                 service: "web".to_string(),
                 port: 8080,
-                domain: None,
+                domains: vec![],
             }],
             basic_auth: Some(("user".to_string(), "pass".to_string())),
             disallow_robots: true,
@@ -395,7 +400,7 @@ mod tests {
             public_services: vec![ServicePortMapping {
                 service: "web".to_string(),
                 port: 8080,
-                domain: None,
+                domains: vec![],
             }],
             basic_auth: Some(("user".to_string(), "pass".to_string())),
             disallow_robots: true,
@@ -428,7 +433,9 @@ mod tests {
         // Check labels.
         assert_eq!(labels.get("traefik.enable").unwrap(), "true");
         assert_eq!(
-            labels.get("traefik.http.routers.web--myapp.rule").unwrap(),
+            labels
+                .get("traefik.http.routers.web--myapp-0.rule")
+                .unwrap(),
             "Host(`web.example.com`)"
         );
         assert_eq!(
