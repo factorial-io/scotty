@@ -56,6 +56,7 @@ pub async fn rebuild_app_prepare(
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposeBuild,
             command: ["pull"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(
@@ -63,6 +64,7 @@ pub async fn rebuild_app_prepare(
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposeStop,
             command: ["build"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(
@@ -70,6 +72,7 @@ pub async fn rebuild_app_prepare(
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunDockerComposeRun,
             command: ["stop"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(
@@ -77,6 +80,7 @@ pub async fn rebuild_app_prepare(
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
             next_state: RebuildAppStates::RunPostActions,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(

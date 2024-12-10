@@ -64,9 +64,12 @@ enum Commands {
     /// Stop an installed app
     #[command(name = "app:stop")]
     Stop(StopCommand),
-    /// Remove an installed app
+    /// Purge an installed app
     #[command(name = "app:purge")]
     Purge(PurgeCommand),
+    /// Migrate a docker-compose based app to be controlled by scotty
+    #[command(name = "app:migrate")]
+    Migrate(MigrateCommand),
     /// Get info of an installed app
     #[command(name = "app:info")]
     Info(InfoCommand),
@@ -94,6 +97,7 @@ struct RunCommand {
 
 type StopCommand = RunCommand;
 type PurgeCommand = RunCommand;
+type MigrateCommand = RunCommand;
 type InfoCommand = RunCommand;
 type RebuildCommand = RunCommand;
 type DestroyCommand = RunCommand;
@@ -331,6 +335,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Purge(cmd) => {
             call_apps_api(&server_settings, "purge", &cmd.app_name).await?;
         }
+        Commands::Migrate(cmd) => {
+            migrate_app(&server_settings, &cmd.app_name).await?;
+        }
         Commands::Info(cmd) => {
             info_app(&server_settings, &cmd.app_name).await?;
         }
@@ -550,7 +557,6 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
         app_name: cmd.app_name.clone(),
         custom_domains: cmd.custom_domain.clone(),
         settings: AppSettings {
-            needs_setup: true,
             public_services: cmd.service.clone(),
             basic_auth: cmd.basic_auth.clone(),
             environment: cmd.env.iter().cloned().collect(),
@@ -585,6 +591,12 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
 
 async fn info_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
     let result = get(server, &format!("apps/info/{}", app_name)).await?;
+    let app_data: AppData = serde_json::from_value(result)?;
+    print_app_info(&app_data)?;
+    Ok(())
+}
+async fn migrate_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
+    let result = get(server, &format!("apps/migrate/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(result)?;
     print_app_info(&app_data)?;
     Ok(())

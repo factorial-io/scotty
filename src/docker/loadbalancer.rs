@@ -297,7 +297,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 middlewares.join(","),
             );
 
-            // Handle enviorment variables
+            // Handle environment variables
             if !&resolved_environment.is_empty() {
                 for (key, value) in &settings.environment {
                     environment.insert(key.clone(), value.clone());

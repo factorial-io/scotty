@@ -60,11 +60,13 @@ impl TaskManager {
         cwd: &Path,
         cmd: &str,
         args: &[&str],
+        env: &HashMap<String, String>,
         details: Arc<RwLock<TaskDetails>>,
     ) -> Uuid {
         let cwd = cwd.to_path_buf();
         let cmd = cmd.to_string();
         let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let env = env.clone();
         let id = details.read().await.id;
 
         {
@@ -84,7 +86,7 @@ impl TaskManager {
                     args.join(" ")
                 );
                 let details = details.clone();
-                let exit_code = spawn_process(&cwd, &cmd, &args, &details).await;
+                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details).await;
 
                 match exit_code {
                     Ok(0) => {
@@ -158,10 +160,12 @@ async fn spawn_process(
     cwd: &PathBuf,
     cmd: &str,
     args: &Vec<String>,
+    env: &HashMap<String, String>,
     details: &Arc<RwLock<TaskDetails>>,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
+        .envs(env)
         .current_dir(cwd)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

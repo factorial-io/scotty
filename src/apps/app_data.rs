@@ -63,7 +63,6 @@ impl Serialize for AppTtl {
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
-    pub needs_setup: bool,
     pub public_services: Vec<ServicePortMapping>,
     pub domain: String,
     pub time_to_live: AppTtl,
@@ -79,7 +78,6 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         AppSettings {
-            needs_setup: false,
             public_services: Vec::new(),
             domain: "".to_string(),
             time_to_live: AppTtl::Days(1),
@@ -386,6 +384,38 @@ impl AppData {
         tokio::fs::write(&settings_path, settings_yaml).await?;
 
         Ok(())
+    }
+
+    pub fn get_environment(&self) -> HashMap<String, String> {
+        self.settings
+            .as_ref()
+            .map(|s| s.environment.clone())
+            .unwrap_or_default()
+    }
+
+    pub async fn create_settings_from_runtime(&self) -> anyhow::Result<AppData> {
+        let mut new_settings = AppSettings {
+            environment: self.get_environment(),
+            ..AppSettings::default()
+        };
+
+        // Iterate over services and add them to the new settings
+        for service in &self.services {
+            if let Some(domain) = &service.domain {
+                new_settings.public_services.push(ServicePortMapping {
+                    service: service.service.clone(),
+                    port: service.port.unwrap(),
+                    domain: Some(domain.clone()),
+                });
+            }
+        }
+
+        let app_data = AppData {
+            settings: Some(new_settings),
+            ..self.clone()
+        };
+        app_data.save_settings().await?;
+        Ok(app_data)
     }
 }
 

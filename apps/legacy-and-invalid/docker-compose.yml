@@ -1,5 +1,9 @@
 services:
   web:
+    environment:
+      HELLO_WORLD: $HELLO_WORLD
     image: nginx
-    ports:
-      - 9731:80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=Host(`invalid-site.ddev.site`)"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
