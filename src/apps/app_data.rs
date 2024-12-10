@@ -80,7 +80,7 @@ impl Default for AppSettings {
         AppSettings {
             public_services: Vec::new(),
             domain: "".to_string(),
-            time_to_live: AppTtl::Days(1),
+            time_to_live: AppTtl::Days(7),
             basic_auth: None,
             disallow_robots: true,
             environment: HashMap::new(),
