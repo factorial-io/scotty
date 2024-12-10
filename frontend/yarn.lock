@@ -224,9 +224,9 @@
     "@iconify/types" "*"
 
 "@iconify/svelte@^4.0.2":
-  version "4.0.2"
-  resolved "https://registry.yarnpkg.com/@iconify/svelte/-/svelte-4.0.2.tgz#c506db52d9b83f18878f47aae42cf5e470b0f146"
-  integrity sha512-6BSrU85FzGfhQD3bTXpnkCCvBAglEt8T9QednVnXAYm4C+d3464y+pYMzhQNJm5mPId2cuiw+2wXlDflXllHDw==
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/@iconify/svelte/-/svelte-4.1.0.tgz#3f1c603f50902df166433eb18bc2438fa0a6517b"
+  integrity sha512-6oLonIDZHXPcQa9ZKbJocaOUMOV+ALeGPVDfex/lwdlHRNUxtJzI6pu121SaoVoXpRGSAYXB/VCv/MuYzCjn5w==
   dependencies:
     "@iconify/types" "^2.0.0"
 
