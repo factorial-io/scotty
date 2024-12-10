@@ -181,6 +181,9 @@ Here's a short list of avaiable commands
   app (similar to `docker-compose rm`)
 * `scottyctl app:create` Create a new app
 * `scottyctl app:destroy` Destroy a managed app
+* `scottyctl app:migrate <app_name>` Migrates a legacy app, so it can be
+  controlled by scotty. Please not that most likely you need to adjust the
+  created `.scotty.yml` file to match your needs.
 * `scottyctl app:info` Display some info about the app
 * `scottyctl notify:add` Adds a new service to notify on app changes
 * `scottyctl notify:remove` Removes a notification to a service
@@ -241,12 +244,12 @@ You can provide the information either via env-vars or by passing the
 
 ## Notifications
 
-Scotty supports notifications to other services, e.g. Gitlab, Mattermost or 
-via webhooks. Notifications recipients need to be configured on the server 
+Scotty supports notifications to other services, e.g. Gitlab, Mattermost or
+via webhooks. Notifications recipients need to be configured on the server
 side, but `scottyctl` can provide parameters to steer the delivery, e.g.
 the channel-name for mattermost or the merge-request-id for gitlab.
 
-Here's a config-sample-snippet for mattermost (Create an incoming webhook 
+Here's a config-sample-snippet for mattermost (Create an incoming webhook
 and note down the hook_id):
 
 ```yaml
