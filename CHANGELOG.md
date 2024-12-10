@@ -2,71 +2,93 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.12] - 2024-12-10
+
+### Bug Fixes
+
+- Fix frontend build ✔️
+- Update rust crate chrono to v0.4.39 (#118) ✔️
+- Update rust crate tokio-stream to v0.1.17 (#115) ✔️
+- Update rust crate clap to v4.5.23 (#114) ✔️
+- Update rust crate clap to v4.5.22 (#112) ✔️
+
+### Dependencies
+
+- Update dependency @sveltejs/kit to v2.9.1 ✔️
+- Update dependency typescript-eslint to v8.18.0 ✔️
+- Update dependency daisyui to v4.12.20 (#117) ✔️
+- Update dependency prettier to v3.4.2 (#113) ✔️
+- Update npm dependencies auto-merge (patch) (#110) ✔️
+
+### Features
+
+- Apply environment also when running the docker-compose commands, Add a preliminary migrate command to create a .scotty-file ✔️
+
 ## [0.1.0-alpha.11] - 2024-12-03
 
 ### Bug Fixes
 
-- Make 1password config optional in settings-file ✔️
 - Update rust crate anyhow to v1.0.94 (#111) ✔️
+- Make 1password config optional in settings-file ✔️
+- Update rust crate tokio to v1.42.0 ✔️
 - Adapt code so it works with new major version of utoipa ✔️
-- Update utoipa packages ✔️
 - Update rust crate tracing-subscriber to v0.3.19 ✔️
+- Update utoipa packages ✔️
 - Update rust dependencies auto-merge (patch) (#100) ✔️
 - Update rust dependencies auto-merge (patch) to v0.24.1 (#92) ✔️
-- Update opentelemetry packages ✔️
 - Update rust crate tabled to 0.17.0 ✔️
 - Update rust crate bollard to v0.18.1 (#85) ✔️
 - Update rust crate tower-http to v0.6.2 (#83) ✔️
 - Update rust crate bcrypt to 0.16.0 ✔️
+- Update opentelemetry packages ✔️
 - Update rust crate serde_json to v1.0.133 (#81) ✔️
-- Update rust crate bollard to 0.18.0 ✔️
 - Update rust crate axum to v0.7.9 (#78) ✔️
 - Update rust crate axum to v0.7.8 (#75) ✔️
+- Update rust crate bollard to 0.18.0 ✔️
 - Update rust crate clap to v4.5.21 (#71) ✔️
 - Update rust crate serde to v1.0.215 (#68) ✔️
 - Update rust crate tokio to v1.41.1 ✔️
-- Update opentelemetry packages ✔️
 - Update rust crate thiserror to v1.0.69 (#60) ✔️
 - Update rust crate anyhow to v1.0.93 ✔️
+- Update opentelemetry packages ✔️
 - Update rust crate thiserror to v1.0.68 ✔️
 - Update rust crate thiserror to v1.0.67 ✔️
 
 ### Dependencies
 
 - Update rust docker tag to v1.83 ✔️
-- Update dependency @sveltejs/kit to v2.9.0 ✔️
-- Update dependency eslint-plugin-svelte to v2.46.1 ✔️
+- Update dependency globals to v15.13.0 ✔️
 - Update dependency eslint to v9.16.0 ✔️
-- Update dependency prettier to v3.4.1 ✔️
-- Update mariadb docker tag to v10.11 ✔️
+- Update dependency eslint-plugin-svelte to v2.46.1 ✔️
+- Update dependency @sveltejs/kit to v2.9.0 ✔️
 - Update dependency @sveltejs/kit to v2.8.5 (#99) ✔️
+- Update dependency prettier to v3.4.1 ✔️
 - Update dependency @sveltejs/kit to v2.8.4 (#95) ✔️
 - Update dependency typescript-eslint to v8.16.0 ✔️
 - Update dependency @sveltejs/kit to v2.8.3 ✔️
-- Update dependency prettier-plugin-svelte to v3.3.2 ✔️
-- Update dependency svelte-check to v4.1.0 ✔️
-- Update dependency @sveltejs/kit to v2.8.2 ✔️
 - Update dependency typescript to v5.7.2 ✔️
+- Update dependency @sveltejs/kit to v2.8.2 ✔️
+- Update dependency svelte-check to v4.1.0 ✔️
+- Update dependency prettier-plugin-svelte to v3.3.2 ✔️
 - Update dependency typescript-eslint to v8.15.0 ✔️
 - Update dependency eslint to v9.15.0 ✔️
-- Update dependency svelte-check to v4.0.9 ✔️
 - Bump cross-spawn from 7.0.3 to 7.0.5 in /frontend ✔️
+- Update dependency svelte-check to v4.0.9 ✔️
 - Update dependency svelte-check to v4.0.8 (#74) ✔️
 - Update dependency tailwindcss to v3.4.15 (#73) ✔️
 - Update npm dependencies auto-merge (patch) (#69) ✔️
-- Update dependency @sveltejs/kit to v2.8.0 ✔️
-- Update dependency prettier-plugin-svelte to v3.2.8 ✔️
-- Update dependency svelte-check to v4.0.7 ✔️
 - Update dependency typescript-eslint to v8.14.0 ✔️
+- Update dependency svelte-check to v4.0.7 ✔️
+- Update dependency prettier-plugin-svelte to v3.2.8 ✔️
 - Update dependency vite to v5.4.11 ✔️
 - Update dependency postcss to v8.4.48 ✔️
 - Update dependency svelte-check to v4.0.6 ✔️
+- Update dependency @sveltejs/kit to v2.8.0 ✔️
 - Update dependency @sveltejs/kit to v2.7.7 ✔️
 - Update dependency @sveltejs/kit to v2.7.6 ✔️
-- Update dependency globals to v15.12.0 ✔️
-- Update dependency typescript-eslint to v8.13.0 ✔️
 - Update dependency @sveltejs/kit to v2.7.5 ✔️
-- Update dependency typescript-eslint to v8.12.2 ✔️
+- Update dependency typescript-eslint to v8.13.0 ✔️
+- Update dependency globals to v15.12.0 ✔️
 
 ### Documentation
 
@@ -98,8 +120,9 @@ All notable changes to this project will be documented in this file.
 
 ### Dependencies
 
-- Update dependency @sveltejs/kit to v2.7.4 ✔️
 - Update dependency eslint to v9.14.0 ✔️
+- Update dependency @sveltejs/kit to v2.7.4 ✔️
+- Update dependency typescript-eslint to v8.12.2 ✔️
 - Update dependency typescript-eslint to v8.12.1 ✔️
 - Update dependency typescript-eslint to v8.12.0 ✔️
 - Update dependency daisyui to v4.12.14 (#39) ✔️
@@ -127,10 +150,11 @@ All notable changes to this project will be documented in this file.
 
 ### Dependencies
 
+- Update mariadb docker tag to v10.11 ✔️
 - Update dependency @sveltejs/adapter-auto to v3.3.1 ✔️
-- Update dependency typescript-eslint to v8.11.0 ✔️
-- Update dependency @sveltejs/adapter-static to v3.0.6 ✔️
 - Update dependency @sveltejs/kit to v2.7.3 ✔️
+- Update dependency @sveltejs/adapter-static to v3.0.6 ✔️
+- Update dependency typescript-eslint to v8.11.0 ✔️
 - Update dependency vite to v5.4.10 ✔️
 
 ### Features
@@ -138,6 +162,10 @@ All notable changes to this project will be documented in this file.
 - Add unsupported status to Apps, prevent running commands against unsupported apps ✔️
 - Validate docker-compose for the create task better ✔️
 - Expose version via API and CLI for both ctl and server ✔️
+
+### Dos
+
+- Update README.md ✔️
 
 ## [0.1.0-alpha.8] - 2024-10-22
 
@@ -174,13 +202,13 @@ All notable changes to this project will be documented in this file.
 ### Dependencies
 
 - Update dependency @sveltejs/kit to v2.7.2 ✔️
-- Update mariadb docker tag to v11 ✔️
 - Update dependency eslint to v9.13.0 ✔️
-- Update docker/build-push-action action to v6 ✔️
-- Update rust docker tag to v1.82 ✔️
+- Update mariadb docker tag to v11 ✔️
 - Update docker/setup-buildx-action action to v3 ✔️
 - Update docker/login-action action to v3 ✔️
+- Update docker/build-push-action action to v6 ✔️
 - Update actions/checkout action to v4 ✔️
+- Update rust docker tag to v1.82 ✔️
 - Update dependency typescript-eslint to v8.10.0 ✔️
 
 ### Features
@@ -203,7 +231,7 @@ All notable changes to this project will be documented in this file.
 
 - Enable changelog for ci changes ✔️
 
-## [0.1.0-alpha.2] - 2024-10-17
+## [0.1.0-alpha.3] - 2024-10-17
 
 ### Bug Fixes
 
