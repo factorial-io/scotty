@@ -393,9 +393,12 @@ impl AppData {
             .unwrap_or_default()
     }
 
-    pub async fn create_settings_from_runtime(&self) -> anyhow::Result<AppData> {
+    pub async fn create_settings_from_runtime(
+        &self,
+        env: &HashMap<String, String>,
+    ) -> anyhow::Result<AppData> {
         let mut new_settings = AppSettings {
-            environment: self.get_environment(),
+            environment: env.clone(),
             ..AppSettings::default()
         };
 

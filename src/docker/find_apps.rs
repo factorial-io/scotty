@@ -299,3 +299,40 @@ async fn inspect_docker_container(
 
     Ok(container_state)
 }
+
+pub async fn collect_environment_from_app(
+    app_state: &SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<HashMap<String, String>> {
+    let mut environment = HashMap::new();
+
+    for service in &app.services {
+        let Some(container_id) = &service.id else {
+            continue;
+        };
+
+        match app_state
+            .docker
+            .inspect_container(container_id, None::<InspectContainerOptions>)
+            .await
+        {
+            Ok(inspect) => {
+                if let Some(env) = inspect.config.and_then(|c| c.env) {
+                    for env_var in env {
+                        if let Some((key, value)) = env_var.split_once('=') {
+                            if !key.is_empty() {
+                                environment.insert(key.to_string(), value.to_string());
+                            }
+                        } else {
+                            tracing::warn!("Invalid environment variable format: {}", env_var);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to inspect container {}: {}", container_id, e);
+            }
+        }
+    }
+    Ok(environment)
+}

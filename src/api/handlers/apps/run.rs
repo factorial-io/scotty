@@ -10,8 +10,12 @@ use crate::{
     app_state::SharedAppState,
     apps::app_data::AppData,
     docker::{
-        destroy_app::destroy_app, find_apps::inspect_app, purge_app::purge_app,
-        rebuild_app::rebuild_app, run_app::run_app, stop_app::stop_app,
+        destroy_app::destroy_app,
+        find_apps::{collect_environment_from_app, inspect_app},
+        purge_app::purge_app,
+        rebuild_app::rebuild_app,
+        run_app::run_app,
+        stop_app::stop_app,
     },
     tasks::running_app_context::RunningAppContext,
 };
@@ -169,7 +173,8 @@ pub async fn migrate_app_handler(
     if app_data.settings.is_some() {
         return Err(AppError::CantMigrateAppWithExistingSettings(app_id.clone()));
     }
-    let app_data = app_data.create_settings_from_runtime().await?;
+    let environment = collect_environment_from_app(&state, &app_data).await?;
+    let app_data = app_data.create_settings_from_runtime(&environment).await?;
     state.apps.update_app(app_data.clone()).await?;
 
     Ok(Json(app_data))
