@@ -40,6 +40,13 @@ where
             None => None,
         }
     }
+
+    pub fn get_environment(&self) -> std::collections::HashMap<String, String> {
+        match &self.settings {
+            Some(settings) => settings.environment.clone(),
+            None => std::collections::HashMap::new(),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -69,6 +76,7 @@ where
                     &docker_compose_path,
                     "docker-compose",
                     &args,
+                    &self.get_environment(),
                     &format!("post-action {:?} on service {}", &self.action, service),
                 )
                 .await?;

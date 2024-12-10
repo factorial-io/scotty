@@ -11,6 +11,7 @@ pub async fn run_task_and_wait(
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
+    env: &std::collections::HashMap<String, String>,
     msg: &str,
 ) -> anyhow::Result<()> {
     debug!("Running {} ", msg);
@@ -20,6 +21,7 @@ pub async fn run_task_and_wait(
         docker_compose_path,
         command,
         args,
+        env,
         context.task.clone(),
     )
     .await?;

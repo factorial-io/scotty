@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -53,6 +53,7 @@ where
             &docker_compose_path,
             "docker",
             &args,
+            &HashMap::new(),
             &format!("Log into registry {}", &registry.registry),
         )
         .await?;

@@ -113,6 +113,7 @@ pub async fn inspect_app(
             None
         }
     };
+    let valid_settings = settings.is_some();
 
     let mut app_data = AppData::new(
         &name,
@@ -121,7 +122,8 @@ pub async fn inspect_app(
         services,
         settings,
     );
-    if validate_docker_compose_content(content.as_bytes(), &dc_services).is_err() {
+    if !valid_settings && validate_docker_compose_content(content.as_bytes(), &dc_services).is_err()
+    {
         app_data.status = AppStatus::Unsupported;
     }
     Ok(app_data)

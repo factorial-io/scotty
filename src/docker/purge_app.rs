@@ -49,6 +49,7 @@ pub async fn purge_app_prepare(
         Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
             next_state: PurgeAppStates::UpdateAppData,
             command: command.iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(

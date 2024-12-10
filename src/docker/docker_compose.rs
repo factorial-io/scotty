@@ -6,22 +6,29 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{app_state::SharedAppState, tasks::task_details::TaskDetails};
+use crate::{
+    app_state::SharedAppState, onepassword::lookup::resolve_environment_variables,
+    tasks::task_details::TaskDetails,
+};
 
 pub async fn run_task(
     shared_app: &SharedAppState,
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
+    env: &std::collections::HashMap<String, String>,
     task: Arc<RwLock<TaskDetails>>,
 ) -> anyhow::Result<TaskDetails> {
     let manager = shared_app.task_manager.clone();
+
+    let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
 
     let task_id = manager
         .start_process(
             docker_compose_path.parent().unwrap(),
             command,
             args,
+            &resolved_environment,
             task.clone(),
         )
         .await;

@@ -38,6 +38,7 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
         Arc::new(RunDockerComposeHandler::<RunAppStates> {
             next_state: RunAppStates::RunPostActions,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(

@@ -37,6 +37,7 @@ pub async fn stop_app_prepare(
         Arc::new(RunDockerComposeHandler::<StopAppStates> {
             next_state: StopAppStates::UpdateAppData,
             command: ["stop"].iter().map(|s| s.to_string()).collect(),
+            env: app.get_environment(),
         }),
     );
     sm.add_handler(

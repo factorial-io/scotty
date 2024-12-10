@@ -14,6 +14,7 @@ where
 {
     pub next_state: S,
     pub command: Vec<String>,
+    pub env: std::collections::HashMap<String, String>,
 }
 
 #[async_trait::async_trait]
@@ -34,6 +35,7 @@ where
                 .map(AsRef::as_ref)
                 .collect::<Vec<&str>>()
                 .as_slice(),
+            &self.env,
             &format!("docker-compose {}", &self.command.join(" ")),
         )
         .await?;
