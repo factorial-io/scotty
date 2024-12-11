@@ -12,7 +12,7 @@ use bollard::secret::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use serde_yml::Value;
-use tracing::info;
+use tracing::{error, info};
 use utoipa::{ToResponse, ToSchema};
 
 #[derive(Debug, Serialize, Clone, ToSchema, ToResponse)]
@@ -40,7 +40,7 @@ impl<'de> Deserialize<'de> for ServicePortMapping {
             service: String,
             port: u32,
             #[serde(flatten)]
-            domain_field: DomainField,
+            domain_field: Option<DomainField>,
         }
 
         // Use the Temp struct to parse and transform into ServicePortMapping
@@ -52,8 +52,9 @@ impl<'de> Deserialize<'de> for ServicePortMapping {
 
         // Map the domain field to the `domains` field in ServicePortMapping
         let domains = match domain_field {
-            DomainField::Single { domain } => vec![domain],
-            DomainField::Multiple { domains } => domains,
+            None => vec![],
+            Some(DomainField::Single { domain }) => vec![domain],
+            Some(DomainField::Multiple { domains }) => domains,
         };
 
         Ok(ServicePortMapping {
@@ -193,16 +194,30 @@ impl AppSettings {
         );
 
         if settings_path.exists() {
-            let file = File::open(settings_path)?;
-            let reader = BufReader::new(file);
-            let yaml: Value = serde_yml::from_reader(reader)?;
-            let settings: AppSettings = serde_yml::from_value(yaml)?;
-            info!(
-                "Successfully read app-settings from {}",
-                &settings_path.display()
-            );
+            let result: anyhow::Result<AppSettings> = {
+                let file = File::open(settings_path)?;
+                let reader = BufReader::new(file);
+                let yaml: Value = serde_yml::from_reader(reader)?;
+                let settings: AppSettings = serde_yml::from_value(yaml)?;
+                info!(
+                    "Successfully read app-settings from {}",
+                    &settings_path.display()
+                );
 
-            Ok(settings)
+                Ok(settings)
+            };
+            match result {
+                Ok(settings) => Ok(settings),
+                Err(e) => {
+                    let msg = format!(
+                        "Failed to read settings from {}: {}",
+                        settings_path.display(),
+                        e
+                    );
+                    error!(msg);
+                    Err(anyhow::anyhow!(msg))
+                }
+            }
         } else {
             Err(anyhow::Error::msg(format!(
                 "No settings file found at {}",
@@ -495,6 +510,16 @@ mod tests {
 
     #[test]
     fn test_service_port_mapping_deserialization() {
+        // Test no domain
+        let json = json!({
+            "service": "web",
+            "port": 8080,
+        });
+        let mapping: ServicePortMapping = serde_json::from_value(json).unwrap();
+        assert_eq!(mapping.service, "web");
+        assert_eq!(mapping.port, 8080);
+        assert_eq!(mapping.domains.len(), 0);
+
         // Test single domain
         let json = json!({
             "service": "web",
