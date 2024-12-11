@@ -1,4 +1,5 @@
 import daisyui from "daisyui";
+import typography from "@tailwindcss/typography"
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -21,7 +22,8 @@ export default {
             "error": "#e11d48",
             },
           },
+          "dark",
         ],
       },
-  plugins: [daisyui],
+  plugins: [typography, daisyui],
 }
