@@ -4,10 +4,12 @@
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
-	import type { App, TaskDetail } from '../../../types';
+	import type { App, AppTtl, TaskDetail } from '../../../types';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
 	import AppServiceButton from '../../../components/app-service-button.svelte';
+	import FormatBasicAuth from '../../../components/format-basic-auth.svelte';
+	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
@@ -18,6 +20,7 @@
 	}
 	let current_task: string | null = null;
 	let current_action: string | null = null;
+
 	async function handleClick(action: string) {
 		current_action = action;
 		current_task = await dispatchAppCommand(action.toLowerCase(), data.name);
@@ -36,6 +39,25 @@
 	tasks.subscribe((new_tasks) => {
 		app_tasks = Object.values(new_tasks).filter((t) => t.app_name === data.name);
 	});
+
+	function format_ttl(ttlData: AppTtl) {
+		if (ttlData.Days) {
+			return `${ttlData.Days} days`;
+		} else if (ttlData.Hours) {
+			return `${ttlData.Hours} hours`;
+		} else {
+			return 'Forever';
+		}
+	}
+
+	function format_value(value: unknown) {
+		if (value === null) {
+			return 'None';
+		}
+		return value;
+	}
+
+	console.log(data);
 </script>
 
 <PageHeader>
@@ -63,7 +85,7 @@
 	<thead>
 		<th>Name</th>
 		<th>Status</th>
-		<th>Url</th>
+		<th>Url(s)</th>
 		<th>Started</th>
 	</thead>
 	<tbody>
@@ -72,7 +94,7 @@
 				<td>{service.service}</td>
 				<td><AppStatusPill status={service.status || 'unknown'} /></td>
 				<td
-					>{#if service.url}
+					>{#if service.domains && service.domains.length > 0}
 						<AppServiceButton property="domain" {service} status={data.status} />
 					{:else}
 						--
@@ -84,5 +106,40 @@
 			</tr>{/each}
 	</tbody>
 </table>
-<h3 class="text-xl mt-16 mb-4">Latest task-invocations</h3>
-<TasksTable taskList={app_tasks} />
+{#if data.settings}
+	<h3 class="text-xl mt-16 mb-4">Settings</h3>
+	<table class="table">
+		<tbody>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>App Blueprint</strong></td>
+				<td class="align-top">{format_value(data.settings.app_blueprint)}</td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Basic Auth</strong></td>
+				<td class="align-top"><FormatBasicAuth auth={data.settings.basic_auth} /></td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Disallow Robots</strong></td>
+				<td class="align-top">{data.settings.disallow_robots}</td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Private Docker Registry</strong></td>
+				<td class="align-top">{format_value(data.settings.registry)}</td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Time to live</strong></td>
+				<td class="align-top">{format_ttl(data.settings.time_to_live)}</td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Environment</strong></td>
+				<td class="align-top"
+					><FormatEnvironmentVariables environment={data.settings.environment} /></td
+				>
+			</tr>
+		</tbody>
+	</table>
+{/if}
+{#if app_tasks.length > 0}
+	<h3 class="text-xl mt-16 mb-4">Latest task-invocations</h3>
+	<TasksTable taskList={app_tasks} />
+{/if}

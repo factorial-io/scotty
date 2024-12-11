@@ -91,7 +91,7 @@
 				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
 				<td
 					>{#each app.services as service}
-						{#if service.domain}
+						{#if service.domains && service.domains.length > 0}
 							<AppServiceButton status={app.status} {service} />
 						{/if}
 					{/each}</td
