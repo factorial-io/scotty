@@ -41,12 +41,12 @@
 	});
 
 	function format_ttl(ttlData: AppTtl) {
-		if (ttlData.Days) {
+		if (typeof ttlData === 'string') {
+			return ttlData;
+		} else if (ttlData.Days) {
 			return `${ttlData.Days} days`;
-		} else if (ttlData.Hours) {
-			return `${ttlData.Hours} hours`;
 		} else {
-			return 'Forever';
+			return `${ttlData.Hours} hours`;
 		}
 	}
 

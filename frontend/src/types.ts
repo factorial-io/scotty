@@ -11,9 +11,18 @@ export enum AppTtlKeys {
 	Hours = 'Hours',
 	Days = 'Days'
 }
+
+/*
 export type AppTtl = {
 	[key in AppTtlKeys]: number | 'Forever';
 };
+*/
+export type AppTtl =
+	| {
+			Hours?: number;
+			Days?: number;
+	  }
+	| 'Forever';
 
 export interface AppSettings {
 	time_to_live: AppTtl;
