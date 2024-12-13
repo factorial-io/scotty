@@ -7,10 +7,12 @@
 
 	type SiteInfo = {
 		domain: string;
+		version: string;
 	};
 
 	let site_info: SiteInfo = {
-		domain: '...'
+		domain: '...',
+		version: '0.0.0'
 	};
 
 	$: {
@@ -53,8 +55,15 @@
 			<slot />
 		</div>
 	</div>
-	<footer class="px-4 pb-4">
-		<p class="text-right text-sm text-gray-500">
+	<footer class="px-4 pb-4 flex justify-between">
+		<p class="text-sm text-gray-500">
+			Scotty <a
+				class="link link-secondary"
+				href={`https://github.com/factorial-io/scotty/releases/tag/v${site_info.version}`}
+				>v{site_info.version}</a
+			>
+		</p>
+		<p class="text-sm text-gray-500">
 			Brought to you by <a class="link link-secondary" href="https://factorial.io/">Factorial.io</a>
 		</p>
 	</footer>
