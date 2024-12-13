@@ -67,9 +67,9 @@ enum Commands {
     /// Purge an installed app
     #[command(name = "app:purge")]
     Purge(PurgeCommand),
-    /// Migrate a docker-compose based app to be controlled by scotty
-    #[command(name = "app:migrate")]
-    Migrate(MigrateCommand),
+    /// Adopt a docker-compose based app to be controlled by scotty
+    #[command(name = "app:adopt")]
+    Adopt(AdoptCommand),
     /// Get info of an installed app
     #[command(name = "app:info")]
     Info(InfoCommand),
@@ -97,7 +97,7 @@ struct RunCommand {
 
 type StopCommand = RunCommand;
 type PurgeCommand = RunCommand;
-type MigrateCommand = RunCommand;
+type AdoptCommand = RunCommand;
 type InfoCommand = RunCommand;
 type RebuildCommand = RunCommand;
 type DestroyCommand = RunCommand;
@@ -335,8 +335,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Purge(cmd) => {
             call_apps_api(&server_settings, "purge", &cmd.app_name).await?;
         }
-        Commands::Migrate(cmd) => {
-            migrate_app(&server_settings, &cmd.app_name).await?;
+        Commands::Adopt(cmd) => {
+            adopt_app(&server_settings, &cmd.app_name).await?;
         }
         Commands::Info(cmd) => {
             info_app(&server_settings, &cmd.app_name).await?;
@@ -595,8 +595,8 @@ async fn info_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()>
     print_app_info(&app_data)?;
     Ok(())
 }
-async fn migrate_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/migrate/{}", app_name)).await?;
+async fn adopt_app(server: &ServerSettings, app_name: &str) -> anyhow::Result<()> {
+    let result = get(server, &format!("apps/adopt/{}", app_name)).await?;
     let app_data: AppData = serde_json::from_value(result)?;
     print_app_info(&app_data)?;
     Ok(())
