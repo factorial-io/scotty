@@ -7,6 +7,7 @@
 	import type { App, AppTtl, TaskDetail } from '../../../types';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
+	import { getApp, apps } from '../../../stores/appsStore';
 	import AppServiceButton from '../../../components/app-service-button.svelte';
 	import FormatBasicAuth from '../../../components/format-basic-auth.svelte';
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
@@ -22,6 +23,14 @@
 	let current_action: string | null = null;
 
 	async function handleClick(action: string) {
+		if (action === 'Destroy') {
+			if (!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)) {
+				return;
+			}
+		}
+		if (current_action) {
+			return;
+		}
 		current_action = action;
 		current_task = await dispatchAppCommand(action.toLowerCase(), data.name);
 		monitorTask(current_task, async () => {
@@ -38,6 +47,13 @@
 	let app_tasks: TaskDetail[] = [];
 	tasks.subscribe((new_tasks) => {
 		app_tasks = Object.values(new_tasks).filter((t) => t.app_name === data.name);
+	});
+
+	apps.subscribe(() => {
+		let result = getApp(data.name);
+		if (result) {
+			data = result;
+		}
 	});
 
 	function format_ttl(ttlData: AppTtl) {
