@@ -164,6 +164,7 @@ async fn get_running_services(
                     port: None,
                     started_at: None,
                     used_registry: None,
+                    basic_auth: None,
                 }
             }
         })
@@ -285,6 +286,13 @@ async fn inspect_docker_container(
         port: loadbalancer_info.port,
         started_at: Some(local_date),
         used_registry,
+        basic_auth: match (
+            loadbalancer_info.basic_auth_user,
+            loadbalancer_info.basic_auth_pass,
+        ) {
+            (Some(user), Some(pass)) => Some((user, pass)),
+            _ => None,
+        },
     };
 
     Ok(container_state)

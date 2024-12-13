@@ -286,6 +286,7 @@ pub struct ContainerState {
     pub port: Option<u32>,
     pub started_at: Option<chrono::DateTime<chrono::Local>>,
     pub used_registry: Option<String>,
+    pub basic_auth: Option<(String, String)>,
 }
 
 impl Default for ContainerState {
@@ -299,6 +300,7 @@ impl Default for ContainerState {
             port: None,
             started_at: None,
             used_registry: None,
+            basic_auth: None,
         }
     }
 }
@@ -468,6 +470,7 @@ impl AppData {
             ..AppSettings::default()
         };
 
+        let mut basic_auth = None;
         // Iterate over services and add them to the new settings
         for service in &self.services {
             if !service.domains.is_empty() {
@@ -477,7 +480,12 @@ impl AppData {
                     domains: service.domains.clone(),
                 });
             }
+            if service.basic_auth.is_some() {
+                basic_auth = service.basic_auth.clone();
+            }
         }
+
+        new_settings.basic_auth = basic_auth;
 
         let app_data = AppData {
             settings: Some(new_settings),

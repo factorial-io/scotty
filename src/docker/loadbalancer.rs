@@ -13,8 +13,8 @@ pub struct LoadBalancerInfo {
     pub domains: Vec<String>,
     pub port: Option<u32>,
     pub tls_enabled: bool,
-    pub http_auth_user: Option<String>,
-    pub http_auth_pass: Option<String>,
+    pub basic_auth_user: Option<String>,
+    pub basic_auth_pass: Option<String>,
 }
 
 impl Default for LoadBalancerInfo {
@@ -23,8 +23,8 @@ impl Default for LoadBalancerInfo {
             domains: vec![],
             port: Some(80),
             tls_enabled: false,
-            http_auth_user: None,
-            http_auth_pass: None,
+            basic_auth_user: None,
+            basic_auth_pass: None,
         }
     }
 }
@@ -93,10 +93,10 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                             }
                         }
                         "HTTTP_AUTH_USER" => {
-                            result.http_auth_user = Some(value.to_string());
+                            result.basic_auth_user = Some(value.to_string());
                         }
                         "HTTP_AUTH_PASS" => {
-                            result.http_auth_pass = Some(value.to_string());
+                            result.basic_auth_pass = Some(value.to_string());
                         }
                         _ => {}
                     }
