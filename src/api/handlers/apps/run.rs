@@ -151,14 +151,14 @@ pub async fn destroy_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/migrate/{app_id}",
+    path = "/api/v1/apps/adopt/{app_id}",
     responses(
     (status = 200, response = inline(AppData)),
     (status = 400, response = inline(AppError))
     )
 )]
 #[debug_handler]
-pub async fn migrate_app_handler(
+pub async fn adopt_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -171,7 +171,7 @@ pub async fn migrate_app_handler(
     let app_data = inspect_app(&state, &docker_compose_path).await?;
 
     if app_data.settings.is_some() {
-        return Err(AppError::CantMigrateAppWithExistingSettings(app_id.clone()));
+        return Err(AppError::CantAdoptAppWithExistingSettings(app_id.clone()));
     }
     let environment = collect_environment_from_app(&state, &app_data).await?;
     let app_data = app_data.create_settings_from_runtime(&environment).await?;

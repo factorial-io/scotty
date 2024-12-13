@@ -70,10 +70,8 @@ pub enum AppError {
     #[error("Can't create app from an existing .scotty.yml file")]
     CantCreateAppWithScottyYmlFile,
 
-    #[error(
-        "Cant migrate app {0} with existing settings, app can already be controlled by scotty!"
-    )]
-    CantMigrateAppWithExistingSettings(String),
+    #[error("Cant adopt app {0} with existing settings, app can already be controlled by scotty!")]
+    CantAdoptAppWithExistingSettings(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {

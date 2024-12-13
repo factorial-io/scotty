@@ -15,9 +15,9 @@ use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
 use crate::api::handlers::apps::notify::__path_add_notification_handler;
 use crate::api::handlers::apps::notify::__path_remove_notification_handler;
+use crate::api::handlers::apps::run::__path_adopt_app_handler;
 use crate::api::handlers::apps::run::__path_destroy_app_handler;
 use crate::api::handlers::apps::run::__path_info_app_handler;
-use crate::api::handlers::apps::run::__path_migrate_app_handler;
 use crate::api::handlers::apps::run::__path_purge_app_handler;
 use crate::api::handlers::apps::run::__path_rebuild_app_handler;
 use crate::api::handlers::apps::run::__path_run_app_handler;
@@ -56,9 +56,9 @@ use super::basic_auth::auth;
 use super::handlers::apps::create::create_app_handler;
 use super::handlers::apps::notify::add_notification_handler;
 use super::handlers::apps::notify::remove_notification_handler;
+use super::handlers::apps::run::adopt_app_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
-use super::handlers::apps::run::migrate_app_handler;
 use super::handlers::apps::run::purge_app_handler;
 use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
@@ -90,7 +90,7 @@ use super::handlers::tasks::task_list_handler;
         blueprints_handler,
         add_notification_handler,
         remove_notification_handler,
-        migrate_app_handler,
+        adopt_app_handler,
     ),
     components(
         schemas( GitlabContext, WebhookContext, MattermostContext, NotificationReceiver, AddNotificationRequest, TaskList, File, FileList, CreateAppRequest, AppData, AppDataVec, TaskDetails, ContainerState, AppSettings, AppStatus, AppTtl, ServicePortMapping, RunningAppContext)
@@ -113,7 +113,7 @@ impl ApiRoutes {
             .route("/api/v1/apps/rebuild/:app_id", get(rebuild_app_handler))
             .route("/api/v1/apps/info/:app_id", get(info_app_handler))
             .route("/api/v1/apps/destroy/:app_id", get(destroy_app_handler))
-            .route("/api/v1/apps/migrate/:app_id", get(migrate_app_handler))
+            .route("/api/v1/apps/adopt/:app_id", get(adopt_app_handler))
             .route(
                 "/api/v1/apps/create",
                 post(create_app_handler).layer(DefaultBodyLimit::max(

@@ -181,8 +181,8 @@ Here's a short list of avaiable commands
   app (similar to `docker-compose rm`)
 * `scottyctl app:create` Create a new app
 * `scottyctl app:destroy` Destroy a managed app
-* `scottyctl app:migrate <app_name>` Migrates a legacy app, so it can be
-  controlled by scotty. Please not that most likely you need to adjust the
+* `scottyctl app:adopt <app_name>` adopts a legacy app, so it can be
+  controlled by scotty. Please note that most likely you need to adjust the
   created `.scotty.yml` file to match your needs.
 * `scottyctl app:info` Display some info about the app
 * `scottyctl notify:add` Adds a new service to notify on app changes
