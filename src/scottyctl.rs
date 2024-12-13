@@ -130,7 +130,7 @@ struct CreateCommand {
     #[arg(long, value_parser=parse_service_ports, value_name="SERVICE:PORT", required_unless_present="app_blueprint")]
     service: Vec<ServicePortMapping>,
 
-    /// Custom domain(s) to use for the app (e.g. example.com:my-service), add an option for every service
+    /// Custom domain(s) to use for the app (e.g. example.com:my-service), add an option for every domain or service
     #[arg(long, value_name="DOMAIN:SERVICE", value_parser=parse_custom_domain_mapping)]
     custom_domain: Vec<CustomDomainMapping>,
 
@@ -284,7 +284,7 @@ fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
     Ok(ServicePortMapping {
         service: parts[0].to_string(),
         port,
-        domain: None,
+        domains: vec![],
     })
 }
 
@@ -606,12 +606,12 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     let mut builder = Builder::default();
     builder.push_record(vec!["Service", "Status", "Running since", "URL"]);
     for service in &app_data.services {
-        let url: String = service.get_url().unwrap_or("None".into());
+        let urls = service.get_urls();
         builder.push_record(vec![
             &service.service,
             &service.status.to_string(),
             &format_since(&service.running_since()),
-            &url,
+            &urls.join("\n"),
         ]);
     }
 

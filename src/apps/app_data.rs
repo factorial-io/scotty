@@ -12,14 +12,57 @@ use bollard::secret::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use serde_yml::Value;
-use tracing::info;
+use tracing::{error, info};
 use utoipa::{ToResponse, ToSchema};
 
-#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
+#[derive(Debug, Serialize, Clone, ToSchema, ToResponse)]
 pub struct ServicePortMapping {
     pub service: String,
     pub port: u32,
-    pub domain: Option<String>,
+    pub domains: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DomainField {
+    Single { domain: String },
+    Multiple { domains: Vec<String> },
+}
+
+impl<'de> Deserialize<'de> for ServicePortMapping {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Deserialize the incoming JSON into a temporary map
+        #[derive(Deserialize)]
+        struct Temp {
+            service: String,
+            port: u32,
+            #[serde(flatten)]
+            domain_field: Option<DomainField>,
+        }
+
+        // Use the Temp struct to parse and transform into ServicePortMapping
+        let Temp {
+            service,
+            port,
+            domain_field,
+        } = Temp::deserialize(deserializer)?;
+
+        // Map the domain field to the `domains` field in ServicePortMapping
+        let domains = match domain_field {
+            None => vec![],
+            Some(DomainField::Single { domain }) => vec![domain],
+            Some(DomainField::Multiple { domains }) => domains,
+        };
+
+        Ok(ServicePortMapping {
+            service,
+            port,
+            domains,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Clone, ToSchema, ToResponse)]
@@ -110,7 +153,7 @@ impl AppSettings {
                         .map(|(service, port)| ServicePortMapping {
                             service: service.clone(),
                             port: *port as u32,
-                            domain: None,
+                            domains: vec![],
                         })
                         .collect();
                     return new_settings;
@@ -129,7 +172,7 @@ impl AppSettings {
             let mut found = false;
             for service in &mut new_settings.public_services {
                 if service.service == custom_domain.service {
-                    service.domain = Some(custom_domain.domain.clone());
+                    service.domains.push(custom_domain.domain.clone());
                     found = true;
                 }
             }
@@ -151,16 +194,30 @@ impl AppSettings {
         );
 
         if settings_path.exists() {
-            let file = File::open(settings_path)?;
-            let reader = BufReader::new(file);
-            let yaml: Value = serde_yml::from_reader(reader)?;
-            let settings: AppSettings = serde_yml::from_value(yaml)?;
-            info!(
-                "Successfully read app-settings from {}",
-                &settings_path.display()
-            );
+            let result: anyhow::Result<AppSettings> = {
+                let file = File::open(settings_path)?;
+                let reader = BufReader::new(file);
+                let yaml: Value = serde_yml::from_reader(reader)?;
+                let settings: AppSettings = serde_yml::from_value(yaml)?;
+                info!(
+                    "Successfully read app-settings from {}",
+                    &settings_path.display()
+                );
 
-            Ok(settings)
+                Ok(settings)
+            };
+            match result {
+                Ok(settings) => Ok(settings),
+                Err(e) => {
+                    let msg = format!(
+                        "Failed to read settings from {}: {}",
+                        settings_path.display(),
+                        e
+                    );
+                    error!(msg);
+                    Err(anyhow::anyhow!(msg))
+                }
+            }
         } else {
             Err(anyhow::Error::msg(format!(
                 "No settings file found at {}",
@@ -224,8 +281,8 @@ pub struct ContainerState {
     pub status: ContainerStatus,
     pub id: Option<String>,
     pub service: String,
-    pub domain: Option<String>,
-    pub url: Option<String>,
+    pub domains: Vec<String>,
+    pub use_tls: bool,
     pub port: Option<u32>,
     pub started_at: Option<chrono::DateTime<chrono::Local>>,
     pub used_registry: Option<String>,
@@ -237,8 +294,8 @@ impl Default for ContainerState {
             status: ContainerStatus::Empty,
             id: None,
             service: "".to_string(),
-            domain: None,
-            url: None,
+            domains: vec![],
+            use_tls: false,
             port: None,
             started_at: None,
             used_registry: None,
@@ -247,10 +304,6 @@ impl Default for ContainerState {
 }
 
 impl ContainerState {
-    pub fn get_url(&self) -> Option<String> {
-        self.url.clone()
-    }
-
     pub fn is_running(&self) -> bool {
         self.status == ContainerStatus::Running
             || self.status == ContainerStatus::Created
@@ -260,6 +313,19 @@ impl ContainerState {
     pub fn running_since(&self) -> Option<TimeDelta> {
         self.started_at
             .map(|started_at| chrono::Local::now() - started_at)
+    }
+
+    pub fn get_urls(&self) -> Vec<String> {
+        self.domains
+            .iter()
+            .map(|domain| {
+                if self.use_tls {
+                    format!("https://{}", domain)
+                } else {
+                    format!("http://{}", domain)
+                }
+            })
+            .collect()
     }
 }
 
@@ -328,7 +394,7 @@ impl AppData {
     }
 
     pub fn urls(&self) -> Vec<String> {
-        self.services.iter().filter_map(|s| s.get_url()).collect()
+        self.services.iter().flat_map(|s| s.get_urls()).collect()
     }
 
     pub fn get_ttl(&self) -> AppTtl {
@@ -404,11 +470,11 @@ impl AppData {
 
         // Iterate over services and add them to the new settings
         for service in &self.services {
-            if let Some(domain) = &service.domain {
+            if !service.domains.is_empty() {
                 new_settings.public_services.push(ServicePortMapping {
                     service: service.service.clone(),
                     port: service.port.unwrap(),
-                    domain: Some(domain.clone()),
+                    domains: service.domains.clone(),
                 });
             }
         }
@@ -434,5 +500,46 @@ fn get_app_status_from_services(services: &[ContainerState]) -> AppStatus {
         0 => AppStatus::Stopped,
         x if x == services.len() => AppStatus::Running,
         _ => AppStatus::Starting,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_service_port_mapping_deserialization() {
+        // Test no domain
+        let json = json!({
+            "service": "web",
+            "port": 8080,
+        });
+        let mapping: ServicePortMapping = serde_json::from_value(json).unwrap();
+        assert_eq!(mapping.service, "web");
+        assert_eq!(mapping.port, 8080);
+        assert_eq!(mapping.domains.len(), 0);
+
+        // Test single domain
+        let json = json!({
+            "service": "web",
+            "port": 8080,
+            "domain": "example.com"
+        });
+        let mapping: ServicePortMapping = serde_json::from_value(json).unwrap();
+        assert_eq!(mapping.service, "web");
+        assert_eq!(mapping.port, 8080);
+        assert_eq!(mapping.domains, vec!["example.com"]);
+
+        // Test multiple domains
+        let json = json!({
+            "service": "api",
+            "port": 3000,
+            "domains": ["api1.com", "api2.com"]
+        });
+        let mapping: ServicePortMapping = serde_json::from_value(json).unwrap();
+        assert_eq!(mapping.service, "api");
+        assert_eq!(mapping.port, 3000);
+        assert_eq!(mapping.domains, vec!["api1.com", "api2.com"]);
     }
 }

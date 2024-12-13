@@ -6,4 +6,5 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.nginx.rule=Host(`invalid-site.ddev.site`)"
+      - "traefik.http.routers.nginx-2.rule=Host(`invalid-site-2.ddev.site`)"
       - "traefik.http.services.nginx.loadbalancer.server.port=80"

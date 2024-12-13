@@ -25,6 +25,17 @@ pub async fn create_app_handler(
     State(state): State<SharedAppState>,
     Json(payload): Json<CreateAppRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Check if any file is named .scotty.yml
+    if payload
+        .files
+        .files
+        .iter()
+        .any(|f| f.name.ends_with(".scotty.yml"))
+    {
+        println!("Can't create app with .scotty.yml file");
+        return Err(AppError::CantCreateAppWithScottyYmlFile);
+    }
+
     let files = payload
         .files
         .files
@@ -49,12 +60,9 @@ pub async fn create_app_handler(
 
     // Apply blueprint settings, if any.
     let settings = settings.apply_blueprint(&state.settings.apps.blueprints);
-    println!("settings: {:?}", settings);
 
     // Apply custom domains, if any.
     let settings = settings.apply_custom_domains(&payload.custom_domains)?;
-
-    println!("settings: {:?}", settings);
 
     match create_app(state, &payload.app_name, &settings, &file_list).await {
         Ok(app_data) => Ok(Json(app_data)),

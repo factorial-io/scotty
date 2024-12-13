@@ -1,17 +1,39 @@
 export interface AppService {
 	service: string;
-	domain: string;
+	domains: string[];
 	url: string;
 	status: string;
 	started_at: string;
+	use_tls: boolean;
 }
+
+export enum AppTtlKeys {
+	Hours = 'Hours',
+	Days = 'Days'
+}
+
+/*
+export type AppTtl = {
+	[key in AppTtlKeys]: number | 'Forever';
+};
+*/
+export type AppTtl =
+	| {
+			Hours?: number;
+			Days?: number;
+	  }
+	| 'Forever';
+
 export interface AppSettings {
-	time_to_live: unknown;
+	time_to_live: AppTtl;
 	domain: string;
 	registry: string;
 	disallow_robots: boolean;
-	blueprint: string;
+	app_blueprint: string;
+	basic_auth: [string, string] | null;
+	environment: Map<string, string> | null;
 }
+
 export interface App {
 	name: string;
 	status: string;
