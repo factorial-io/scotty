@@ -2,12 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.13] - 2024-12-13
+
+### Bug Fixes
+
+- Update app detail when needed ✔️
+- Check for app-changes every 15 secs ✔️
+- Use proper type for AppTtl ✔️
+- Handle missing domains in yaml files correctly, print an error message if the settings file couldnt be read ✔️
+- Update rust crate serde to v1.0.216 (#129) ✔️
+- Update url dependency to prevent dependabot alert #8 ✔️
+- Increase default ttl to 7 days ✔️
+- Update rust crate init-tracing-opentelemetry to v0.24.2 ✔️
+
+### Dependencies
+
+- Update dependency daisyui to v4.12.22 (#132) ✔️
+- Update dependency @sveltejs/kit to v2.11.1 ✔️
+- Update dependency daisyui to v4.12.21 (#131) ✔️
+- Update dependency @sveltejs/kit to v2.10.1 ✔️
+
+### Features
+
+- Try to adopt basic_auth data when available ✔️
+- Rename app:migrate to app:adopt ✔️
+- Show version string in footer ✔️
+- Add support for multiple domains and settings in UI ✔️
+- Reenable dark theme ✔️
+- Support multiple domains for a service (fixes #126) ✔️
+- Export env-vars to settings when migrating an app ✔️
+
 ## [0.1.0-alpha.12] - 2024-12-10
 
 ### Bug Fixes
 
 - Fix frontend build ✔️
 - Update rust crate chrono to v0.4.39 (#118) ✔️
+- Update dependency @iconify/svelte to v4.1.0 ✔️
 - Update rust crate tokio-stream to v0.1.17 (#115) ✔️
 - Update rust crate clap to v4.5.23 (#114) ✔️
 - Update rust crate clap to v4.5.22 (#112) ✔️
