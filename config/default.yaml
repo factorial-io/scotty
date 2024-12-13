@@ -4,7 +4,7 @@ api:
   access_token: "mysecret"
   create_app_max_size: "50M"
 scheduler:
-  running_app_check: "1m"
+  running_app_check: "15s"
   ttl_check: "10m"
   task_cleanup: "3m"
 telemetry: None
