@@ -1,5 +1,7 @@
 /target
 frontend/node_modules
+docs/node_modules
+docs/_site
 apps/test-nginx-creation
 /apps/test-nginx
 apps/cd-with-db/

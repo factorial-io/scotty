@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import play from '@iconify-icons/heroicons/play-solid';
-	import stop from '@iconify-icons/heroicons/stop-solid';
+	import play from '@iconify-icons/ph/play-circle-fill';
+	import stop from '@iconify-icons/ph/stop-circle-fill';
 	import unsupported from '@iconify-icons/heroicons/no-symbol';
 	import errorIcon from '@iconify-icons/heroicons/exclamation-triangle';
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';

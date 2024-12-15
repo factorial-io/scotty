@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ArrowUpRight from '@iconify-icons/heroicons/arrow-up-right';
+	import ArrowUpRight from '@iconify-icons/ph/arrow-up-right';
 	import Icon from '@iconify/svelte';
 	import type { AppService } from '../types';
 	export let status;
