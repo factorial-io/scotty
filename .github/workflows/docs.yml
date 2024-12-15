@@ -23,5 +23,5 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BUILD_DIR: docs/_site
-          BUILD_SCRIPT: export FDOCS_HOST=https://scotty.factorial.io && yarn install --ignore-engines && yarn run docs:build
+          BUILD_SCRIPT: cd docs && export FDOCS_HOST=https://scotty.factorial.io && npm install --ignore-engines && npm run docs:build
           PAGES_CNAME: scotty.factorial.io
