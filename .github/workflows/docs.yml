@@ -21,7 +21,7 @@ jobs:
       - name: Build and Deploy
         uses: stmh/vuepress-github-actions-deploy@master
         env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.PAT }}
           BUILD_DIR: _site
           BUILD_SCRIPT: cd docs && export FDOCS_HOST=https://scotty.factorial.io && yarn install --ignore-engines && yarn run docs:build
           PAGES_CNAME: scotty.factorial.io
