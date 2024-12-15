@@ -7,7 +7,8 @@ use crate::{
     app_state::SharedAppState,
     apps::app_data::{AppData, AppStatus},
     docker::state_machine_handlers::{
-        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        context::Context, create_load_balancer_config::CreateLoadBalancerConfig,
+        run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
         run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
@@ -22,6 +23,7 @@ use super::helper::run_sm;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RebuildAppStates {
+    RecreateLoadBalancerConfig,
     RunDockerLogin,
     RunDockerComposePull,
     RunDockerComposeBuild,
@@ -35,15 +37,35 @@ pub enum RebuildAppStates {
 
 #[instrument]
 pub async fn rebuild_app_prepare(
+    app_state: &SharedAppState,
     app: &AppData,
+    recreate_load_balancer_config: bool,
 ) -> anyhow::Result<StateMachine<RebuildAppStates, Context>> {
     info!(
         "Rebuilding app {} at {}",
         app.name, &app.docker_compose_path
     );
 
-    let mut sm = StateMachine::new(RebuildAppStates::RunDockerLogin, RebuildAppStates::Done);
+    let start_with_recreate = app.settings.is_some() && recreate_load_balancer_config;
 
+    let mut sm = StateMachine::new(
+        match start_with_recreate {
+            true => RebuildAppStates::RecreateLoadBalancerConfig,
+            false => RebuildAppStates::RunDockerLogin,
+        },
+        RebuildAppStates::Done,
+    );
+
+    if start_with_recreate {
+        sm.add_handler(
+            RebuildAppStates::RecreateLoadBalancerConfig,
+            Arc::new(CreateLoadBalancerConfig::<RebuildAppStates> {
+                next_state: RebuildAppStates::RunDockerLogin,
+                load_balancer_type: app_state.settings.load_balancer_type.clone(),
+                settings: app.settings.as_ref().unwrap().clone(),
+            }),
+        );
+    }
     sm.add_handler(
         RebuildAppStates::RunDockerLogin,
         Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
@@ -115,6 +137,6 @@ pub async fn rebuild_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = rebuild_app_prepare(app).await?;
+    let sm = rebuild_app_prepare(&app_state, app, true).await?;
     run_sm(app_state, app, sm).await
 }

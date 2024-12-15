@@ -37,7 +37,8 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
         _from: &CreateAppStates,
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<CreateAppStates> {
-        let sm = rebuild_app_prepare(&self.app).await?;
+        let app_state = &context.read().await.app_state;
+        let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
         let handle = sm.spawn(context.clone());
         let _ = handle.await;
 
