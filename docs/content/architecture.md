@@ -87,6 +87,19 @@ Scotty won't touch these apps, but will show them in the UI and CLI, but you
 can't interact with them. You can use the cli-command `app:adopt` to make the
 app compatible with scotty.
 
+### Blueprints
+
+Owned apps can adopt blueprints to provide additional functionality. Blueprints
+store common tasks to execute on certain events like `app:create`, `app:run` or
+`app:destroy`.
+
+These scripts are stored in the `blueprints`-directory of scotty. The scripts
+are executed in the running service container of the app. Common tasks could be
+for example runnint the deploy command for drupal applications, or clearing
+the cache for other apps.
+
+Blueprints can be provided when create in a new app via `app:create`.
+
 ## Server-Architecture
 
 Scotty traverses a dedicated folder on the server to find possible apps. If
