@@ -1,4 +1,4 @@
-# the cli
+# The command line interface
 
 The cli provides a thin wrapper to access the rest-api of scotty. It is
 written in rust and provides a simple interface to list, create, update and
@@ -12,7 +12,6 @@ scotty --server <SERVER> --token <TOKEN>t app:list
 ```
 
 Example-output:
-
 ![Example output of app:list](assets/cli/app-list.png)
 
 The table contains all apps with their status, uptime and urls. The urls are the
@@ -29,7 +28,6 @@ scotty --server <SERVER> --token <TOKEN> app:info <APP>
 ```
 
 Example-output:
-
 ![Example output of app:info](assets/cli/app-info.png)
 
 The command list all services of a specific app and their status. The output
