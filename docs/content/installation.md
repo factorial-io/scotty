@@ -1,13 +1,56 @@
 # Installation
 
-Scotty consists of two parts: The server and the CLI. The server is a rust
-application running on a server node providing a REST API to interact with your
-applications.
+Scotty consists of two parts: The server and the CLI. The server-part is a rust
+application running on a server node providing a REST API so you can interact
+with your applications.
 
 The CLI is a rust-based CLI application running on your local machine or on a
 CI/CD pipeline. It interacts with the server to create, start, stop or delete an
 app.
 
+## Installation of the cli
+
+### From github (preferred)
+
+You can download the latest release from the github [releases page](https://github.com/factorial-io/scotty/releases)
+Choose the binary for your platform and download it. Make it executable and
+place it in your path.
+
+```shell
+# Replace version number with latest one.
+curl -L https://github.com/factorial-io/scotty/releases/download/v0.1.0-alpha.13/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
+tar -xvf scottyctl.tar.gz
+chmod +x scottyctl
+mv scottyctl /usr/local/bin
+```
+
+### From source
+
+```shell
+cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl
+```
+
+### using the pre-build docker image
+
+You can also run the CLI fromt the pre-build docker image: (adapt the tag
+accordingly)
+
+```shell
+docker run -it ghcr.io/factorial-io/scotty:main \
+  /app/scottyctl \
+  --server http://host.docker.internal:21342 \
+  <COMMAND>
+```
+
+Please note, that you need a installed and working rust toolchain on your local.
+
+### Test installation
+
+Check the installation with
+
+```shell
+scottyctl --version
+```
 ## Installation of the server
 
 ### using docker-compose
@@ -135,35 +178,3 @@ docker run \
 ```
 
 You might need to map your local config overrides into the container.
-
-## Installation of the cli
-
-### From github
-
-You can download the latest release from the github [releases page](https://github.com/factorial-io/scotty/releases)
-Choose the binary for your platform and download it. Make it executable and
-place it in your path.
-
-```shell
-# Replace version number with latest one.
-curl -L https://github.com/factorial-io/scotty/releases/download/v0.1.0-alpha.13/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
-tar -xvf scottyctl.tar.gz
-chmod +x scottyctl
-mv scottyctl /usr/local/bin
-```
-
-### From source
-
-```shell
-cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl
-```
-
-Please note, that you need a installed and working rust toolchain on your local.
-
-### Test installation
-
-Check the installation with
-
-```shell
-scottyctl --version
-```

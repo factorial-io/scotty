@@ -28,6 +28,9 @@ services are exposed to the public, some are not. Every service gets a a unique
 hostname, which is derived from the app-name and the service-name, but this can
 be overridden in the `.scotty.yml`-file or while creating a new app.
 
+Ideally the docker-compose references pre-built docker images, but it can also
+build images on the fly from Dockerfiles.
+
 Example layout of the apps-directory:
 ```
 .
@@ -52,22 +55,29 @@ Example layout of the apps-directory:
 
 ## Types of apps
 
-Scotty does not support all possible docker-compose settings. docker-compose.yml
-are validated and categorized into three types: *owned*, *supported* and
+Scotty does not support all possible docker-compose settings. `docker-compose.yml`
+is validated and categorized into three types: *owned*, *supported* and
 *unsupported*:
+
+Unsupported features are:
+* Exposing ports directly, as this might conflict with other running apps
+* Using environment-variables expansion inside the docker-compose.yml. This is
+  not supported, as scotty can't know the values of the environment-variables
+  at runtime. You can adopt these types of apps manually and provide the values
+  for the environment-variables in the `.scotty.yml`-file.
 
 ### Owned apps
 
-Owned apps are either created via created by scotty, or adopted manually.
-Scotty is allowed to manage the whole lifecycle of the app, even destroying
-the app and all its data.
+Owned apps are either created by scotty, or adopted manually. Scotty is allowed
+to manage the whole lifecycle of the app, even destroying the app and all
+its data.
 
 ### Supported apps
 
 Supported apps are docker-compose-based applications, which can be handled by
 scotty. They do not have any side-effects in their docker-compose file like
 exposed ports or needed environment-variables. Scotty can handle the complete
-life-cycle of the app, but won't allow destructing the app and all its data.
+life-cycle of the app, but won't allow destroying the app and all its data.
 
 ### Unsupported apps
 
@@ -142,3 +152,21 @@ services:
       HTTP_AUTH_USER: nginx
       HTTP_AUTH_PASS: nginx
 ```
+
+## Domain-Setup
+
+Best practice is to have a wildcard domain pointing to the server where scotty
+is running and giving scotty a subdomain to manage the apps. This way scotty can
+create new domains for apps, without further DNS-configuration is necessary. It
+is also advised to use letsencrypt to provide ssl certificates for the domains
+and apps. Both proxy-types do support letsencrypt.
+
+An example setup:
+
+```
+apps.example.com   A     1.2.34
+*.apps.example.com CNAME apps.example.com.
+```
+
+Then you can assign scotty.apps.example.com to scotty and let scotty manage the
+apps.

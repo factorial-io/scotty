@@ -26,6 +26,7 @@ export default function (defaultConfig) {
             "guide",
             "architecture",
             "installation",
+            "configuration",
             "changelog",
         ],
     });
