@@ -35,7 +35,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@iconify-icons/heroicons": "^1.2.9",
+		"@iconify-icons/ph": "^1.2.5",
 		"@iconify/svelte": "^4.0.2",
 		"@tailwindcss/typography": "^0.5.15"
 	}
