@@ -239,8 +239,7 @@ async fn inspect_docker_container(
     let insights = app_state
         .docker
         .inspect_container(container_id, None::<InspectContainerOptions>)
-        .await
-        .unwrap();
+        .await?;
 
     let state = insights.state.clone().unwrap();
     let started_at_str = state.started_at.unwrap();
