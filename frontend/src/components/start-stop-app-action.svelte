@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import play from '@iconify-icons/ph/play-circle-fill';
-	import stop from '@iconify-icons/ph/stop-circle-fill';
-	import unsupported from '@iconify-icons/heroicons/no-symbol';
-	import errorIcon from '@iconify-icons/heroicons/exclamation-triangle';
+	import play from '@iconify-icons/ph/play';
+	import stop from '@iconify-icons/ph/stop';
+	import unsupported from '@iconify-icons/ph/ghost';
+	import errorIcon from '@iconify-icons/ph/warning-octagon';
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
 	import { monitorTask } from '../stores/tasksStore';
 	import type { TaskDetail } from '../types';

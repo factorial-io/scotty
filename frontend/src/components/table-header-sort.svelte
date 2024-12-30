@@ -15,6 +15,6 @@
 
 <button class="link" on:click={() => setSort(key)}
 	>{name}
-	{#if sortBy == key}<Icon class="float-right" icon="heroicons:arrow-small-up-solid" />
+	{#if sortBy == key}<Icon class="float-right" icon="ph:arrow-up" />
 	{/if}</button
 >

@@ -3,7 +3,7 @@
 	import { apps } from '../../stores/appsStore';
 	import { loadApps } from '../../stores/appsStore';
 	import { writable } from 'svelte/store';
-	import MagnifyingGlass from '@iconify-icons/heroicons/magnifying-glass';
+	import MagnifyingGlass from '@iconify-icons/ph/magnifying-glass';
 
 	import StartStopAppAction from '../../components/start-stop-app-action.svelte';
 	import AppServiceButton from '../../components/app-service-button.svelte';
