@@ -37,6 +37,11 @@ pub struct AppBlueprintValidationError {
     msg: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
+pub struct AppBlueprintList {
+    pub blueprints: HashMap<String, AppBlueprint>,
+}
+
 // The error type has to implement Display
 impl std::fmt::Display for AppBlueprintValidationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

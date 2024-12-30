@@ -1,14 +1,6 @@
-use std::collections::HashMap;
-
 use axum::{debug_handler, extract::State, response::IntoResponse, Json};
-use serde::{Deserialize, Serialize};
 
-use crate::{app_state::SharedAppState, settings::app_blueprint::AppBlueprint};
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct AppBlueprintList {
-    pub blueprints: HashMap<String, AppBlueprint>,
-}
+use crate::{app_state::SharedAppState, settings::app_blueprint::AppBlueprintList};
 
 #[debug_handler]
 #[utoipa::path(

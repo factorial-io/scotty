@@ -21,7 +21,11 @@ use notification_types::{
     RemoveNotificationRequest, WebhookContext,
 };
 use owo_colors::OwoColorize;
-use tabled::{builder::Builder, settings::Style};
+use settings::app_blueprint::AppBlueprintList;
+use tabled::{
+    builder::Builder,
+    settings::{object::Columns, Style, Width},
+};
 use tasks::{
     running_app_context::RunningAppContext,
     task_details::{State, TaskDetails},
@@ -87,7 +91,14 @@ enum Commands {
     /// remove notificattions to other services
     #[command(name = "notify:remove")]
     NotifyRemove(NotifyRemoveCommand),
+
+    /// List all available blueprints
+    #[command(name = "blueprint:list")]
+    BlueprintList,
 }
+
+#[derive(Debug, Parser)]
+struct BlueprintListCommand {}
 
 #[derive(Debug, Parser)]
 struct RunCommand {
@@ -349,6 +360,10 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::NotifyRemove(cmd) => {
             remove_notification(&server_settings, cmd).await?;
+        }
+
+        Commands::BlueprintList => {
+            list_blueprints(&server_settings).await?;
         }
     }
     Ok(())
@@ -678,5 +693,32 @@ async fn remove_notification(
         serde_json::from_value(result).context("Failed to parse context from API")?;
 
     print_app_info(&app_data)?;
+    Ok(())
+}
+
+async fn list_blueprints(server: &ServerSettings) -> anyhow::Result<()> {
+    let result = get(server, "blueprints").await?;
+    let blueprints: AppBlueprintList = serde_json::from_value(result)?;
+
+    let mut builder = Builder::default();
+    builder.push_record(vec!["Id", "Name", "Description", "Required Services"]);
+    for blueprint in blueprints.blueprints {
+        let id = blueprint.0;
+        let blueprint = blueprint.1;
+        builder.push_record(vec![
+            &id,
+            &blueprint.name,
+            &blueprint.description,
+            &blueprint.required_services.join(", "),
+        ]);
+    }
+
+    let mut table = builder.build();
+    table.with(Style::modern_rounded());
+    table.modify(Columns::single(0), Width::wrap(15).keep_words(true));
+    table.modify(Columns::single(1), Width::wrap(15).keep_words(true));
+    table.modify(Columns::single(3), Width::wrap(10).keep_words(true));
+
+    println!("{}", table);
     Ok(())
 }
