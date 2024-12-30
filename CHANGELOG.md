@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.15] - 2024-12-30
+
+### Dependencies
+
+- Update dependency @sveltejs/kit to v2.15.1 ✔️
+
 ## [0.1.0-alpha.14] - 2024-12-30
 
 ### Bug Fixes
