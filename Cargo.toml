@@ -20,6 +20,7 @@ config = "0.14.0"
 readonly = "0.2.12"
 serde = "1.0.210"
 clap = { version = "4.5", features = ["derive", "env"] }
+clap_complete = "4.2"
 serde_json = { version = "1.0.128", features = [] }
 tokio = { version = "1.38.1", features = [
     "rt",

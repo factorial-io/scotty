@@ -14,7 +14,8 @@ use apps::{
 };
 use base64::prelude::*;
 use chrono::TimeDelta;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Generator, Shell};
 use init_telemetry::init_telemetry_and_tracing;
 use notification_types::{
     AddNotificationRequest, GitlabContext, MattermostContext, NotificationReceiver,
@@ -47,6 +48,7 @@ struct Cli {
 
     #[arg(long, default_value = "false")]
     debug: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -95,9 +97,28 @@ enum Commands {
     /// List all available blueprints
     #[command(name = "blueprint:list")]
     BlueprintList,
+
+    /// Show shell completion script.
+    #[command(name = "completion")]
+    Completion(CompletionCommand),
 }
 
 #[derive(Debug, Parser)]
+struct CompletionCommand {
+    #[arg(value_enum)]
+    shell: Shell,
+}
+#[derive(Debug, Parser)]
+struct BlueprintListCommand {}
+
+
+impl clap_complete::Generator for &CompletionCommand {
+    fn file_name(&self, name: &str) -> String {
+        self.shell.file_name(name)
+    }
+
+        self.shell.generate(cmd, buf)
+    }
 struct BlueprintListCommand {}
 
 #[derive(Debug, Parser)]
@@ -176,6 +197,10 @@ struct CreateCommand {
 struct ServerSettings {
     server: String,
     access_token: Option<String>,
+}
+
+fn print_completions<G: Generator>(gen: G, cmd: &mut clap::Command) {
+    generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }
 
 fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
@@ -361,7 +386,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::NotifyRemove(cmd) => {
             remove_notification(&server_settings, cmd).await?;
         }
-
+		Commands::Completion(shell) => {
+            let mut cmd = Cli::command();
+            print_completions(shell, &mut cmd);
+        }
         Commands::BlueprintList => {
             list_blueprints(&server_settings).await?;
         }
@@ -662,12 +690,11 @@ fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
 }
 
 async fn add_notification(server: &ServerSettings, cmd: &NotifyAddCommand) -> anyhow::Result<()> {
-    let payload = AddNotificationRequest {
-        app_name: cmd.app_name.clone(),
-        service_ids: cmd.service_id.clone(),
-    };
+    let payload = serde_json::json!({
+        "app_name": cmd.app_name,
+        "service_ids": cmd.service_id,
+    });
 
-    let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
     let result = get_or_post(server, "apps/notify/add", "POST", Some(payload)).await?;
 
     let app_data: AppData =
