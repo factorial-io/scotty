@@ -51,6 +51,29 @@ Check the installation with:
 ```shell
 scottyctl --version
 ```
+### Install shell autocompletion
+
+You can install shell autocompletion for various shell-types. The following command
+will install the autocompletion for bash:
+
+```shell
+scottyctl completions bash > /etc/bash_completion.d/scottyctl
+```
+
+For zsh:
+
+```shell
+scottyctl completions zsh > /usr/share/zsh/site-functions/_scottyctl
+```
+
+For fish:
+
+```shell
+scottyctl completions fish > ~/.config/fish/completions/scottyctl.fish
+# or in you config script
+eval "$(scottyctl completions fish)"
+```
+
 ## Installation of the server
 
 ### Using docker-compose
