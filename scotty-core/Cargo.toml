@@ -36,3 +36,6 @@ features = [
     "run-cargo-clippy",
     "run-cargo-fmt",
 ]
+
+[package.metadata.release]
+pre-release-hook = []
