@@ -1,4 +1,6 @@
-[package]
+[workspace]
+members = ["scotty-core", "scotty", "scottyctl"]
+[workspace.package]
 name = "scotty"
 version = "0.1.0-alpha.15"
 edition = "2021"
@@ -7,12 +9,7 @@ authors = ["Stephan Maximilian Huber <stephan@factorial.io>"]
 repository = "https://github.com/factorial-io/scotty"
 license-file = "LICENSE"
 
-
-[[bin]]
-name = "scottyctl"
-path = "src/scottyctl.rs"
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.7.7", features = ["ws", "macros"] }
 bollard = "0.18.0"
@@ -23,6 +20,9 @@ clap = { version = "4.5", features = ["derive", "env"] }
 clap_complete = "4.2"
 serde_json = { version = "1.0.128", features = [] }
 tokio = { version = "1.38.1", features = [
+    "fs",
+    "sync",
+    "time",
     "rt",
     "rt-multi-thread",
     "macros",
@@ -75,7 +75,7 @@ bcrypt = "0.16.0"
 maplit = "1.0.2"
 urlencoding = "2.1.3"
 
-[dev-dependencies.cargo-husky]
+[workspace.dev-dependencies.cargo-husky]
 version = "1"
 default-features = false # Disable features which are enabled by default
 features = [
