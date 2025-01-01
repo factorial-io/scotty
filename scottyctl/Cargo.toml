@@ -28,4 +28,8 @@ name = "scottyctl"
 path = "src/main.rs"
 
 [package.metadata.release]
-pre-release-hook = ["echo", "skipping"]
+pre-release-hook = [
+    "sh",
+    "-c",
+    "cd .. && git cliff -o CHANGELOG.md --tag {{version}}",
+]

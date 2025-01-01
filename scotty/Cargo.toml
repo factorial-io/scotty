@@ -47,3 +47,6 @@ walkdir.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 bcrypt.workspace = true
+
+[package.metadata.release]
+pre-release-hook = ["echo", "skipping"]
