@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.16] - 2025-01-01
+
+### Bug Fixes
+
+- Update rust crate init-tracing-opentelemetry to 0.25.0 (#128) ✔️
+
+### Dependencies
+
+- Update dependency typescript-eslint to v8.19.0 (#150) ✔️
+- Update rust crate serde to v1.0.217 (#153) ✔️
+
+### Documentation
+
+- Fix cli docs ✔️
+- Add readmes for all three apps/libs ✔️
+- Update readme ✔️
+- Update badges ✔️
+- Update the readme and remove redundancy ✔️
+- Add documentation for shell autocompletion ✔️
+
+### Features
+
+- Restructure into workspaces (#152) ✔️
+- Add new subcommand to generate completion scripts for shell autocompletion ✔️
+
 ## [0.1.0-alpha.15] - 2024-12-30
 
 ### Dependencies
@@ -295,7 +320,7 @@ All notable changes to this project will be documented in this file.
 
 - Enable changelog for ci changes ✔️
 
-## [0.1.0-alpha.2] - 2024-10-17
+## [0.1.0-alpha.3] - 2024-10-17
 
 ### Bug Fixes
 
