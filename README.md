@@ -1,6 +1,6 @@
 # scotty
 
-![Tests](https://github.com/factorial-io/scotty/actions/workflows/ci.yml/badge.svg)]
+![Tests](https://github.com/factorial-io/scotty/actions/workflows/ci.yml/badge.svg)
 ![Build](https://github.com/factorial-io/scotty/actions/workflows/release.yml/badge.svg)
 
 ## About
