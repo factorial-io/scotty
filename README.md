@@ -1,7 +1,7 @@
 # scotty
 
-[![Build](https://github.com/scott-box/scotty/actions/workflows/build.yml/badge.svg)](https://github.com/scott-box/scotty/actions/workflows/build.yml)
-[![Tests](https://github.com/scott-box/scotty/actions/workflows/test.yml/badge.svg)](https://github.com/scott-box/scotty/actions/workflows/test.yml)
+![Tests](https://github.com/factorial-io/scotty/actions/workflows/ci.yml/badge.svg)]
+![Build](https://github.com/factorial-io/scotty/actions/workflows/release.yml/badge.svg)
 
 ## About
 
