@@ -17,7 +17,7 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --bin scotty --bin scottyctl
+RUN cargo build --release -p scotty -p scottyctl
 
 FROM node:22 as frontend-builder
 WORKDIR /app
