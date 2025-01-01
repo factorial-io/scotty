@@ -2,13 +2,13 @@
 
 The CLI provides a thin wrapper to access the REST API of Scotty. It is
 written in Rust and provides a simple interface to list, create, update and
-destroy apps. You can get help by running `scotty --help` and
-`scotty --help <command>`.
+destroy apps. You can get help by running `scottyctl --help` and
+`scottyctl --help <command>`.
 
 ## List all apps
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:list
+scottyctl --server <SERVER> --access-token <TOKEN> app:list
 ```
 
 Example output:
@@ -24,7 +24,7 @@ public URLs of the apps. The status can be one of the following:
 ## Get info about an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:info <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:info <APP>
 ```
 
 Example output:
@@ -36,8 +36,8 @@ also contains the enabled notification services for that app.
 ## Start/run an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:start <APP>
-scotty --server <SERVER> --access-token <TOKEN> app:run <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:start <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:run <APP>
 ```
 
 The command will start an app and print the output of the start process. After
@@ -46,7 +46,7 @@ the command succeeds, it will print the app info.
 ## Stop an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:stop <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:stop <APP>
 ```
 
 The command will stop an app and print the output of the stop process. After
@@ -55,7 +55,7 @@ the command succeeds, it will print the app info.
 ## Rebuild an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:rebuild <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:rebuild <APP>
 ```
 
 The command will rebuild an app and print the output of the rebuild process.
@@ -66,7 +66,7 @@ also be powered off and on again.
 ## Purge an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:purge <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:purge <APP>
 ```
 The command will purge all temporary data of an app, especially logs,
 temporary docker containers and other ephemeral data. It will not delete any
@@ -76,7 +76,7 @@ stopped by this command.
 ## Create an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FOLDER> \
+scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FOLDER> \
   --service <SERVICE:PORT> [--service <SERVICE:PORT> ...] \
   [--app-blueprint <BLUEPRINT>] [--ttl <LIFETIME>] \
   [--basic-auth <USERNAME:PASSWORD>] [--allow-robots] \
@@ -122,7 +122,7 @@ configured accordingly.
 ### Some examples:
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
+scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
   --folder . \
   --service nginx:80
 ```
@@ -130,7 +130,7 @@ scotty --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
 will beam up the current folder to the server and start the nginx service on port 80.
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
+scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
   --folder . \
   --service nginx:80 \
   --basic-auth user:password \
@@ -143,7 +143,7 @@ It will add basic auth with the username `user` and the password `password` and
 won't add a `X-Robots-Tag` header to all responses. The app will run forever.
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
+scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
   --folder . \
   --service nginx:80 \
   --custom-domain nginx.example.com:nginx
@@ -155,7 +155,7 @@ The app will be reachable under `http://nginx.example.com`.
 ## Adopt an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:adopt <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:adopt <APP>
 ```
 
 This command will adopt an unsupported app. For this to work, the app needs to
@@ -172,7 +172,7 @@ remove any unnecessary information from it and double-check the configuration.
 ## Destroy an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:destroy <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:destroy <APP>
 ```
 
 This command will destroy only a supported app. It will stop the app, remove
@@ -184,7 +184,7 @@ Caution: This command is irreversible! You might lose data if you run this comma
 ## List all blueprints
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> blueprint:list
+scottyctl --server <SERVER> --access-token <TOKEN> blueprint:list
 ```
 
 This will list all available blueprints on the server.
@@ -192,7 +192,7 @@ This will list all available blueprints on the server.
 ## Add a notification service to an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> notify:add <APP> \
+scottyctl --server <SERVER> --access-token <TOKEN> notify:add <APP> \
   --service-id <SERVICE_TYPE://SERVICE_ID/CHANNEL|PROJECT_ID/MR_ID>
 ```
 
@@ -208,7 +208,7 @@ Currently there are three service types available:
 ## Remove a notification service from an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> notify:remove <APP> \
+scottyctl --server <SERVER> --access-token <TOKEN> notify:remove <APP> \
   --service-id <SERVICE_TYPE://SERVICE_ID/CHANNEL|PROJECT_ID/MR_ID>
 ```
 
@@ -218,7 +218,7 @@ This command will remove a notification service from an app. The format of
 ## List all notification services of an app
 
 ```shell
-scotty --server <SERVER> --access-token <TOKEN> app:info <APP>
+scottyctl --server <SERVER> --access-token <TOKEN> app:info <APP>
 ```
 
 For more info, see the help for [`app:info`](http://localhost:8080/cli.html#get-info-about-an-app).
