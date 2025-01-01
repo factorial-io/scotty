@@ -28,4 +28,4 @@ name = "scottyctl"
 path = "src/main.rs"
 
 [package.metadata.release]
-pre-release-hook = []
+pre-release-hook = ["echo", "skipping"]

@@ -38,4 +38,4 @@ features = [
 ]
 
 [package.metadata.release]
-pre-release-hook = []
+pre-release-hook = ["echo", "skipping"]
