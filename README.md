@@ -89,7 +89,7 @@ We are using `cargo-release` to patch up a new release, this is a typical
 command to create a new release:
 
 ```shell
-cargo release --no-publish alpha -x
+cargo release --no-publish alpha -x --tag-prefix ""
 ```
 
 Adapt to your current needs.
