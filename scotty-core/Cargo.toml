@@ -1,0 +1,38 @@
+[package]
+name = "scotty-core"
+version.workspace = true
+edition.workspace = true
+description = "Shared functionality for scotty server and CLI"
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "scotty_core"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+slug.workspace = true
+serde_yml.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+utoipa.workspace = true
+clokwerk.workspace = true
+readonly.workspace = true
+uuid.workspace = true
+bollard.workspace = true
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false # Disable features which are enabled by default
+features = [
+    "prepush-hook",
+    "run-cargo-test",
+    "run-cargo-clippy",
+    "run-cargo-fmt",
+]
