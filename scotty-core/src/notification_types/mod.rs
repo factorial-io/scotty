@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::apps::app_data::AppData;
+use crate::utils::serde::{deserialize_app_name, serialize_app_name};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
 pub struct GitlabContext {
@@ -99,12 +100,20 @@ mod tests {
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct AddNotificationRequest {
+    #[serde(
+        serialize_with = "serialize_app_name",
+        deserialize_with = "deserialize_app_name"
+    )]
     pub app_name: String,
     pub service_ids: Vec<NotificationReceiver>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RemoveNotificationRequest {
+    #[serde(
+        serialize_with = "serialize_app_name",
+        deserialize_with = "deserialize_app_name"
+    )]
     pub app_name: String,
     pub service_ids: Vec<NotificationReceiver>,
 }
