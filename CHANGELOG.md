@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.17] - 2025-01-03
+
+### Bug Fixes
+
+- Fix for wrong traefik config regarding TLS (Fixes #157) ✔️
+
+### Dependencies
+
+- Update rust crate async-trait to v0.1.84 (#156) ✔️
+- Update rust dependencies auto-merge (patch) (#154) ✔️
+
+### Documentation
+
+- Update docs how to create a release ✔️
+
 ## [0.1.0-alpha.16] - 2025-01-01
 
 ### Bug Fixes
@@ -320,7 +335,7 @@ All notable changes to this project will be documented in this file.
 
 - Enable changelog for ci changes ✔️
 
-## [0.1.0-alpha.3] - 2024-10-17
+## [0.1.0-alpha.2] - 2024-10-17
 
 ### Bug Fixes
 
