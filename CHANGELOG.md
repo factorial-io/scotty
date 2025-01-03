@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.18] - 2025-01-03
+
+### Bug Fixes
+
+- Slugify app-names passed to the API -- (Fixes #158) ✔️
+
 ## [0.1.0-alpha.17] - 2025-01-03
 
 ### Bug Fixes
