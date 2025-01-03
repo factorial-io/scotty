@@ -238,6 +238,23 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                     format!("traefik.http.routers.{}-{}.rule", &service_name, idx),
                     format!("Host(`{}`)", domain),
                 );
+
+                if global_settings.traefik.use_tls {
+                    labels.insert(
+                        format!("traefik.http.routers.{}-{}.tls", &service_name, idx),
+                        "true".to_string(),
+                    );
+
+                    if let Some(certresolver) = &global_settings.traefik.certresolver {
+                        labels.insert(
+                            format!(
+                                "traefik.http.routers.{}-{}.tls.certresolver",
+                                &service_name, idx
+                            ),
+                            certresolver.clone(),
+                        );
+                    }
+                }
             }
 
             labels.insert(
@@ -247,19 +264,6 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 ),
                 format!("{}", &service.port),
             );
-            if global_settings.traefik.use_tls {
-                labels.insert(
-                    format!("traefik.http.routers.{}.tls", &service_name),
-                    "true".to_string(),
-                );
-
-                if let Some(certresolver) = &global_settings.traefik.certresolver {
-                    labels.insert(
-                        format!("traefik.http.routers.{}.tls.certresolver", &service_name),
-                        certresolver.clone(),
-                    );
-                }
-            }
 
             let mut middlewares = vec![];
 
@@ -444,12 +448,12 @@ mod tests {
             "8080"
         );
         assert_eq!(
-            labels.get("traefik.http.routers.web--myapp.tls").unwrap(),
+            labels.get("traefik.http.routers.web--myapp-0.tls").unwrap(),
             "true"
         );
         assert_eq!(
             labels
-                .get("traefik.http.routers.web--myapp.tls.certresolver")
+                .get("traefik.http.routers.web--myapp-0.tls.certresolver")
                 .unwrap(),
             "myresolver"
         );
