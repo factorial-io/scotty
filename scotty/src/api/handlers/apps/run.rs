@@ -3,7 +3,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use scotty_core::{apps::app_data::AppData, tasks::running_app_context::RunningAppContext};
+use scotty_core::{
+    apps::app_data::AppData, tasks::running_app_context::RunningAppContext, utils::slugify::slugify,
+};
 
 use crate::{
     api::error::AppError,
@@ -29,7 +31,7 @@ pub async fn run_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -50,7 +52,7 @@ pub async fn stop_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -71,7 +73,7 @@ pub async fn purge_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -92,7 +94,7 @@ pub async fn info_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -112,7 +114,7 @@ pub async fn rebuild_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -134,7 +136,7 @@ pub async fn destroy_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));
@@ -159,7 +161,7 @@ pub async fn adopt_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slug::slugify(&app_id);
+    let app_id = slugify(&app_id);
     let app_data = state.apps.get_app(&app_id).await;
     if app_data.is_none() {
         return Err(AppError::AppNotFound(app_id.clone()));

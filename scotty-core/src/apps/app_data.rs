@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -230,6 +228,7 @@ impl AppSettings {
 use crate::{
     notification_types::NotificationReceiver,
     settings::{app_blueprint::AppBlueprintMap, apps::Apps},
+    utils::slugify::slugify,
 };
 
 use super::create_app_request::CustomDomainMapping;
@@ -387,7 +386,7 @@ impl AppData {
     ) -> AppData {
         AppData {
             status: get_app_status_from_services(&services),
-            name: name.to_string(),
+            name: slugify(name),
             root_directory: root_directory.to_string(),
             docker_compose_path: docker_compose_path.to_string(),
             services,

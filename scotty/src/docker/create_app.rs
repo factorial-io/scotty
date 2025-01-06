@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use scotty_core::utils::slugify::slugify;
 use tokio::sync::RwLock;
 use tracing::info;
 
@@ -203,7 +204,7 @@ pub async fn create_app(
     info!("Creating app: {}", app_name);
     let candidate = validate_app(app_state.clone(), settings, files)?;
     let root_directory = app_state.settings.apps.root_folder.clone();
-    let app_folder = slug::slugify(app_name);
+    let app_folder = slugify(app_name);
     let root_directory = format!("{}/{}", root_directory, app_folder);
 
     let docker_compose_path = format!("{}/{}", root_directory, candidate.name);
