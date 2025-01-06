@@ -27,7 +27,7 @@ mv scottyctl /usr/local/bin
 ### From source
 
 ```shell
-cargo install --git https://github.com/factorial-io/scotty.git --bin scottyctl
+cargo install --git https://github.com/factorial-io/scotty.git scottyctl
 ```
 
 ### Using the pre-built docker image
@@ -181,7 +181,7 @@ You can also install the server with cargo. Please note that you need to have
 the Rust toolchain installed on your server. You can install the server with:
 
 ```shell
-cargo install --git https://github.com/factorial-io/scotty.git --bin scotty
+cargo install --git https://github.com/factorial-io/scotty.git scotty
 ```
 
 You then need the config folder from the repository as a starting point. Place
