@@ -3,7 +3,7 @@ members = ["scotty-core", "scotty", "scottyctl"]
 resolver = "2"
 [workspace.package]
 name = "scotty"
-version = "0.1.0-alpha.18"
+version = "0.1.0-alpha.19"
 edition = "2021"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
 authors = ["Stephan Maximilian Huber <stephan@factorial.io>"]
