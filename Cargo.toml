@@ -12,7 +12,7 @@ license-file = "LICENSE"
 
 [workspace.dependencies]
 anyhow = "1.0.89"
-axum = { version = "0.7.7", features = ["ws", "macros"] }
+axum = { version = "0.8.0", features = ["ws", "macros"] }
 bollard = "0.18.0"
 config = "0.14.0"
 readonly = "0.2.12"
