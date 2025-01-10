@@ -140,7 +140,7 @@ impl TaskManager {
             if let Some(handle) = &state.handle {
                 let details = state.details.read().await;
                 if handle.read().await.is_finished()
-                    && details.finish_time.map_or(false, |finish_time| {
+                    && details.finish_time.is_some_and(|finish_time| {
                         chrono::Utc::now().signed_duration_since(finish_time) > ttl
                     })
                 {
