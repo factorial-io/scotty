@@ -348,6 +348,63 @@ mod tests {
     use scotty_core::settings::loadbalancer::TraefikSettings;
 
     #[test]
+    fn test_haproxy_custom_domain_get_docker_compose_override() {
+        let global_settings = Settings {
+            haproxy: HaproxyConfigSettings::new(false),
+            ..Default::default()
+        };
+
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![
+                ServicePortMapping {
+                    service: "web".to_string(),
+                    port: 8080,
+                    domains: vec!["custom1.test".to_string(), "custom2.test".to_string()],
+                },
+                ServicePortMapping {
+                    service: "api".to_string(),
+                    port: 9000,
+                    domains: vec!["api1.test".to_string(), "api2.test".to_string()],
+                },
+            ],
+            ..Default::default()
+        };
+
+        let load_balancer = HaproxyLoadBalancer;
+        let result = load_balancer
+            .get_docker_compose_override(
+                &global_settings,
+                "myapp",
+                &app_settings,
+                &app_settings.environment,
+            )
+            .unwrap();
+
+        let web_environment = result
+            .services
+            .get("web")
+            .unwrap()
+            .environment
+            .as_ref()
+            .unwrap();
+
+        assert_eq!(
+            web_environment.get("VHOST").unwrap(),
+            "custom1.test custom2.test"
+        );
+        assert_eq!(web_environment.get("VPORT").unwrap(), "8080");
+        assert!(web_environment.get("HTTPS_ONLY").is_none());
+
+        let api_config = result.services.get("api").unwrap();
+        let api_environment = api_config.environment.as_ref().unwrap();
+
+        assert_eq!(api_environment.get("VHOST").unwrap(), "api1.test api2.test");
+        assert_eq!(api_environment.get("VPORT").unwrap(), "9000");
+        assert!(api_environment.get("HTTPS_ONLY").is_none());
+    }
+
+    #[test]
     fn test_haproxy_config_get_docker_compose_override() {
         let global_settings = Settings {
             haproxy: HaproxyConfigSettings::new(true),
