@@ -7,6 +7,7 @@ use crate::{
     app_state::SharedAppState,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        run_docker_login_handler::RunDockerLoginHandler,
         run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
@@ -21,6 +22,7 @@ use super::helper::run_sm;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 enum RunAppStates {
+    RunDockerLogin,
     RunDockerCompose,
     RunPostActions,
     UpdateAppData,
@@ -31,7 +33,15 @@ enum RunAppStates {
 async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppStates, Context>> {
     info!("Running app {} at {}", app.name, &app.docker_compose_path);
 
-    let mut sm = StateMachine::new(RunAppStates::RunDockerCompose, RunAppStates::Done);
+    let mut sm = StateMachine::new(RunAppStates::RunDockerLogin, RunAppStates::Done);
+
+    sm.add_handler(
+        RunAppStates::RunDockerLogin,
+        Arc::new(RunDockerLoginHandler::<RunAppStates> {
+            next_state: RunAppStates::RunDockerCompose,
+            registry: app.get_registry(),
+        }),
+    );
 
     sm.add_handler(
         RunAppStates::RunDockerCompose,
