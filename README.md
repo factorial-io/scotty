@@ -34,8 +34,10 @@ scottyctl help
 will show some help and a list of available commands. You can get help
 with `scottyctl help <command>`. A complete list of commands is available [here](docs/content/cli.md)
 
+### Shell autocompletion
+
 Make sure to leverage `scottyctl completion $SHELL` to get autocompletion for
-your shell.
+your shell, see [here](docs/content/installation.md).
 
 ## Configuring the CLI
 
