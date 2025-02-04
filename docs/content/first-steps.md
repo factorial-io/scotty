@@ -82,7 +82,9 @@ docker network create proxy
 docker compose up -d
 ```
 
-The server should now be running and accessible at `http://scotty.localhost`.
+The server should now be running and accessible at `http://scotty.localhost`. The password is
+`my-secret-token` and can be changed in the above `docker-compose.yml`-file by changing
+the env-var `SCOTTY__API__ACCESS_TOKEN`.
 
 
 ## Installing the Client
