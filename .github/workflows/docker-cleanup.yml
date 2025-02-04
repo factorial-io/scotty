@@ -15,4 +15,4 @@ jobs:
           image-names: "scotty"
           image-tags: "!latest !main !v*"  # target any image that has a tag starting with the word test or dev
           cut-off: 2w
-          dry-run: true
+          dry-run: false
