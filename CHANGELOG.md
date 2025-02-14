@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.21] - 2025-02-14
+
+### Bug Fixes
+
+- Fix middleware setup for traefik config and multiple domains #194 ✔️
+- Enable docker registry cleanup ✔️
+- Try to fix docker cleanup ✔️
+
+### Dependencies
+
+- Update rust crate uuid to v1.13.1 ✔️
+- Update dependency tailwindcss to v4 ✔️
+- Update rust docker tag to v1.84 ✔️
+- Bump nanoid from 3.3.7 to 3.3.8 in /frontend ✔️
+- Update dependency @sveltejs/adapter-auto to v4 ✔️
+- Update rust dependencies auto-merge (patch) (#182) ✔️
+- Update dependency @sveltejs/kit to v2.17.1 ✔️
+- Bump openssl from 0.10.68 to 0.10.70 ✔️
+
+### Documentation
+
+- Clarify documentation (#181) ✔️
+- Clarify autocompletion ✔️
+
 ## [0.1.0-alpha.20] - 2025-01-22
 
 ### Bug Fixes
@@ -376,7 +400,7 @@ All notable changes to this project will be documented in this file.
 
 - Enable changelog for ci changes ✔️
 
-## [0.1.0-alpha.2] - 2024-10-17
+## [0.1.0-alpha.3] - 2024-10-17
 
 ### Bug Fixes
 
