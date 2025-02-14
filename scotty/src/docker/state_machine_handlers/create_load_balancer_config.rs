@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::{
-    docker::loadbalancer::{self, DockerComposeConfig},
+    docker::loadbalancer::{factory::LoadBalancerFactory, types::DockerComposeConfig},
     onepassword::lookup::resolve_environment_variables,
     settings::config::Settings,
     state_machine::StateHandler,
@@ -30,7 +30,7 @@ fn get_docker_compose_override(
     settings: &AppSettings,
     resolved_environment: &std::collections::HashMap<String, String>,
 ) -> anyhow::Result<DockerComposeConfig> {
-    let lb = loadbalancer::LoadBalancerFactory::create(load_balancer_type);
+    let lb = LoadBalancerFactory::create(load_balancer_type);
     let docker_compose_override =
         lb.get_docker_compose_override(global_settings, app_name, settings, resolved_environment)?;
     Ok(docker_compose_override)

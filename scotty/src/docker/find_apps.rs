@@ -16,7 +16,9 @@ use walkdir::WalkDir;
 
 use crate::{app_state::SharedAppState, docker::docker_compose::run_docker_compose_now};
 
-use super::{loadbalancer::LoadBalancerFactory, validation::validate_docker_compose_content};
+use super::{
+    loadbalancer::factory::LoadBalancerFactory, validation::validate_docker_compose_content,
+};
 
 type PathBufVec = Vec<PathBuf>;
 
