@@ -152,10 +152,12 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 middlewares.push(middleware_name.clone());
             }
             // Connect the middleware to the router
-            labels.insert(
-                format!("traefik.http.routers.{}.middlewares", &service_name,),
-                middlewares.join(","),
-            );
+            for (idx, _domain) in domains.iter().enumerate() {
+                labels.insert(
+                    format!("traefik.http.routers.{}-{}.middlewares", &service_name, idx),
+                    middlewares.join(","),
+                );
+            }
 
             // Handle environment variables
             if !&resolved_environment.is_empty() {
@@ -263,7 +265,7 @@ mod tests {
         assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tags"));
         assert_eq!(
             labels
-                .get("traefik.http.routers.web--myapp.middlewares")
+                .get("traefik.http.routers.web--myapp-0.middlewares")
                 .unwrap(),
             "web--myapp--basic-auth,web--myapp--robots"
         );
