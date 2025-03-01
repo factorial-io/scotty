@@ -1,52 +1,77 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "labels": ["dependencies", "renovate"],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
   "packageRules": [
     {
-      "matchManagers": ["cargo"],
-      "addLabels": ["rust"]
+      "matchManagers": [
+        "cargo"
+      ],
+      "addLabels": [
+        "rust"
+      ]
     },
     {
-      "packagePatterns": ["^utoipa[-_]?"],
-      "groupName": "utoipa packages"
+      "groupName": "utoipa packages",
+      "matchPackageNames": [
+        "/^utoipa[-_]?/"
+      ]
     },
     {
-      "packageNames": ["capnp", "capnpc"],
+      "matchPackageNames": [
+        "capnp",
+        "capnpc"
+      ],
       "groupName": "capnp packages"
     },
     {
-      "packagePatterns": ["^futures[-_]?"],
-      "groupName": "futures packages"
+      "groupName": "futures packages",
+      "matchPackageNames": [
+        "/^futures[-_]?/"
+      ]
     },
     {
-      "packagePatterns": [
-        "^opentelemetry[-_]?",
-        "^tracing-opentelemetry$",
-        "^init-tracing-opentelemetry$",
-        "^axum-tracing-opentelemetry$"
-      ],
-      "groupName": "opentelemetry packages"
+      "groupName": "opentelemetry packages",
+      "matchPackageNames": [
+        "/^opentelemetry[-_]?/",
+        "/^tracing-opentelemetry$/",
+        "/^init-tracing-opentelemetry$/",
+        "/^axum-tracing-opentelemetry$/"
+      ]
     },
     {
-      "packagePatterns": ["^prost[-_]?", "^tonic[-_]?"],
-      "groupName": "gRPC-related packages"
+      "groupName": "gRPC-related packages",
+      "matchPackageNames": [
+        "/^prost[-_]?/",
+        "/^tonic[-_]?/"
+      ]
     },
     {
-      "packagePatterns": ["^rusoto[-_]?"],
-      "groupName": "rusoto packages"
+      "groupName": "rusoto packages",
+      "matchPackageNames": [
+        "/^rusoto[-_]?/"
+      ]
     },
     {
-      "packagePatterns": ["^serde[-_]?"],
-      "groupName": "serde packages"
+      "groupName": "serde packages",
+      "matchPackageNames": [
+        "/^serde[-_]?/"
+      ]
     },
     {
-      "packagePatterns": ["^tokio[-_]?"],
-      "groupName": "tokio packages"
+      "groupName": "tokio packages",
+      "matchPackageNames": [
+        "/^tokio[-_]?/"
+      ]
     },
     {
-      "packagePatterns": ["^tracing[-_]?"],
-      "excludePackageNames": ["tracing-opentelemetry"],
-      "groupName": "tracing packages"
+      "groupName": "tracing packages",
+      "matchPackageNames": [
+        "/^tracing[-_]?/",
+        "!tracing-opentelemetry"
+      ]
     },
     {
       "matchPackageNames": [
@@ -60,32 +85,54 @@
       "groupName": "rustls packages"
     },
     {
-      "matchManagers": ["npm"],
+      "matchManagers": [
+        "npm"
+      ],
       "automerge": true,
       "platformAutomerge": true,
       "gitLabIgnoreApprovals": true,
-      "updateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "groupName": "Npm dependencies auto-merge (patch)"
     },
     {
-      "matchManagers": ["cargo"],
+      "matchManagers": [
+        "cargo"
+      ],
       "automerge": true,
       "platformAutomerge": true,
       "gitLabIgnoreApprovals": true,
-      "updateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "groupName": "Rust dependencies auto-merge (patch)"
     },
     {
-      "matchDatasources": ["docker"],
-      "addLabels": ["docker"]
+      "matchDatasources": [
+        "docker"
+      ],
+      "addLabels": [
+        "docker"
+      ]
     },
     {
-      "matchDatasources": ["docker"],
-      "matchPackagePatterns": ["^uselagoon/"],
-      "updateTypes": ["patch", "minor", "major"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "major"
+      ],
       "groupName": "Lagoon Base images",
-      "rebaseWhen": "behind-base-branch"
+      "rebaseWhen": "behind-base-branch",
+      "matchPackageNames": [
+        "/^uselagoon//"
+      ]
     }
   ],
-  "extends": ["config:recommended"]
+  "extends": [
+    "config:recommended"
+  ]
 }
