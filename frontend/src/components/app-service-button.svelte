@@ -17,7 +17,7 @@
 {#if status !== 'Running'}
 	<button class="btn btn-xs" disabled>{service.service}</button>
 {:else}
-	{#each service.domains as domain}
+	{#each service.domains as domain (domain)}
 		<a
 			title={domain}
 			class="btn btn-xs mr-2 mb-2"

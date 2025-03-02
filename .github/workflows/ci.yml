@@ -71,22 +71,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "scotty/frontend/package.json"
-
+      # run any `bun` or `bunx` command
       - name: Install dependencies
+        run: bun install
         working-directory: scotty/frontend
-        run: npm ci
-
       - name: Run lint check
+        run: bun run lint
         working-directory: scotty/frontend
-        run: npm run lint
-
-      - name: Run svelte check
+      - name: Run build
+        run: bun run build
         working-directory: scotty/frontend
-        run: npm run check

@@ -85,12 +85,12 @@
 		</tr>
 	</thead>
 	<tbody>
-		{#each $filteredAndSortedApps as app}
+		{#each $filteredAndSortedApps as app (app.name)}
 			<tr>
 				<td><StartStopAppAction name={app.name} status={app.status} /></td>
 				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
 				<td
-					>{#each app.services as service}
+					>{#each app.services as service (service.name)}
 						{#if service.domains && service.domains.length > 0}
 							<AppServiceButton status={app.status} {service} />
 						{/if}
