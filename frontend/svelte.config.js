@@ -8,7 +8,7 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-	  prerender: {
+		prerender: {
 			handleHttpError: ({ path, message }) => {
 				// ignore deliberate link to shiny 404 page
 				if (path === '/rapidoc') {
@@ -19,7 +19,7 @@ const config = {
 				throw new Error(message);
 			}
 		},
-	  adapter: adapter({
+		adapter: adapter({
 			// default options are shown. On some platforms
 			// these options are set automatically — see below
 			pages: 'build',
@@ -28,9 +28,8 @@ const config = {
 			precompress: false,
 			strict: true,
 			paths: {
-				relative: false,
-			},
-
+				relative: false
+			}
 		})
 	}
 };

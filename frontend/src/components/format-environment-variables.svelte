@@ -6,7 +6,7 @@
 	None
 {:else}
 	<dl class="flex flex-col gap-1">
-		{#each Object.entries(environment) as [key, value]}
+		{#each Object.entries(environment) as [key, value] (key)}
 			<div class="flex">
 				<dt class="font-mono">{key}=</dt>
 				<dd class="font-mono break-all">{value}</dd>

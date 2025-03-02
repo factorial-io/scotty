@@ -15,14 +15,12 @@
 		version: '0.0.0'
 	};
 
-	$: {
-		onMount(async () => {
-			setupWsListener('/ws');
+	onMount(async () => {
+		setupWsListener('/ws');
 
-			checkIfLoggedIn();
-			site_info = (await apiCall('info')) as SiteInfo;
-		});
-	}
+		checkIfLoggedIn();
+		site_info = (await apiCall('info')) as SiteInfo;
+	});
 </script>
 
 <div class="my-4 max-w-screen-lg mx-auto">
@@ -45,7 +43,9 @@
 						<a href="/tasks">Tasks</a>
 					</li>
 					<li>
-						<a href="/rapidoc" target="_blank" rel="noopener noreferrer">API Documentation</a>
+						<a href="/rapidoc" target="_blank" rel="noopener noreferrer"
+							>API Documentation</a
+						>
 					</li>
 				</ul>
 			</div>
@@ -64,7 +64,9 @@
 			>
 		</p>
 		<p class="text-sm text-gray-500">
-			Brought to you by <a class="link link-secondary" href="https://factorial.io/">Factorial.io</a>
+			Brought to you by <a class="link link-secondary" href="https://factorial.io/"
+				>Factorial.io</a
+			>
 		</p>
 	</footer>
 </div>

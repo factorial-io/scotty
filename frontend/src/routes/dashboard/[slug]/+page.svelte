@@ -24,7 +24,9 @@
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
-			if (!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)) {
+			if (
+				!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)
+			) {
 				return;
 			}
 		}
@@ -85,7 +87,7 @@
 
 <h3 class="text-xl mt-16 mb-4">Available Actions</h3>
 <div class="join">
-	{#each actions as action}
+	{#each actions as action (action)}
 		<button
 			disabled={current_task !== null || !isSupported()}
 			class="btn btn-sm join-item"
@@ -105,7 +107,7 @@
 		<th>Started</th>
 	</thead>
 	<tbody>
-		{#each data.services as service}
+		{#each data.services as service (service.service)}
 			<tr>
 				<td>{service.service}</td>
 				<td><AppStatusPill status={service.status || 'unknown'} /></td>

@@ -7,7 +7,9 @@
 
 	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher<{
+		setSort: { sortBy: string };
+	}>();
 	function setSort(sortValue: string) {
 		dispatch('setSort', { sortBy: sortValue });
 	}

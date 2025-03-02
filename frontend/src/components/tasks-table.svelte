@@ -19,13 +19,16 @@
 		>
 	</thead>
 	<tbody>
-		{#each taskList.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) as task}
+		{#each taskList.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) as task (task.id)}
 			<tr>
 				<td><a class="link-primary" href="/tasks/{task.id}">{task.id}</a></td>
 				<td><TaskStatusPill status={task.state} /></td>
 				<td><TimeAgo dateString={task.start_time} /></td>
 				<td><TimeAgo dateString={task.finish_time} /></td>
-				<td><a class="link-secondary" href="/dashboard/{task.app_name}">{task.app_name}</a></td>
+				<td
+					><a class="link-secondary" href="/dashboard/{task.app_name}">{task.app_name}</a
+					></td
+				>
 			</tr>
 		{/each}
 	</tbody>
