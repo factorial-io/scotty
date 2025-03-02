@@ -90,7 +90,7 @@
 				<td><StartStopAppAction name={app.name} status={app.status} /></td>
 				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
 				<td
-					>{#each app.services as service (service.name)}
+					>{#each app.services as service (service.service)}
 						{#if service.domains && service.domains.length > 0}
 							<AppServiceButton status={app.status} {service} />
 						{/if}
