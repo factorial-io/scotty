@@ -66,3 +66,27 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "scotty/frontend/package.json"
+
+      - name: Install dependencies
+        working-directory: scotty/frontend
+        run: npm ci
+
+      - name: Run lint check
+        working-directory: scotty/frontend
+        run: npm run lint
+
+      - name: Run svelte check
+        working-directory: scotty/frontend
+        run: npm run check
