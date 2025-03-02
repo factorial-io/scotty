@@ -12,12 +12,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
                   profile: minimal
                   toolchain: stable
                   override: true
-            - uses: actions-rs/cargo@v1
+            - uses: cargo-bins/cargo@v1
               with:
                   command: check
 
@@ -26,12 +26,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
                   profile: minimal
                   toolchain: stable
                   override: true
-            - uses: actions-rs/cargo@v1
+            - uses: cargo-bins/cargo@v1
               with:
                   command: test
 
@@ -40,13 +40,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
                   profile: minimal
                   toolchain: stable
                   override: true
             - run: rustup component add rustfmt
-            - uses: actions-rs/cargo@v1
+            - uses: cargo-bins/cargo@v1
               with:
                   command: fmt
                   args: --all -- --check
@@ -56,13 +56,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
                   profile: minimal
                   toolchain: stable
                   override: true
             - run: rustup component add clippy
-            - uses: actions-rs/cargo@v1
+            - uses: cargo-bins/cargo@v1
               with:
                   command: clippy
                   args: -- -D warnings
