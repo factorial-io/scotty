@@ -142,9 +142,11 @@ impl AppSettings {
         }
     }
 
-    pub fn apply_blueprint(&self, blueprints: &AppBlueprintMap) -> AppSettings {
+    pub fn apply_blueprint(&self, blueprints: &AppBlueprintMap) -> anyhow::Result<AppSettings> {
         if let Some(blueprint_name) = &self.app_blueprint {
-            let bp = blueprints.get(blueprint_name).expect("Blueprint not found");
+            let bp = blueprints
+                .get(blueprint_name)
+                .ok_or_else(|| anyhow::anyhow!("Blueprint {} not found", blueprint_name))?;
             if let Some(public_services) = &bp.public_services {
                 if self.public_services.is_empty() {
                     let mut new_settings = self.clone();
@@ -156,11 +158,11 @@ impl AppSettings {
                             domains: vec![],
                         })
                         .collect();
-                    return new_settings;
+                    return Ok(new_settings);
                 }
             }
         }
-        self.clone()
+        Ok(self.clone())
     }
 
     pub fn apply_custom_domains(
