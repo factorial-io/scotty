@@ -61,6 +61,7 @@ services:
       SCOTTY__APPS__ROOT_FOLDER: $PWD/apps
       SCOTTY__APPS__DOMAIN_SUFFIX: localhost
       SCOTTY__API__ACCESS_TOKEN: my-secret-token
+      SCOTTY__TRAEFIK__USE_TLS: false
     networks:
       - default
       - proxy
@@ -94,7 +95,7 @@ platform:
 
 ```shell
 # For macOS ARM64
-curl -L https://github.com/factorial-io/scotty/releases/download/v0.1.0-alpha.13/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
+curl -L https://github.com/factorial-io/scotty/releases/download/<LATEST-VERSION>/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
 tar -xvf scottyctl.tar.gz
 chmod +x scottyctl
 sudo mv scottyctl /usr/local/bin
