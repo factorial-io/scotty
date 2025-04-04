@@ -37,7 +37,7 @@ pub async fn setup_docker_integration(
             });
     }
     {
-        // Check for running apps every x seconds.
+        // Check ttl of all apps every x seconds.
         let app_state = app_state.clone();
         scheduler
             .every(app_state.settings.scheduler.ttl_check.clone().into())
