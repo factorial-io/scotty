@@ -1,7 +1,8 @@
 use tracing::{info, instrument};
 
+use crate::docker::destroy_app::destroy_app;
 use crate::{app_state::SharedAppState, docker::stop_app::force_stop_app};
-use scotty_core::apps::app_data::{AppData, AppTtl};
+use scotty_core::apps::app_data::{AppData, AppStatus, AppTtl};
 use scotty_core::utils::format::format_chrono_duration;
 
 #[instrument(skip(app_state))]
@@ -40,11 +41,18 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
         }
     }
     if needs_termination {
+        let destroy = app.status != AppStatus::Unsupported
+            && app.settings.as_ref().is_some_and(|s| s.destroy_on_ttl);
         info!(
-            "Stopping app, because TTL {} reached for {}",
-            app_ttl_seconds, app.name
+            "{} app, because TTL {} reached for {}",
+            if destroy { "Destroying" } else { "Stopping" },
+            app_ttl_seconds,
+            app.name
         );
-        let _ = force_stop_app(app_state, app).await?;
+        let _ = match destroy {
+            false => force_stop_app(app_state, app).await?,
+            true => destroy_app(app_state, app).await?,
+        };
     }
     Ok(())
 }

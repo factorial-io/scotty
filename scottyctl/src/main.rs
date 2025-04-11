@@ -180,6 +180,14 @@ struct CreateCommand {
     #[arg(long, value_parser=parse_app_ttl, default_value="7d", value_name="<DAYS>d|<HOURS>h|FOREVER")]
     ttl: AppTtl,
 
+    /// Destroy the app after TTL is reached
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Destroy the app after TTL is reached"
+    )]
+    destroy_on_ttl: bool,
+
     #[arg(
         long,
         default_value = "false",
@@ -595,6 +603,8 @@ async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Res
             app_blueprint: cmd.app_blueprint.clone(),
             time_to_live: cmd.ttl.clone(),
             disallow_robots: !cmd.allow_robots,
+            destroy_on_ttl: cmd.destroy_on_ttl,
+
             ..Default::default()
         },
         files: file_list,
