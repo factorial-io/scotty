@@ -200,6 +200,7 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
             app_blueprint: cmd.app_blueprint.clone(),
             time_to_live: cmd.ttl.clone(),
             disallow_robots: !cmd.allow_robots,
+            destroy_on_ttl: cmd.destroy_on_ttl,
             ..Default::default()
         },
         files: file_list,

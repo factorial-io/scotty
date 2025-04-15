@@ -57,7 +57,7 @@ pub async fn create_app_handler(
     let settings = settings.merge_with_global_settings(&state.settings.apps, &payload.app_name);
 
     // Apply blueprint settings, if any.
-    let settings = settings.apply_blueprint(&state.settings.apps.blueprints);
+    let settings = settings.apply_blueprint(&state.settings.apps.blueprints)?;
 
     // Apply custom domains, if any.
     let settings = settings.apply_custom_domains(&payload.custom_domains)?;

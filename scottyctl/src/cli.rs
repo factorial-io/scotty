@@ -156,6 +156,14 @@ pub struct CreateCommand {
     #[arg(long, value_parser=parse_app_ttl, default_value="7d", value_name="<DAYS>d|<HOURS>h|FOREVER")]
     pub ttl: AppTtl,
 
+    /// Destroy the app after TTL is reached
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Destroy the app after TTL is reached"
+    )]
+    pub destroy_on_ttl: bool,
+
     /// Allow search engines to index the app
     #[arg(
         long,
