@@ -22,6 +22,7 @@ tabled.workspace = true
 walkdir.workspace = true
 tracing.workspace = true
 scotty-core = { path = "../scotty-core" }
+dotenvy.workspace = true
 
 [[bin]]
 name = "scottyctl"
