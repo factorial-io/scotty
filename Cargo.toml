@@ -1,8 +1,8 @@
 [workspace]
 members = ["scotty-core", "scotty", "scottyctl"]
 resolver = "2"
+
 [workspace.package]
-name = "scotty"
 version = "0.1.0-alpha.21"
 edition = "2021"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
@@ -75,6 +75,7 @@ bcrypt = "0.17.0"
 maplit = "1.0.2"
 urlencoding = "2.1.3"
 deunicode = "1"
+dotenvy = "0.15.7"
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]
