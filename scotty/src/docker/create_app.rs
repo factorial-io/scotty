@@ -154,8 +154,11 @@ fn validate_app(
         .map(|service| service.service.clone())
         .collect();
 
-    let available_services =
-        validate_docker_compose_content(&docker_compose_content, &public_service_names)?;
+    let available_services = validate_docker_compose_content(
+        &docker_compose_content,
+        &public_service_names,
+        Some(&settings.environment),
+    )?;
     // Check if we know about the private registry.
     if let Some(registry) = &settings.registry {
         if !app_state.settings.docker.registries.contains_key(registry) {

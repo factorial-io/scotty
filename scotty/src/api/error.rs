@@ -46,7 +46,7 @@ pub enum AppError {
     #[error("Public ports for service {0} are not supported")]
     PublicPortsNotSupported(String),
 
-    #[error("Environment variables for variable substitution like {0} are not supported")]
+    #[error("Environment variable {0} for variable substitution is missing")]
     EnvironmentVariablesNotSupported(String),
 
     #[error("Operation not supported for legacy/ unsupported app {0}")]
