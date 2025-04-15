@@ -201,7 +201,7 @@ async fn inspect_docker_compose(
     state: &SharedAppState,
     file: &PathBuf,
 ) -> anyhow::Result<Vec<ContainerState>> {
-    let output = run_docker_compose_now(file, vec!["ps", "-q", "-a"], None, false)?;
+    let output = run_docker_compose_now(file, &["ps", "-q", "-a"], None, false)?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
     info!(
         "Found containers for {}: {}",

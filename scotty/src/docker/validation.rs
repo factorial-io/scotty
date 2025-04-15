@@ -24,7 +24,7 @@ pub fn check_for_environment_variables(
     let command = vec!["config", "-q"];
 
     let path_buf = file_path;
-    let error_message = run_docker_compose_now(&path_buf, command, env_vars, true)?;
+    let error_message = run_docker_compose_now(&path_buf, &command, env_vars, true)?;
 
     if error_message.is_empty() {
         return Ok(());
