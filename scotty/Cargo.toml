@@ -26,6 +26,7 @@ path-clean.workspace = true
 readonly.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+tempfile = "3.10.1"
 scotty-core = { path = "../scotty-core" }
 serde.workspace = true
 serde_json.workspace = true

@@ -121,7 +121,8 @@ pub async fn inspect_app(
         services,
         settings,
     );
-    if !valid_settings && validate_docker_compose_content(content.as_bytes(), &dc_services).is_err()
+    if !valid_settings
+        && validate_docker_compose_content(content.as_bytes(), &dc_services, None).is_err()
     {
         app_data.status = AppStatus::Unsupported;
     }
@@ -200,7 +201,7 @@ async fn inspect_docker_compose(
     state: &SharedAppState,
     file: &PathBuf,
 ) -> anyhow::Result<Vec<ContainerState>> {
-    let output = run_docker_compose_now(file, vec!["ps", "-q", "-a"])?;
+    let output = run_docker_compose_now(file, vec!["ps", "-q", "-a"], None, false)?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
     info!(
         "Found containers for {}: {}",

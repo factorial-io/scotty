@@ -41,18 +41,34 @@ pub async fn run_task(
 pub fn run_docker_compose_now(
     docker_compose_path: &PathBuf,
     command: Vec<&str>,
+    env_vars: Option<&std::collections::HashMap<String, String>>,
+    return_stderr: bool,
 ) -> anyhow::Result<String> {
-    let output = std::process::Command::new("docker-compose")
-        .args(command)
-        .current_dir(docker_compose_path.parent().unwrap())
-        .output()?;
+    let mut cmd = std::process::Command::new("docker-compose");
+
+    // Add args and set working directory
+    cmd.args(command)
+        .current_dir(docker_compose_path.parent().unwrap());
+
+    // Apply environment variables if provided
+    if let Some(env_map) = env_vars {
+        for (key, value) in env_map {
+            cmd.env(key, value);
+        }
+    }
+
+    // Execute the command
+    let output = cmd.output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8(output.stderr).unwrap();
         return Err(anyhow::anyhow!(stderr));
     }
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
+    let out = match return_stderr {
+        false => String::from_utf8(output.stdout).unwrap(),
+        true => String::from_utf8(output.stderr).unwrap(),
+    };
 
-    Ok(stdout)
+    Ok(out)
 }
