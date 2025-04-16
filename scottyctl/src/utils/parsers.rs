@@ -126,9 +126,45 @@ pub fn parse_service_ports(s: &str) -> Result<ServicePortMapping, String> {
 }
 
 pub fn parse_env_vars(s: &str) -> Result<(String, String), String> {
-    let parts: Vec<&str> = s.split('=').collect();
-    if parts.len() != 2 {
-        return Err("Invalid env var format, should be key=value".to_string());
+    match s.find('=') {
+        Some(idx) => {
+            let key = &s[..idx];
+            let value = &s[idx + 1..];
+            Ok((key.to_string(), value.to_string()))
+        }
+        None => Err("Invalid env var format, should be key=value".to_string()),
     }
-    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_env_vars() {
+        // Test normal key-value pairs
+        let result = parse_env_vars("KEY=value");
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert_eq!(key, "KEY");
+        assert_eq!(value, "value");
+
+        // Test value containing equals sign
+        let result = parse_env_vars("KEY=value=with=equals");
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert_eq!(key, "KEY");
+        assert_eq!(value, "value=with=equals");
+
+        // Test empty value
+        let result = parse_env_vars("KEY=");
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert_eq!(key, "KEY");
+        assert_eq!(value, "");
+
+        // Test error case - no equals sign
+        let result = parse_env_vars("INVALID_FORMAT");
+        assert!(result.is_err());
+    }
 }
