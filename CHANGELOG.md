@@ -2,6 +2,103 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.22] - 2025-04-16
+
+### Bug Fixes
+
+- Fix crash wehn blueprint cant be found, return proper error now ✔️
+- Small syntax fix in svelte-code ✔️
+- CI use latest actions for rust ✔️
+- CI use latest actions for rust ✔️
+- CI use latest actions for rust ✔️
+- CI setup ✔️
+- Fix some linting errors, setup editorconfig ✔️
+
+### Dependencies
+
+- Update npm dependencies auto-merge (patch) (#274) ✔️
+- Update dependency typescript-eslint to v8.30.0 ✔️
+- Update dependency @sveltejs/kit to v2.20.6 [security] ✔️
+- Update rust crate anyhow to v1.0.98 (#271) ✔️
+- Update dependency svelte-check to v4.1.6 ✔️
+- Update rust crate clap to v4.5.36 (#269) ✔️
+- Update dependency eslint-config-prettier to v10.1.2 (#268) ✔️
+- Update dependency vite to v5.4.18 ✔️
+- Update dependency @sveltejs/kit to v2.20.5 ✔️
+- Update dependency @sveltejs/adapter-auto to v6 ✔️
+- Update dependency eslint to v9.24.0 ✔️
+- Update npm dependencies auto-merge (patch) (#262) ✔️
+- Update rust docker tag to v1.86 ✔️
+- Bump tokio from 1.42.0 to 1.44.2 ✔️
+- Bump openssl from 0.10.70 to 0.10.72 ✔️
+- Update dependency eslint to v9.23.0 ✔️
+- Update dependency typescript-eslint to v8.29.0 ✔️
+- Update dependency vite to v5.4.17 ✔️
+- Update dependency eslint-plugin-svelte to v3.5.1 ✔️
+- Update rust crate clap to v4.5.35 (#251) ✔️
+- Update dependency vite to v5.4.16 [security] ✔️
+- Update dependency @sveltejs/kit to v2.20.3 ✔️
+- Update rust dependencies auto-merge (patch) (#247) ✔️
+- Update dependency vite to v5.4.15 [security] (#245) ✔️
+- Update dependency eslint-plugin-svelte to v3.4.0 ✔️
+- Bump zip from 2.2.2 to 2.4.1 ✔️
+- Update rust crate deunicode to v1.6.1 (#241) ✔️
+- Update dependency @sveltejs/kit to v2.19.2 ✔️
+- Update rust crate async-trait to v0.1.88 (#239) ✔️
+- Update dependency @sveltejs/kit to v2.19.1 (#238) ✔️
+- Update rust crate uuid to v1.16.0 ✔️
+- Update rust crate reqwest to v0.12.14 (#236) ✔️
+- Update dependency eslint-plugin-svelte to v3.1.0 ✔️
+- Bump ring from 0.17.8 to 0.17.13 ✔️
+- Update rust crate reqwest to v0.12.13 ✔️
+- Bump prismjs from 1.29.0 to 1.30.0 in /docs ✔️
+- Update rust crate clap to v4.5.32 (#233) ✔️
+- Update dependency typescript-eslint to v8.26.1 ✔️
+- Update rust crate serde to v1.0.219 (#230) ✔️
+- Update dependency autoprefixer to v10.4.21 (#229) ✔️
+- Update dependency @sveltejs/kit to v2.19.0 ✔️
+- Update dependency eslint to v9.22.0 ✔️
+- Update dependency @sveltejs/kit to v2.18.0 ✔️
+- Update dependency eslint-config-prettier to v10.1.1 ✔️
+- Update dependency svelte-check to v4.1.5 ✔️
+- Update dependency eslint-plugin-svelte to v3.0.3 ✔️
+- Update rust crate readonly to v0.2.13 (#221) ✔️
+- Update dependency typescript-eslint to v8.26.0 ✔️
+- Update rust dependencies auto-merge (patch) (#219) ✔️
+- Update dependency prettier to v3.5.3 (#218) ✔️
+- Update dependency typescript-eslint to v8.25.0 ✔️
+- Update dependency eslint to v9.21.0 ✔️
+- Update dependency typescript to v5.8.2 ✔️
+- Update dependency prettier to v3.5.2 ✔️
+- Update npm dependencies auto-merge (patch) (#210) ✔️
+- Update dependency globals to v16 ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v5 ✔️
+- Update dependency vite to v6 ✔️
+- Update rust crate owo-colors to v4.2.0 ✔️
+- Update rust crate uuid to v1.15.1 ✔️
+- Update rust docker tag to v1.85 ✔️
+- Update dependency eslint to v9.21.0 ✔️
+- Update dependency globals to v15.15.0 ✔️
+- Update opentelemetry packages ✔️
+- Update dependency typescript-eslint to v8.25.0 ✔️
+- Update dependency typescript to v5.8.2 ✔️
+- Update dependency prettier to v3.5.2 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update npm dependencies auto-merge (patch) (#195) ✔️
+- Update dependency eslint-config-prettier to v10 ✔️
+- Update rust crate bcrypt to 0.17.0 ✔️
+- Update rust crate tabled to 0.18.0 ✔️
+
+### Documentation
+
+- Clarify usage, and prevent some frustration when trying to get things running ✔️
+
+### Features
+
+- Add new flag destroy_on_ttl which lets you destroy an app instead of stopping it after the TTL expired. ✔️
+- Add dotenv integration and restructure scottyctl command handling ✔️
+- Lint + check frontend in ci ✔️
+
 ## [0.1.0-alpha.21] - 2025-02-14
 
 ### Bug Fixes
