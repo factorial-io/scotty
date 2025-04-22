@@ -1,50 +1,116 @@
 use crate::api::error::AppError;
+use crate::onepassword::env_substitution;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
-use tempfile::tempdir;
 
-use super::docker_compose::run_docker_compose_now;
-
-/// Checks if the Docker Compose file contains environment variables by using docker compose config
+/// Checks if the Docker Compose file contains environment variables without using external commands
 pub fn check_for_environment_variables(
     docker_compose_content: &[u8],
     env_vars: Option<&HashMap<String, String>>,
 ) -> Result<(), AppError> {
-    // Create a temporary directory to store the docker-compose file
-    let temp_dir = tempdir().map_err(|_| AppError::InvalidDockerComposeFile)?;
-    let file_path = temp_dir.path().join("docker-compose.yml");
-
-    // Write the content to the temporary file
-    let mut file = File::create(&file_path).map_err(|_| AppError::InvalidDockerComposeFile)?;
-    file.write_all(docker_compose_content)
+    // Parse the YAML content
+    let yaml_value: serde_yml::Value = serde_yml::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)?;
 
-    // Prepare the command for docker compose config
-    let command = vec!["config", "-q"];
+    // Recursively check for environment variables in the YAML structure
+    let missing_vars = find_env_vars_recursively(&yaml_value, env_vars);
 
-    let path_buf = file_path;
-    let error_message = run_docker_compose_now(&path_buf, &command, env_vars, true)?;
-
-    if error_message.is_empty() {
-        return Ok(());
+    if let Some(missing_var) = missing_vars.first() {
+        return Err(AppError::EnvironmentVariablesNotSupported(
+            missing_var.clone(),
+        ));
     }
 
-    // Check if the error is related to missing environment variables
-    if error_message.contains("variable is not set") && error_message.contains("\"") {
-        // Extract the variable name from quotes in the error message
-        // Example: WARN[0000] The \"BAR\" variable is not set. Defaulting to a blank string.
-        let var_name = error_message
-            .split('\\')
-            .nth(1)
-            .map(|s| format!("${}", s))
-            .unwrap_or_else(|| "Unknown".to_string());
+    Ok(())
+}
 
-        let var_name = var_name.replace("\"", "");
-        return Err(AppError::EnvironmentVariablesNotSupported(var_name));
+/// Recursively find environment variables in the YAML structure
+fn find_env_vars_recursively(
+    value: &serde_yml::Value,
+    env_vars: Option<&HashMap<String, String>>,
+) -> Vec<String> {
+    let mut missing_vars = Vec::new();
+
+    match value {
+        serde_yml::Value::String(s) => {
+            // Check for environment variables in string values
+            for var_name in env_substitution::extract_env_vars(s) {
+                if !has_env_var(&var_name, env_vars) {
+                    missing_vars.push(var_name);
+                }
+            }
+        }
+        serde_yml::Value::Sequence(seq) => {
+            // Recursively check sequence elements
+            for item in seq {
+                missing_vars.extend(find_env_vars_recursively(item, env_vars));
+            }
+        }
+        serde_yml::Value::Mapping(map) => {
+            // Recursively check mapping entries
+            for (_, v) in map {
+                missing_vars.extend(find_env_vars_recursively(v, env_vars));
+            }
+        }
+        _ => {} // Ignore other types
     }
 
-    Err(AppError::InvalidDockerComposeFile)
+    missing_vars
+}
+
+
+
+/// Check if an environment variable is provided or has a default value
+fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bool {
+    // Remove the ${} wrapper
+    let clean_name = if var_name.starts_with("${") && var_name.ends_with('}') {
+        &var_name[2..var_name.len() - 1]
+    } else {
+        var_name
+    };
+
+    // Check if the variable is provided in env_vars
+    if let Some(vars) = env_vars {
+        // Extract the variable name without any modifier/default parts
+        let actual_name = if clean_name.contains(":-") {
+            clean_name.split(":-").next().unwrap_or("")
+        } else if clean_name.contains("-") {
+            // Only split on the modifier operator, not any hyphens in the variable name
+            if let Some(idx) = clean_name.find('-') {
+                &clean_name[0..idx]
+            } else {
+                clean_name
+            }
+        } else if clean_name.contains(":+") {
+            clean_name.split(":+").next().unwrap_or("")
+        } else if clean_name.contains("+") {
+            if let Some(idx) = clean_name.find('+') {
+                &clean_name[0..idx]
+            } else {
+                clean_name
+            }
+        } else if clean_name.contains(":?") {
+            clean_name.split(":?").next().unwrap_or("")
+        } else if clean_name.contains("?") {
+            if let Some(idx) = clean_name.find('?') {
+                &clean_name[0..idx]
+            } else {
+                clean_name
+            }
+        } else {
+            clean_name
+        };
+
+        if vars.contains_key(actual_name) {
+            return true;
+        }
+    }
+
+    // Check if the variable has a default value in the docker-compose file
+    // Variable has a default if it contains :- or - pattern
+    // (but in the case of -, make sure it's not at the start of the name, which would be invalid)
+    clean_name.contains(":-") || (clean_name.contains('-') && !clean_name.starts_with('-'))
+    // :+ and + patterns don't provide defaults, they're conditional replacements
+    // :? and ? patterns don't provide defaults, they're error messages
 }
 
 pub fn validate_docker_compose_content(
@@ -132,8 +198,25 @@ services:
         let result = validate_docker_compose_content(content, &vec![], None);
         assert!(matches!(
             result,
-            Err(AppError::EnvironmentVariablesNotSupported(var)) if var == "$SOME_VAR"
+            Err(AppError::EnvironmentVariablesNotSupported(var)) if var == "${SOME_VAR}"
         ));
+    }
+
+    #[test]
+    fn test_environment_variables_with_defaults() {
+        let content = b"
+services:
+  service1:
+    image: test
+    environment:
+      - VAR=${SOME_VAR:-default_value}
+      - VAR2=${OTHER_VAR-another_default}
+";
+        let result = validate_docker_compose_content(content, &vec![], None);
+        assert!(
+            result.is_ok(),
+            "Docker compose with environment variable defaults should be valid"
+        );
     }
 
     #[test]
@@ -169,5 +252,36 @@ services:
 ";
         let result = validate_docker_compose_content(content, &vec![], None);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_environment_variables_with_advanced_patterns() {
+        let content = b"
+services:
+  service1:
+    image: test
+    environment:
+      - VAR1=${SOME_VAR:-default_value}
+      - VAR2=${OTHER_VAR-another_default}
+      - VAR3=${CONDITIONAL:+replacement}
+      - VAR4=${ANOTHER+replacement}
+      - VAR5=${REQUIRED:?error message}
+      - VAR6=${NEEDED?error}
+";
+        // Only patterns with defaults should be valid without env vars
+        let result = validate_docker_compose_content(content, &vec![], None);
+        assert!(result.is_err(), "Environment patterns without defaults should require env vars");
+
+        // With all env vars provided, validation should pass
+        let mut env_vars = HashMap::new();
+        env_vars.insert("SOME_VAR".to_string(), "value".to_string());
+        env_vars.insert("OTHER_VAR".to_string(), "value".to_string());
+        env_vars.insert("CONDITIONAL".to_string(), "value".to_string());
+        env_vars.insert("ANOTHER".to_string(), "value".to_string());
+        env_vars.insert("REQUIRED".to_string(), "value".to_string());
+        env_vars.insert("NEEDED".to_string(), "value".to_string());
+        
+        let result = validate_docker_compose_content(content, &vec![], Some(&env_vars));
+        assert!(result.is_ok(), "Should be valid when all env vars are provided");
     }
 }
