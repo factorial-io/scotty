@@ -57,8 +57,6 @@ fn find_env_vars_recursively(
     missing_vars
 }
 
-
-
 /// Check if an environment variable is provided or has a default value
 fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bool {
     // Remove the ${} wrapper
@@ -270,7 +268,10 @@ services:
 ";
         // Only patterns with defaults should be valid without env vars
         let result = validate_docker_compose_content(content, &vec![], None);
-        assert!(result.is_err(), "Environment patterns without defaults should require env vars");
+        assert!(
+            result.is_err(),
+            "Environment patterns without defaults should require env vars"
+        );
 
         // With all env vars provided, validation should pass
         let mut env_vars = HashMap::new();
@@ -280,8 +281,11 @@ services:
         env_vars.insert("ANOTHER".to_string(), "value".to_string());
         env_vars.insert("REQUIRED".to_string(), "value".to_string());
         env_vars.insert("NEEDED".to_string(), "value".to_string());
-        
+
         let result = validate_docker_compose_content(content, &vec![], Some(&env_vars));
-        assert!(result.is_ok(), "Should be valid when all env vars are provided");
+        assert!(
+            result.is_ok(),
+            "Should be valid when all env vars are provided"
+        );
     }
 }

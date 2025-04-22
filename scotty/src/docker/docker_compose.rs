@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
 use scotty_core::tasks::task_details::TaskDetails;
 use tokio::sync::RwLock;
@@ -35,9 +32,10 @@ pub async fn run_task(
 
     let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
 
-    let parent_dir = docker_compose_path.parent()
+    let parent_dir = docker_compose_path
+        .parent()
         .ok_or_else(|| anyhow::anyhow!("Docker compose path has no parent directory"))?;
-        
+
     let task_id = manager
         .start_process(
             parent_dir,
@@ -76,9 +74,10 @@ pub fn run_docker_compose_now(
     let mut cmd = std::process::Command::new("docker-compose");
 
     // Add args and set working directory
-    let parent_dir = docker_compose_path.parent()
+    let parent_dir = docker_compose_path
+        .parent()
         .ok_or_else(|| anyhow::anyhow!("Docker compose path has no parent directory"))?;
-        
+
     cmd.args(command).current_dir(parent_dir);
 
     // Apply environment variables if provided

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tracing::{error, debug};
+use tracing::{debug, error};
 
 use crate::settings::config::Settings;
 
@@ -12,7 +12,7 @@ pub async fn resolve_environment_variables(
     env: &HashMap<String, String>,
 ) -> HashMap<String, String> {
     let mut resolved = HashMap::new();
-    
+
     // First pass - resolve 1Password references
     let mut onepassword_resolved = HashMap::new();
     for (key, value) in env {
@@ -29,7 +29,7 @@ pub async fn resolve_environment_variables(
         };
         onepassword_resolved.insert(key.clone(), resolved_value);
     }
-    
+
     // Second pass - resolve environment variable substitutions
     for (key, value) in onepassword_resolved.iter() {
         match process_env_vars(value, &onepassword_resolved) {
@@ -38,14 +38,14 @@ pub async fn resolve_environment_variables(
                     debug!("Processed env vars in value for {}", key);
                 }
                 resolved.insert(key.clone(), processed_value);
-            },
+            }
             Err(e) => {
                 error!("Error processing env vars for {}: {}", key, e);
                 resolved.insert(key.clone(), value.clone());
             }
         }
     }
-    
+
     resolved
 }
 
@@ -162,27 +162,38 @@ mod tests {
         env.insert("DATABASE_PORT".to_string(), "5432".to_string());
         env.insert("DATABASE_PASSWORD".to_string(), "password123".to_string());
         env.insert("EMPTY".to_string(), "".to_string());
-        
+
         // Test various substitution patterns
         env.insert("CONNECTION_STRING".to_string(), 
             "postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/mydb".to_string());
-        env.insert("BACKUP_HOST".to_string(), "${BACKUP_HOST_OVERRIDE:-${DATABASE_HOST}}".to_string());
-        env.insert("LOG_LEVEL".to_string(), "${DEBUG_MODE+debug}${DEBUG_MODE:-info}".to_string());
-        env.insert("REQUIRED_VAR".to_string(), "${CRITICAL_CONFIG?Missing critical configuration}".to_string());
-        
+        env.insert(
+            "BACKUP_HOST".to_string(),
+            "${BACKUP_HOST_OVERRIDE:-${DATABASE_HOST}}".to_string(),
+        );
+        env.insert(
+            "LOG_LEVEL".to_string(),
+            "${DEBUG_MODE+debug}${DEBUG_MODE:-info}".to_string(),
+        );
+        env.insert(
+            "REQUIRED_VAR".to_string(),
+            "${CRITICAL_CONFIG?Missing critical configuration}".to_string(),
+        );
+
         let settings = Settings::default();
         let resolved = resolve_environment_variables(&settings, &env).await;
-        
+
         // Check the connection string with multiple variable substitutions
-        assert_eq!(resolved.get("CONNECTION_STRING").unwrap(), 
-            "postgresql://db_user:password123@localhost:5432/mydb");
-        
+        assert_eq!(
+            resolved.get("CONNECTION_STRING").unwrap(),
+            "postgresql://db_user:password123@localhost:5432/mydb"
+        );
+
         // Check nested variable substitution with default
         assert_eq!(resolved.get("BACKUP_HOST").unwrap(), "localhost");
-        
+
         // Check conditional with default
         assert_eq!(resolved.get("LOG_LEVEL").unwrap(), "info");
-        
+
         // The error message should be part of the value rather than causing a hard error
         assert!(resolved.get("REQUIRED_VAR").unwrap().contains("ERROR"));
     }
