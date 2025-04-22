@@ -11,11 +11,13 @@ pub fn check_for_environment_variables(
     serde_yml::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)
         .and_then(|yaml_value: serde_yml::Value| {
-            find_env_vars_recursively(&yaml_value, env_vars)
-                .first()
-                .map_or(Ok(()), |var| {
-                    Err(AppError::EnvironmentVariablesNotSupported(var.clone()))
-                })
+            let missing_vars = find_env_vars_recursively(&yaml_value, env_vars);
+            match missing_vars.is_empty() {
+                true => Ok(()),
+                false => Err(AppError::EnvironmentVariablesNotSupported(
+                    missing_vars.join(", "),
+                )),
+            }
         })
 }
 
@@ -171,7 +173,7 @@ services:
     ports:
       - 80:80
 ";
-        let result = validate_docker_compose_content(content, &vec![], None);
+        let result = validate_docker_compose_content(content, &[], None);
         assert!(matches!(
             result,
             Err(AppError::PublicPortsNotSupported(service)) if service == "service1"
@@ -187,7 +189,7 @@ services:
     environment:
       - VAR=${SOME_VAR}
 ";
-        let result = validate_docker_compose_content(content, &vec![], None);
+        let result = validate_docker_compose_content(content, &[], None);
         assert!(matches!(
             result,
             Err(AppError::EnvironmentVariablesNotSupported(var)) if var == "${SOME_VAR}"
@@ -204,7 +206,7 @@ services:
       - VAR=${SOME_VAR:-default_value}
       - VAR2=${OTHER_VAR-another_default}
 ";
-        let result = validate_docker_compose_content(content, &vec![], None);
+        let result = validate_docker_compose_content(content, &[], None);
         assert!(
             result.is_ok(),
             "Docker compose with environment variable defaults should be valid"
@@ -225,7 +227,7 @@ services:
 
         // This test might fail if run_docker_compose_now is mocked in tests
         // as it actually tries to run docker compose
-        let result = validate_docker_compose_content(content, &vec![], Some(&env_vars));
+        let result = validate_docker_compose_content(content, &[], Some(&env_vars));
         // We'll assume it's ok if it doesn't error with EnvironmentVariablesNotSupported
         if let Err(err) = &result {
             assert!(!matches!(
@@ -242,7 +244,7 @@ services:
   service1:
     image: test
 ";
-        let result = validate_docker_compose_content(content, &vec![], None);
+        let result = validate_docker_compose_content(content, &[], None);
         assert!(result.is_ok());
     }
 
@@ -261,7 +263,7 @@ services:
       - VAR6=${NEEDED?error}
 ";
         // Only patterns with defaults should be valid without env vars
-        let result = validate_docker_compose_content(content, &vec![], None);
+        let result = validate_docker_compose_content(content, &[], None);
         assert!(
             result.is_err(),
             "Environment patterns without defaults should require env vars"
@@ -276,7 +278,7 @@ services:
         env_vars.insert("REQUIRED".to_string(), "value".to_string());
         env_vars.insert("NEEDED".to_string(), "value".to_string());
 
-        let result = validate_docker_compose_content(content, &vec![], Some(&env_vars));
+        let result = validate_docker_compose_content(content, &[], Some(&env_vars));
         assert!(
             result.is_ok(),
             "Should be valid when all env vars are provided"
