@@ -28,6 +28,7 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
     let mut result = input.to_string();
     let mut last_result = String::new();
 
+    // Compile regexes once outside the loop
     let braces_regex = Regex::new(r"\$\{([^{}]+?)\}").unwrap();
     let simple_regex = Regex::new(r"\$(\w+)").unwrap();
 
@@ -47,10 +48,7 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
         result = simple_regex
             .replace_all(&result, |caps: &regex::Captures| {
                 let var_name = caps.get(1).unwrap().as_str();
-                match get_var_value(var_name, env_vars) {
-                    Some(value) => value,
-                    None => format!("${}", var_name), // Leave unchanged if not found
-                }
+                get_var_value(var_name, env_vars).unwrap_or_else(|| format!("${}", var_name))
             })
             .to_string();
     }
@@ -63,66 +61,63 @@ fn process_var_with_braces(
     var_expr: &str,
     env_vars: &HashMap<String, String>,
 ) -> anyhow::Result<String> {
+    // Helper functions to reduce code duplication
+    fn get_name_and_value(var_expr: &str, idx: usize, offset: usize) -> (&str, &str) {
+        (&var_expr[..idx], &var_expr[idx + offset..])
+    }
+
     // Check for operator patterns
     if let Some(idx) = var_expr.find(":-") {
         // ${VAR:-default} - Use default if var is unset or empty
-        let var_name = &var_expr[..idx];
-        let default_value = &var_expr[idx + 2..];
+        let (var_name, default_value) = get_name_and_value(var_expr, idx, 2);
         match get_var_value(var_name, env_vars) {
             Some(value) if !value.is_empty() => Ok(value),
             _ => Ok(default_value.to_string()),
         }
     } else if let Some(idx) = var_expr.find("-") {
         // ${VAR-default} - Use default if var is unset
-        let var_name = &var_expr[..idx];
-        let default_value = &var_expr[idx + 1..];
+        let (var_name, default_value) = get_name_and_value(var_expr, idx, 1);
         match get_var_value(var_name, env_vars) {
-            Some(value) => return Ok(value),
-            None => return Ok(default_value.to_string()),
+            Some(value) => Ok(value),
+            None => Ok(default_value.to_string()),
         }
     } else if let Some(idx) = var_expr.find(":?") {
         // ${VAR:?error} - Display error if var is unset or empty
-        let var_name = &var_expr[..idx];
-        let error_msg = &var_expr[idx + 2..];
+        let (var_name, error_msg) = get_name_and_value(var_expr, idx, 2);
         match get_var_value(var_name, env_vars) {
-            Some(value) if !value.is_empty() => return Ok(value),
-            _ => {
-                return Err(anyhow!(
-                    "Variable '{}' is unset or empty: {}",
-                    var_name,
-                    error_msg
-                ))
-            }
+            Some(value) if !value.is_empty() => Ok(value),
+            _ => Err(anyhow!(
+                "Variable '{}' is unset or empty: {}",
+                var_name,
+                error_msg
+            )),
         }
     } else if let Some(idx) = var_expr.find("?") {
         // ${VAR?error} - Display error if var is unset
-        let var_name = &var_expr[..idx];
-        let error_msg = &var_expr[idx + 1..];
+        let (var_name, error_msg) = get_name_and_value(var_expr, idx, 1);
         match get_var_value(var_name, env_vars) {
-            Some(value) => return Ok(value),
-            None => return Err(anyhow!("Variable '{}' is unset: {}", var_name, error_msg)),
+            Some(value) => Ok(value),
+            None => Err(anyhow!("Variable '{}' is unset: {}", var_name, error_msg)),
         }
     } else if let Some(idx) = var_expr.find(":+") {
         // ${VAR:+replacement} - Use replacement if var is set and not empty
-        let var_name = &var_expr[..idx];
-        let replacement = &var_expr[idx + 2..];
+        let (var_name, replacement) = get_name_and_value(var_expr, idx, 2);
         match get_var_value(var_name, env_vars) {
-            Some(value) if !value.is_empty() => return Ok(replacement.to_string()),
-            _ => return Ok("".to_string()),
+            Some(value) if !value.is_empty() => Ok(replacement.to_string()),
+            _ => Ok(String::new()),
         }
     } else if let Some(idx) = var_expr.find("+") {
         // ${VAR+replacement} - Use replacement if var is set
-        let var_name = &var_expr[..idx];
-        let replacement = &var_expr[idx + 1..];
+        let (var_name, replacement) = get_name_and_value(var_expr, idx, 1);
         match get_var_value(var_name, env_vars) {
-            Some(_) => return Ok(replacement.to_string()),
-            None => return Ok("".to_string()),
+            Some(_) => Ok(replacement.to_string()),
+            None => Ok(String::new()),
         }
     } else {
         // Simple ${VAR} form
         match get_var_value(var_expr, env_vars) {
-            Some(value) => return Ok(value),
-            None => return Ok(format!("${{{}}}", var_expr)), // Leave unchanged if not found
+            Some(value) => Ok(value),
+            None => Ok(format!("${{{}}}", var_expr)), // Leave unchanged if not found
         }
     }
 }
@@ -139,8 +134,11 @@ fn process_var_with_braces(
 pub fn extract_env_vars(input: &str) -> Vec<String> {
     let mut variables = Vec::new();
 
-    // Extract ${VAR} pattern variables
+    // Extract variables with a single regex compilation
     let braces_regex = Regex::new(r"\$\{([^{}]+?)\}").unwrap();
+    let simple_regex = Regex::new(r"\$(\w+)").unwrap();
+
+    // Extract ${VAR} pattern variables
     for captures in braces_regex.captures_iter(input) {
         if let Some(full_match) = captures.get(0) {
             variables.push(full_match.as_str().to_string());
@@ -148,7 +146,6 @@ pub fn extract_env_vars(input: &str) -> Vec<String> {
     }
 
     // Extract $VAR pattern variables
-    let simple_regex = Regex::new(r"\$(\w+)").unwrap();
     for captures in simple_regex.captures_iter(input) {
         if let Some(full_match) = captures.get(0) {
             variables.push(full_match.as_str().to_string());
@@ -161,17 +158,11 @@ pub fn extract_env_vars(input: &str) -> Vec<String> {
 /// Gets a variable value from environment variables HashMap,
 /// falling back to system environment variables if not found
 fn get_var_value(var_name: &str, env_vars: &HashMap<String, String>) -> Option<String> {
-    // First check in the provided env_vars
-    if let Some(value) = env_vars.get(var_name) {
-        return Some(value.clone());
-    }
-
-    // Fall back to system environment variables
-    if let Ok(value) = env::var(var_name) {
-        return Some(value);
-    }
-
-    None
+    // Use a more concise approach with or_else
+    env_vars
+        .get(var_name)
+        .cloned()
+        .or_else(|| env::var(var_name).ok())
 }
 
 #[cfg(test)]
