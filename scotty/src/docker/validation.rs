@@ -7,20 +7,16 @@ pub fn check_for_environment_variables(
     docker_compose_content: &[u8],
     env_vars: Option<&HashMap<String, String>>,
 ) -> Result<(), AppError> {
-    // Parse the YAML content
-    let yaml_value: serde_yml::Value = serde_yml::from_slice(docker_compose_content)
-        .map_err(|_| AppError::InvalidDockerComposeFile)?;
-
-    // Recursively check for environment variables in the YAML structure
-    let missing_vars = find_env_vars_recursively(&yaml_value, env_vars);
-
-    if let Some(missing_var) = missing_vars.first() {
-        return Err(AppError::EnvironmentVariablesNotSupported(
-            missing_var.clone(),
-        ));
-    }
-
-    Ok(())
+    // Parse the YAML content and check for unsupported environment variables
+    serde_yml::from_slice(docker_compose_content)
+        .map_err(|_| AppError::InvalidDockerComposeFile)
+        .and_then(|yaml_value: serde_yml::Value| {
+            find_env_vars_recursively(&yaml_value, env_vars)
+                .first()
+                .map_or(Ok(()), |var| {
+                    Err(AppError::EnvironmentVariablesNotSupported(var.clone()))
+                })
+        })
 }
 
 /// Recursively find environment variables in the YAML structure
@@ -28,33 +24,28 @@ fn find_env_vars_recursively(
     value: &serde_yml::Value,
     env_vars: Option<&HashMap<String, String>>,
 ) -> Vec<String> {
-    let mut missing_vars = Vec::new();
-
     match value {
         serde_yml::Value::String(s) => {
             // Check for environment variables in string values
-            for var_name in env_substitution::extract_env_vars(s) {
-                if !has_env_var(&var_name, env_vars) {
-                    missing_vars.push(var_name);
-                }
-            }
+            env_substitution::extract_env_vars(s)
+                .into_iter()
+                .filter(|var_name| !has_env_var(var_name, env_vars))
+                .collect()
         }
         serde_yml::Value::Sequence(seq) => {
             // Recursively check sequence elements
-            for item in seq {
-                missing_vars.extend(find_env_vars_recursively(item, env_vars));
-            }
+            seq.iter()
+                .flat_map(|item| find_env_vars_recursively(item, env_vars))
+                .collect()
         }
         serde_yml::Value::Mapping(map) => {
             // Recursively check mapping entries
-            for (_, v) in map {
-                missing_vars.extend(find_env_vars_recursively(v, env_vars));
-            }
+            map.values()
+                .flat_map(|v| find_env_vars_recursively(v, env_vars))
+                .collect()
         }
-        _ => {} // Ignore other types
+        _ => Vec::new(), // Ignore other types
     }
-
-    missing_vars
 }
 
 /// Check if an environment variable is provided or has a default value
@@ -68,86 +59,89 @@ fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bo
 
     // Check if the variable is provided in env_vars
     if let Some(vars) = env_vars {
-        // Extract the variable name without any modifier/default parts
-        let actual_name = if clean_name.contains(":-") {
-            clean_name.split(":-").next().unwrap_or("")
-        } else if clean_name.contains("-") {
-            // Only split on the modifier operator, not any hyphens in the variable name
-            if let Some(idx) = clean_name.find('-') {
-                &clean_name[0..idx]
-            } else {
-                clean_name
-            }
-        } else if clean_name.contains(":+") {
-            clean_name.split(":+").next().unwrap_or("")
-        } else if clean_name.contains("+") {
-            if let Some(idx) = clean_name.find('+') {
-                &clean_name[0..idx]
-            } else {
-                clean_name
-            }
-        } else if clean_name.contains(":?") {
-            clean_name.split(":?").next().unwrap_or("")
-        } else if clean_name.contains("?") {
-            if let Some(idx) = clean_name.find('?') {
-                &clean_name[0..idx]
-            } else {
-                clean_name
-            }
-        } else {
-            clean_name
-        };
-
+        let actual_name = extract_var_name(clean_name);
         if vars.contains_key(actual_name) {
             return true;
         }
     }
 
-    // Check if the variable has a default value in the docker-compose file
-    // Variable has a default if it contains :- or - pattern
-    // (but in the case of -, make sure it's not at the start of the name, which would be invalid)
+    // Check if the variable has a default value (using :- or - pattern)
     clean_name.contains(":-") || (clean_name.contains('-') && !clean_name.starts_with('-'))
-    // :+ and + patterns don't provide defaults, they're conditional replacements
-    // :? and ? patterns don't provide defaults, they're error messages
+}
+
+/// Extract the variable name without any modifier/default parts
+fn extract_var_name(clean_name: &str) -> &str {
+    // Find the first occurrence of any modifier pattern
+    for &op in &[":-", "-", ":+", "+", ":?", "?"] {
+        if let Some(idx) = clean_name.find(op) {
+            return &clean_name[..idx];
+        }
+    }
+
+    // If no modifier found, return the original name
+    clean_name
 }
 
 pub fn validate_docker_compose_content(
     docker_compose_content: &[u8],
-    public_service_names: &Vec<String>,
+    public_service_names: &[String],
     env_vars: Option<&HashMap<String, String>>,
 ) -> Result<Vec<String>, AppError> {
+    // Parse the Docker Compose file
     let docker_compose_data: serde_json::Value = serde_yml::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)?;
 
     // Get list of available services
-    let available_services: Vec<String> = docker_compose_data["services"]
-        .as_object()
-        .ok_or(AppError::InvalidDockerComposeFile)?
-        .keys()
-        .cloned()
-        .collect();
+    let available_services = get_available_services(&docker_compose_data)?;
 
-    // Check if all public_services are available in docker-compose
-    for public_service in public_service_names {
-        if !available_services.contains(public_service) {
-            return Err(AppError::PublicServiceNotFound(public_service.clone()));
-        }
-    }
+    // Validate public services exist in the Docker Compose file
+    validate_public_services_exist(&available_services, public_service_names)?;
 
-    // Check if there is a port settings for each service
-    for service in &available_services {
-        let service_data = docker_compose_data["services"][&service]
-            .as_object()
-            .unwrap();
-        if service_data.get("ports").is_some() {
-            return Err(AppError::PublicPortsNotSupported(service.clone()));
-        }
-    }
+    // Validate that no ports are exposed
+    validate_no_ports_exposed(&docker_compose_data)?;
 
     // Check if docker_compose_content depends on any environment variables
     check_for_environment_variables(docker_compose_content, env_vars)?;
 
     Ok(available_services)
+}
+
+/// Get the list of available services from Docker Compose data
+fn get_available_services(
+    docker_compose_data: &serde_json::Value,
+) -> Result<Vec<String>, AppError> {
+    docker_compose_data["services"]
+        .as_object()
+        .ok_or(AppError::InvalidDockerComposeFile)
+        .map(|services| services.keys().cloned().collect())
+}
+
+/// Validate that all public services exist in the available services list
+fn validate_public_services_exist(
+    available_services: &[String],
+    public_service_names: &[String],
+) -> Result<(), AppError> {
+    for public_service in public_service_names {
+        if !available_services.contains(public_service) {
+            return Err(AppError::PublicServiceNotFound(public_service.clone()));
+        }
+    }
+    Ok(())
+}
+
+/// Validate that no services expose ports
+fn validate_no_ports_exposed(docker_compose_data: &serde_json::Value) -> Result<(), AppError> {
+    let services = docker_compose_data["services"]
+        .as_object()
+        .ok_or(AppError::InvalidDockerComposeFile)?;
+
+    for (service_name, service_data) in services {
+        if service_data.get("ports").is_some() {
+            return Err(AppError::PublicPortsNotSupported(service_name.clone()));
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
