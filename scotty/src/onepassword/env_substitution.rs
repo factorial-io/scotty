@@ -28,12 +28,14 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
     let mut result = input.to_string();
     let mut last_result = String::new();
 
+    let braces_regex = Regex::new(r"\$\{([^{}]+?)\}").unwrap();
+    let simple_regex = Regex::new(r"\$(\w+)").unwrap();
+
     // Process substitutions until we reach a fixed point (no more changes)
     while result != last_result {
         last_result = result.clone();
 
         // Process ${VAR} syntax first (with all modifiers)
-        let braces_regex = Regex::new(r"\$\{([^{}]+?)\}").unwrap();
         result = braces_regex
             .replace_all(&last_result, |caps: &regex::Captures| {
                 process_var_with_braces(caps.get(1).unwrap().as_str(), env_vars)
@@ -42,7 +44,6 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
             .to_string();
 
         // Then process simple $VAR syntax
-        let simple_regex = Regex::new(r"\$(\w+)").unwrap();
         result = simple_regex
             .replace_all(&result, |caps: &regex::Captures| {
                 let var_name = caps.get(1).unwrap().as_str();
@@ -68,8 +69,8 @@ fn process_var_with_braces(
         let var_name = &var_expr[..idx];
         let default_value = &var_expr[idx + 2..];
         match get_var_value(var_name, env_vars) {
-            Some(value) if !value.is_empty() => return Ok(value),
-            _ => return Ok(default_value.to_string()),
+            Some(value) if !value.is_empty() => Ok(value),
+            _ => Ok(default_value.to_string()),
         }
     } else if let Some(idx) = var_expr.find("-") {
         // ${VAR-default} - Use default if var is unset
