@@ -393,6 +393,7 @@ pub struct AppData {
     pub docker_compose_path: String,
     pub services: Vec<ContainerState>,
     pub settings: Option<AppSettings>,
+    pub last_checked: Option<chrono::DateTime<chrono::Local>>,
 }
 
 impl Default for AppData {
@@ -404,6 +405,7 @@ impl Default for AppData {
             docker_compose_path: "".to_string(),
             services: Vec::new(),
             settings: None,
+            last_checked: None,
         }
     }
 }
@@ -423,6 +425,7 @@ impl AppData {
             docker_compose_path: docker_compose_path.to_string(),
             services,
             settings,
+            last_checked: None,
         }
     }
 

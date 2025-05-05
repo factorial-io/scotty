@@ -82,6 +82,9 @@
 	<h2 class="card-title" slot="header">App-Details for {data.name}</h2>
 	<div slot="meta">
 		<AppStatusPill status={data.status} />
+		<span class="text-white px-3 py-1 rounded-full text-xs bg-gray-300"
+			><TimeAgo dateString={data.last_checked} /></span
+		>
 	</div>
 </PageHeader>
 

@@ -218,6 +218,7 @@ pub async fn create_app(
         docker_compose_path,
         root_directory,
         status: scotty_core::apps::app_data::AppStatus::Creating,
+        last_checked: None,
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await
