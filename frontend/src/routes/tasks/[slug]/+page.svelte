@@ -15,12 +15,17 @@
 </script>
 
 <PageHeader>
-	<h2 class="card-title" slot="header">Task-Details for <br />{data.id}</h2>
+	<h2 class="card-title" slot="header">
+		Task-Details for <br />{data.id}<br />
+	</h2>
 	<div slot="meta">
-		<TaskStatusPill status={data.state} /> <br />
+		<div class="flex items-center gap-2">
+			<TaskStatusPill status={data.state} />
+		</div>
 		<div class="mt-2 text-xs text-gray-500">
-			Started: <TimeAgo dateString={data.start_time} /> <br />
-			Finished: <TimeAgo dateString={data.finish_time} /> <br />
+			Started <TimeAgo dateString={data.start_time} /> <br />
+			Finished <TimeAgo dateString={data.finish_time} /> <br />
+			App: <a class="link-primary" href="/dashboard/{data.app_name}">{data.app_name}</a>
 		</div>
 	</div>
 </PageHeader>

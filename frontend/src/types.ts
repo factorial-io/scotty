@@ -39,6 +39,7 @@ export interface App {
 	status: string;
 	services: AppService[];
 	settings: AppSettings | null;
+	last_checked: string | null;
 }
 export interface TaskDetail {
 	state: string;
