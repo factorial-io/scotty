@@ -198,6 +198,20 @@ fn validate_app(
     Ok(docker_compose_file.unwrap().clone())
 }
 
+/// Asynchronously creates a new application by validating input files, preparing application data, and running the creation state machine.
+///
+/// This function validates the provided Docker Compose files and settings, constructs the necessary application directories and metadata, and executes the stepwise creation workflow. Returns a context representing the running application upon successful creation.
+///
+/// # Errors
+///
+/// Returns an error if validation fails, required files are missing, or any step in the creation workflow encounters an error.
+///
+/// # Examples
+///
+/// ```
+/// let result = create_app(app_state, "my-app", &settings, &files).await;
+/// assert!(result.is_ok());
+/// ```
 pub async fn create_app(
     app_state: SharedAppState,
     app_name: &str,

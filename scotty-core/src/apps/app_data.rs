@@ -397,6 +397,16 @@ pub struct AppData {
 }
 
 impl Default for AppData {
+    /// Creates a default `AppData` instance with empty fields, stopped status, and no last checked timestamp.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let app = AppData::default();
+    /// assert_eq!(app.status, AppStatus::Stopped);
+    /// assert!(app.name.is_empty());
+    /// assert!(app.last_checked.is_none());
+    /// ```
     fn default() -> Self {
         AppData {
             status: AppStatus::Stopped,
@@ -411,6 +421,18 @@ impl Default for AppData {
 }
 
 impl AppData {
+    /// Constructs a new `AppData` instance with the provided name, directories, services, and settings.
+    ///
+    /// The application name is slugified, and the overall status is determined from the service states. The `last_checked` field is initialized to `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let services = vec![];
+    /// let app_data = AppData::new("My App", "/apps/my_app", "/apps/my_app/docker-compose.yml", services, None);
+    /// assert_eq!(app_data.name, "my-app");
+    /// assert!(app_data.last_checked.is_none());
+    /// ```
     pub fn new(
         name: &str,
         root_directory: &str,

@@ -82,6 +82,20 @@ async fn extract_services_from_docker_compose(content: &str) -> anyhow::Result<V
 }
 
 #[instrument(skip(app_state))]
+/// Inspects a Docker Compose application and gathers its metadata and runtime state.
+///
+/// This function analyzes the specified Docker Compose file, extracts service names, inspects running containers, and attempts to load application-specific settings. It constructs an `AppData` object containing the app's name, path, services, settings, and the timestamp of inspection. If settings are missing and the Docker Compose content is invalid, the app is marked as unsupported.
+///
+/// # Errors
+///
+/// Returns an error if the app is located in the root folder, if required files cannot be read, or if service extraction fails.
+///
+/// # Examples
+///
+/// ```
+/// let app_data = inspect_app(&app_state, &docker_compose_path).await?;
+/// assert_eq!(app_data.name, "my-app");
+/// ```
 pub async fn inspect_app(
     app_state: &SharedAppState,
     docker_compose_path: &PathBuf,
