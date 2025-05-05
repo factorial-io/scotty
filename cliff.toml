@@ -46,7 +46,7 @@ commit_parsers = [
     { message = "^refactor", group = "Refactor" },
     { message = "^refac", group = "Refactor" },
     { message = "^style", group = "Styling" },
-    { message = "^test", group = "Testing", skip = true },
+    { message = "^test", group = "Testing", skip = false },
     { message = "^ci", group = "CI", skip = false },
     { message = "^chore\\(release\\): prepare for", skip = true },
     { message = "^chore\\(deps\\): ", skip = false, group = "Dependencies" },
