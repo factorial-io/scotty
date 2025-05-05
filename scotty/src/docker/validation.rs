@@ -47,6 +47,8 @@ fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bo
     // Remove the ${} wrapper
     let clean_name = if var_name.starts_with("${") && var_name.ends_with('}') {
         &var_name[2..var_name.len() - 1]
+    } else if let Some(stripped) = var_name.strip_prefix('$') {
+        stripped
     } else {
         var_name
     };
@@ -54,6 +56,7 @@ fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bo
     // Check if the variable is provided in env_vars
     if let Some(vars) = env_vars {
         let actual_name = extract_var_name(clean_name);
+        println!("{:?}", actual_name);
         if vars.contains_key(actual_name) {
             return true;
         }
@@ -78,11 +81,25 @@ fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bo
 
 /// Extract the variable name without any modifier/default parts
 fn extract_var_name(clean_name: &str) -> &str {
-    for &op in &[":-", "-", ":+", "+", ":?", "?"] {
+    // First check if the string starts with a modifier
+    // If it does, it's not a real modifier but part of the name
+    if clean_name.starts_with(":-")
+        || clean_name.starts_with(":+")
+        || clean_name.starts_with(":?")
+        || clean_name.starts_with('-')
+        || clean_name.starts_with('+')
+        || clean_name.starts_with('?')
+    {
+        return clean_name;
+    }
+
+    // Then handle all modifiers as before
+    for &op in &[":-", ":+", ":?", "-", "+", "?"] {
         if let Some(idx) = clean_name.find(op) {
             return &clean_name[..idx];
         }
     }
+
     clean_name
 }
 
@@ -287,5 +304,152 @@ services:
             result.is_ok(),
             "Should be valid when all env vars are provided"
         );
+    }
+
+    #[test]
+    fn test_extract_var_name() {
+        // Simple variable with no modifiers
+        assert_eq!(extract_var_name("SIMPLE_VAR"), "SIMPLE_VAR");
+
+        // Variables with different modifiers
+        assert_eq!(extract_var_name("VAR_NAME:-default"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME-default"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME:+value_if_set"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME+value_if_set"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME:?error_msg"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME?error_msg"), "VAR_NAME");
+
+        // Empty string
+        assert_eq!(extract_var_name(""), "");
+
+        // Variable with modifier at the beginning (shouldn't be treated as a modifier)
+        assert_eq!(extract_var_name("-STARTS_WITH_DASH"), "-STARTS_WITH_DASH");
+        assert_eq!(
+            extract_var_name(":-STARTS_WITH_COLON_DASH"),
+            ":-STARTS_WITH_COLON_DASH"
+        );
+
+        // Variables with multiple modifiers (should find the first one)
+        assert_eq!(extract_var_name("VAR_NAME:-default-with-dash"), "VAR_NAME");
+        assert_eq!(extract_var_name("VAR_NAME:-default:+another"), "VAR_NAME");
+
+        // Complex cases
+        assert_eq!(extract_var_name("NESTED_VAR_:-${OTHER_VAR}"), "NESTED_VAR_");
+        assert_eq!(
+            extract_var_name("VAR_WITH_UNDERSCORE_:+_suffix"),
+            "VAR_WITH_UNDERSCORE_"
+        );
+    }
+
+    #[test]
+    fn test_has_env_var() {
+        // Create a test environment variable map
+        let mut env_vars = HashMap::new();
+        env_vars.insert("TEST_VAR".to_string(), "test_value".to_string());
+        env_vars.insert("EMPTY_VAR".to_string(), "".to_string());
+
+        // Test with variable in env_vars
+        assert!(has_env_var("TEST_VAR", Some(&env_vars)));
+
+        // Test with ${} syntax
+        assert!(has_env_var("${TEST_VAR}", Some(&env_vars)));
+
+        // Test with variable not in env_vars
+        assert!(!has_env_var("MISSING_VAR", Some(&env_vars)));
+        assert!(!has_env_var("${MISSING_VAR}", Some(&env_vars)));
+
+        // Test with empty env_vars
+        assert!(!has_env_var("TEST_VAR", None));
+
+        // Test with default values (:-)
+        assert!(has_env_var("MISSING_VAR:-default", None));
+        assert!(has_env_var("${MISSING_VAR:-default}", None));
+
+        // Test with default values (-)
+        assert!(has_env_var("MISSING_VAR-default", None));
+        assert!(has_env_var("${MISSING_VAR-default}", None));
+
+        // Test with use-if-set values (:+)
+        assert!(has_env_var("MISSING_VAR:+value_if_set", None));
+        assert!(has_env_var("${MISSING_VAR:+value_if_set}", None));
+
+        // Test with use-if-set values (+)
+        assert!(has_env_var("MISSING_VAR+value_if_set", None));
+        assert!(has_env_var("${MISSING_VAR+value_if_set}", None));
+
+        // Test with required values (:?)
+        assert!(!has_env_var("MISSING_VAR:?error", None));
+        assert!(!has_env_var("${MISSING_VAR:?error}", None));
+
+        // Test with required values (?)
+        assert!(!has_env_var("MISSING_VAR?error", None));
+        assert!(!has_env_var("${MISSING_VAR?error}", None));
+
+        // Test with variables starting with operators (shouldn't be treated as modifiers)
+        assert!(!has_env_var("-STARTS_WITH_DASH", None));
+        assert!(!has_env_var("${-STARTS_WITH_DASH}", None));
+
+        // Test with empty variable name
+        assert!(!has_env_var("", None));
+        assert!(!has_env_var("${}", None));
+    }
+
+    #[test]
+    fn test_check_for_environment_variables() {
+        // Create a test environment variable map
+        let mut env_vars = HashMap::new();
+        env_vars.insert("EXISTING_VAR".to_string(), "value".to_string());
+
+        // Test with no environment variables
+        let data = serde_yml::from_str("key: value").unwrap();
+        assert!(check_for_environment_variables(&data, None).is_ok());
+
+        // Test with environment variable that has a default
+        let data = serde_yml::from_str("key: ${MISSING_VAR:-default}").unwrap();
+        assert!(check_for_environment_variables(&data, None).is_ok());
+
+        // Test with environment variable that exists in env_vars
+        let data = serde_yml::from_str("key: ${EXISTING_VAR}").unwrap();
+        assert!(check_for_environment_variables(&data, Some(&env_vars)).is_ok());
+
+        // Test with missing environment variable
+        let data = serde_yml::from_str("key: ${MISSING_VAR}").unwrap();
+        let result = check_for_environment_variables(&data, None);
+        assert!(result.is_err());
+        assert!(
+            matches!(result, Err(AppError::EnvironmentVariablesNotSupported(vars)) if vars == "${MISSING_VAR}")
+        );
+
+        // Test with multiple environment variables in complex structure
+        let data = serde_yml::from_str(
+            "
+            services:
+              app:
+                image: test
+                environment:
+                  - VAR1=${EXISTING_VAR}
+                  - VAR2=${MISSING_VAR}
+        ",
+        )
+        .unwrap();
+        let result = check_for_environment_variables(&data, Some(&env_vars));
+        assert!(result.is_err());
+        assert!(
+            matches!(result, Err(AppError::EnvironmentVariablesNotSupported(vars)) if vars == "${MISSING_VAR}")
+        );
+
+        // Test with multiple environment variables, all satisfied
+        let data = serde_yml::from_str(
+            "
+            services:
+              app:
+                image: test
+                environment:
+                  - VAR1=${EXISTING_VAR}
+                  - VAR2=${MISSING_VAR:-default}
+        ",
+        )
+        .unwrap();
+        assert!(check_for_environment_variables(&data, Some(&env_vars)).is_ok());
     }
 }
