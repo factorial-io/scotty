@@ -106,7 +106,7 @@ pub async fn inspect_app(
         get_running_services(app_state, docker_compose_path, &name, &dc_services).await?;
 
     let settings = match get_app_settings(docker_compose_path).await {
-        Ok(result) => Some(result),
+        Ok(result) => result,
         Err(err) => {
             error!("{}", err);
             None
@@ -134,7 +134,7 @@ pub async fn inspect_app(
 }
 
 #[instrument()]
-async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<AppSettings> {
+async fn get_app_settings(docker_compose_path: &PathBuf) -> anyhow::Result<Option<AppSettings>> {
     let settings_path = docker_compose_path.with_file_name(".scotty.yml");
     AppSettings::from_file(&settings_path)
 }

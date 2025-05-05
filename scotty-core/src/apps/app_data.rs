@@ -10,7 +10,7 @@ use bollard::secret::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use serde_yml::Value;
-use tracing::{error, info};
+use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
 #[derive(Debug, Serialize, Clone, ToSchema, ToResponse)]
@@ -218,7 +218,7 @@ impl AppSettings {
         Ok(new_settings)
     }
 
-    pub fn from_file(settings_path: &Path) -> anyhow::Result<AppSettings> {
+    pub fn from_file(settings_path: &Path) -> anyhow::Result<Option<AppSettings>> {
         if settings_path.exists() {
             info!(
                 "Trying to read app-settings from {}",
@@ -237,22 +237,19 @@ impl AppSettings {
                 Ok(settings)
             };
             match result {
-                Ok(settings) => Ok(settings),
+                Ok(settings) => Ok(Some(settings)),
                 Err(e) => {
                     let msg = format!(
                         "Failed to read settings from {}: {}",
                         settings_path.display(),
                         e
                     );
-                    error!(msg);
                     Err(anyhow::anyhow!(msg))
                 }
             }
         } else {
-            Err(anyhow::Error::msg(format!(
-                "No settings file found at {}",
-                &settings_path.display(),
-            )))
+            info!("No settings file found at {}", &settings_path.display());
+            Ok(None)
         }
     }
 }
