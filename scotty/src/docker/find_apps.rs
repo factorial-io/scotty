@@ -121,10 +121,10 @@ pub async fn inspect_app(
         services,
         settings,
     );
-    
+
     // Set the last_checked timestamp to the current time
     app_data.last_checked = Some(chrono::Local::now());
-    
+
     if !valid_settings
         && validate_docker_compose_content(content.as_bytes(), &dc_services, None).is_err()
     {
