@@ -8,7 +8,11 @@ use crate::app_state::SharedAppState;
     get,
     path = "/api/v1/blueprints",
     responses(
-    (status = 200, response = inline(AppBlueprintList))
+    (status = 200, response = inline(AppBlueprintList)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 pub async fn blueprints_handler(State(state): State<SharedAppState>) -> impl IntoResponse {
