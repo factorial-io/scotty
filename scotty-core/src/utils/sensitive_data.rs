@@ -41,7 +41,9 @@ pub fn is_uri_with_possible_credentials(value: &str) -> bool {
     // Try to parse as URL first
     if let Ok(url) = Url::parse(value) {
         // Check if URL has a username and password component
-        return url.password().is_some() && !url.password().unwrap_or("").is_empty();
+        if let Some(password) = url.password() {
+            return !password.is_empty();
+        }
     }
 
     false
@@ -86,32 +88,25 @@ pub fn mask_sensitive_value(value: &str) -> String {
 /// # Returns
 /// A URI with credentials masked, if present
 pub fn mask_uri_credentials(uri: &str) -> String {
+    let mut result = uri.to_string();
     // Try to parse the URI
-    match Url::parse(uri) {
-        Ok(mut parsed_url) => {
-            // Check if URL has a password component
-            if let Some(password) = parsed_url.password() {
-                if !password.is_empty() {
-                    // Create masked password
-                    let masked_password = mask_sensitive_value(password);
+    if let Ok(mut parsed_url) = Url::parse(uri) {
+        // Check if URL has a password component
+        if let Some(password) = parsed_url.password() {
+            if !password.is_empty() {
+                // Create masked password
+                let masked_password = mask_sensitive_value(password);
 
-                    // Set the masked password back into the URL
-                    // The unwrap is safe here since we've already verified the URL is valid
-                    let _ = parsed_url.set_password(Some(&masked_password));
+                // Set the masked password back into the URL
+                // The unwrap is safe here since we've already verified the URL is valid
+                let _ = parsed_url.set_password(Some(&masked_password));
 
-                    // Return the URL with masked password
-                    return parsed_url.to_string();
-                }
+                // Return the URL with masked password
+                result = parsed_url.to_string();
             }
-
-            // If no password, return the original string to avoid any potential formatting changes
-            uri.to_string()
-        }
-        Err(_) => {
-            // If URL parsing fails, return the original string unchanged
-            uri.to_string()
         }
     }
+    result
 }
 
 /// Creates a new HashMap with sensitive values masked
