@@ -76,6 +76,7 @@ maplit = "1.0.2"
 urlencoding = "2.1.3"
 deunicode = "1"
 dotenvy = "0.15.7"
+url = "2.5"
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]

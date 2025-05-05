@@ -1,8 +1,9 @@
 //! Utilities for handling sensitive data
 use std::collections::HashMap;
+use url::Url;
 
 /// Patterns that identify sensitive environment variables
-pub const SENSITIVE_PATTERNS: [&str; 11] = [
+pub const SENSITIVE_PATTERNS: [&str; 10] = [
     "password",
     "secret",
     "token",
@@ -12,7 +13,6 @@ pub const SENSITIVE_PATTERNS: [&str; 11] = [
     "cert",
     "private",
     "api_key",
-    "database",
     "pass",
 ];
 
@@ -28,6 +28,23 @@ pub fn is_sensitive(key: &str) -> bool {
     SENSITIVE_PATTERNS
         .iter()
         .any(|pattern| lowercase_key.contains(pattern))
+}
+
+/// Check if a value appears to be a URI string that might contain credentials
+///
+/// # Arguments
+/// * `value` - The string to check
+///
+/// # Returns
+/// `true` if the value is likely a URI with credentials, `false` otherwise
+pub fn is_uri_with_possible_credentials(value: &str) -> bool {
+    // Try to parse as URL first
+    if let Ok(url) = Url::parse(value) {
+        // Check if URL has a username and password component
+        return url.password().is_some() && !url.password().unwrap_or("").is_empty();
+    }
+
+    false
 }
 
 /// Mask sensitive data with asterisks while preserving some information
@@ -61,6 +78,42 @@ pub fn mask_sensitive_value(value: &str) -> String {
     masked
 }
 
+/// Mask credentials in a URI string using the url crate for parsing
+///
+/// # Arguments
+/// * `uri` - The URI string that might contain credentials
+///
+/// # Returns
+/// A URI with credentials masked, if present
+pub fn mask_uri_credentials(uri: &str) -> String {
+    // Try to parse the URI
+    match Url::parse(uri) {
+        Ok(mut parsed_url) => {
+            // Check if URL has a password component
+            if let Some(password) = parsed_url.password() {
+                if !password.is_empty() {
+                    // Create masked password
+                    let masked_password = mask_sensitive_value(password);
+
+                    // Set the masked password back into the URL
+                    // The unwrap is safe here since we've already verified the URL is valid
+                    let _ = parsed_url.set_password(Some(&masked_password));
+
+                    // Return the URL with masked password
+                    return parsed_url.to_string();
+                }
+            }
+
+            // If no password, return the original string to avoid any potential formatting changes
+            uri.to_string()
+        }
+        Err(_) => {
+            // If URL parsing fails, return the original string unchanged
+            uri.to_string()
+        }
+    }
+}
+
 /// Creates a new HashMap with sensitive values masked
 ///
 /// # Arguments
@@ -73,7 +126,11 @@ pub fn mask_sensitive_env_map(env_map: &HashMap<String, String>) -> HashMap<Stri
         .iter()
         .map(|(k, v)| {
             if is_sensitive(k) {
+                // If key is sensitive, mask the entire value
                 (k.clone(), mask_sensitive_value(v))
+            } else if is_uri_with_possible_credentials(v) {
+                // If value is a URI with credentials, mask only the credentials
+                (k.clone(), mask_uri_credentials(v))
             } else {
                 (k.clone(), v.clone())
             }
@@ -136,6 +193,59 @@ mod tests {
     }
 
     #[test]
+    fn test_uri_with_credentials_detection() {
+        // URLs with credentials
+        assert!(is_uri_with_possible_credentials(
+            "postgres://user:password@localhost/db"
+        ));
+        assert!(is_uri_with_possible_credentials(
+            "mysql://admin:secret@dbserver.com:3306/mydb"
+        ));
+        assert!(is_uri_with_possible_credentials(
+            "https://user:pass123@example.com"
+        ));
+
+        // URLs without credentials
+        assert!(!is_uri_with_possible_credentials("postgres://localhost/db"));
+        assert!(!is_uri_with_possible_credentials("https://example.com"));
+        assert!(!is_uri_with_possible_credentials(
+            "mysql://dbserver.com:3306/mydb"
+        ));
+
+        // Non-URL strings
+        assert!(!is_uri_with_possible_credentials("not a url"));
+        assert!(!is_uri_with_possible_credentials("password=secret"));
+    }
+
+    #[test]
+    fn test_mask_uri_credentials() {
+        // Test with standard database URLs
+        assert_eq!(
+            mask_uri_credentials("postgres://user:password@localhost/db"),
+            "postgres://user:******rd@localhost/db"
+        );
+
+        assert_eq!(
+            mask_uri_credentials("mysql://admin:secret123@dbserver.com:3306/mydb"),
+            "mysql://admin:*******23@dbserver.com:3306/mydb"
+        );
+
+        // Test with HTTPS URLs
+        assert_eq!(
+            mask_uri_credentials("https://user:pass123@example.com"),
+            "https://user:*****23@example.com/"
+        );
+
+        // URLs without credentials should remain unchanged (content-wise)
+        let no_creds_url = "https://example.com";
+        assert!(mask_uri_credentials(no_creds_url).contains("example.com"));
+
+        // Invalid URLs should be returned as-is
+        let invalid_url = "not:a:valid:url";
+        assert_eq!(mask_uri_credentials(invalid_url), invalid_url);
+    }
+
+    #[test]
     fn test_mask_sensitive_env_map() {
         let mut env_map = HashMap::new();
         env_map.insert(
@@ -147,23 +257,34 @@ mod tests {
         env_map.insert("LOG_LEVEL".to_string(), "info".to_string());
         env_map.insert("PORT".to_string(), "8080".to_string());
         env_map.insert("SECRET_TOKEN".to_string(), "jwt-token-xyz-123".to_string());
+        env_map.insert(
+            "MONGODB_URI".to_string(),
+            "mongodb://admin:mongodb_password@mongo.example.com:27017".to_string(),
+        );
 
         let masked_map = mask_sensitive_env_map(&env_map);
 
         // Non-sensitive values should remain unchanged
         assert_eq!(masked_map.get("LOG_LEVEL"), Some(&"info".to_string()));
         assert_eq!(masked_map.get("PORT"), Some(&"8080".to_string()));
-        assert_eq!(
-            masked_map.get("DATABASE_URL"),
-            Some(&"postgres://user:pass@localhost".to_string())
-        );
 
-        // Sensitive values should be masked
+        // Sensitive keys should have their values masked
         assert_eq!(masked_map.get("API_KEY"), Some(&"*******23".to_string()));
         assert_eq!(masked_map.get("PASSWORD"), Some(&"******rd".to_string()));
         assert_eq!(
             masked_map.get("SECRET_TOKEN"),
             Some(&"***-*****-***-123".to_string())
+        );
+
+        // Database URLs should have only their passwords masked
+        assert_eq!(
+            masked_map.get("DATABASE_URL"),
+            Some(&"postgres://user:**ss@localhost".to_string())
+        );
+
+        assert_eq!(
+            masked_map.get("MONGODB_URI"),
+            Some(&"mongodb://admin:************word@mongo.example.com:27017".to_string())
         );
     }
 }
