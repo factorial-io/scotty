@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.25] - 2025-05-05
+
+### Dependencies
+
+- Update dependency vite to v5.4.19 [security] (#288) ✔️
+
 ## [0.1.0-alpha.24] - 2025-05-05
 
 ### Bug Fixes
