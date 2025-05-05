@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.24] - 2025-05-05
+
+### Bug Fixes
+
+- Improve password masking in URI handling ✔️
+- Update security scheme to bearerAuth ✔️
+- Improve error handling for missing environment variables ✔️
+
+### Dependencies
+
+- Update rust crate tabled to 0.19.0 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update dependency typescript-eslint to v8.31.1 ✔️
+- Update dependency eslint to v9.25.1 (#281) ✔️
+- Update rust crate clap to v4.5.37 (#280) ✔️
+- Update dependency eslint to v9.25.0 ✔️
+
+### Documentation
+
+- Document bearer token authentication with utoipa ✔️
+
+### Features
+
+- Display application last checked timestamp ✔️
+- Enhance sensitive data handling with URI credential masking ✔️
+- Add redaction for sensitive environment variables ✔️
+- Add environment variable substitution functionality ✔️
+- Enhance Docker Compose validation for environment variables ✔️
+- Add support for environment variables in docker-compose validation ✔️
+
+### Refactor
+
+- Improve environment variable checking in Docker Compose validation ✔️
+- Simplify environment variable checks and service validation ✔️
+- Simplify environment variable processing ✔️
+- Streamline regex initialization in environment variable processing ✔️
+- Enhance docker-compose command execution with better error handling and documentation ✔️
+
+### Styling
+
+- Improve readability of conditional statement ✔️
+- Format code for consistency and readability ✔️
+
 ## [0.1.0-alpha.22] - 2025-04-16
 
 ### Bug Fixes
