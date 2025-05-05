@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - Update dependency vite to v5.4.19 [security] (#288) ✔️
 
+### Refactor
+
+- Change AppSettings from_file to return Option ✔️
+
 ## [0.1.0-alpha.24] - 2025-05-05
 
 ### Bug Fixes
@@ -50,6 +54,12 @@ All notable changes to this project will be documented in this file.
 
 - Improve readability of conditional statement ✔️
 - Format code for consistency and readability ✔️
+
+## [0.1.0-alpha.23] - 2025-04-16
+
+### Refactor
+
+- Improve env var parsing logic ✔️
 
 ## [0.1.0-alpha.22] - 2025-04-16
 
