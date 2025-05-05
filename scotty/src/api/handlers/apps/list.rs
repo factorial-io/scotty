@@ -6,7 +6,11 @@ use crate::{api::error::AppError, app_state::SharedAppState};
     get,
     path = "/api/v1/apps/list",
     responses(
-    (status = 200, response = inline(AppDataVec))
+    (status = 200, response = inline(AppDataVec)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 #[debug_handler]

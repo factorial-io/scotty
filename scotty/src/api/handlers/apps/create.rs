@@ -15,8 +15,12 @@ use tracing::error;
     path = "/api/v1/apps/create",
     request_body(content = CreateAppRequest, content_type = "application/json"),
     responses(
-    (status = 200, response = inline(RunningAppContext))
-    )
+    (status = 200, response = inline(RunningAppContext)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+            ("bearerAuth" = [])
+        )
 )]
 #[debug_handler]
 pub async fn create_app_handler(

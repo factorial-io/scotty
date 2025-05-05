@@ -21,6 +21,9 @@ use scotty_core::notification_types::WebhookContext;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use tower_http::services::ServeDir;
 use tower_http::services::ServeFile;
+
+use utoipa::openapi::security::SecurityScheme;
+use utoipa::Modify;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
@@ -102,9 +105,31 @@ use super::handlers::tasks::task_list_handler;
     ),
     tags(
         (name = "scotty-service", description = "scotty api")
-    )
+    ),
+    modifiers(&SecurityAddon)
+
 )]
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
+        components.add_security_scheme(
+            "bearerAuth",
+            SecurityScheme::Http(utoipa::openapi::security::Http::new(
+                utoipa::openapi::security::HttpAuthScheme::Bearer,
+            )),
+        )
+    }
+}
+
 struct ApiDoc;
+
+impl utoipa::OpenApi for ApiDoc {
+    fn openapi() -> utoipa::openapi::OpenApi {
+        SecurityAddon::openapi()
+    }
+}
 pub struct ApiRoutes;
 
 impl ApiRoutes {

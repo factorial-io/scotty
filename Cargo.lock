@@ -2415,6 +2415,7 @@ dependencies = [
  "serde_yml",
  "tokio",
  "tracing",
+ "url",
  "utoipa",
  "uuid",
 ]

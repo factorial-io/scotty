@@ -1,0 +1,15 @@
+meta {
+  name: info
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/api/v1/apps/info/:app_name
+  body: none
+  auth: inherit
+}
+
+params:path {
+  app_name: cd-with-db
+}

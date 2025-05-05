@@ -14,7 +14,11 @@ use scotty_core::tasks::task_details::TaskDetails;
     get,
     path = "/api/v1/task/{uuid}",
     responses(
-    (status = 200, response = inline(TaskDetails))
+    (status = 200, response = inline(TaskDetails)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 pub async fn task_detail_handler(
@@ -38,7 +42,11 @@ pub struct TaskList {
     get,
     path = "/api/v1/tasks",
     responses(
-    (status = 200, response = inline(TaskList))
+    (status = 200, response = inline(TaskList)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 #[debug_handler]

@@ -11,7 +11,11 @@ use crate::{api::error::AppError, app_state::SharedAppState};
     path = "/api/v1/apps/notify/add",
     request_body(content = AddNotificationRequest, content_type = "application/json"),
     responses(
-    (status = 200, response = inline(AppData))
+    (status = 200, response = inline(AppData)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 pub async fn add_notification_handler(
@@ -64,7 +68,11 @@ pub async fn add_notification_handler(
     path = "/api/v1/apps/notify/remove",
     request_body(content = RemoveNotificationRequest, content_type = "application/json"),
     responses(
-    (status = 200, response = inline(AppData))
+    (status = 200, response = inline(AppData)),
+    (status = 401, description = "Access token is missing or invalid"),
+    ),
+    security(
+        ("bearerAuth" = [])
     )
 )]
 pub async fn remove_notification_handler(

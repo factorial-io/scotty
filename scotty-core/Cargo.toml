@@ -26,6 +26,7 @@ readonly.workspace = true
 uuid.workspace = true
 bollard.workspace = true
 deunicode.workspace = true
+url.workspace = true
 
 [dev-dependencies.cargo-husky]
 version = "1"

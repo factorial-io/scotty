@@ -108,7 +108,7 @@ pub async fn inspect_app(
     let settings = match get_app_settings(docker_compose_path).await {
         Ok(result) => Some(result),
         Err(err) => {
-            info!("{}", err);
+            error!("{}", err);
             None
         }
     };
