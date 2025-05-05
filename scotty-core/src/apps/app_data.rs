@@ -102,11 +102,12 @@ impl Serialize for AppTtl {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
+#[derive(Debug, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
     pub public_services: Vec<ServicePortMapping>,
     pub domain: String,
     pub time_to_live: AppTtl,
+    #[serde(default)]
     pub destroy_on_ttl: bool,
     pub basic_auth: Option<(String, String)>,
     pub disallow_robots: bool,
@@ -115,6 +116,34 @@ pub struct AppSettings {
     pub app_blueprint: Option<String>,
     #[serde(default)]
     pub notify: HashSet<NotificationReceiver>,
+}
+
+// Implement Serialize manually with redaction for sensitive environment variables
+impl Serialize for AppSettings {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use crate::utils::sensitive_data::mask_sensitive_env_map;
+        use serde::ser::SerializeStruct;
+
+        // Create masked environment variables using the utility function
+        let masked_env = mask_sensitive_env_map(&self.environment);
+
+        // Serialize with the struct serializer
+        let mut state = serializer.serialize_struct("AppSettings", 10)?;
+        state.serialize_field("public_services", &self.public_services)?;
+        state.serialize_field("domain", &self.domain)?;
+        state.serialize_field("time_to_live", &self.time_to_live)?;
+        state.serialize_field("destroy_on_ttl", &self.destroy_on_ttl)?;
+        state.serialize_field("basic_auth", &self.basic_auth)?;
+        state.serialize_field("disallow_robots", &self.disallow_robots)?;
+        state.serialize_field("environment", &masked_env)?;
+        state.serialize_field("registry", &self.registry)?;
+        state.serialize_field("app_blueprint", &self.app_blueprint)?;
+        state.serialize_field("notify", &self.notify)?;
+        state.end()
+    }
 }
 
 impl Default for AppSettings {
@@ -190,12 +219,11 @@ impl AppSettings {
     }
 
     pub fn from_file(settings_path: &Path) -> anyhow::Result<AppSettings> {
-        info!(
-            "Trying to read app-settings from {}",
-            &settings_path.display()
-        );
-
         if settings_path.exists() {
+            info!(
+                "Trying to read app-settings from {}",
+                &settings_path.display()
+            );
             let result: anyhow::Result<AppSettings> = {
                 let file = File::open(settings_path)?;
                 let reader = BufReader::new(file);
