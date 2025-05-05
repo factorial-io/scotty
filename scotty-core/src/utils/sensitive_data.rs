@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 /// Patterns that identify sensitive environment variables
-pub const SENSITIVE_PATTERNS: [&str; 9] = [
+pub const SENSITIVE_PATTERNS: [&str; 11] = [
     "password",
     "secret",
     "token",
@@ -12,6 +12,8 @@ pub const SENSITIVE_PATTERNS: [&str; 9] = [
     "cert",
     "private",
     "api_key",
+    "database",
+    "pass",
 ];
 
 /// Check if a key represents sensitive data
