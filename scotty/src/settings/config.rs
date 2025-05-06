@@ -34,7 +34,6 @@ pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
     pub api: ApiServer,
-    pub frontend_directory: Option<String>,
     pub scheduler: Scheduler,
     pub apps: Apps,
     pub docker: DockerSettings,
@@ -51,7 +50,6 @@ impl Default for Settings {
         Settings {
             debug: false,
             telemetry: None,
-            frontend_directory: None,
             api: ApiServer::default(),
             scheduler: Scheduler {
                 running_app_check: SchedulerInterval::Minutes(1),

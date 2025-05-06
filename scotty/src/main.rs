@@ -7,6 +7,7 @@ mod notification;
 mod onepassword;
 mod settings;
 mod state_machine;
+mod static_files;
 mod stop_flag;
 mod tasks;
 mod utils;

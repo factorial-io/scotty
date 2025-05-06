@@ -1,33 +1,32 @@
 debug: false
 api:
-  bind_address: "0.0.0.0:21342"
-  access_token: "mysecret"
-  create_app_max_size: "50M"
+    bind_address: "0.0.0.0:21342"
+    access_token: "mysecret"
+    create_app_max_size: "50M"
 scheduler:
-  running_app_check: "15s"
-  ttl_check: "10m"
-  task_cleanup: "3m"
+    running_app_check: "15s"
+    ttl_check: "10m"
+    task_cleanup: "3m"
 telemetry: None
-frontend_directory: ./frontend/build
 apps:
-  domain_suffix: "ddev.site"
-  root_folder: "./apps" # Path to the folder where the apps are stored
+    domain_suffix: "ddev.site"
+    root_folder: "./apps" # Path to the folder where the apps are stored
 docker:
-  connection: local # local, socket or http, see bollard docs
-  registries:
-    factorial_legacy:
-      registry: https://registry.factorial.io:8443
-      username: "deploybot"
-      password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL_LEGACY__PASSWORD
-    factorial:
-      registry: https://registry.factorial.io
-      username: "deploybot"
-      password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL__PASSWORD
+    connection: local # local, socket or http, see bollard docs
+    registries:
+        factorial_legacy:
+            registry: https://registry.factorial.io:8443
+            username: "deploybot"
+            password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL_LEGACY__PASSWORD
+        factorial:
+            registry: https://registry.factorial.io
+            username: "deploybot"
+            password: "deploybot" # Override with env SCOTTY__DOCKER__REGISTRIES__FACTORIAL__PASSWORD
 
 load_balancer_type: Traefik #HaproxyConfig or Traefik
 traefik:
-  network: "proxy"
-  use_tls: true
-  certresolver: "myresolver"
+    network: "proxy"
+    use_tls: true
+    certresolver: "myresolver"
 haproxy:
-  use_tls: true
+    use_tls: true
