@@ -81,7 +81,7 @@ pub async fn broadcast_message(state: &SharedAppState, msg: WebSocketMessage) {
     let clients = state.clients.lock().await;
     let serialized_msg = serde_json::to_string(&msg).expect("Failed to serialize message");
     for client in clients.values() {
-        let _ = client.send(Message::Text(serialized_msg.clone()));
+        let _ = client.send(Message::Text(serialized_msg.clone().into()));
     }
 }
 
@@ -90,6 +90,6 @@ pub async fn send_message(state: &SharedAppState, uuid: Uuid, msg: WebSocketMess
     let clients = state.clients.lock().await;
     let serialized_msg = serde_json::to_string(&msg).expect("Failed to serialize message");
     if let Some(client) = clients.get(&uuid) {
-        let _ = client.send(Message::Text(serialized_msg));
+        let _ = client.send(Message::Text(serialized_msg.into()));
     }
 }
