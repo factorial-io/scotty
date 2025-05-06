@@ -6,7 +6,10 @@ domain: simple_nginx.ddev.site
 time_to_live: !Days 7
 basic_auth: null
 disallow_robots: true
-environment: {}
+environment:
+  FOO: BAR
+  FOOX: hjfaklsjghfkljhsaflkgjhasflgkhjasflkgjhasfklgjhasklfghjsalkjghasflgkjhasfklgjhfsgalkfgjhaslkfgjhaslfkgjhasfglkjahsfglksajfghaskfgjhasfglkjhaslkjghaslkfgjhasflgkjhasfglkjhagsflkj
+  FOOX_AUTH: hjfaklsjghfkljhsaflkgjhasflgkhjasflkgjhasfklgjhasklfghjsalkjghasflgkjhasfklgjhfsgalkfgjhaslkfgjhaslfkgjhasfglkjahsfglksajfghaskfgjhasfglkjhaslkjghaslkfgjhasflgkjhasfglkjhagsflkj
 registry: factorial
 app_blueprint: nginx-lagoon
 notify:
