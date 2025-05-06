@@ -19,8 +19,6 @@ use scotty_core::notification_types::MattermostContext;
 use scotty_core::notification_types::NotificationReceiver;
 use scotty_core::notification_types::WebhookContext;
 use scotty_core::tasks::running_app_context::RunningAppContext;
-use tower_http::services::ServeDir;
-use tower_http::services::ServeFile;
 
 use utoipa::openapi::security::SecurityScheme;
 use utoipa::Modify;
@@ -53,6 +51,7 @@ use crate::api::handlers::tasks::__path_task_detail_handler;
 use crate::api::handlers::tasks::__path_task_list_handler;
 use crate::api::ws::ws_handler;
 use crate::app_state::SharedAppState;
+use crate::static_files::serve_embedded_file;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
@@ -134,7 +133,6 @@ pub struct ApiRoutes;
 
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
-        let frontend_directory = state.settings.frontend_directory.clone();
         let api = ApiDoc::openapi();
         let protected_router = Router::new()
             .route("/api/v1/apps/list", get(list_apps_handler))
@@ -177,21 +175,8 @@ impl ApiRoutes {
             .merge(public_router)
             .with_state(state.clone());
 
-        match &frontend_directory {
-            None => {
-                tracing::info!("No frontend directory provided, serving only the API.");
-                router // Return router directly
-            }
-            Some(frontend_directory) => {
-                tracing::info!("Using {} to serve the frontend ui.", frontend_directory);
-                let serve_dir = ServeDir::new(frontend_directory).not_found_service(
-                    ServeFile::new(format!("{}/index.html", &frontend_directory)),
-                );
-
-                let frontend_router = Router::new().fallback_service(serve_dir);
-
-                router.merge(frontend_router)
-            }
-        }
+        // Always use embedded frontend files
+        tracing::info!("Serving embedded frontend files");
+        router.fallback(|uri: axum::http::Uri| async move { serve_embedded_file(uri).await })
     }
 }

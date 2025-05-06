@@ -399,6 +399,9 @@ impl Default for AppData {
     /// # Examples
     ///
     /// ```
+    /// use scotty_core::apps::app_data::AppData;
+    /// use scotty_core::apps::app_data::AppStatus;
+    ///
     /// let app = AppData::default();
     /// assert_eq!(app.status, AppStatus::Stopped);
     /// assert!(app.name.is_empty());
@@ -425,6 +428,7 @@ impl AppData {
     /// # Examples
     ///
     /// ```
+    /// use scotty_core::apps::app_data::AppData;
     /// let services = vec![];
     /// let app_data = AppData::new("My App", "/apps/my_app", "/apps/my_app/docker-compose.yml", services, None);
     /// assert_eq!(app_data.name, "my-app");

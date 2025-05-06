@@ -34,7 +34,6 @@ pub struct Settings {
     pub debug: bool,
     pub telemetry: Option<String>,
     pub api: ApiServer,
-    pub frontend_directory: Option<String>,
     pub scheduler: Scheduler,
     pub apps: Apps,
     pub docker: DockerSettings,
@@ -51,7 +50,6 @@ impl Default for Settings {
         Settings {
             debug: false,
             telemetry: None,
-            frontend_directory: None,
             api: ApiServer::default(),
             scheduler: Scheduler {
                 running_app_check: SchedulerInterval::Minutes(1),
@@ -123,9 +121,15 @@ impl Settings {
         // config via environment variables, even if set in the default config
         settings.telemetry = settings.check_if_optional(&settings.telemetry);
         settings.apps.root_folder = std::fs::canonicalize(&settings.apps.root_folder)
-            .map_err(|e| ConfigError::Message(format!("Failed to get realpath: {}", e)))?
+            .map_err(|e| {
+                ConfigError::Message(format!("Failed to get realpath of apps.root_folder: {}", e))
+            })?
             .to_str()
-            .ok_or_else(|| ConfigError::Message("Failed to convert realpath to string".into()))?
+            .ok_or_else(|| {
+                ConfigError::Message(
+                    "Failed to convert realpath of apps.root_folder to string".into(),
+                )
+            })?
             .to_string();
         Ok(settings)
     }
