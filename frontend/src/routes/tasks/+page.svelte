@@ -4,7 +4,10 @@
 	import { requestAllTasks } from '../../stores/tasksStore';
 	import { tasks } from '../../stores/tasksStore';
 	import TasksTable from '../../components/tasks-table.svelte';
+	import { setTitle } from '../../stores/titleStore';
+
 	onMount(async () => {
+		setTitle('Tasks');
 		await requestAllTasks();
 	});
 

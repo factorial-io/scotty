@@ -1,7 +1,13 @@
 <script>
 	import logo from '$lib/assets/scotty.svg';
+	import { onMount } from 'svelte';
+	import { setTitle } from '../../stores/titleStore';
 
 	let password = '';
+
+	onMount(() => {
+		setTitle('Login');
+	});
 
 	async function login() {
 		const response = await fetch('/api/v1/login', {

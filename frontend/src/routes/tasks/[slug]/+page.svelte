@@ -5,8 +5,14 @@
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { tasks } from '../../../stores/tasksStore';
 	import type { TaskDetail } from '../../../types';
+	import { onMount } from 'svelte';
+	import { setTitle } from '../../../stores/titleStore';
 
 	export let data: TaskDetail;
+
+	onMount(() => {
+		setTitle(`Task: ${data.id} for ${data.app_name}`);
+	});
 
 	tasks.subscribe((new_tasks) => {
 		console.log(new_tasks, data.id);

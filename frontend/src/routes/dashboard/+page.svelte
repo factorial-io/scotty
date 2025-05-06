@@ -4,6 +4,7 @@
 	import { loadApps } from '../../stores/appsStore';
 	import { writable } from 'svelte/store';
 	import MagnifyingGlass from '@iconify-icons/ph/magnifying-glass';
+	import { setTitle } from '../../stores/titleStore';
 
 	import StartStopAppAction from '../../components/start-stop-app-action.svelte';
 	import AppServiceButton from '../../components/app-service-button.svelte';
@@ -55,6 +56,7 @@
 	});
 
 	onMount(async () => {
+		setTitle('Apps Dashboard');
 		await loadApps();
 		updateAppList();
 	});

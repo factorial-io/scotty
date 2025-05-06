@@ -11,9 +11,15 @@
 	import AppServiceButton from '../../../components/app-service-button.svelte';
 	import FormatBasicAuth from '../../../components/format-basic-auth.svelte';
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
+	import { onMount } from 'svelte';
+	import { setTitle } from '../../../stores/titleStore';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
+
+	onMount(() => {
+		setTitle(`App: ${data.name}`);
+	});
 
 	let actions = ['Run', 'Stop', 'Purge', 'Rebuild'];
 	if (data.settings) {

@@ -4,6 +4,7 @@
 	import { apiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
 	import { setupWsListener } from '$lib/ws';
+	import title from '../stores/titleStore';
 
 	type SiteInfo = {
 		domain: string;
@@ -22,6 +23,10 @@
 		site_info = (await apiCall('info')) as SiteInfo;
 	});
 </script>
+
+<svelte:head>
+	<title>{$title}</title>
+</svelte:head>
 
 <div class="my-4 max-w-screen-lg mx-auto">
 	<div class="my-4 p-4 border-2 border-gray-100 dark:border-gray-900 rounded shadow-sm">
