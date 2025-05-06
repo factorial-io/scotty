@@ -110,40 +110,48 @@ pub struct ApiRoutes;
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
         let frontend_directory = state.settings.frontend_directory.clone();
-        let router = Router::new()
+        let api = ApiDoc::openapi();
+        let protected_router = Router::new()
             .route("/api/v1/apps/list", get(list_apps_handler))
-            .route("/api/v1/apps/run/:app_id", get(run_app_handler))
-            .route("/api/v1/apps/stop/:app_id", get(stop_app_handler))
-            .route("/api/v1/apps/purge/:app_id", get(purge_app_handler))
-            .route("/api/v1/apps/rebuild/:app_id", get(rebuild_app_handler))
-            .route("/api/v1/apps/info/:app_id", get(info_app_handler))
-            .route("/api/v1/apps/destroy/:app_id", get(destroy_app_handler))
-            .route("/api/v1/apps/adopt/:app_id", get(adopt_app_handler))
+            .route("/api/v1/apps/run/{app_id}", get(run_app_handler))
+            .route("/api/v1/apps/stop/{app_id}", get(stop_app_handler))
+            .route("/api/v1/apps/purge/{app_id}", get(purge_app_handler))
+            .route("/api/v1/apps/rebuild/{app_id}", get(rebuild_app_handler))
+            .route("/api/v1/apps/info/{app_id}", get(info_app_handler))
+            .route("/api/v1/apps/destroy/{app_id}", get(destroy_app_handler))
+            .route("/api/v1/apps/adopt/{app_id}", get(adopt_app_handler))
             .route(
                 "/api/v1/apps/create",
                 post(create_app_handler).layer(DefaultBodyLimit::max(
                     state.settings.api.create_app_max_size,
                 )),
             )
+            .route("/api/v1/tasks", get(task_list_handler))
+            .route("/api/v1/task/{uuid}", get(task_detail_handler))
+            .route("/api/v1/validate-token", post(validate_token_handler))
+            .route("/api/v1/blueprints", get(blueprints_handler))
             .route("/api/v1/apps/notify/add", post(add_notification_handler))
             .route(
                 "/api/v1/apps/notify/remove",
                 post(remove_notification_handler),
             )
-            .route("/api/v1/tasks", get(task_list_handler))
-            .route("/api/v1/task/:uuid", get(task_detail_handler))
-            .route("/api/v1/validate-token", post(validate_token_handler))
-            .route("/api/v1/blueprints", get(blueprints_handler))
-            .route_layer(middleware::from_fn_with_state(state.clone(), auth))
-            // all routes below this line are public and not protected by basic auth
-            .route("/ws", get(ws_handler))
+            .route_layer(middleware::from_fn_with_state(state.clone(), auth));
+
+        let public_router = Router::new()
             .route("/api/v1/login", post(login_handler))
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))
-            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-            .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
+            .route("/ws", get(ws_handler))
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
+            .merge(Redoc::with_url("/redoc", api.clone()))
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
-            .with_state(state);
+            .with_state(state.clone());
+
+        let router = Router::new()
+            .merge(protected_router)
+            .merge(public_router)
+            .with_state(state.clone());
+
         match &frontend_directory {
             None => {
                 tracing::info!("No frontend directory provided, serving only the API.");
@@ -155,9 +163,9 @@ impl ApiRoutes {
                     ServeFile::new(format!("{}/index.html", &frontend_directory)),
                 );
 
-                router
-                    .nest_service("/", serve_dir.clone())
-                    .fallback_service(serve_dir)
+                let frontend_router = Router::new().fallback_service(serve_dir);
+
+                router.merge(frontend_router)
             }
         }
     }
