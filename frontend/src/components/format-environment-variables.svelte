@@ -6,7 +6,7 @@
 	None
 {:else}
 	<dl class="flex flex-col gap-1">
-		{#each Object.entries(environment).sort(([a], [b]) => a.localeCompare(b)) as [key, value] (key)}
+		{#each Object.entries(environment).sort( ([a], [b]) => a.localeCompare(b) ) as [key, value] (key)}
 			<div class="flex">
 				<dt class="font-mono">{key}&nbsp;=&nbsp;</dt>
 				<dd class="font-mono wrap-anywhere">{value}</dd>

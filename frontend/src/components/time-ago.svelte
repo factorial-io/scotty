@@ -6,7 +6,7 @@
 
 	function getTimeAgo(now: Date, dateString: string) {
 		const past = new Date(dateString);
-		const diffSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+		const diffSeconds = Math.max(0, Math.floor((now.getTime() - past.getTime()) / 1000));
 
 		if (diffSeconds < 60) {
 			return `${diffSeconds} seconds ago`;

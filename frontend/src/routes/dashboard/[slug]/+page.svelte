@@ -13,6 +13,7 @@
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
+	import Pill from '../../../components/pill.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
@@ -88,9 +89,6 @@
 	<h2 class="card-title" slot="header">App-Details for {data.name}</h2>
 	<div slot="meta">
 		<AppStatusPill status={data.status} />
-		<span class="text-white px-3 py-1 rounded-full text-xs bg-gray-300"
-			><TimeAgo dateString={data.last_checked} /></span
-		>
 	</div>
 </PageHeader>
 
@@ -170,3 +168,8 @@
 	<h3 class="text-xl mt-16 mb-4">Latest task-invocations</h3>
 	<TasksTable taskList={app_tasks} />
 {/if}
+<div class="text-right mt-8">
+	<Pill>
+		Updated <TimeAgo dateString={data.last_checked} />
+	</Pill>
+</div>

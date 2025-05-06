@@ -1,4 +1,6 @@
 <script>
+	import Pill from './pill.svelte';
+
 	export let status = 'Running';
 
 	$: statusColor =
@@ -11,4 +13,4 @@
 					: 'bg-gray-300';
 </script>
 
-<span class="text-white px-3 py-1 rounded-full text-xs {statusColor}">{status}</span>
+<Pill text={status} color={statusColor} />

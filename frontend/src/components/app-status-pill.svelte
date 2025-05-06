@@ -1,7 +1,10 @@
 <script>
+	import Pill from './pill.svelte';
+
 	export let status = 'Running';
 
-	$: statusColor = status.toLowerCase() === 'running' ? 'bg-green-500' : 'bg-gray-300';
+	$: statusColor =
+		status.toLowerCase() === 'running' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700';
 </script>
 
-<span class="text-white px-3 py-1 rounded-full text-xs {statusColor}">{status}</span>
+<Pill text={status} color={statusColor} />
