@@ -109,11 +109,12 @@ impl Settings {
         }
 
         // Add the rest of the configuration files.
-        let s = builder
+        builder = builder
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             .add_source(File::with_name("config/local").required(false))
-            .add_source(Self::get_environment())
-            .build()?;
+            .add_source(Self::get_environment());
+
+        let s = builder.build()?;
 
         let mut settings: Settings = s.try_deserialize()?;
 
@@ -157,16 +158,14 @@ mod tests {
 
         env::set_var("SCOTTY__ONEPASSWARD__TEST__JWT_TOKEN", "test_jwt");
 
-        let settings = Config::builder()
+        let builder = Config::builder()
             // Add in `./Settings.toml`
             .add_source(config::File::with_name(
                 "tests/test_docker_registry_password.yaml",
             ))
-            .add_source(Settings::get_environment())
-            .build()
-            .unwrap();
+            .add_source(Settings::get_environment());
 
-        let settings: Settings = settings.try_deserialize().unwrap();
+        let settings: Settings = builder.build().unwrap().try_deserialize().unwrap();
         assert_eq!(
             &settings.docker.registries.get("test").unwrap().password,
             "test_password"
@@ -192,16 +191,14 @@ mod tests {
 
     #[test]
     fn test_notificaction_service_settings() {
-        let settings = Config::builder()
+        let builder = Config::builder()
             // Add in `./Settings.toml`
             .add_source(config::File::with_name(
                 "tests/test_docker_registry_password.yaml",
             ))
-            .add_source(Settings::get_environment())
-            .build()
-            .unwrap();
+            .add_source(Settings::get_environment());
 
-        let settings: Settings = settings.try_deserialize().unwrap();
+        let settings: Settings = builder.build().unwrap().try_deserialize().unwrap();
 
         let mattermost_settings = settings
             .notification_services
