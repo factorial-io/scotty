@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.28] - 2025-05-06
+
+### Features
+
+- Add title management for dynamic page titles ✔️
+- Add dynamic page titles across key sections ✔️
+- Enhance environment-variable display and add defaults ✔️
+
+### Refactor
+
+- Utilize reusable Pill component for status display ✔️
+
 ## [0.1.0-alpha.27] - 2025-05-05
 
 ### Bug Fixes
