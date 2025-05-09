@@ -1,3 +1,5 @@
+use anyhow;
+use dotenvy;
 use scotty_core::{
     apps::app_data::{AppTtl, ServicePortMapping},
     apps::create_app_request::CustomDomainMapping,
@@ -134,6 +136,26 @@ pub fn parse_env_vars(s: &str) -> Result<(String, String), String> {
         }
         None => Err("Invalid env var format, should be key=value".to_string()),
     }
+}
+
+pub fn parse_env_file(file_path: &str) -> anyhow::Result<Vec<(String, String)>> {
+    // Use dotenvy to parse the .env file
+    let env_vars = dotenvy::from_path_iter(file_path)
+        .map_err(|e| anyhow::anyhow!("Failed to parse env file: {}", e))?;
+
+    // Convert to Vec<(String, String)>
+    let env_vars: Vec<(String, String)> = env_vars
+        .filter_map(|result| {
+            result
+                .map_err(|e| {
+                    eprintln!("Warning: {}", e);
+                    e
+                })
+                .ok()
+        })
+        .collect();
+
+    Ok(env_vars)
 }
 
 #[cfg(test)]
