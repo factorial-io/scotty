@@ -64,11 +64,12 @@ pub fn collect_files(
             }
             info!("Reading file {:?}", entry);
             let path = entry.path().to_str().unwrap().to_string();
-            let content = std::fs::read_to_string(&path)?;
+            // Read file as bytes to support binary files
+            let content = std::fs::read(&path)?;
             let relative_path = path.replace(folder, ".");
             files.push(File {
                 name: relative_path,
-                content: content.as_bytes().to_vec(),
+                content,
             });
         }
     }

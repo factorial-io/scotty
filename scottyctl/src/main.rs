@@ -6,6 +6,7 @@ mod utils;
 use clap::{CommandFactory, Parser};
 use cli::print_completions;
 use cli::{Cli, Commands};
+use tracing::info;
 
 pub struct ServerSettings {
     pub server: String,
@@ -16,11 +17,18 @@ pub struct ServerSettings {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
     let server_settings = ServerSettings {
         server: cli.server.clone(),
         access_token: cli.access_token.clone(),
     };
 
+    info!("Running command {:?} ...", &cli.command);
+
+    // Removed the early return and let the match statement execute
     match &cli.command {
         Commands::List => commands::apps::list_apps(&server_settings).await?,
         Commands::Rebuild(cmd) => commands::apps::rebuild_app(&server_settings, cmd).await?,
