@@ -3,10 +3,28 @@ mod cli;
 mod commands;
 mod utils;
 
+// Export progress macros for use in other modules
+#[macro_export]
+macro_rules! progress_println {
+    ($tracker:expr, $($arg:tt)*) => {
+        $tracker.println(&format!($($arg)*)).ok();
+    };
+}
+
+#[macro_export]
+macro_rules! progress_print {
+    ($tracker:expr, $($arg:tt)*) => {
+        $tracker.print(&format!($($arg)*)).ok();
+    };
+}
+
 use clap::{CommandFactory, Parser};
 use cli::print_completions;
 use cli::{Cli, Commands};
 use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, filter::EnvFilter};
 
 pub struct ServerSettings {
     pub server: String,
@@ -17,8 +35,11 @@ pub struct ServerSettings {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt::layer())
         .init();
 
     let server_settings = ServerSettings {

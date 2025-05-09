@@ -1,5 +1,5 @@
 use anyhow::Context;
-use owo_colors::OwoColorize;
+use owo_colors::{OwoColorize, Style as OwoStyle};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::{
@@ -8,10 +8,12 @@ use crate::{
         AdoptCommand, CreateCommand, DestroyCommand, InfoCommand, PurgeCommand, RebuildCommand,
         RunCommand, StopCommand,
     },
+    progress_println,
     utils::{
         files::collect_files,
         formatting::{colored_by_status, format_since},
         parsers::parse_env_file,
+        progress_tracker::ProgressTracker,
     },
     ServerSettings,
 };
@@ -153,15 +155,23 @@ pub async fn destroy_app(server: &ServerSettings, cmd: &DestroyCommand) -> anyho
     let result = get(server, &format!("apps/destroy/{}", &cmd.app_name)).await?;
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
+    
+    let mut progress = ProgressTracker::new();
+    progress.start_operation(&format!("Destroying app {}", &cmd.app_name))?;
     wait_for_task(server, &context).await?;
-
-    println!("App {} destroyed", &cmd.app_name);
+    progress.complete_operation(&format!("App {} destroyed", &cmd.app_name))?;
+    
     Ok(())
 }
 
 pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Result<()> {
+    let mut progress = ProgressTracker::new();
+
+    // Step 1: Collect files
+    progress.start_operation("Collecting files")?;
     let file_list = collect_files(&cmd.docker_compose_path)?;
-    // Encode content base64
+
+    // Convert files for transport
     let file_list = FileList {
         files: file_list
             .files
@@ -172,27 +182,33 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
             })
             .collect(),
     };
+    progress.complete_operation(&format!(
+        "{} files collected",
+        file_list.files.len().to_string().green()
+    ))?;
 
     // Combine environment variables from env-file and command line
     let mut environment = cmd.env.clone();
 
     // Add environment variables from env-file if specified
     if let Some(env_file_path) = &cmd.env_file {
+        progress.start_operation(&format!("Reading environment from {}", env_file_path))?;
         match parse_env_file(env_file_path) {
             Ok(env_file_vars) => {
-                println!(
-                    "📄 Loaded {} environment variables from {}",
-                    env_file_vars.len().to_string().green(),
-                    env_file_path.yellow()
-                );
+                progress.complete_operation(&format!(
+                    "{} environment variables loaded",
+                    env_file_vars.len().to_string().green()
+                ))?;
                 environment.extend(env_file_vars);
             }
             Err(e) => {
+                progress.fail_operation(&format!("Failed to parse env file: {}", e))?;
                 return Err(anyhow::anyhow!("Failed to parse env file: {}", e));
             }
         }
     }
 
+    // Prepare the payload
     let payload = CreateAppRequest {
         app_name: cmd.app_name.clone(),
         custom_domains: cmd.custom_domain.clone(),
@@ -210,22 +226,39 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
         files: file_list,
     };
 
+    // Serialize and send the payload
     let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
     let size = scotty_core::utils::format::format_bytes(payload.to_string().len());
-    println!(
-        "🚀 Beaming your app {} up to {} ({})... \n",
+
+    progress.start_operation(&format!(
+        "Beaming app {} to {} ({} payload)",
         &cmd.app_name.yellow(),
         &server.server.yellow(),
         size.blue()
-    );
+    ))?;
     let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
+    progress.complete_operation(&format!(
+        "Successfully beamed up app {}",
+        &cmd.app_name.yellow()
+    ))?;
 
+    // Get the context and wait for the task to complete
     let context: RunningAppContext =
         serde_json::from_value(result).context("Failed to parse context from API")?;
 
+    // Wait for deployment to complete
     wait_for_task(server, &context).await?;
-    let app_data = get_app_info(server, &context.app_data.name).await?;
 
+    // Get app details
+    progress.start_operation("Retrieving application details")?;
+    let app_data = get_app_info(server, &context.app_data.name).await?;
+    progress.complete_operation("Application details retrieved")?;
+
+    progress_println!(
+        progress,
+        "\n✅ Deployment of {} complete!\n",
+        &cmd.app_name.green().style(OwoStyle::new().bold())
+    );
     print_app_info(&app_data)?;
     Ok(())
 }

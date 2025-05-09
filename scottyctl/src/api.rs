@@ -2,7 +2,8 @@ use anyhow::Context;
 use serde_json::Value;
 use tracing::info;
 
-use crate::ServerSettings;
+use crate::{ServerSettings, progress_print};
+use crate::utils::progress_tracker::ProgressTracker;
 use owo_colors::OwoColorize;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
@@ -69,9 +70,12 @@ pub async fn wait_for_task(
     server: &ServerSettings,
     context: &RunningAppContext,
 ) -> anyhow::Result<()> {
+    let mut progress = ProgressTracker::new();
     let mut done = false;
     let mut last_position = 0;
     let mut last_err_position = 0;
+
+    progress.start_operation(&format!("Waiting for task {}", &context.task.id))?;
 
     while !done {
         let result = get(server, &format!("task/{}", &context.task.id)).await?;
@@ -82,13 +86,17 @@ pub async fn wait_for_task(
         {
             let partial_output = task.stderr[last_err_position..].to_string();
             last_err_position = task.stderr.len();
-            eprint!("{}", partial_output.blue());
+            if !partial_output.is_empty() {
+                progress_print!(progress, "{}", partial_output.blue());
+            }
         }
         // Handle stdout
         {
             let partial_output = task.stdout[last_position..].to_string();
             last_position = task.stdout.len();
-            print!("{}", partial_output.blue());
+            if !partial_output.is_empty() {
+                progress_print!(progress, "{}", partial_output.blue());
+            }
         }
 
         // Check if task is done
@@ -100,10 +108,12 @@ pub async fn wait_for_task(
 
         if let Some(exit_code) = task.last_exit_code {
             if done && exit_code != 0 {
+                progress.fail_operation(&format!("Task failed with exit code {}", exit_code))?;
                 return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
             }
         }
     }
 
+    progress.complete_operation(&format!("Task {} completed successfully", &context.task.id))?;
     Ok(())
 }
