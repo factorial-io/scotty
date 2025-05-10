@@ -31,7 +31,7 @@ pub async fn add_notification(
                 app_data.name
             ));
 
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }
@@ -59,7 +59,7 @@ pub async fn remove_notification(
                 app_data.name
             ));
 
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }

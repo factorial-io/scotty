@@ -1,8 +1,24 @@
+use std::fmt::Debug;
+use std::sync::Arc;
+
+use std::sync::RwLock;
+
+use tracing::info;
+
 #[derive(Debug)]
 pub enum Status {
     Running,
     Failed,
     Success,
+}
+impl Status {
+    fn get_emoji(&self) -> &'static str {
+        match self {
+            Status::Success => "🚀",
+            Status::Failed => "💥",
+            Status::Running => "💭",
+        }
+    }
 }
 
 impl std::fmt::Display for Status {
@@ -31,11 +47,6 @@ where
     }
 }
 
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use std::sync::RwLock;
-
 struct StatusLineInner {
     message: String,
     status: Status,
@@ -52,7 +63,11 @@ impl StatusLineInner {
     }
 
     fn print(&self) {
-        eprintln!("{} {}", self.status, self.message);
+        match self.status {
+            Status::Running => info!("{} {} ", self.status.get_emoji(), self.message),
+            Status::Success => eprintln!("{} {}\n ", self.status.get_emoji(), self.message),
+            Status::Failed => eprintln!("{} {}\n ", self.status.get_emoji(), self.message),
+        }
     }
 
     fn update(&mut self, message: impl AsRef<str>, status: Status) {

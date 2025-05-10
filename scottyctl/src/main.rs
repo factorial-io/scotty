@@ -7,6 +7,7 @@ use clap::{CommandFactory, Parser};
 use cli::print_completions;
 use cli::{Cli, Commands};
 use tracing::info;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub struct ServerSettings {
     pub server: String,
@@ -17,8 +18,9 @@ pub struct ServerSettings {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::WARN)
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
         .init();
 
     let server_settings = ServerSettings {

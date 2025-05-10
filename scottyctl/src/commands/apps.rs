@@ -79,7 +79,7 @@ pub async fn call_apps_api(
                 verb.yellow(),
                 app_name.yellow()
             ));
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }
@@ -160,7 +160,7 @@ pub async fn adopt_app(server: &ServerSettings, cmd: &AdoptCommand) -> anyhow::R
             let result = get(server, &format!("apps/adopt/{}", &cmd.app_name)).await?;
             let app_data: AppData = serde_json::from_value(result)?;
             status_line.success(format!("App {} adopted successfully", &cmd.app_name));
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }
@@ -178,7 +178,7 @@ pub async fn info_app(server: &ServerSettings, cmd: &InfoCommand) -> anyhow::Res
                 "Info for app {} received successfully",
                 &cmd.app_name.yellow()
             ));
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }
@@ -218,7 +218,7 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
                     })
                     .collect(),
             };
-            status_line.success(format!("{} files collected.", file_list.files.len()));
+            status_line.success(format!("{} files ready to beam.", file_list.files.len()));
 
             // Combine environment variables from env-file and command line
             let mut environment = cmd.env.clone();
@@ -268,20 +268,27 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
             ));
             let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
 
+            status_line.success(format!(
+                "App {} beamed up to {} ({})! \n",
+                &cmd.app_name.yellow(),
+                &server.server.yellow(),
+                size.blue()
+            ));
+            status_line.new_status_line(format!(
+                "Waiting for app {} to start... \n",
+                &cmd.app_name.yellow()
+            ));
             let context: RunningAppContext =
                 serde_json::from_value(result).context("Failed to parse context from API")?;
 
             wait_for_task(server, &context).await?;
             let app_data = get_app_info(server, &context.app_data.name).await?;
-
-            status_line.new_status_line(format!(
-                "App {} beamed up to {} ({})... \n",
+            status_line.success(format!(
+                "App {} started successfully! \n",
                 &cmd.app_name.yellow(),
-                &server.server.yellow(),
-                size.blue()
             ));
 
-            Ok(format_app_info(&app_data)?)
+            format_app_info(&app_data)
         })
         .await
 }
