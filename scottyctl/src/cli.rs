@@ -76,6 +76,9 @@ pub enum Commands {
     /// Show shell completion script.
     #[command(name = "completion")]
     Completion(CompletionCommand),
+
+    #[command(name = "test")]
+    Test,
 }
 
 #[derive(Debug, Parser)]
