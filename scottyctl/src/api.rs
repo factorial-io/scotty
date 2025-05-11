@@ -2,6 +2,7 @@ use anyhow::Context;
 use serde_json::Value;
 use tracing::info;
 
+use crate::utils::ui::Ui;
 use crate::ServerSettings;
 use owo_colors::OwoColorize;
 use scotty_core::tasks::running_app_context::RunningAppContext;
@@ -68,6 +69,7 @@ pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value>
 pub async fn wait_for_task(
     server: &ServerSettings,
     context: &RunningAppContext,
+    ui: &Ui,
 ) -> anyhow::Result<()> {
     let mut done = false;
     let mut last_position = 0;
@@ -80,22 +82,33 @@ pub async fn wait_for_task(
 
         // Handle stderr
         {
-            let partial_output = task.stderr[last_err_position..].to_string();
-            last_err_position = task.stderr.len();
-            eprint!("{}", partial_output.blue());
+            let stderr = &task.stderr[last_err_position..];
+            if let Some(last_newline_pos) = stderr.rfind('\n') {
+                let mut partial_output = stderr[..=last_newline_pos].to_string();
+                last_err_position += last_newline_pos + 1;
+
+                // Remove the newline before printing
+                partial_output.pop();
+                ui.eprintln(partial_output.blue().to_string());
+            }
         }
         // Handle stdout
         {
-            let partial_output = task.stdout[last_position..].to_string();
-            last_position = task.stdout.len();
-            print!("{}", partial_output.blue());
+            let stdout = &task.stdout[last_position..];
+            if let Some(last_newline_pos) = stdout.rfind('\n') {
+                let mut partial_output = stdout[..=last_newline_pos].to_string();
+                last_position += last_newline_pos + 1;
+
+                // Remove the newline before printing
+                partial_output.pop();
+                ui.eprintln(partial_output.blue().to_string());
+            }
         }
 
         // Check if task is done
         done = task.state != State::Running;
         if !done {
-            // Sleep for half a second
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
         }
 
         if let Some(exit_code) = task.last_exit_code {

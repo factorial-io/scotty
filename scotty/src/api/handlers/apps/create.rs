@@ -34,7 +34,6 @@ pub async fn create_app_handler(
         .iter()
         .any(|f| f.name.ends_with(".scotty.yml"))
     {
-        println!("Can't create app with .scotty.yml file");
         return Err(AppError::CantCreateAppWithScottyYmlFile);
     }
 

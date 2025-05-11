@@ -1,35 +1,9 @@
-use std::fmt::Debug;
+use atty::Stream;
+
+use super::status_line::Status;
+use super::status_line::StatusLine;
 use std::sync::Arc;
-
 use std::sync::RwLock;
-
-use tracing::info;
-
-#[derive(Debug)]
-pub enum Status {
-    Running,
-    Failed,
-    Success,
-}
-impl Status {
-    fn get_emoji(&self) -> &'static str {
-        match self {
-            Status::Success => "🚀",
-            Status::Failed => "💥",
-            Status::Running => "💭",
-        }
-    }
-}
-
-impl std::fmt::Display for Status {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Status::Running => write!(f, "Running:"),
-            Status::Failed => write!(f, "Failed:"),
-            Status::Success => write!(f, "Success:"),
-        }
-    }
-}
 
 pub trait AsyncFn {
     type Future: std::future::Future<Output = anyhow::Result<String>>;
@@ -47,73 +21,77 @@ where
     }
 }
 
-struct StatusLineInner {
-    message: String,
-    status: Status,
+pub struct Ui {
+    status_line: Option<Arc<RwLock<StatusLine>>>,
 }
 
-impl StatusLineInner {
-    fn new(message: impl AsRef<str>) -> Self {
-        let s = Self {
-            message: message.as_ref().into(),
-            status: Status::Running,
+impl Ui {
+    pub fn new() -> Self {
+        let is_terminal = atty::is(Stream::Stdout);
+        let status_line = if is_terminal {
+            // Only create and animate the status line if we have a terminal
+            let status_line_inner = Arc::new(RwLock::new(StatusLine::new()));
+
+            // Initialize the status line text before starting the animation
+            {
+                let mut sl = status_line_inner.write().unwrap();
+                sl.set_status(Status::Running, "Initializing...");
+            }
+
+            // Start the animation thread
+            {
+                let mut rt = Some(StatusLine::start_render(status_line_inner.clone()));
+                let mut at = Some(StatusLine::start_animation(status_line_inner.clone()));
+                let mut sl = status_line_inner.write().unwrap();
+                sl.animation_thread = at.take();
+                sl.render_thread = rt.take();
+            }
+
+            Some(status_line_inner)
+        } else {
+            None
         };
-        s.print();
-        s
+
+        Ui { status_line }
     }
 
-    fn print(&self) {
-        match self.status {
-            Status::Running => info!("{} {} ", self.status.get_emoji(), self.message),
-            Status::Success => eprintln!("{} {}\n ", self.status.get_emoji(), self.message),
-            Status::Failed => eprintln!("{} {}\n ", self.status.get_emoji(), self.message),
+    pub fn set_status(&self, status_text: &str, status: Status) {
+        if status != Status::Running {
+            self.eprintln(format!("{} {}", status.get_emoji(), status_text).as_str());
         }
-    }
-
-    fn update(&mut self, message: impl AsRef<str>, status: Status) {
-        self.message = message.as_ref().into();
-        self.status = status;
-        self.print();
-    }
-}
-
-impl Debug for StatusLineInner {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("StatusLineInner")
-            .field("message", &self.message)
-            .field("status", &self.status)
-            .finish()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StatusLine {
-    inner: Arc<RwLock<StatusLineInner>>,
-}
-
-impl StatusLine {
-    pub fn new(message: impl AsRef<str>) -> Self {
-        let inner = StatusLineInner::new(message);
-        Self {
-            inner: Arc::new(RwLock::new(inner)),
+        if let Some(status_line) = &self.status_line {
+            if let Ok(mut sl) = status_line.write() {
+                sl.set_status(status, status_text);
+            }
         }
-    }
-
-    fn set_status(&self, message: impl AsRef<str>, status: Status) {
-        let mut inner = self.inner.write().unwrap();
-        inner.update(message, status);
     }
 
     pub fn new_status_line(&self, message: impl AsRef<str>) {
-        self.set_status(message, Status::Running)
+        self.set_status(message.as_ref(), Status::Running)
     }
 
     pub fn failed(&self, message: impl AsRef<str>) {
-        self.set_status(message, Status::Failed)
+        self.set_status(message.as_ref(), Status::Failed)
     }
 
     pub fn success(&self, message: impl AsRef<str>) {
-        self.set_status(message, Status::Success)
+        self.set_status(message.as_ref(), Status::Succeeded)
+    }
+
+    pub fn println(&self, msg: impl AsRef<str>) {
+        if let Some(status_line) = &self.status_line {
+            status_line.read().unwrap().println(msg.as_ref());
+        } else {
+            println!("{}", msg.as_ref());
+        }
+    }
+
+    pub fn eprintln(&self, msg: impl AsRef<str>) {
+        if let Some(status_line) = &self.status_line {
+            status_line.read().unwrap().eprintln(msg.as_ref());
+        } else {
+            eprintln!("{}", msg.as_ref());
+        }
     }
 
     pub async fn run<F>(&self, x: F) -> anyhow::Result<()>
@@ -122,8 +100,11 @@ impl StatusLine {
     {
         match x.call().await {
             Ok(result) => {
+                if let Some(sl) = &self.status_line {
+                    sl.read().unwrap().clear_line();
+                }
                 if !result.is_empty() {
-                    println!("{}", result);
+                    println!("\n{}", result);
                 }
 
                 Ok(())

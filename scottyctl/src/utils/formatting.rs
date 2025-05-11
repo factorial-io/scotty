@@ -28,15 +28,8 @@ pub fn parse_env_file(file_path: &str) -> anyhow::Result<Vec<(String, String)>> 
 
     // Convert to Vec<(String, String)>
     let env_vars: Vec<(String, String)> = env_vars
-        .filter_map(|result| {
-            result
-                .map_err(|e| {
-                    eprintln!("Warning: {}", e);
-                    e
-                })
-                .ok()
-        })
-        .collect();
+        .map(|result| result.map_err(|e| anyhow::anyhow!("Failed to parse env var: {}", e)))
+        .collect::<Result<Vec<(String, String)>, _>>()?;
 
     Ok(env_vars)
 }
