@@ -8,7 +8,10 @@ use crate::{
         AdoptCommand, CreateCommand, DestroyCommand, InfoCommand, PurgeCommand, RebuildCommand,
         RunCommand, StopCommand,
     },
-    utils::formatting::{collect_files, colored_by_status, format_since, parse_env_file},
+    utils::{
+        formatting::{collect_files, colored_by_status, format_since, parse_env_file},
+        ui::Ui,
+    },
     ServerSettings,
 };
 use base64::prelude::*;
@@ -23,29 +26,34 @@ use scotty_core::{
 };
 
 pub async fn list_apps(server: &ServerSettings) -> anyhow::Result<()> {
-    let result = get(server, "apps/list").await?;
+    let ui = Ui::new();
+    ui.new_status_line(format!("Getting list of apps from {} ...", server.server));
+    ui.run(async || {
+        let result = get(server, "apps/list").await?;
 
-    let apps: AppDataVec = serde_json::from_value(result).context("Failed to parse apps list")?;
+        let apps: AppDataVec =
+            serde_json::from_value(result).context("Failed to parse apps list")?;
 
-    let mut builder = Builder::default();
-    builder.push_record(vec!["Name", "Status", "Since", "URLs"]);
-    for app in apps.apps {
-        let urls = app.urls();
-        builder.push_record(vec![
-            &colored_by_status(&app.name, &app.status),
-            &app.status.to_string(),
-            &format_since(&app.running_since()),
-            &urls.join("\n"),
-        ]);
-    }
+        let mut builder = Builder::default();
+        builder.push_record(vec!["Name", "Status", "Since", "URLs"]);
+        for app in apps.apps {
+            let urls = app.urls();
+            builder.push_record(vec![
+                &colored_by_status(&app.name, &app.status),
+                &app.status.to_string(),
+                &format_since(&app.running_since()),
+                &urls.join("\n"),
+            ]);
+        }
 
-    let mut table = builder.build();
+        let mut table = builder.build();
 
-    table.with(Style::rounded());
+        table.with(Style::rounded());
 
-    println!("{}", table);
-
-    Ok(())
+        ui.success("Got all apps!");
+        Ok(table.to_string())
+    })
+    .await
 }
 
 pub async fn call_apps_api(
@@ -53,13 +61,27 @@ pub async fn call_apps_api(
     verb: &str,
     app_name: &str,
 ) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
-    let context: RunningAppContext =
-        serde_json::from_value(result).context("Failed to parse context from API")?;
-    wait_for_task(server, &context).await?;
-    let app_data = get_app_info(server, &context.app_data.name).await?;
-    print_app_info(&app_data)?;
-    Ok(())
+    let ui = Ui::new();
+    ui.new_status_line(format!(
+        "Running action {} for app {} at {} ...",
+        verb.yellow(),
+        app_name.yellow(),
+        server.server.yellow()
+    ));
+    ui.run(async || {
+        let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
+        let context: RunningAppContext =
+            serde_json::from_value(result).context("Failed to parse context from API")?;
+        wait_for_task(server, &context, &ui).await?;
+        let app_data = get_app_info(server, &context.app_data.name).await?;
+        ui.success(format!(
+            "{} action for app {} has been successfully completed!",
+            verb.yellow(),
+            app_name.yellow()
+        ));
+        format_app_info(&app_data)
+    })
+    .await
 }
 
 pub async fn get_app_info(server: &ServerSettings, app_name: &str) -> anyhow::Result<AppData> {
@@ -69,7 +91,7 @@ pub async fn get_app_info(server: &ServerSettings, app_name: &str) -> anyhow::Re
     Ok(app_data)
 }
 
-pub fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
+pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     let mut builder = Builder::default();
     builder.push_record(vec!["Service", "Status", "Running since", "URL"]);
     for service in &app_data.services {
@@ -85,11 +107,10 @@ pub fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
     let mut table = builder.build();
     table.with(Style::rounded());
 
-    println!("Info for {}", app_data.name);
-    println!("{}", table);
+    let mut result = format!("Info for {}\n{}", app_data.name, table);
 
     if app_data.settings.is_some() && !app_data.settings.as_ref().unwrap().notify.is_empty() {
-        println!("Notification services");
+        result += "\nNotification services";
         let mut builder = Builder::default();
         builder.push_record(["Type", "Service-Id", "Context"]);
         for notification in &app_data.settings.as_ref().unwrap().notify {
@@ -109,10 +130,11 @@ pub fn print_app_info(app_data: &AppData) -> anyhow::Result<()> {
                 }
             });
         }
-        println!("{}", builder.build().with(Style::rounded()));
+        let table = builder.build().with(Style::rounded()).to_string();
+        result += format!("\n{}", table).as_str();
     }
 
-    Ok(())
+    Ok(result)
 }
 
 pub async fn rebuild_app(server: &ServerSettings, cmd: &RebuildCommand) -> anyhow::Result<()> {
@@ -132,96 +154,147 @@ pub async fn purge_app(server: &ServerSettings, cmd: &PurgeCommand) -> anyhow::R
 }
 
 pub async fn adopt_app(server: &ServerSettings, cmd: &AdoptCommand) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/adopt/{}", &cmd.app_name)).await?;
-    let app_data: AppData = serde_json::from_value(result)?;
-    print_app_info(&app_data)?;
-    Ok(())
+    let ui = Ui::new();
+    ui.new_status_line(format!("Adopting app {}...", &cmd.app_name));
+    ui.run(async || {
+        let result = get(server, &format!("apps/adopt/{}", &cmd.app_name)).await?;
+        let app_data: AppData = serde_json::from_value(result)?;
+        ui.success(format!("App {} adopted successfully", &cmd.app_name));
+        format_app_info(&app_data)
+    })
+    .await
 }
 
 pub async fn info_app(server: &ServerSettings, cmd: &InfoCommand) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/info/{}", cmd.app_name)).await?;
-    let app_data: AppData = serde_json::from_value(result)?;
-    print_app_info(&app_data)?;
-    Ok(())
+    let ui = Ui::new();
+    ui.new_status_line(format!(
+        "Getting info for app {}...",
+        &cmd.app_name.yellow()
+    ));
+    ui.run(async || {
+        let result = get(server, &format!("apps/info/{}", cmd.app_name)).await?;
+        let app_data: AppData = serde_json::from_value(result)?;
+        ui.success(format!(
+            "Info for app {} received successfully",
+            &cmd.app_name.yellow()
+        ));
+        format_app_info(&app_data)
+    })
+    .await
 }
 
 pub async fn destroy_app(server: &ServerSettings, cmd: &DestroyCommand) -> anyhow::Result<()> {
-    let result = get(server, &format!("apps/destroy/{}", &cmd.app_name)).await?;
-    let context: RunningAppContext =
-        serde_json::from_value(result).context("Failed to parse context from API")?;
-    wait_for_task(server, &context).await?;
+    let ui = Ui::new();
+    ui.new_status_line(format!("Destroying app {}...", &cmd.app_name.yellow()));
+    ui.run(async || {
+        let result = get(server, &format!("apps/destroy/{}", &cmd.app_name)).await?;
+        let context: RunningAppContext =
+            serde_json::from_value(result).context("Failed to parse context from API")?;
+        wait_for_task(server, &context, &ui).await?;
+        ui.success(format!(
+            "App {} destroyed successfully",
+            &cmd.app_name.yellow()
+        ));
 
-    println!("App {} destroyed", &cmd.app_name);
-    Ok(())
+        Ok(format!("App {} destroyed", &cmd.app_name))
+    })
+    .await
 }
 
 pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Result<()> {
-    let file_list = collect_files(&cmd.docker_compose_path)?;
-    // Encode content base64
-    let file_list = FileList {
-        files: file_list
-            .files
-            .iter()
-            .map(|f| File {
-                name: f.name.clone(),
-                content: BASE64_STANDARD.encode(&f.content).into(),
-            })
-            .collect(),
-    };
+    let ui = Ui::new();
+    ui.new_status_line(format!("Creating app {}...", &cmd.app_name.yellow()));
+    ui.run(async || {
+        ui.new_status_line("Collecting files...");
+        let file_list = collect_files(&cmd.docker_compose_path)?;
+        // Encode content base64
+        let file_list = FileList {
+            files: file_list
+                .files
+                .iter()
+                .map(|f| File {
+                    name: f.name.clone(),
+                    content: BASE64_STANDARD.encode(&f.content).into(),
+                })
+                .collect(),
+        };
+        ui.success(format!("{} files ready to beam.", file_list.files.len()));
 
-    // Combine environment variables from env-file and command line
-    let mut environment = cmd.env.clone();
+        // Combine environment variables from env-file and command line
+        let mut environment = cmd.env.clone();
 
-    // Add environment variables from env-file if specified
-    if let Some(env_file_path) = &cmd.env_file {
-        match parse_env_file(env_file_path) {
-            Ok(env_file_vars) => {
-                println!(
-                    "📄 Loaded {} environment variables from {}",
-                    env_file_vars.len().to_string().green(),
-                    env_file_path.yellow()
-                );
-                environment.extend(env_file_vars);
-            }
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to parse env file: {}", e));
+        // Add environment variables from env-file if specified
+        if let Some(env_file_path) = &cmd.env_file {
+            ui.new_status_line("Collecting env-file...");
+            match parse_env_file(env_file_path) {
+                Ok(env_file_vars) => {
+                    ui.success(format!(
+                        "Loaded {} environment variables from {}",
+                        env_file_vars.len().to_string().green(),
+                        env_file_path.yellow()
+                    ));
+                    let mut combined_env = env_file_vars;
+                    combined_env.extend(environment.iter().cloned());
+                    environment = combined_env;
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Failed to parse env file {}: {}",
+                        env_file_path,
+                        e
+                    ));
+                }
             }
         }
-    }
 
-    let payload = CreateAppRequest {
-        app_name: cmd.app_name.clone(),
-        custom_domains: cmd.custom_domain.clone(),
-        settings: AppSettings {
-            public_services: cmd.service.clone(),
-            basic_auth: cmd.basic_auth.clone(),
-            environment: environment.iter().cloned().collect(),
-            registry: cmd.registry.clone(),
-            app_blueprint: cmd.app_blueprint.clone(),
-            time_to_live: cmd.ttl.clone(),
-            disallow_robots: !cmd.allow_robots,
-            destroy_on_ttl: cmd.destroy_on_ttl,
-            ..Default::default()
-        },
-        files: file_list,
-    };
+        let payload = CreateAppRequest {
+            app_name: cmd.app_name.clone(),
+            custom_domains: cmd.custom_domain.clone(),
+            settings: AppSettings {
+                public_services: cmd.service.clone(),
+                basic_auth: cmd.basic_auth.clone(),
+                environment: environment.iter().cloned().collect(),
+                registry: cmd.registry.clone(),
+                app_blueprint: cmd.app_blueprint.clone(),
+                time_to_live: cmd.ttl.clone(),
+                disallow_robots: !cmd.allow_robots,
+                destroy_on_ttl: cmd.destroy_on_ttl,
+                ..Default::default()
+            },
+            files: file_list,
+        };
 
-    let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
-    let size = scotty_core::utils::format::format_bytes(payload.to_string().len());
-    println!(
-        "🚀 Beaming your app {} up to {} ({})... \n",
-        &cmd.app_name.yellow(),
-        &server.server.yellow(),
-        size.blue()
-    );
-    let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
+        let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
+        let size = scotty_core::utils::format::format_bytes(payload.to_string().len());
+        ui.new_status_line(format!(
+            "Beaming your app {} up to {} ({})... \n",
+            &cmd.app_name.yellow(),
+            &server.server.yellow(),
+            size.blue()
+        ));
+        let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
 
-    let context: RunningAppContext =
-        serde_json::from_value(result).context("Failed to parse context from API")?;
+        ui.success(format!(
+            "App {} beamed up to {} ({})! \n",
+            &cmd.app_name.yellow(),
+            &server.server.yellow(),
+            size.blue()
+        ));
+        ui.new_status_line(format!(
+            "Waiting for app {} to start... \n",
+            &cmd.app_name.yellow()
+        ));
+        let context: RunningAppContext =
+            serde_json::from_value(result).context("Failed to parse context from API")?;
 
-    wait_for_task(server, &context).await?;
-    let app_data = get_app_info(server, &context.app_data.name).await?;
+        wait_for_task(server, &context, &ui).await?;
+        let app_data = get_app_info(server, &context.app_data.name).await?;
+        ui.success(format!(
+            "App {} started successfully! \n",
+            &cmd.app_name.yellow(),
+        ));
 
-    print_app_info(&app_data)?;
-    Ok(())
+        format_app_info(&app_data)
+    })
+    .await
 }
