@@ -101,7 +101,7 @@ pub async fn wait_for_task(
 
                 // Remove the newline before printing
                 partial_output.pop();
-                ui.eprintln(partial_output.blue().to_string());
+                ui.println(partial_output.blue().to_string());
             }
         }
 
