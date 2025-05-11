@@ -238,7 +238,11 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
                     environment = combined_env;
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!("Failed to parse env file: {}", e));
+                    return Err(anyhow::anyhow!(
+                        "Failed to parse env file {}: {}",
+                        env_file_path,
+                        e
+                    ));
                 }
             }
         }
