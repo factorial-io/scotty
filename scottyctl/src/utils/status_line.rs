@@ -147,9 +147,11 @@ impl StatusLine {
         let handles = vec![self.animation_thread.take(), self.render_thread.take()];
         self.is_running.store(false, Ordering::SeqCst);
         for handle in handles.into_iter().flatten() {
-            handle
-                .join()
-                .unwrap_or_else(|_| eprintln!("Failed to join thread"));
+            if handle.thread().id() != thread::current().id() {
+                handle
+                    .join()
+                    .unwrap_or_else(|_| eprintln!("Failed to join thread"));
+            }
         }
     }
 }

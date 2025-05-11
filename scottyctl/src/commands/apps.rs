@@ -233,7 +233,9 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
                         env_file_vars.len().to_string().green(),
                         env_file_path.yellow()
                     ));
-                    environment.extend(env_file_vars);
+                    let mut combined_env = env_file_vars;
+                    combined_env.extend(environment.iter().cloned());
+                    environment = combined_env;
                 }
                 Err(e) => {
                     return Err(anyhow::anyhow!("Failed to parse env file: {}", e));
