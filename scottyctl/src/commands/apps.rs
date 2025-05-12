@@ -269,7 +269,7 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
         let size = scotty_core::utils::format::format_bytes(payload.to_string().len());
         ui.new_status_line(format!(
-            "Beaming your app {} up to {} ({})... \n",
+            "Beaming your app {} up to {} ({})...",
             &cmd.app_name.yellow(),
             &server.server.yellow(),
             size.blue()
@@ -277,13 +277,13 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
         let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
 
         ui.success(format!(
-            "App {} beamed up to {} ({})! \n",
+            "App {} beamed up to {} ({})!",
             &cmd.app_name.yellow(),
             &server.server.yellow(),
             size.blue()
         ));
         ui.new_status_line(format!(
-            "Waiting for app {} to start... \n",
+            "Waiting for app {} to start...",
             &cmd.app_name.yellow()
         ));
         let context: RunningAppContext =
@@ -292,7 +292,7 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
         wait_for_task(server, &context, &ui).await?;
         let app_data = get_app_info(server, &context.app_data.name).await?;
         ui.success(format!(
-            "App {} started successfully! \n",
+            "App {} started successfully!",
             &cmd.app_name.yellow(),
         ));
 
