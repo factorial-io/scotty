@@ -4,21 +4,19 @@ use tracing::info;
 use walkdir::WalkDir;
 
 /// Collects all files in the directory containing the docker-compose file.
-/// 
+///
 /// This function walks through the directory tree and collects all files,
 /// supporting both text and binary files. Files like `.DS_Store` and files
 /// in `.git` directories are ignored.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `docker_compose_path` - Path to the docker-compose.yml file
-/// 
+///
 /// # Returns
-/// 
+///
 /// A `FileList` containing all collected files with their contents
-pub fn collect_files(
-    docker_compose_path: &str,
-) -> anyhow::Result<FileList> {
+pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
     let folder = std::path::Path::new(docker_compose_path)
         .parent()
         .unwrap()

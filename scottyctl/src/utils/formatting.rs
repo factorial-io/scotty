@@ -18,5 +18,3 @@ pub fn colored_by_status(name: &str, status: &AppStatus) -> String {
         AppStatus::Unsupported => name.white().to_string(),
     }
 }
-
-
