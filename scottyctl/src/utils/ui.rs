@@ -1,7 +1,6 @@
-use atty::Stream;
-
 use super::status_line::Status;
 use super::status_line::StatusLine;
+use std::io::IsTerminal;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -27,7 +26,9 @@ pub struct Ui {
 
 impl Ui {
     pub fn new() -> Self {
-        let is_terminal = atty::is(Stream::Stdout);
+        let stderr = std::io::stderr();
+
+        let is_terminal = stderr.is_terminal();
         let status_line = if is_terminal {
             // Only create and animate the status line if we have a terminal
             let status_line_inner = Arc::new(RwLock::new(StatusLine::new()));
