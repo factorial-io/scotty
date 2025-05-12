@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use scotty_core::{
     apps::app_data::AppSettings,
@@ -7,7 +7,7 @@ use scotty_core::{
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::state_machine::StateHandler;
+use crate::{api::error::AppError, state_machine::StateHandler};
 
 use super::{context::Context, run_task_and_wait::run_task_and_wait};
 
@@ -25,8 +25,10 @@ impl<S> RunPostActionsHandler<S>
 where
     S: Send + Sync + Clone + std::fmt::Debug,
 {
-    pub fn get_blueprint(&self, context: &Context) -> Option<AppBlueprint> {
-        self.settings.as_ref()?;
+    pub fn get_blueprint(&self, context: &Context) -> Result<Option<AppBlueprint>, AppError> {
+        if self.settings.as_ref().is_none() {
+            return Ok(None);
+        }
         match &self.settings.as_ref().unwrap().app_blueprint {
             Some(blueprint_name) => {
                 let blueprint = context
@@ -34,17 +36,14 @@ where
                     .settings
                     .apps
                     .blueprints
-                    .get(blueprint_name)?;
-                Some(blueprint.clone())
-            }
-            None => None,
-        }
-    }
+                    .get(blueprint_name);
 
-    pub fn get_environment(&self) -> std::collections::HashMap<String, String> {
-        match &self.settings {
-            Some(settings) => settings.environment.clone(),
-            None => std::collections::HashMap::new(),
+                if blueprint.is_none() {
+                    return Err(AppError::AppBlueprintMismatch(blueprint_name.to_string()));
+                }
+                Ok(Some(blueprint.unwrap().clone()))
+            }
+            None => Ok(None),
         }
     }
 }
@@ -58,7 +57,7 @@ where
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
         let context = context.read().await;
         let docker_compose_path = std::path::PathBuf::from(&context.app_data.docker_compose_path);
-        let blueprint = self.get_blueprint(&context);
+        let blueprint = self.get_blueprint(&context)?;
         if blueprint.is_none() {
             return Ok(self.next_state.clone());
         }
@@ -66,9 +65,17 @@ where
         let blueprint_actions = &blueprint.unwrap().actions;
         let selected_action = blueprint_actions.get(&self.action);
 
+        let environment = context.app_data.get_environment();
+        let augmented_env = context.app_data.augment_environment(HashMap::new());
+
         if let Some(service_script_mapping) = selected_action {
             for (service, script) in service_script_mapping.iter() {
-                let script_one_line = script.join("; ");
+                let mut augmented_script = Vec::new();
+                for (key, value) in augmented_env.iter() {
+                    augmented_script.push(format!("export {}={}", key, value));
+                }
+                augmented_script.extend(script.iter().cloned());
+                let script_one_line = augmented_script.join("; ");
                 let args = vec!["exec", service, "sh", "-c", &script_one_line];
 
                 run_task_and_wait(
@@ -76,7 +83,7 @@ where
                     &docker_compose_path,
                     "docker-compose",
                     &args,
-                    &self.get_environment(),
+                    &environment,
                     &format!("post-action {:?} on service {}", &self.action, service),
                 )
                 .await?;

@@ -511,11 +511,31 @@ impl AppData {
         Ok(())
     }
 
+    pub fn augment_environment(
+        &self,
+        environment: HashMap<String, String>,
+    ) -> HashMap<String, String> {
+        let mut environment = environment;
+        environment.insert("SCOTTY__APP_NAME".to_string(), self.name.to_string());
+
+        for service in &self.services {
+            let urls = service.get_urls();
+            if !urls.is_empty() {
+                let name = format!("SCOTTY__PUBLIC_URL__{}", service.service.to_uppercase());
+                environment.insert(name, urls[0].to_string());
+            }
+        }
+        environment
+    }
+
     pub fn get_environment(&self) -> HashMap<String, String> {
-        self.settings
+        let environment = self
+            .settings
             .as_ref()
             .map(|s| s.environment.clone())
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        self.augment_environment(environment)
     }
 
     pub async fn create_settings_from_runtime(
