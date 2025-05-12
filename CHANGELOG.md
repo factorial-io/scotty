@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.29] - 2025-05-12
+
+### Bug Fixes
+
+- Remove trailing newlines from UI messages ✔️
+- Fix: Change task output from stderr to stdout if it was targeted to
+stdout ❌
+- Include file path in env file parse error message ✔️
+- Fix environment variable precedence in app creation ✔️
+- Update rust crate tempfile to v3.20.0 ✔️
+- Support binary file handling in file reading ✔️
+- Enhance error messages for root folder path resolution ✔️
+- Update rust crate tempfile to v3.19.1 ✔️
+
+### Dependencies
+
+- Update dependency typescript-eslint to v8.32.0 ✔️
+- Update dependency globals to v16.1.0 ✔️
+- Update rust dependencies auto-merge (patch) (#304) ✔️
+- Update dependency eslint-config-prettier to v10.1.5 (#303) ✔️
+- Update rust crate tower-http to v0.6.3 (#302) ✔️
+- Update dependency eslint-config-prettier to v10.1.3 (#300) ✔️
+- Update rust crate tokio to v1.45.0 ✔️
+- Update rust crate axum to v0.8.4 (#297) ✔️
+- Update rust crate axum to 0.8.0 ✔️
+- Update traefik docker tag to v3.4 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update dependency eslint to v9.26.0 ✔️
+- Update npm dependencies auto-merge (patch) (#291) ✔️
+- Update rust crate config to 0.15.0 ✔️
+- Update dependency daisyui to v5 ✔️
+
+### Documentation
+
+- Improve examples in AppData documentation ✔️
+
+### Features
+
+- Enhance user interface with status line functionality ✔️
+- Enhance status line with emoji indicators ✔️
+- Embed frontend files into the executable ✔️
+
+### Refactor
+
+- Modularize and reorganize file and parser utilities ✔️
+- Implement custom debug for file structure ✔️
+- Introduce StatusLine for better status tracking and UI feedback ✔️
+- Streamline router setup for improved clarity ✔️
+- Upgrade axum to 0.8.1 ✔️
+- Improve builder pattern for configuration loading ✔️
+
 ## [0.1.0-alpha.28] - 2025-05-06
 
 ### Features
