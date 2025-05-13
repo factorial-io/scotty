@@ -31,22 +31,14 @@ where
 {
     #[instrument(skip(context))]
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        let context_read = context.read().await;
-        let app_state = &context_read.app_state;
-        let app_data = &context_read.app_data;
-
-        // Update task status
-        let task_clone = context_read.task.clone();
-        {
-            let mut task = task_clone.write().await;
-            task.println("Waiting for containers to be ready ...");
-        }
-
-        broadcast_message(
-            &context_read.app_state,
-            WebSocketMessage::TaskInfoUpdated(task_clone.read().await.clone()),
-        )
-        .await;
+        let (app_state, app_data, task_clone) = {
+            let ctx = context.read().await;
+            (
+                ctx.app_state.clone(),
+                ctx.app_data.clone(),
+                ctx.task.clone(),
+            )
+        };
 
         debug!("Collecting container IDs for app {}", app_data.name);
 
@@ -75,14 +67,14 @@ where
         }
 
         broadcast_message(
-            &context_read.app_state,
+            &app_state,
             WebSocketMessage::TaskInfoUpdated(task_clone.read().await.clone()),
         )
         .await;
 
         // Wait for all containers to reach a non-starting state
         let container_states =
-            wait_for_containers_ready(app_state, container_ids, self.timeout_seconds)
+            wait_for_containers_ready(&app_state, container_ids, self.timeout_seconds)
                 .await
                 .context("Failed to wait for containers to be ready")?;
 
@@ -96,7 +88,7 @@ where
         }
 
         broadcast_message(
-            &context_read.app_state,
+            &app_state,
             WebSocketMessage::TaskInfoUpdated(task_clone.read().await.clone()),
         )
         .await;
