@@ -10,6 +10,7 @@ use crate::{
         run_docker_login_handler::RunDockerLoginHandler,
         run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
         update_app_data_handler::UpdateAppDataHandler,
+        wait_for_all_containers_handler::WaitForAllContainersHandler,
     },
     state_machine::StateMachine,
 };
@@ -24,6 +25,7 @@ use super::helper::run_sm;
 enum RunAppStates {
     RunDockerLogin,
     RunDockerCompose,
+    WaitForAllContainers,
     RunPostActions,
     UpdateAppData,
     SetFinished,
@@ -46,9 +48,23 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
     sm.add_handler(
         RunAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<RunAppStates> {
-            next_state: RunAppStates::RunPostActions,
+            next_state: RunAppStates::WaitForAllContainers,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
             env: app.get_environment(),
+        }),
+    );
+    sm.add_handler(
+        RunAppStates::WaitForAllContainers,
+        Arc::new(WaitForAllContainersHandler::<RunAppStates> {
+            next_state: RunAppStates::RunPostActions,
+            timeout_seconds: Some(300),
+        }),
+    );
+    sm.add_handler(
+        RunAppStates::WaitForAllContainers,
+        Arc::new(WaitForAllContainersHandler::<RunAppStates> {
+            next_state: RunAppStates::RunPostActions,
+            timeout_seconds: Some(60),
         }),
     );
     sm.add_handler(
