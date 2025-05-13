@@ -5,6 +5,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0-alpha.29"
 edition = "2021"
+rust-version = "1.86"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
 authors = ["Stephan Maximilian Huber <stephan@factorial.io>"]
 repository = "https://github.com/factorial-io/scotty"
