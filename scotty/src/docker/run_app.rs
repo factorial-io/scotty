@@ -57,13 +57,6 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
         RunAppStates::WaitForAllContainers,
         Arc::new(WaitForAllContainersHandler::<RunAppStates> {
             next_state: RunAppStates::RunPostActions,
-            timeout_seconds: Some(300),
-        }),
-    );
-    sm.add_handler(
-        RunAppStates::WaitForAllContainers,
-        Arc::new(WaitForAllContainersHandler::<RunAppStates> {
-            next_state: RunAppStates::RunPostActions,
             timeout_seconds: Some(60),
         }),
     );
