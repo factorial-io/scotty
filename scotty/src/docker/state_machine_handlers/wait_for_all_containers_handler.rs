@@ -39,7 +39,7 @@ where
         let task_clone = context_read.task.clone();
         {
             let mut task = task_clone.write().await;
-            task.println(format!("Waiting for containers to be ready ..."));
+            task.println("Waiting for containers to be ready ...");
         }
 
         broadcast_message(
@@ -92,7 +92,7 @@ where
         // Update task status again
         {
             let mut task = task_clone.write().await;
-            task.println(format!("All containers are ready!"));
+            task.println("All containers are ready!");
         }
 
         broadcast_message(

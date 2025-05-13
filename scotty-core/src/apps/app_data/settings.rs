@@ -1,4 +1,9 @@
-use std::{collections::{HashMap, HashSet}, fs::File, io::BufReader, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::BufReader,
+    path::Path,
+};
 
 use anyhow;
 use serde::{Deserialize, Serialize};
@@ -6,10 +11,13 @@ use serde_yml::Value;
 use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
-use crate::{notification_types::NotificationReceiver, settings::{app_blueprint::AppBlueprintMap, apps::Apps}};
+use crate::{
+    notification_types::NotificationReceiver,
+    settings::{app_blueprint::AppBlueprintMap, apps::Apps},
+};
 
-use super::{service::ServicePortMapping, ttl::AppTtl};
 use super::super::create_app_request::CustomDomainMapping;
+use super::{service::ServicePortMapping, ttl::AppTtl};
 
 #[derive(Debug, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
