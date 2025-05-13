@@ -141,29 +141,34 @@ impl AppSettings {
                 "Trying to read app-settings from {}",
                 &settings_path.display()
             );
-            let result: anyhow::Result<AppSettings> = {
-                let file = File::open(settings_path)?;
-                let reader = BufReader::new(file);
-                let yaml: Value = serde_yml::from_reader(reader)?;
-                let settings: AppSettings = serde_yml::from_value(yaml)?;
-                info!(
-                    "Successfully read app-settings from {}",
-                    &settings_path.display()
-                );
+            let file = File::open(settings_path).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to open settings file {}: {}",
+                    settings_path.display(),
+                    e
+                )
+            })?;
+            let reader = BufReader::new(file);
+            let yaml: Value = serde_yml::from_reader(reader).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to parse YAML from {}: {}",
+                    settings_path.display(),
+                    e
+                )
+            })?;
+            let settings: AppSettings = serde_yml::from_value(yaml).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to deserialize settings from {}: {}",
+                    settings_path.display(),
+                    e
+                )
+            })?;
 
-                Ok(settings)
-            };
-            match result {
-                Ok(settings) => Ok(Some(settings)),
-                Err(e) => {
-                    let msg = format!(
-                        "Failed to read settings from {}: {}",
-                        settings_path.display(),
-                        e
-                    );
-                    Err(anyhow::anyhow!(msg))
-                }
-            }
+            info!(
+                "Successfully read app-settings from {}",
+                &settings_path.display()
+            );
+            Ok(Some(settings))
         } else {
             info!("No settings file found at {}", &settings_path.display());
             Ok(None)
