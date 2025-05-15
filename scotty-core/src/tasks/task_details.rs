@@ -40,6 +40,39 @@ impl Default for TaskDetails {
     }
 }
 
+impl TaskDetails {
+    pub fn new(command: String, app_name: Option<String>) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            command,
+            state: State::Running,
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            start_time: chrono::DateTime::from(SystemTime::now()),
+            finish_time: None,
+            last_exit_code: None,
+            app_name,
+        }
+    }
+
+    pub fn eprint(&mut self, msg: impl AsRef<str>) {
+        self.stderr.push_str(msg.as_ref());
+    }
+
+    pub fn eprintln(&mut self, msg: impl AsRef<str>) {
+        self.eprint(msg);
+        self.eprint("\n");
+    }
+    pub fn print(&mut self, msg: impl AsRef<str>) {
+        self.stdout.push_str(msg.as_ref());
+    }
+
+    pub fn println(&mut self, msg: impl AsRef<str>) {
+        self.print(msg);
+        self.print("\n");
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TaskState {
     pub handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,

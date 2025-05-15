@@ -27,9 +27,7 @@ impl std::fmt::Display for AppStatus {
 }
 
 pub fn count_state(services: &[ContainerState], required: ContainerStatus) -> usize {
-    services
-        .iter()
-        .fold(0, |acc, x| if x.status == required { acc + 1 } else { acc })
+    services.iter().filter(|s| s.status == required).count()
 }
 
 pub fn get_app_status_from_services(services: &[ContainerState]) -> AppStatus {

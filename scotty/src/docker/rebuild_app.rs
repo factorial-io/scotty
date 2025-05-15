@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use tracing::{info, instrument};
 
+use super::helper::run_sm;
+use crate::docker::state_machine_handlers::wait_for_all_containers_handler::WaitForAllContainersHandler;
 use crate::{
     api::error::AppError,
     app_state::SharedAppState,
@@ -19,8 +21,6 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_sm;
-
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RebuildAppStates {
     RecreateLoadBalancerConfig,
@@ -29,6 +29,7 @@ pub enum RebuildAppStates {
     RunDockerComposeBuild,
     RunDockerComposeStop,
     RunDockerComposeRun,
+    WaitForAllContainers,
     RunPostActions,
     UpdateAppData,
     SetFinished,
@@ -100,9 +101,16 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerComposeRun,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunPostActions,
+            next_state: RebuildAppStates::WaitForAllContainers,
             command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
             env: app.get_environment(),
+        }),
+    );
+    sm.add_handler(
+        RebuildAppStates::WaitForAllContainers,
+        Arc::new(WaitForAllContainersHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunPostActions,
+            timeout_seconds: Some(300),
         }),
     );
     sm.add_handler(
