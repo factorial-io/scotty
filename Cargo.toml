@@ -14,7 +14,7 @@ license-file = "LICENSE"
 [workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.8.0", features = ["ws", "macros"] }
-bollard = "0.18.0"
+bollard = "0.19.0"
 config = "0.15.0"
 readonly = "0.2.12"
 serde = "1.0.210"
