@@ -838,9 +838,9 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.0:
-  version "5.0.40"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.0.40.tgz#4dd32cb1ab9df5349261fc2f092684e09ad08ade"
-  integrity sha512-5GpRcRsArYjkeIhUrlMMIGGZzbuPCpCkEMokiO3PtkVr1/IFZezJO6lLR+lLxxMGm46EwRG/fSJw4VLeNMBZnw==
+  version "5.0.42"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.0.42.tgz#83d76d8648f0d6340f2822633a883218798edf6a"
+  integrity sha512-sZlqpPyu0wvjKtdryS62Njq18AJScr0V7Kruqc0ruSsl74SfGqaY8RMFkJoyNTorUx1OxWkAvkQP81uTyzNBqg==
 
 debug@^4.3.1, debug@^4.3.2:
   version "4.4.1"
@@ -1480,7 +1480,7 @@ mz@^2.7.0:
     object-assign "^4.0.1"
     thenify-all "^1.0.0"
 
-nanoid@^3.3.7, nanoid@^3.3.8:
+nanoid@^3.3.11, nanoid@^3.3.7:
   version "3.3.11"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.11.tgz#4f4f112cefbe303202f2199838128936266d185b"
   integrity sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==
@@ -1684,11 +1684,11 @@ postcss-value-parser@^4.0.0, postcss-value-parser@^4.2.0:
   integrity sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==
 
 postcss@^8.4.43, postcss@^8.4.49, postcss@^8.5.1:
-  version "8.5.3"
-  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.5.3.tgz#1463b6f1c7fb16fe258736cba29a2de35237eafb"
-  integrity sha512-dle9A3yYxlBSrt8Fu+IpjGT8SY8hN0mlaA6GY8t0P5PjIOZemULz/E2Bnm/2dcUOena75OTNkHI76uZBNUUq3A==
+  version "8.5.4"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.5.4.tgz#d61014ac00e11d5f58458ed7247d899bd65f99c0"
+  integrity sha512-QSa9EBe+uwlGTFmHsPKokv3B/oEMQZxfqW0QqNCyhpa6mB1afzulwn8hihglqAb2pOw+BJgNlmXQ8la2VeHB7w==
   dependencies:
-    nanoid "^3.3.8"
+    nanoid "^3.3.11"
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
