@@ -27,9 +27,9 @@ pub fn domain_safe_name(app_name: &str) -> String {
 
     // We need to create a shortened version with a hash suffix
     // Format: [truncated-name]-[hash]
-    // The hash will be 8 hex characters (4 bytes)
+    // The hash will be 6 hex characters (3 bytes)
     // Allow 9 characters for "-" plus the hash
-    const HASH_PART_LENGTH: usize = 9;
+    const HASH_PART_LENGTH: usize = 7;
     let max_name_part_length = MAX_LABEL_LENGTH - HASH_PART_LENGTH;
 
     // Calculate hash of the full name
@@ -52,7 +52,7 @@ pub fn domain_safe_name(app_name: &str) -> String {
     }
 
     // Combine the shortened name with a hash suffix
-    format!("{}-{:x}", name_part, hash & 0xFFFF)
+    format!("{}-{:06x}", name_part, hash & 0xFFFFFF)
 }
 
 #[cfg(test)]
