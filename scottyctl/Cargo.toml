@@ -23,7 +23,7 @@ walkdir.workspace = true
 tracing.workspace = true
 scotty-core = { path = "../scotty-core" }
 dotenvy.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 crossterm = "0.29.0"
 [[bin]]
 name = "scottyctl"
