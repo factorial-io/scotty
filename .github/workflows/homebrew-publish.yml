@@ -1,0 +1,51 @@
+name: Publish to Homebrew
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    homebrew:
+        name: Bump Homebrew formula
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Extract version
+              id: extract-version
+              run: |
+                  echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+            - name: Update Homebrew formula
+              uses: dawidd6/action-homebrew-bump-formula@v3
+              with:
+                  # GitHub token, required for authentication
+                  # Using a Personal Access Token with repo scope to allow pushing to another repository
+                  token: ${{ secrets.PAT }}
+
+                  # Optional: Create a pull request to the homebrew-tap repo
+                  # instead of pushing directly to the main branch
+                  # Default: false
+                  # pr: true
+
+                  # Optional: Name of the tap repository without the homebrew- prefix
+                  # For example, for a repo homebrew-tap, this would be "tap"
+                  # Default: core (homebrew/homebrew-core)
+                  # You need to create this repository first!
+                  tap: factorial-io/scottyctl-tap
+
+                  # Required: Formula name
+                  formula: scottyctl
+
+                  # Optional: Define the formula path in the tap repo
+                  # Default: Formula/#{formula}.rb
+                  formula_filepath: scottyctl.rb
+
+                  # Optional: Specify a tag name or SHA to use
+                  # Default: latest release
+                  tag: v${{ steps.extract-version.outputs.VERSION }}
+
+                  # Optional: Revision to use (can be a SHA or a tag name or a release version)
+                  # If not specified, the action will use the tag from the event
+                  revision: v${{ steps.extract-version.outputs.VERSION }}
