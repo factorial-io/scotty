@@ -3,9 +3,10 @@ use serde_json::Value;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 
+use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
-use crate::ServerSettings;
 use owo_colors::OwoColorize;
+use std::sync::Arc;
 
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
@@ -156,7 +157,7 @@ pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value>
 pub async fn wait_for_task(
     server: &ServerSettings,
     context: &RunningAppContext,
-    ui: &Ui,
+    ui: &Arc<Ui>,
 ) -> anyhow::Result<()> {
     let mut done = false;
     let mut last_position = 0;

@@ -8,13 +8,12 @@ use crate::{
         AdoptCommand, CreateCommand, DestroyCommand, InfoCommand, PurgeCommand, RebuildCommand,
         RunCommand, StopCommand,
     },
+    context::{AppContext, ServerSettings},
     utils::{
         files::collect_files,
         formatting::{colored_by_status, format_since},
         parsers::parse_env_file,
-        ui::Ui,
     },
-    ServerSettings,
 };
 use base64::prelude::*;
 use scotty_core::{
@@ -27,11 +26,14 @@ use scotty_core::{
     tasks::running_app_context::RunningAppContext,
 };
 
-pub async fn list_apps(server: &ServerSettings) -> anyhow::Result<()> {
-    let ui = Ui::new();
-    ui.new_status_line(format!("Getting list of apps from {} ...", server.server));
+pub async fn list_apps(context: &AppContext) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Getting list of apps from {} ...",
+        context.server().server
+    ));
     ui.run(async || {
-        let result = get(server, "apps/list").await?;
+        let result = get(context.server(), "apps/list").await?;
 
         let apps: AppDataVec =
             serde_json::from_value(result).context("Failed to parse apps list")?;
@@ -58,24 +60,20 @@ pub async fn list_apps(server: &ServerSettings) -> anyhow::Result<()> {
     .await
 }
 
-pub async fn call_apps_api(
-    server: &ServerSettings,
-    verb: &str,
-    app_name: &str,
-) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line(format!(
         "Running action {} for app {} at {} ...",
         verb.yellow(),
         app_name.yellow(),
-        server.server.yellow()
+        context.server().server.yellow()
     ));
     ui.run(async || {
-        let result = get(server, &format!("apps/{}/{}", verb, app_name)).await?;
-        let context: RunningAppContext =
+        let result = get(context.server(), &format!("apps/{}/{}", verb, app_name)).await?;
+        let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
-        wait_for_task(server, &context, &ui).await?;
-        let app_data = get_app_info(server, &context.app_data.name).await?;
+        wait_for_task(context.server(), &app_context, ui).await?;
+        let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
         ui.success(format!(
             "{} action for app {} has been successfully completed!",
             verb.yellow(),
@@ -139,27 +137,27 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     Ok(result)
 }
 
-pub async fn rebuild_app(server: &ServerSettings, cmd: &RebuildCommand) -> anyhow::Result<()> {
-    call_apps_api(server, "rebuild", &cmd.app_name).await
+pub async fn rebuild_app(context: &AppContext, cmd: &RebuildCommand) -> anyhow::Result<()> {
+    call_apps_api(context, "rebuild", &cmd.app_name).await
 }
 
-pub async fn run_app(server: &ServerSettings, cmd: &RunCommand) -> anyhow::Result<()> {
-    call_apps_api(server, "run", &cmd.app_name).await
+pub async fn run_app(context: &AppContext, cmd: &RunCommand) -> anyhow::Result<()> {
+    call_apps_api(context, "run", &cmd.app_name).await
 }
 
-pub async fn stop_app(server: &ServerSettings, cmd: &StopCommand) -> anyhow::Result<()> {
-    call_apps_api(server, "stop", &cmd.app_name).await
+pub async fn stop_app(context: &AppContext, cmd: &StopCommand) -> anyhow::Result<()> {
+    call_apps_api(context, "stop", &cmd.app_name).await
 }
 
-pub async fn purge_app(server: &ServerSettings, cmd: &PurgeCommand) -> anyhow::Result<()> {
-    call_apps_api(server, "purge", &cmd.app_name).await
+pub async fn purge_app(context: &AppContext, cmd: &PurgeCommand) -> anyhow::Result<()> {
+    call_apps_api(context, "purge", &cmd.app_name).await
 }
 
-pub async fn adopt_app(server: &ServerSettings, cmd: &AdoptCommand) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn adopt_app(context: &AppContext, cmd: &AdoptCommand) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line(format!("Adopting app {}...", &cmd.app_name));
     ui.run(async || {
-        let result = get(server, &format!("apps/adopt/{}", &cmd.app_name)).await?;
+        let result = get(context.server(), &format!("apps/adopt/{}", &cmd.app_name)).await?;
         let app_data: AppData = serde_json::from_value(result)?;
         ui.success(format!("App {} adopted successfully", &cmd.app_name));
         format_app_info(&app_data)
@@ -167,14 +165,14 @@ pub async fn adopt_app(server: &ServerSettings, cmd: &AdoptCommand) -> anyhow::R
     .await
 }
 
-pub async fn info_app(server: &ServerSettings, cmd: &InfoCommand) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn info_app(context: &AppContext, cmd: &InfoCommand) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line(format!(
         "Getting info for app {}...",
         &cmd.app_name.yellow()
     ));
     ui.run(async || {
-        let result = get(server, &format!("apps/info/{}", cmd.app_name)).await?;
+        let result = get(context.server(), &format!("apps/info/{}", cmd.app_name)).await?;
         let app_data: AppData = serde_json::from_value(result)?;
         ui.success(format!(
             "Info for app {} received successfully",
@@ -185,14 +183,14 @@ pub async fn info_app(server: &ServerSettings, cmd: &InfoCommand) -> anyhow::Res
     .await
 }
 
-pub async fn destroy_app(server: &ServerSettings, cmd: &DestroyCommand) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn destroy_app(context: &AppContext, cmd: &DestroyCommand) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line(format!("Destroying app {}...", &cmd.app_name.yellow()));
     ui.run(async || {
-        let result = get(server, &format!("apps/destroy/{}", &cmd.app_name)).await?;
-        let context: RunningAppContext =
+        let result = get(context.server(), &format!("apps/destroy/{}", &cmd.app_name)).await?;
+        let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
-        wait_for_task(server, &context, &ui).await?;
+        wait_for_task(context.server(), &app_context, ui).await?;
         ui.success(format!(
             "App {} destroyed successfully",
             &cmd.app_name.yellow()
@@ -203,8 +201,8 @@ pub async fn destroy_app(server: &ServerSettings, cmd: &DestroyCommand) -> anyho
     .await
 }
 
-pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line(format!("Creating app {}...", &cmd.app_name.yellow()));
     ui.run(async || {
         ui.new_status_line("Collecting files...");
@@ -271,26 +269,26 @@ pub async fn create_app(server: &ServerSettings, cmd: &CreateCommand) -> anyhow:
         ui.new_status_line(format!(
             "Beaming your app {} up to {} ({})...",
             &cmd.app_name.yellow(),
-            &server.server.yellow(),
+            &context.server().server.yellow(),
             size.blue()
         ));
-        let result = get_or_post(server, "apps/create", "POST", Some(payload)).await?;
+        let result = get_or_post(context.server(), "apps/create", "POST", Some(payload)).await?;
 
         ui.success(format!(
             "App {} beamed up to {} ({})!",
             &cmd.app_name.yellow(),
-            &server.server.yellow(),
+            &context.server().server.yellow(),
             size.blue()
         ));
         ui.new_status_line(format!(
             "Waiting for app {} to start...",
             &cmd.app_name.yellow()
         ));
-        let context: RunningAppContext =
+        let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
 
-        wait_for_task(server, &context, &ui).await?;
-        let app_data = get_app_info(server, &context.app_data.name).await?;
+        wait_for_task(context.server(), &app_context, ui).await?;
+        let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
         ui.success(format!(
             "App {} started successfully!",
             &cmd.app_name.yellow(),
