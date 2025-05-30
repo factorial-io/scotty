@@ -4,16 +4,12 @@ use crate::{
     api::get_or_post,
     cli::{NotifyAddCommand, NotifyRemoveCommand},
     commands::apps::format_app_info,
-    utils::ui::Ui,
-    ServerSettings,
+    context::AppContext,
 };
 use scotty_core::{apps::app_data::AppData, notification_types::RemoveNotificationRequest};
 
-pub async fn add_notification(
-    server: &ServerSettings,
-    cmd: &NotifyAddCommand,
-) -> anyhow::Result<()> {
-    let ui = Ui::new();
+pub async fn add_notification(context: &AppContext, cmd: &NotifyAddCommand) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line("Adding notification...");
     ui.run(async || {
         let payload = serde_json::json!({
@@ -21,7 +17,8 @@ pub async fn add_notification(
             "service_ids": cmd.service_id,
         });
 
-        let result = get_or_post(server, "apps/notify/add", "POST", Some(payload)).await?;
+        let result =
+            get_or_post(context.server(), "apps/notify/add", "POST", Some(payload)).await?;
 
         let app_data: AppData =
             serde_json::from_value(result).context("Failed to parse context from API")?;
@@ -37,10 +34,10 @@ pub async fn add_notification(
 }
 
 pub async fn remove_notification(
-    server: &ServerSettings,
+    context: &AppContext,
     cmd: &NotifyRemoveCommand,
 ) -> anyhow::Result<()> {
-    let ui = Ui::new();
+    let ui = context.ui();
     ui.new_status_line("Removing notification...");
     ui.run(async || {
         let payload = RemoveNotificationRequest {
@@ -49,7 +46,13 @@ pub async fn remove_notification(
         };
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
-        let result = get_or_post(server, "apps/notify/remove", "POST", Some(payload)).await?;
+        let result = get_or_post(
+            context.server(),
+            "apps/notify/remove",
+            "POST",
+            Some(payload),
+        )
+        .await?;
 
         let app_data: AppData =
             serde_json::from_value(result).context("Failed to parse context from API")?;

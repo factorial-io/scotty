@@ -1,9 +1,10 @@
-use crate::{utils::ui::Ui, ServerSettings};
+use crate::{context::AppContext, utils::ui::Ui};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
 // Helper to simulate terminal output generation
-async fn simulate_output(secs: u32, ui: &Ui) {
+async fn simulate_output(secs: u32, ui: &Arc<Ui>) {
     for i in 0..secs {
         ui.println(format!("{}: Simulating output for {} seconds", i, secs));
         sleep(Duration::from_secs(1)).await;
@@ -11,7 +12,7 @@ async fn simulate_output(secs: u32, ui: &Ui) {
 }
 
 // Generates a lot of output to test scrolling behavior
-async fn generate_large_output(ui: &Ui) {
+async fn generate_large_output(ui: &Arc<Ui>) {
     ui.println("Generating large output to test scrolling...");
     for i in 0..20 {
         ui.println(format!(
@@ -33,24 +34,24 @@ fn simulate_error_condition(should_error: bool) -> anyhow::Result<String> {
     }
 }
 
-pub async fn run_tests(_server_settings: &ServerSettings) -> anyhow::Result<()> {
+pub async fn run_tests(context: &AppContext) -> anyhow::Result<()> {
     // First test: Basic status line updates
-    let ui = Ui::new();
+    let ui = context.ui();
     ui.new_status_line("Step 1: Testing status line with standard output");
     ui.run(async || {
         // Demonstrate normal operation with throbber
-        simulate_output(3, &ui).await;
+        simulate_output(3, ui).await;
 
         // Update status line message during operation
         ui.new_status_line("Step 1B: Updated status message while running");
-        simulate_output(2, &ui).await;
+        simulate_output(2, ui).await;
 
         // Show success message
         ui.success("Step 1 completed successfully");
 
         // Start second phase
         ui.new_status_line("Step 2: Testing with large output");
-        generate_large_output(&ui).await;
+        generate_large_output(ui).await;
         ui.success("Step 2 done - status line should remain visible at bottom");
 
         // Final test showing task completion
@@ -62,11 +63,11 @@ pub async fn run_tests(_server_settings: &ServerSettings) -> anyhow::Result<()> 
     sleep(Duration::from_secs(1)).await;
 
     // Second test: Error handling
-    let ui = Ui::new();
+    let ui = context.ui();
     ui.new_status_line("Testing error handling in status line");
     if let Err(e) = ui
         .run(async || {
-            simulate_output(2, &ui).await;
+            simulate_output(2, ui).await;
             ui.new_status_line("About to encounter an error...");
             sleep(Duration::from_secs(1)).await;
 

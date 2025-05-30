@@ -14,6 +14,7 @@ use utoipa::{ToResponse, ToSchema};
 use crate::{
     notification_types::NotificationReceiver,
     settings::{app_blueprint::AppBlueprintMap, apps::Apps},
+    utils::domain_hash,
 };
 
 use super::super::create_app_request::CustomDomainMapping;
@@ -82,8 +83,9 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub fn merge_with_global_settings(&self, setting: &Apps, app_name: &str) -> AppSettings {
+        let safe_name = domain_hash::domain_safe_name(app_name);
         AppSettings {
-            domain: format!("{}.{}", app_name, setting.domain_suffix),
+            domain: format!("{}.{}", safe_name, setting.domain_suffix),
             ..self.clone()
         }
     }

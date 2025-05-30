@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.31] - 2025-05-30
+
+### Features
+
+- Update homebrew tap on new releases ✔️
+
+## [0.1.0-alpha.30] - 2025-05-30
+
+### Bug Fixes
+
+- Standardize domain hash to 6 fixed-width hex characters ✔️
+- Use domain-safe app names when creating domains (Fixes #328) ✔️
+- Use domain-safe app names when creating domains (Fixes #328) ✔️
+- Make AppContext fields private with getter methods ✔️
+- Update rust dependencies auto-merge (patch) (#332) ✔️
+- Update rust dependencies auto-merge (patch) (#329) ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update rust dependencies auto-merge (patch) (#324) ✔️
+- Replace atty dependency with std::io::IsTerminal ✔️
+
+### Dependencies
+
+- Update npm dependencies auto-merge (patch) (#333) ✔️
+- Update dependency daisyui to v5.0.40 (#331) ✔️
+- Update dependency daisyui to v5.0.38 (#327) ✔️
+- Update dependency eslint-plugin-svelte to v3.9.0 ✔️
+- Update dependency globals to v16.2.0 ✔️
+- Update rust crate uuid to v1.17.0 ✔️
+- Update dependency daisyui to v5.0.37 (#322) ✔️
+- Update dependency svelte to v4.2.20 (#321) ✔️
+- Update dependency @sveltejs/kit to v2.21.1 (#320) ✔️
+- Update dependency eslint to v9.27.0 ✔️
+- Update dependency eslint-plugin-svelte to v3.7.0 ✔️
+- Update dependency @sveltejs/kit to v2.21.0 ✔️
+- Update dependency svelte-check to v4.2.1 ✔️
+- Update rust crate owo-colors to v4.2.1 ✔️
+- Update rust docker tag to v1.87 ✔️
+- Update dependency prettier-plugin-svelte to v3.4.0 ✔️
+- Update dependency eslint-plugin-svelte to v3.6.0 ✔️
+- Update npm dependencies auto-merge (patch) (#307) ✔️
+
+### Features
+
+- Refactor to use shared AppContext with unified UI ✔️
+- Add retry mechanism with backoff for API calls ✔️
+- Expose public URLs as environment variables to actions ✔️
+
+### Refactor
+
+- Refactor app_data.rs into modular components ✔️
+
 ## [0.1.0-alpha.29] - 2025-05-12
 
 ### Bug Fixes
