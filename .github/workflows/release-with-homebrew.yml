@@ -64,7 +64,7 @@ jobs:
           echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Update Homebrew formula
-        uses: dawidd6/action-homebrew-bump-formula@v3
+        uses: dawidd6/action-homebrew-bump-formula@v4
         with:
           # GitHub token, required for authentication
           # Using a Personal Access Token with repo scope to allow pushing to another repository
