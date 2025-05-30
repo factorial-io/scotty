@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize tracing with our custom layer
     tracing_subscriber::registry()
-        .with(UiLayer::new(app_context.ui.clone()))
+        .with(UiLayer::new(app_context.ui().clone()))
         .with(EnvFilter::from_default_env())
         .init();
 

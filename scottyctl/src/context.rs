@@ -11,9 +11,9 @@ pub struct ServerSettings {
 /// AppContext provides access to shared application resources
 pub struct AppContext {
     /// UI instance for managing terminal output
-    pub ui: Arc<Ui>,
+    ui: Arc<Ui>,
     /// Server connection settings
-    pub server: ServerSettings,
+    server: ServerSettings,
 }
 
 impl AppContext {

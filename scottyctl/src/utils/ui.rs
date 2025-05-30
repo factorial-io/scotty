@@ -29,7 +29,6 @@ impl Ui {
         let stdout = std::io::stdout();
 
         let is_terminal = stdout.is_terminal();
-        eprintln!("is_terminal: {}", is_terminal);
         let status_line = if is_terminal {
             // Only create and animate the status line if we have a terminal
             let status_line_inner = Arc::new(RwLock::new(StatusLine::new()));
