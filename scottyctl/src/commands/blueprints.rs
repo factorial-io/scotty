@@ -3,14 +3,14 @@ use tabled::{
     settings::{object::Columns, Style, Width},
 };
 
-use crate::{api::get, utils::ui, ServerSettings};
+use crate::{api::get, context::AppContext};
 use scotty_core::settings::app_blueprint::AppBlueprintList;
 
-pub async fn list_blueprints(server: &ServerSettings) -> anyhow::Result<()> {
-    let ui = ui::Ui::new();
+pub async fn list_blueprints(context: &AppContext) -> anyhow::Result<()> {
+    let ui = context.ui();
     ui.new_status_line("Listing blueprints...");
     ui.run(async || {
-        let result = get(server, "blueprints").await?;
+        let result = get(context.server(), "blueprints").await?;
         let blueprints: AppBlueprintList = serde_json::from_value(result)?;
 
         let mut builder = Builder::default();

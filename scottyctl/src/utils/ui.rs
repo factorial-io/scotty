@@ -26,9 +26,9 @@ pub struct Ui {
 
 impl Ui {
     pub fn new() -> Self {
-        let stderr = std::io::stderr();
+        let stdout = std::io::stdout();
 
-        let is_terminal = stderr.is_terminal();
+        let is_terminal = stdout.is_terminal();
         let status_line = if is_terminal {
             // Only create and animate the status line if we have a terminal
             let status_line_inner = Arc::new(RwLock::new(StatusLine::new()));
