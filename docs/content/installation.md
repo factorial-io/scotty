@@ -18,7 +18,7 @@ place it in your path.
 
 ```shell
 # Replace version number with latest one.
-curl -L https://github.com/factorial-io/scotty/releases/download/v0.1.0-alpha.13/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
+curl -L https://github.com/factorial-io/scotty/releases/download/<VERSION_TAG>/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
 tar -xvf scottyctl.tar.gz
 chmod +x scottyctl
 mv scottyctl /usr/local/bin
