@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.31] - 2025-05-30
+
+### Features
+
+- Update homebrew tap on new releases ✔️
+
 ## [0.1.0-alpha.30] - 2025-05-30
 
 ### Bug Fixes
