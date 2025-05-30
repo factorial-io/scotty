@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.32] - 2025-05-30
+
+### Bug Fixes
+
+- Reduce lock scope in wait_for_all_containers_handler ✔️
+- Remove duplicate WaitForAllContainers handler ✔️
+- Add container readiness check and improve Drush commands ✔️
+- Update rust dependencies auto-merge (patch) (#337) ✔️
+
+### CI
+
+- Combine release and Homebrew publishing workflows ✔️
+
+### Dependencies
+
+- Update dependency typescript-eslint to v8.33.0 ✔️
+- Update dependency daisyui to v5.0.43 ✔️
+
+### Documentation
+
+- Clarify install instructions ✔️
+
+### Features
+
+- Wait for containers to be ready before running post-actions ✔️
+
+### Refactor
+
+- Improve error handling and simplify collection logic ✔️
+- Refactor app_data.rs into modular components ✔️
+
 ## [0.1.0-alpha.31] - 2025-05-30
 
 ### Features
