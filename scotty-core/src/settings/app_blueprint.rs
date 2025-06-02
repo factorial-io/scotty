@@ -79,7 +79,6 @@ impl Action {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-#[allow(unused)]
 pub struct AppBlueprint {
     pub name: String,
     pub description: String,

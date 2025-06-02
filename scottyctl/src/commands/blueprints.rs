@@ -54,15 +54,12 @@ pub async fn blueprint_info(
         let blueprints: AppBlueprintList = serde_json::from_value(result)?;
 
         // Find the specified blueprint
-        let blueprint = blueprints.blueprints.get(&cmd.blueprint_name);
-        if blueprint.is_none() {
-            return Err(anyhow::anyhow!(
-                "Blueprint {} not found",
-                cmd.blueprint_name.yellow()
-            ));
-        }
-
-        let blueprint = blueprint.unwrap();
+        let blueprint = blueprints
+            .blueprints
+            .get(&cmd.blueprint_name)
+            .ok_or_else(|| {
+                anyhow::anyhow!("Blueprint {} not found", cmd.blueprint_name.yellow())
+            })?;
 
         // Format and display the blueprint info
         let mut output = String::new();
