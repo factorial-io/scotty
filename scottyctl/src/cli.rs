@@ -76,6 +76,10 @@ pub enum Commands {
     #[command(name = "blueprint:list")]
     BlueprintList,
 
+    /// Show detailed information about a blueprint
+    #[command(name = "blueprint:info")]
+    BlueprintInfo(BlueprintInfoCommand),
+
     /// Show shell completion script.
     #[command(name = "completion")]
     Completion(CompletionCommand),
@@ -92,6 +96,12 @@ pub struct CompletionCommand {
 
 #[derive(Debug, Parser)]
 pub struct BlueprintListCommand {}
+
+#[derive(Debug, Parser)]
+pub struct BlueprintInfoCommand {
+    /// Name of the blueprint
+    pub blueprint_name: String,
+}
 
 #[derive(Debug, Parser)]
 pub struct RunCommand {

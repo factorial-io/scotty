@@ -1,25 +1,33 @@
 apps:
-    blueprints:
-        nginx-lagoon:
-            name: "NGINX using lagoon base images"
-            description: "A simple NGINX container using lagoon base images"
-            required_services:
-                - nginx
-            public_services:
-                nginx: 80
-            actions:
-                post_create:
-                    nginx:
-                        - echo "Hello, World from post_create"
-                        - env
-                post_rebuild:
-                    nginx:
-                        - echo "Hello, World from post_rebuild"
-                        - env
-                post_run:
-                    nginx:
-                        - echo "Hello, World from post_run"
-                        - env
-                status:
-                    nginx:
-                        - nginx -v
+  blueprints:
+    nginx-lagoon:
+      name: "NGINX using lagoon base images"
+      description: "A simple NGINX container using lagoon base images"
+      required_services:
+        - nginx
+      public_services:
+        nginx: 80
+      actions:
+        post_create:
+          nginx:
+            - echo "Hello, World from post_create"
+            - env
+        post_rebuild:
+          nginx:
+            - echo "Hello, World from post_rebuild"
+            - env
+        post_run:
+          nginx:
+            - echo "Hello, World from post_run"
+            - env
+        status:
+          nginx:
+            - echo "==== NGINX Status ===="
+            - nginx -v
+            - ps aux
+            - echo "==== End of Status ===="
+      action_descriptions:
+        post_create: "Initialize the application after creation"
+        post_rebuild: "Setup the application after rebuilding"
+        post_run: "Configure the application after starting"
+        status: "Display NGINX status information and running processes"

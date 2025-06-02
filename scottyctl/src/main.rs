@@ -56,6 +56,9 @@ async fn main() -> anyhow::Result<()> {
             print_completions(cmd.shell, &mut cli_cmd);
         }
         Commands::BlueprintList => commands::blueprints::list_blueprints(&app_context).await?,
+        Commands::BlueprintInfo(cmd) => {
+            commands::blueprints::blueprint_info(&app_context, cmd).await?
+        }
         Commands::Test => commands::test::run_tests(&app_context).await?,
     }
     Ok(())

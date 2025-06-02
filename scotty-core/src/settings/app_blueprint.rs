@@ -65,6 +65,8 @@ pub struct AppBlueprint {
     pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
     pub required_services: Vec<String>,
     pub public_services: Option<HashMap<String, u16>>,
+    #[serde(default)]
+    pub action_descriptions: HashMap<ActionName, String>,
 }
 
 #[derive(Deserialize)]
@@ -74,6 +76,8 @@ pub struct AppBlueprintShadow {
     pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
     pub required_services: Vec<String>,
     pub public_services: Option<HashMap<String, u16>>,
+    #[serde(default)]
+    pub action_descriptions: HashMap<ActionName, String>,
 }
 
 pub struct AppBlueprintValidationError {
@@ -127,6 +131,7 @@ impl std::convert::TryFrom<AppBlueprintShadow> for AppBlueprint {
             actions: shadow.actions,
             required_services: shadow.required_services,
             public_services: shadow.public_services,
+            action_descriptions: shadow.action_descriptions,
         })
     }
 }
