@@ -11,18 +11,27 @@ apps:
                 nginx: 8080
             actions:
                 post_create:
-                    cli:
-                        - echo "Running drush deploy ..."
-                        - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
+                    description: "Run drush deploy after the application is created"
+                    commands:
+                        cli:
+                            - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
                 post_rebuild:
-                    cli:
-                        - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
+                    description: "Run drush deploy after the application is rebuilt"
+                    commands:
+                        cli:
+                            - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
                 post_run:
-                    cli:
-                        - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
+                    description: "Generate a one-time login link, after the application started successfully"
+                    commands:
+                        cli:
+                            - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
                 drush:uli:
-                    cli:
-                        - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
+                    description: "Generate a one-time login link"
+                    commands:
+                        cli:
+                            - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
                 drush:deploy:
-                    cli:
-                        - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
+                    description: "Run drush deploy"
+                    commands:
+                        cli:
+                            - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX

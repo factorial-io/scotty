@@ -68,8 +68,8 @@ where
         let environment = context.app_data.get_environment();
         let augmented_env = context.app_data.augment_environment(HashMap::new());
 
-        if let Some(service_script_mapping) = selected_action {
-            for (service, script) in service_script_mapping.iter() {
+        if let Some(action) = selected_action {
+            for (service, script) in &action.commands {
                 let mut augmented_script = Vec::new();
                 for (key, value) in augmented_env.iter() {
                     augmented_script.push(format!("export {}={}", key, value));

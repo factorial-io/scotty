@@ -56,30 +56,39 @@ impl<'de> Deserialize<'de> for ActionName {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, utoipa::ToSchema, utoipa::ToResponse)]
+// ServiceCommands struct no longer needed since we're using a HashMap directly
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
+pub struct Action {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub description: String,
+    pub commands: HashMap<String, Vec<String>>,
+}
+
+impl Action {
+    pub fn get_commands_for_service(&self, service: &str) -> Option<&Vec<String>> {
+        self.commands.get(service)
+    }
+
+    pub fn new(description: String, commands: HashMap<String, Vec<String>>) -> Self {
+        Self {
+            description,
+            commands,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
 #[allow(unused)]
-#[serde(try_from = "AppBlueprintShadow")]
 pub struct AppBlueprint {
     pub name: String,
     pub description: String,
-    pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
+    pub actions: HashMap<ActionName, Action>,
     pub required_services: Vec<String>,
     pub public_services: Option<HashMap<String, u16>>,
-    #[serde(default)]
-    pub action_descriptions: HashMap<ActionName, String>,
 }
 
-#[derive(Deserialize)]
-pub struct AppBlueprintShadow {
-    pub name: String,
-    pub description: String,
-    pub actions: HashMap<ActionName, HashMap<String, Vec<String>>>,
-    pub required_services: Vec<String>,
-    pub public_services: Option<HashMap<String, u16>>,
-    #[serde(default)]
-    pub action_descriptions: HashMap<ActionName, String>,
-}
-
+#[derive(Debug)]
 pub struct AppBlueprintValidationError {
     msg: String,
 }
@@ -95,16 +104,39 @@ impl std::fmt::Display for AppBlueprintValidationError {
         write!(formatter, "AppBlueprint didnt validate: {}", &self.msg)
     }
 }
-impl std::convert::TryFrom<AppBlueprintShadow> for AppBlueprint {
-    type Error = AppBlueprintValidationError;
-    fn try_from(shadow: AppBlueprintShadow) -> Result<Self, Self::Error> {
-        for public_service in shadow
+
+impl std::error::Error for AppBlueprintValidationError {}
+
+impl AppBlueprint {
+    pub fn get_action(&self, action_name: &ActionName) -> Option<&Action> {
+        self.actions.get(action_name)
+    }
+
+    pub fn get_commands_for_service(
+        &self,
+        action_name: &ActionName,
+        service: &str,
+    ) -> Option<&Vec<String>> {
+        self.get_action(action_name)
+            .and_then(|action| action.get_commands_for_service(service))
+    }
+
+    pub fn get_services_for_action(&self, action_name: &ActionName) -> Option<Vec<&str>> {
+        self.get_action(action_name)
+            .map(|action| action.commands.keys().map(|s| s.as_str()).collect())
+    }
+}
+
+impl AppBlueprint {
+    pub fn validate(&self) -> Result<(), AppBlueprintValidationError> {
+        // Validate that all public services are in the required services list
+        for public_service in self
             .public_services
             .as_ref()
             .unwrap_or(&HashMap::new())
             .keys()
         {
-            if !shadow.required_services.contains(public_service) {
+            if !self.required_services.contains(public_service) {
                 return Err(AppBlueprintValidationError {
                     msg: format!(
                         "Public service {} not in required services",
@@ -113,26 +145,22 @@ impl std::convert::TryFrom<AppBlueprintShadow> for AppBlueprint {
                 });
             }
         }
-        for (action, services) in &shadow.actions {
-            for service in services.keys() {
-                if !shadow.required_services.contains(service) {
+
+        // Validate that all services used in actions are in the required services list
+        for (action_name, action) in &self.actions {
+            for service in action.commands.keys() {
+                if !self.required_services.contains(service) {
                     return Err(AppBlueprintValidationError {
                         msg: format!(
                             "service {} required for action {:?} not in required services",
-                            &service, &action
+                            &service, &action_name
                         ),
                     });
                 }
             }
         }
-        Ok(AppBlueprint {
-            name: shadow.name,
-            description: shadow.description,
-            actions: shadow.actions,
-            required_services: shadow.required_services,
-            public_services: shadow.public_services,
-            action_descriptions: shadow.action_descriptions,
-        })
+
+        Ok(())
     }
 }
 

@@ -185,10 +185,7 @@ mod tests {
         let blueprint = settings.apps.blueprints.get("nginx-lagoon").unwrap();
         assert_eq!(blueprint.name, "NGINX using lagoon base images");
         let script = blueprint
-            .actions
-            .get(&ActionName::PostCreate)
-            .unwrap()
-            .get("nginx")
+            .get_commands_for_service(&ActionName::PostCreate, "nginx")
             .unwrap();
         assert_eq!(script[0], "echo \"Hello, World!\"".to_string());
     }

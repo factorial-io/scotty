@@ -111,18 +111,15 @@ pub async fn blueprint_info(
                 _ => continue,
             };
 
-            let description = blueprint
-                .action_descriptions
-                .get(&action)
-                .map(|s| s.as_str())
+            let action_obj = blueprint.actions.get(&action);
+            let description = action_obj
+                .map(|a| a.description.as_str())
                 .unwrap_or("Lifecycle action");
-
-            let services_map = blueprint.actions.get(&action);
 
             // Format the services and commands in a readable way
             let mut services_commands = String::new();
-            if let Some(service_commands) = services_map {
-                for (i, (service, commands)) in service_commands.iter().enumerate() {
+            if let Some(action_obj) = action_obj {
+                for (i, (service, commands)) in action_obj.commands.iter().enumerate() {
                     if i > 0 {
                         services_commands.push_str("\n\n");
                     }
@@ -145,18 +142,14 @@ pub async fn blueprint_info(
         }
 
         // Add custom actions
-        for (action, services) in &blueprint.actions {
+        for (action, action_obj) in &blueprint.actions {
             match action {
                 ActionName::Custom(name) => {
-                    let description = blueprint
-                        .action_descriptions
-                        .get(action)
-                        .map(|s| s.as_str())
-                        .unwrap_or("Custom action");
+                    let description = action_obj.description.as_str();
 
                     // Format the services and commands in a readable way
                     let mut services_commands = String::new();
-                    for (i, (service, commands)) in services.iter().enumerate() {
+                    for (i, (service, commands)) in action_obj.commands.iter().enumerate() {
                         if i > 0 {
                             services_commands.push_str("\n\n");
                         }
