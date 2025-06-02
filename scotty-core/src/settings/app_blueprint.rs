@@ -2,15 +2,58 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    Clone, Serialize, Deserialize, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse,
-)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
 #[allow(clippy::enum_variant_names)]
 pub enum ActionName {
     PostCreate,
     PostRun,
     PostRebuild,
+    Custom(String),
+}
+
+impl Serialize for ActionName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ActionName::PostCreate => serializer.serialize_str("post_create"),
+            ActionName::PostRun => serializer.serialize_str("post_run"),
+            ActionName::PostRebuild => serializer.serialize_str("post_rebuild"),
+            ActionName::Custom(name) => serializer.serialize_str(name),
+        }
+    }
+}
+
+struct ActionNameVisitor;
+
+impl serde::de::Visitor<'_> for ActionNameVisitor {
+    type Value = ActionName;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string representing an action name")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match value {
+            "post_create" => Ok(ActionName::PostCreate),
+            "post_run" => Ok(ActionName::PostRun),
+            "post_rebuild" => Ok(ActionName::PostRebuild),
+            custom => Ok(ActionName::Custom(custom.to_string())),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ActionName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(ActionNameVisitor)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, utoipa::ToSchema, utoipa::ToResponse)]

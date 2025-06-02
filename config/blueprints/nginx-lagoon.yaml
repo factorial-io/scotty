@@ -1,22 +1,25 @@
 apps:
-  blueprints:
-    nginx-lagoon:
-      name: "NGINX using lagoon base images"
-      description: "A simple NGINX container using lagoon base images"
-      required_services:
-        - nginx
-      public_services:
-        nginx: 80
-      actions:
-        post_create:
-          nginx:
-            - echo "Hello, World from post_create"
-            - env
-        post_rebuild:
-          nginx:
-            - echo "Hello, World from post_rebuild"
-            - env
-        post_run:
-          nginx:
-            - echo "Hello, World from post_run"
-            - env
+    blueprints:
+        nginx-lagoon:
+            name: "NGINX using lagoon base images"
+            description: "A simple NGINX container using lagoon base images"
+            required_services:
+                - nginx
+            public_services:
+                nginx: 80
+            actions:
+                post_create:
+                    nginx:
+                        - echo "Hello, World from post_create"
+                        - env
+                post_rebuild:
+                    nginx:
+                        - echo "Hello, World from post_rebuild"
+                        - env
+                post_run:
+                    nginx:
+                        - echo "Hello, World from post_run"
+                        - env
+                status:
+                    nginx:
+                        - nginx -v

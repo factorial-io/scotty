@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Adopt(cmd) => commands::apps::adopt_app(&app_context, cmd).await?,
         Commands::Info(cmd) => commands::apps::info_app(&app_context, cmd).await?,
         Commands::Create(cmd) => commands::apps::create_app(&app_context, cmd).await?,
+        Commands::Action(cmd) => commands::apps::run_custom_action(&app_context, cmd).await?,
         Commands::NotifyAdd(cmd) => commands::notify::add_notification(&app_context, cmd).await?,
         Commands::NotifyRemove(cmd) => {
             commands::notify::remove_notification(&app_context, cmd).await?

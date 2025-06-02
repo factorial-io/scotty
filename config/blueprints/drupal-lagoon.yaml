@@ -16,9 +16,13 @@ apps:
                         - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
                 post_rebuild:
                     cli:
-                        - echo "Running drush deploy ..."
                         - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX
                 post_run:
                     cli:
-                        - echo "Running drush uli ..."
                         - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
+                drush:uli:
+                    cli:
+                        - drush uli --uri=$SCOTTY__PUBLIC_URL__NGINX
+                drush:deploy:
+                    cli:
+                        - drush deploy --uri=$SCOTTY__PUBLIC_URL__NGINX

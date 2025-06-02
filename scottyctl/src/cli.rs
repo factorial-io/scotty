@@ -60,6 +60,9 @@ pub enum Commands {
     /// Destroy an app
     #[command(name = "app:destroy")]
     Destroy(DestroyCommand),
+    /// Run a custom action on an app
+    #[command(name = "app:action")]
+    Action(ActionCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -117,6 +120,15 @@ pub struct NotifyAddCommand {
 }
 
 pub type NotifyRemoveCommand = NotifyAddCommand;
+
+#[derive(Debug, Parser)]
+pub struct ActionCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action to run
+    pub action_name: String,
+}
 
 #[derive(Debug, Parser)]
 pub struct CreateCommand {
