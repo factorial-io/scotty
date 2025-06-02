@@ -61,7 +61,7 @@ tokio-tungstenite = "*"
 futures-util = "0.3.30"
 uuid = { version = "1.10", features = ["v4", "serde"] }
 reqwest = { version = "0.12.8", features = ["json"] }
-thiserror = "1.0.64"
+thiserror = "2.0.0"
 clokwerk = { version = "0.4.0", features = ["async"] }
 walkdir = "2.5.0"
 chrono = { version = "0.4.38", features = ["serde"] }
