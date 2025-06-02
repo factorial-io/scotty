@@ -125,9 +125,7 @@ impl AppBlueprint {
         self.get_action(action_name)
             .map(|action| action.commands.keys().map(|s| s.as_str()).collect())
     }
-}
 
-impl AppBlueprint {
     pub fn validate(&self) -> Result<(), AppBlueprintValidationError> {
         // Validate that all public services are in the required services list
         for public_service in self
