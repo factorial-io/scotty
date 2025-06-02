@@ -118,27 +118,24 @@ pub async fn blueprint_info(
 
         // Add lifecycle actions
         for action in lifecycle_actions {
-            let action_str = match action {
-                ActionName::PostCreate => "post_create",
-                ActionName::PostRun => "post_run",
-                ActionName::PostRebuild => "post_rebuild",
-                _ => continue,
-            };
-
             let action_obj = blueprint.actions.get(&action);
-            let description = action_obj
-                .map(|a| a.description.as_str())
-                .unwrap_or("Lifecycle action");
+            if action_obj.is_none() {
+                continue;
+            }
+            let action_obj = action_obj.unwrap();
+            let action_name: String = action.clone().into();
+            let action_type: String = action.clone().get_type().into();
+            let description = match &action_obj.description {
+                desc if desc.is_empty() => action_type.as_str(),
+                desc => desc.as_str(),
+            };
 
             // Format the services and commands in a readable wabacon
-            let services_commands = match action_obj {
-                Some(action_obj) => format_services_command(&action_obj.commands),
-                None => "None".to_string(),
-            };
+            let services_commands = format_services_command(&action_obj.commands);
 
             builder.push_record(vec![
-                &action_str.dimmed().to_string(),
-                "Lifecycle",
+                &action_name.dimmed().to_string(),
+                &action_type,
                 description,
                 &services_commands,
             ]);
@@ -153,7 +150,7 @@ pub async fn blueprint_info(
 
                     builder.push_record(vec![
                         &name.green().to_string(),
-                        "Custom",
+                        action.get_type().as_str(),
                         description,
                         &services_commands,
                     ]);

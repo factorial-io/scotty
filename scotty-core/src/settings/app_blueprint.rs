@@ -3,6 +3,27 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
+pub enum ActionType {
+    Lifecycle,
+    Custom,
+}
+
+impl ActionType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ActionType::Lifecycle => "lifecycle",
+            ActionType::Custom => "custom",
+        }
+    }
+}
+
+impl From<ActionType> for String {
+    fn from(action_type: ActionType) -> Self {
+        action_type.as_str().to_string()
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
 #[allow(clippy::enum_variant_names)]
 pub enum ActionName {
     PostCreate,
@@ -16,34 +37,8 @@ impl Serialize for ActionName {
     where
         S: serde::Serializer,
     {
-        match self {
-            ActionName::PostCreate => serializer.serialize_str("post_create"),
-            ActionName::PostRun => serializer.serialize_str("post_run"),
-            ActionName::PostRebuild => serializer.serialize_str("post_rebuild"),
-            ActionName::Custom(name) => serializer.serialize_str(name),
-        }
-    }
-}
-
-struct ActionNameVisitor;
-
-impl serde::de::Visitor<'_> for ActionNameVisitor {
-    type Value = ActionName;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a string representing an action name")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        match value {
-            "post_create" => Ok(ActionName::PostCreate),
-            "post_run" => Ok(ActionName::PostRun),
-            "post_rebuild" => Ok(ActionName::PostRebuild),
-            custom => Ok(ActionName::Custom(custom.to_string())),
-        }
+        let s: String = self.clone().into();
+        serializer.serialize_str(&s)
     }
 }
 
@@ -52,7 +47,41 @@ impl<'de> Deserialize<'de> for ActionName {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(ActionNameVisitor)
+        let s = String::deserialize(deserializer)?;
+        Ok(s.into())
+    }
+}
+
+impl From<ActionName> for String {
+    fn from(action_name: ActionName) -> Self {
+        match action_name {
+            ActionName::PostCreate => "post_create".to_string(),
+            ActionName::PostRun => "post_run".to_string(),
+            ActionName::PostRebuild => "post_rebuild".to_string(),
+            ActionName::Custom(name) => name,
+        }
+    }
+}
+
+impl From<String> for ActionName {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "post_create" => ActionName::PostCreate,
+            "post_run" => ActionName::PostRun,
+            "post_rebuild" => ActionName::PostRebuild,
+            custom => ActionName::Custom(custom.to_string()),
+        }
+    }
+}
+
+impl ActionName {
+    pub fn get_type(&self) -> ActionType {
+        match self {
+            ActionName::PostCreate => ActionType::Lifecycle,
+            ActionName::PostRun => ActionType::Lifecycle,
+            ActionName::PostRebuild => ActionType::Lifecycle,
+            ActionName::Custom(_) => ActionType::Custom,
+        }
     }
 }
 
