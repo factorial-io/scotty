@@ -95,7 +95,7 @@ pub async fn run_app_custom_action_prepare(
         RunAppCustomActionStates::RunPostActions,
         Arc::new(RunPostActionsHandler::<RunAppCustomActionStates> {
             next_state: RunAppCustomActionStates::UpdateAppData,
-            action,
+            action: action.clone(),
             settings: app.settings.clone(),
         }),
     );
@@ -109,7 +109,10 @@ pub async fn run_app_custom_action_prepare(
         RunAppCustomActionStates::SetFinished,
         Arc::new(SetFinishedHandler::<RunAppCustomActionStates> {
             next_state: RunAppCustomActionStates::Done,
-            notification: Some(Message::new(MessageType::AppStarted, app)),
+            notification: Some(Message::new(
+                MessageType::AppCustomActionCompleted(action.clone()),
+                app,
+            )),
         }),
     );
 

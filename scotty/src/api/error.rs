@@ -87,6 +87,11 @@ impl AppError {
             AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::AppNotFound(_) => StatusCode::NOT_FOUND,
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
+            AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
+            AppError::AppNotRunning(_) => StatusCode::CONFLICT,
+            AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
