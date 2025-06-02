@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use owo_colors::OwoColorize;
 use tabled::{
     builder::Builder,
@@ -38,6 +40,21 @@ pub async fn list_blueprints(context: &AppContext) -> anyhow::Result<()> {
         Ok(table.to_string())
     })
     .await
+}
+
+fn format_services_command(commands: &HashMap<String, Vec<String>>) -> String {
+    let mut services_commands = String::new();
+    for (i, (service, commands)) in commands.iter().enumerate() {
+        if i > 0 {
+            services_commands.push_str("\n\n");
+        }
+        services_commands.push_str(&format!("{}:", service.blue().bold()));
+
+        for cmd in commands {
+            services_commands.push_str(&format!("\n  ▹ {}", cmd));
+        }
+    }
+    services_commands
 }
 
 pub async fn blueprint_info(
@@ -113,22 +130,11 @@ pub async fn blueprint_info(
                 .map(|a| a.description.as_str())
                 .unwrap_or("Lifecycle action");
 
-            // Format the services and commands in a readable way
-            let mut services_commands = String::new();
-            if let Some(action_obj) = action_obj {
-                for (i, (service, commands)) in action_obj.commands.iter().enumerate() {
-                    if i > 0 {
-                        services_commands.push_str("\n\n");
-                    }
-                    services_commands.push_str(&format!("{}:", service.blue().bold()));
-
-                    for cmd in commands {
-                        services_commands.push_str(&format!("\n  ▹ {}", cmd.dimmed()));
-                    }
-                }
-            } else {
-                services_commands = "None".to_string();
-            }
+            // Format the services and commands in a readable wabacon
+            let services_commands = match action_obj {
+                Some(action_obj) => format_services_command(&action_obj.commands),
+                None => "None".to_string(),
+            };
 
             builder.push_record(vec![
                 &action_str.dimmed().to_string(),
@@ -143,19 +149,7 @@ pub async fn blueprint_info(
             match action {
                 ActionName::Custom(name) => {
                     let description = action_obj.description.as_str();
-
-                    // Format the services and commands in a readable way
-                    let mut services_commands = String::new();
-                    for (i, (service, commands)) in action_obj.commands.iter().enumerate() {
-                        if i > 0 {
-                            services_commands.push_str("\n\n");
-                        }
-                        services_commands.push_str(&format!("{}:", service.blue().bold()));
-
-                        for cmd in commands {
-                            services_commands.push_str(&format!("\n  ▹ {}", cmd));
-                        }
-                    }
+                    let services_commands = format_services_command(&action_obj.commands);
 
                     builder.push_record(vec![
                         &name.green().to_string(),
