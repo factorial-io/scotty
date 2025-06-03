@@ -68,7 +68,7 @@ jobs:
         with:
           # GitHub token, required for authentication
           # Using a Personal Access Token with repo scope to allow pushing to another repository
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.BREW_PAT }}
 
           # Optional: Name of the tap repository without the homebrew- prefix
           # For example, for a repo homebrew-tap, this would be "tap"
