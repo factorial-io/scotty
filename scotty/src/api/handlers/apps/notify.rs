@@ -4,7 +4,7 @@ use scotty_core::{
     notification_types::{AddNotificationRequest, NotificationReceiver, RemoveNotificationRequest},
 };
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState};
 
 #[utoipa::path(
     post,
@@ -60,7 +60,7 @@ pub async fn add_notification_handler(
     app.save_settings().await?;
     state.apps.update_app(app.clone()).await?;
 
-    Ok(Json(app))
+    Ok(SecureJson(app))
 }
 
 #[utoipa::path(
@@ -96,5 +96,5 @@ pub async fn remove_notification_handler(
     app.save_settings().await?;
     state.apps.update_app(app.clone()).await?;
 
-    Ok(Json(app))
+    Ok(SecureJson(app))
 }

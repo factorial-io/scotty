@@ -50,5 +50,6 @@ tokio-stream.workspace = true
 clokwerk.workspace = true
 bcrypt.workspace = true
 utoipa-axum.workspace = true
+http-body-util = "0.1.3"
 [package.metadata.release]
 pre-release-hook = ["echo", "skipping"]
