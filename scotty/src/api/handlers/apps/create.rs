@@ -1,4 +1,7 @@
-use crate::{api::error::AppError, app_state::SharedAppState, docker::create_app::create_app};
+use crate::{
+    api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState,
+    docker::create_app::create_app,
+};
 use axum::{debug_handler, extract::State, response::IntoResponse, Json};
 use base64::prelude::*;
 use scotty_core::{
@@ -66,7 +69,7 @@ pub async fn create_app_handler(
     let settings = settings.apply_custom_domains(&payload.custom_domains)?;
 
     match create_app(state, &payload.app_name, &settings, &file_list).await {
-        Ok(app_data) => Ok(Json(app_data)),
+        Ok(app_data) => Ok(SecureJson(app_data)),
         Err(e) => {
             error!("App create failed with: {:?}", e);
             Err(AppError::from(e))

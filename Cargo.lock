@@ -1111,12 +1111,12 @@ dependencies = [
 
 [[package]]
 name = "http-body-util"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793429d76616a256bcb62c2a2ec2bed781c8307e797e2598c50010f2bee2544f"
+checksum = "b021d93e26becf5dc7e1b75b1bed1fd93124b374ceb73f43d4d4eafec896a64a"
 dependencies = [
  "bytes",
- "futures-util",
+ "futures-core",
  "http",
  "http-body",
  "pin-project-lite",
@@ -2555,6 +2555,7 @@ dependencies = [
  "clokwerk",
  "config",
  "futures-util",
+ "http-body-util",
  "include_dir",
  "init-tracing-opentelemetry",
  "maplit",
@@ -2602,6 +2603,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yml",
+ "tempfile",
  "tokio",
  "tracing",
  "url",
