@@ -60,6 +60,9 @@ pub enum Commands {
     /// Destroy an app
     #[command(name = "app:destroy")]
     Destroy(DestroyCommand),
+    /// Run a custom action on an app
+    #[command(name = "app:action")]
+    Action(ActionCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -72,6 +75,10 @@ pub enum Commands {
     /// List all available blueprints
     #[command(name = "blueprint:list")]
     BlueprintList,
+
+    /// Show detailed information about a blueprint
+    #[command(name = "blueprint:info")]
+    BlueprintInfo(BlueprintInfoCommand),
 
     /// Show shell completion script.
     #[command(name = "completion")]
@@ -89,6 +96,12 @@ pub struct CompletionCommand {
 
 #[derive(Debug, Parser)]
 pub struct BlueprintListCommand {}
+
+#[derive(Debug, Parser)]
+pub struct BlueprintInfoCommand {
+    /// Name of the blueprint
+    pub blueprint_name: String,
+}
 
 #[derive(Debug, Parser)]
 pub struct RunCommand {
@@ -117,6 +130,15 @@ pub struct NotifyAddCommand {
 }
 
 pub type NotifyRemoveCommand = NotifyAddCommand;
+
+#[derive(Debug, Parser)]
+pub struct ActionCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action to run
+    pub action_name: String,
+}
 
 #[derive(Debug, Parser)]
 pub struct CreateCommand {

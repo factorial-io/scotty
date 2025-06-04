@@ -15,7 +15,6 @@
 	});
 
 	tasks.subscribe((new_tasks) => {
-		console.log(new_tasks, data.id);
 		data = Object.values(new_tasks).find((t) => t.id === data.id) || data;
 	});
 </script>

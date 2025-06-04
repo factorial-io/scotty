@@ -28,6 +28,7 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::api::handlers::apps::create::__path_create_app_handler;
+use crate::api::handlers::apps::custom_action::__path_run_custom_action_handler;
 use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
 use crate::api::handlers::apps::notify::__path_add_notification_handler;
@@ -56,6 +57,7 @@ use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
 use super::handlers::apps::create::create_app_handler;
+use super::handlers::apps::custom_action::run_custom_action_handler;
 use super::handlers::apps::notify::add_notification_handler;
 use super::handlers::apps::notify::remove_notification_handler;
 use super::handlers::apps::run::adopt_app_handler;
@@ -93,6 +95,7 @@ use super::handlers::tasks::task_list_handler;
         add_notification_handler,
         remove_notification_handler,
         adopt_app_handler,
+        run_custom_action_handler,
     ),
     components(
         schemas(
@@ -157,6 +160,10 @@ impl ApiRoutes {
             .route(
                 "/api/v1/apps/notify/remove",
                 post(remove_notification_handler),
+            )
+            .route(
+                "/api/v1/apps/{app_name}/actions",
+                post(run_custom_action_handler),
             )
             .route_layer(middleware::from_fn_with_state(state.clone(), auth));
 

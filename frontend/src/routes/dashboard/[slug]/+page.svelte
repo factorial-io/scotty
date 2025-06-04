@@ -14,6 +14,7 @@
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
 	import Pill from '../../../components/pill.svelte';
+	import CustomActionsDropdown from '../../../components/custom-actions-dropdown.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
@@ -81,8 +82,6 @@
 		}
 		return value;
 	}
-
-	console.log(data);
 </script>
 
 <PageHeader>
@@ -93,17 +92,23 @@
 </PageHeader>
 
 <h3 class="text-xl mt-16 mb-4">Available Actions</h3>
-<div class="join">
-	{#each actions as action (action)}
-		<button
-			disabled={current_task !== null || !isSupported()}
-			class="btn btn-sm join-item"
-			on:click={() => handleClick(action)}
-			>{#if action === current_action}
-				<span class="loading loading-spinner"></span>
-			{/if}{action}</button
-		>
-	{/each}
+<div class="flex flex-wrap items-center gap-2">
+	<div class="join">
+		{#each actions as action (action)}
+			<button
+				disabled={current_task !== null || !isSupported()}
+				class="btn btn-sm join-item"
+				on:click={() => handleClick(action)}
+				>{#if action === current_action}
+					<span class="loading loading-spinner"></span>
+				{/if}{action}</button
+			>
+		{/each}
+	</div>
+	{#if isSupported()}
+		<div class="divider divider-horizontal mx-0"></div>
+		<CustomActionsDropdown app={data} />
+	{/if}
 </div>
 <h3 class="text-xl mt-16 mb-4">Available Services</h3>
 <table class="table">
