@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.34] - 2025-06-05
+
+### CI
+
+- Rewrite Homebrew formula publishing workflow ✔️
+- Use new token for brew ✔️
+
+### Dependencies
+
+- Update dependency @sveltejs/kit to v2.21.2 (#345) ✔️
+
 ## [0.1.0-alpha.33] - 2025-06-03
 
 ### Bug Fixes
