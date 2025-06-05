@@ -61,7 +61,7 @@ jobs:
             - name: Checkout tap repo
               uses: actions/checkout@v4
               with:
-                  repository: ${{ env.TAP_REPO }}
+                  repository: https://github.com/factorial-io/homebrew-scottyctl-tap.git
                   token: ${{ secrets.BREW_PAT }}
                   path: tap
 
@@ -101,6 +101,7 @@ jobs:
 
             - name: Commit and push formula to tap
               run: |
+                  FORMULA_PATH="scottyctl.rb"
                   cd tap
                   git config user.name "github-actions"
                   git config user.email "github-actions@github.com"
