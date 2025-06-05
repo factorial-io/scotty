@@ -61,7 +61,7 @@ jobs:
             - name: Checkout tap repo
               uses: actions/checkout@v4
               with:
-                  repository: https://github.com/factorial-io/homebrew-scottyctl-tap.git
+                  repository: factorial-io/homebrew-scottyctl-tap
                   token: ${{ secrets.BREW_PAT }}
                   path: tap
 
