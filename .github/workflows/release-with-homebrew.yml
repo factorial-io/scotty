@@ -85,6 +85,7 @@ jobs:
 
             - name: Copy and render formula template
               run: |
+                  FORMULA_PATH="scottyctl.rb"
                   cp packaging/scottyctl.rb.tpl tap/$FORMULA_PATH
 
                   sed -i "s|VERSION_PLACEHOLDER|${{ steps.version.outputs.version }}|" tap/$FORMULA_PATH
