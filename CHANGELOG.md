@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.36] - 2025-06-05
+
+### Bug Fixes
+
+- Try to fix homebrew formula ✔️
+
 ## [0.1.0-alpha.35] - 2025-06-05
 
 ### Bug Fixes
