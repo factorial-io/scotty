@@ -10,7 +10,16 @@ app.
 
 ## Installation of the CLI
 
-### From GitHub (preferred)
+### From Homebrew (preferred, for Mac OS X and Linux)
+
+You can install the CLI using Homebrew:
+
+```shell
+brew tap factorial-io/homebrew-scottyctl-tap
+brew install scottyctl
+```
+
+### From GitHub
 
 You can download the latest release from the GitHub [releases page](https://github.com/factorial-io/scotty/releases).
 Choose the binary for your platform and download it. Make it executable and
