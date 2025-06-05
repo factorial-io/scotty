@@ -1,92 +1,108 @@
 name: Release and Publish
 
 permissions:
-  contents: write
+    contents: write
 
 on:
-  push:
-    tags:
-      - v[0-9]+.*
+    push:
+        tags:
+            - v[0-9]+.*
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: taiki-e/create-gh-release-action@v1
-        with:
-          # (optional) Path to changelog.
-          changelog: CHANGELOG.md
-          # (required) GitHub token for creating GitHub Releases.
-          token: ${{ secrets.GITHUB_TOKEN }}
+    create-release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: taiki-e/create-gh-release-action@v1
+              with:
+                  # (optional) Path to changelog.
+                  changelog: CHANGELOG.md
+                  # (required) GitHub token for creating GitHub Releases.
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
-  upload-assets:
-    needs: create-release
-    strategy:
-      matrix:
-        include:
-          # - target: aarch64-unknown-linux-gnu
-          #   os: ubuntu-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          # Universal macOS binary is supported as universal-apple-darwin.
-          - target: universal-apple-darwin
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: ${{ matrix.target }}
-        if: startsWith(matrix.os, 'ubuntu')
-      - uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: scottyctl
-          target: ${{ matrix.target }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+    upload-assets:
+        needs: create-release
+        strategy:
+            matrix:
+                include:
+                    # - target: aarch64-unknown-linux-gnu
+                    #   os: ubuntu-latest
+                    - target: aarch64-apple-darwin
+                      os: macos-latest
+                    - target: x86_64-unknown-linux-gnu
+                      os: ubuntu-latest
+                    - target: x86_64-apple-darwin
+                      os: macos-latest
+                    # Universal macOS binary is supported as universal-apple-darwin.
+                    - target: universal-apple-darwin
+                      os: macos-latest
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install cross-compilation tools
+              uses: taiki-e/setup-cross-toolchain-action@v1
+              with:
+                  target: ${{ matrix.target }}
+              if: startsWith(matrix.os, 'ubuntu')
+            - uses: taiki-e/upload-rust-binary-action@v1
+              with:
+                  bin: scottyctl
+                  target: ${{ matrix.target }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
-  homebrew:
-    name: Bump Homebrew formula
-    needs: upload-assets
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    homebrew:
+        name: Bump Homebrew formula
+        needs: upload-assets
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout this repo (scotty)
+              uses: actions/checkout@v4
 
-      - name: Extract version
-        id: extract-version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            - name: Checkout tap repo
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ env.TAP_REPO }}
+                  token: ${{ secrets.BREW_PAT }}
+                  path: tap
 
-      - name: Update Homebrew formula
-        uses: dawidd6/action-homebrew-bump-formula@v4
-        with:
-          # GitHub token, required for authentication
-          # Using a Personal Access Token with repo scope to allow pushing to another repository
-          token: ${{ secrets.BREW_PAT }}
+            - name: Extract version
+              id: version
+              run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-          # Optional: Name of the tap repository without the homebrew- prefix
-          # For example, for a repo homebrew-tap, this would be "tap"
-          # Default: core (homebrew/homebrew-core)
-          # You need to create this repository first!
-          tap: factorial-io/scottyctl-tap
+            - name: Download and compute SHAs
+              id: sha
+              run: |
+                  VERSION=${{ steps.version.outputs.version }}
+                  BASE_URL="https://github.com/factorial-io/scotty/releases/download/${VERSION}"
 
-          # Required: Formula name
-          formula: scottyctl
+                  curl -LO "${BASE_URL}/scottyctl-aarch64-apple-darwin.tar.gz"
+                  curl -LO "${BASE_URL}/scottyctl-x86_64-apple-darwin.tar.gz"
+                  curl -LO "${BASE_URL}/scottyctl-x86_64-unknown-linux-gnu.tar.gz"
 
-          # Optional: Define the formula path in the tap repo
-          # Default: Formula/#{formula}.rb
-          formula_filepath: scottyctl.rb
+                  echo "sha_mac_arm=$(shasum -a 256 scottyctl-aarch64-apple-darwin.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+                  echo "sha_mac_intel=$(shasum -a 256 scottyctl-x86_64-apple-darwin.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+                  echo "sha_linux=$(shasum -a 256 scottyctl-x86_64-unknown-linux-gnu.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
-          # Optional: Specify a tag name or SHA to use
-          # Default: latest release
-          tag: v${{ steps.extract-version.outputs.VERSION }}
+            - name: Copy and render formula template
+              run: |
+                  cp packaging/scottyctl.rb.tpl tap/$FORMULA_PATH
 
-          # Optional: Revision to use (can be a SHA or a tag name or a release version)
-          # If not specified, the action will use the tag from the event
-          revision: v${{ steps.extract-version.outputs.VERSION }}
+                  sed -i "s|VERSION_PLACEHOLDER|${{ steps.version.outputs.version }}|" tap/$FORMULA_PATH
+
+                  sed -i "s|URL_MAC_ARM|https://github.com/factorial-io/scotty/releases/download/${{ steps.version.outputs.version }}/scottyctl-aarch64-apple-darwin.tar.gz|" tap/$FORMULA_PATH
+                  sed -i "s|SHA_MAC_ARM|${{ steps.sha.outputs.sha_mac_arm }}|" tap/$FORMULA_PATH
+
+                  sed -i "s|URL_MAC_INTEL|https://github.com/factorial-io/scotty/releases/download/${{ steps.version.outputs.version }}/scottyctl-x86_64-apple-darwin.tar.gz|" tap/$FORMULA_PATH
+                  sed -i "s|SHA_MAC_INTEL|${{ steps.sha.outputs.sha_mac_intel }}|" tap/$FORMULA_PATH
+
+                  sed -i "s|URL_LINUX|https://github.com/factorial-io/scotty/releases/download/${{ steps.version.outputs.version }}/scottyctl-x86_64-unknown-linux-gnu.tar.gz|" tap/$FORMULA_PATH
+                  sed -i "s|SHA_LINUX|${{ steps.sha.outputs.sha_linux }}|" tap/$FORMULA_PATH
+
+            - name: Commit and push formula to tap
+              run: |
+                  cd tap
+                  git config user.name "github-actions"
+                  git config user.email "github-actions@github.com"
+                  git add $FORMULA_PATH
+                  git commit -m "Update scottyctl formula to ${{ steps.version.outputs.version }}"
+                  git push
