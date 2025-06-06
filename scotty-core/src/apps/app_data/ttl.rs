@@ -40,3 +40,75 @@ impl Serialize for AppTtl {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_yml;
+
+    #[test]
+    fn test_serialize_hours_to_yaml() {
+        let ttl = AppTtl::Hours(24);
+        let yaml = serde_yml::to_string(&ttl).unwrap();
+        assert_eq!(yaml.trim(), "!Hours 24");
+    }
+
+    #[test]
+    fn test_serialize_days_to_yaml() {
+        let ttl = AppTtl::Days(7);
+        let yaml = serde_yml::to_string(&ttl).unwrap();
+        assert_eq!(yaml.trim(), "!Days 7");
+    }
+
+    #[test]
+    fn test_serialize_forever_to_yaml() {
+        let ttl = AppTtl::Forever;
+        let yaml = serde_yml::to_string(&ttl).unwrap();
+        assert_eq!(yaml.trim(), "Forever");
+    }
+
+    #[test]
+    fn test_deserialize_hours_from_yaml() {
+        let yaml = "!Hours 24";
+        let ttl: AppTtl = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(ttl, AppTtl::Hours(24));
+    }
+
+    #[test]
+    fn test_deserialize_days_from_yaml() {
+        let yaml = "!Days 7";
+        let ttl: AppTtl = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(ttl, AppTtl::Days(7));
+    }
+
+    #[test]
+    fn test_deserialize_forever_from_yaml() {
+        let yaml = "Forever";
+        let ttl: AppTtl = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(ttl, AppTtl::Forever);
+    }
+
+    #[test]
+    fn test_roundtrip_hours() {
+        let original = AppTtl::Hours(48);
+        let yaml = serde_yml::to_string(&original).unwrap();
+        let deserialized: AppTtl = serde_yml::from_str(&yaml).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_roundtrip_days() {
+        let original = AppTtl::Days(30);
+        let yaml = serde_yml::to_string(&original).unwrap();
+        let deserialized: AppTtl = serde_yml::from_str(&yaml).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_roundtrip_forever() {
+        let original = AppTtl::Forever;
+        let yaml = serde_yml::to_string(&original).unwrap();
+        let deserialized: AppTtl = serde_yml::from_str(&yaml).unwrap();
+        assert_eq!(original, deserialized);
+    }
+}
