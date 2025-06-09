@@ -31,7 +31,9 @@
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
-			if (!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)) {
+			if (
+				!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)
+			) {
 				return;
 			}
 		}
