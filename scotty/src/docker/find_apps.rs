@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use bollard::container::InspectContainerOptions;
+use bollard::query_parameters::InspectContainerOptions;
 use chrono::{DateTime, Local};
 use futures_util::future::join_all;
 use scotty_core::apps::{
