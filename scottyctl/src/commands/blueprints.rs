@@ -42,7 +42,7 @@ pub async fn list_blueprints(context: &AppContext) -> anyhow::Result<()> {
     .await
 }
 
-fn format_services_command(commands: &HashMap<String, Vec<String>>) -> String {
+fn format_services_commands(commands: &HashMap<String, Vec<String>>) -> String {
     let mut services_commands = String::new();
     for (i, (service, commands)) in commands.iter().enumerate() {
         if i > 0 {
@@ -131,7 +131,7 @@ pub async fn blueprint_info(
             };
 
             // Format the services and commands in a readable way
-            let services_commands = format_services_command(&action_obj.commands);
+            let services_commands = format_services_commands(&action_obj.commands);
 
             builder.push_record(vec![
                 &action_name.dimmed().to_string(),
