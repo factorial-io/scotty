@@ -118,16 +118,15 @@ pub async fn blueprint_info(
 
         // Add lifecycle actions
         for action in &lifecycle_actions {
-            let action_obj = blueprint.actions.get(action);
-            if action_obj.is_none() {
+            let Some(action_obj) = blueprint.actions.get(action) else {
                 continue;
-            }
-            let action_obj = action_obj.unwrap();
+            };
             let action_name: String = action.clone().into();
             let action_type: String = action.get_type().into();
-            let description = match &action_obj.description {
-                desc if desc.is_empty() => action_type.as_str(),
-                desc => desc.as_str(),
+            let description = if action_obj.description.is_empty() {
+                action_type.as_str()
+            } else {
+                action_obj.description.as_str()
             };
 
             // Format the services and commands in a readable way
