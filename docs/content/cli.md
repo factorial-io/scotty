@@ -80,9 +80,12 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
   --service <SERVICE:PORT> [--service <SERVICE:PORT> ...] \
   [--app-blueprint <BLUEPRINT>] [--ttl <LIFETIME>] \
   [--basic-auth <USERNAME:PASSWORD>] [--allow-robots] \
+  [--destroy-on-ttl] \
   [--custom-domain <DOMAIN:SERVICE>] [--custom-domain <DOMAIN:SERVICE> ...] \
   [--env <KEY=VALUE>] [--env <KEY=VALUE> ...] \
-  [--registry <REGISTRY>]
+  [--env-file <FILE>] \
+  [--registry <REGISTRY>] \
+  [--middleware <MIDDLEWARE>] [--middleware <MIDDLEWARE> ...]
 ```
 
 This command will create a new app on the server. The `--folder` argument is
@@ -105,9 +108,18 @@ The `--allow-robots` argument will inject a `X-Robots-Tag: noindex` header into
 all responses of the app. This will prevent search engines from indexing the app.
 (Not supported by all proxies)
 
+The `--destroy-on-ttl` argument will destroy the app after the specified ttl
+instead of just stopping it. Suitable for apps that are not expected to be used
+for a long time.
+Tbhe `--env-file` argument will load environment variables from a file. The file
+should contain key-value pairs separated by an equal sign.
+
 You can add custom domains to the app with the `--custom-domain` argument. The
 argument should contain a domain and a service name separated by a colon. The
 service name should match a service in the docker-compose.yml file.
+
+The `--env-file` argument will load environment variables from a file. The file
+should contain key-value pairs separated by an equal sign.
 
 You can add environment variables to the app with the `--env` argument. The
 argument should contain a key and a value separated by an equal sign. You can
@@ -118,6 +130,12 @@ The server needs to be configured accordingly.
 You can use a private registry for the images with the `--registry` argument. The
 argument should contain the name of the registry. The server needs to be
 configured accordingly.
+
+You can add middleware to the app with the `--middleware` argument. The argument
+should contain the name of the middleware. Middleware must be in the allow-list in
+the server configuration before they can be used. You can specify multiple
+middleware by using the `--middleware` argument multiple times. (This is only
+supported for traefik)
 
 ### Some examples:
 

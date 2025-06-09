@@ -1,28 +1,30 @@
 api:
-  bind_address: "127.0.0.1:21342"
-  access_token: hello-world
+    bind_address: "127.0.0.1:21342"
+    access_token: hello-world
 telemetry: None
 apps:
-  domain_suffix: "ddev.site"
-  use_tls: false
-  root_folder: "./apps" # Path to the folder where the apps are stored
+    domain_suffix: "ddev.site"
+    use_tls: false
+    root_folder: "./apps" # Path to the folder where the apps are stored
 docker:
-  connection: local # local, socket or http, see bollard docs
+    connection: local # local, socket or http, see bollard docs
 load_balancer_type: Traefik #HaproxyConfig or Traefik
 traefik:
-  use_tls: false
+    use_tls: false
+    allowed_middlewares:
+        - "test-middleware"
 haproxy:
-  use_tls: false
+    use_tls: false
 notification_services:
-  chat_factorial_io:
-    type: mattermost
-    host: https://chat.factorial.io
-    hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__HOOK_ID
-  webhook-test:
-    type: webhook
-    method: post
-    url: https://wh66e463ada4ac505d47.free.beeceptor.com
-  source_factorial_io:
-    type: gitlab
-    host: https://source.factorial.io
-    token: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__SOURCE_FACTORIAL_IO__TOKEN
+    chat_factorial_io:
+        type: mattermost
+        host: https://chat.factorial.io
+        hook_id: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__CHAT_FACTORIAL_IO__HOOK_ID
+    webhook-test:
+        type: webhook
+        method: post
+        url: https://wh66e463ada4ac505d47.free.beeceptor.com
+    source_factorial_io:
+        type: gitlab
+        host: https://source.factorial.io
+        token: xxx # Override with SCOTTY__NOTIFICATION_SERVICES__SOURCE_FACTORIAL_IO__TOKEN

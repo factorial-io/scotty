@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-alpha.37] - 2025-06-05
+
+### Bug Fixes
+
+- Try to fix homebrew formula ✔️
+
+## [0.1.0-alpha.36] - 2025-06-05
+
+### Bug Fixes
+
+- Try to fix homebrew formula ✔️
+
+## [0.1.0-alpha.35] - 2025-06-05
+
+### Bug Fixes
+
+- Try to fix homebrew formula ✔️
+
+## [0.1.0-alpha.34] - 2025-06-05
+
+### CI
+
+- Rewrite Homebrew formula publishing workflow ✔️
+- Use new token for brew ✔️
+
+### Dependencies
+
+- Update dependency @sveltejs/kit to v2.21.2 (#345) ✔️
+
+## [0.1.0-alpha.33] - 2025-06-03
+
+### Bug Fixes
+
+- Add SecureJson wrapper to mask sensitive env vars in API responses ✔️
+- Update rust dependencies auto-merge (patch) (#343) ✔️
+
+### Dependencies
+
+- Add tempfile as a dev dependency ✔️
+- Update npm dependencies auto-merge (patch) (#342) ✔️
+- Update dependency eslint to v9.28.0 ✔️
+- Update dawidd6/action-homebrew-bump-formula action to v4 ✔️
+
 ## [0.1.0-alpha.32] - 2025-05-30
 
 ### Bug Fixes

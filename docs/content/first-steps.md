@@ -90,11 +90,18 @@ the env-var `SCOTTY__API__ACCESS_TOKEN`.
 
 ## Installing the Client
 
-Install the Scotty CLI (scottyctl) by downloading the latest release for your
+Use brew to install the Scotty CLI (scottyctl):
+
+```shell
+brew tap factorial-io/homebrew-scottyctl-tap
+brew install scottyctl
+```
+
+Or install the Scotty CLI (scottyctl) by downloading the latest release for your
 platform:
 
 ```shell
-# For macOS ARM64
+# For macOS ARM64, for other platforms check the release page
 curl -L https://github.com/factorial-io/scotty/releases/download/<LATEST-VERSION>/scottyctl-aarch64-apple-darwin.tar.gz -o scottyctl.tar.gz
 tar -xvf scottyctl.tar.gz
 chmod +x scottyctl

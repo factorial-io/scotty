@@ -78,6 +78,9 @@ pub enum AppError {
 
     #[error("Cant adopt app {0} with existing settings, app can already be controlled by scotty!")]
     CantAdoptAppWithExistingSettings(String),
+
+    #[error("Middleware not allowed: {0}")]
+    MiddlewareNotAllowed(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -90,6 +93,7 @@ impl AppError {
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
             AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
+            AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
             AppError::AppNotRunning(_) => StatusCode::CONFLICT,
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,

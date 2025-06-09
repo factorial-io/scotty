@@ -6,6 +6,9 @@ domain: simple_nginx.ddev.site
 time_to_live: !Days 7
 basic_auth: null
 disallow_robots: true
+middlewares:
+  - rate-limit
+  - cors-headers
 environment:
   FOO: BAR
   FOOX: hjfaklsjghfkljhsaflkgjhasflgkhjasflkgjhasfklgjhasklfghjsalkjghasflgkjhasfklgjhfsgalkfgjhaslkfgjhaslfkgjhasfglkjahsfglksajfghaskfgjhasfglkjhaslkjghaslkfgjhasflgkjhasfglkjhagsflkj

@@ -93,15 +93,16 @@ can use the cli-command `app:adopt` to make the app compatible with Scotty.
 ### Blueprints
 
 Owned apps can adopt blueprints to provide additional functionality. Blueprints
-store common tasks to execute on certain events like `app:create`, `app:run` or
-`app:destroy`.
+store common tasks to execute on certain liftime events like `app:create`,
+`app:run` or `app:destroy`.
 
-These scripts are stored in the `blueprints` directory of Scotty. The scripts
-are executed in the running service container of the app. Common tasks could be,
-for example, running the deploy command for Drupal applications, or clearing
-the cache for other apps.
+These scripts are stored in a YML-file in the `blueprints` directory of Scotty.
+The scripts are executed in the running service container of the app. Common
+tasks could be, for example, running the deploy command for Drupal applications,
+or clearing the cache for other apps.
 
-Blueprints can be provided when creating a new app via `app:create`.
+Blueprints can be provided when creating a new app via `app:create`. A list of
+blueprints can be get by running `blueprint:list`.
 
 ## Server-Architecture
 
@@ -147,6 +148,10 @@ networks:
   proxy:
     external: true
 ```
+
+The traefik implementation also supports custom middlewares. Please declare them
+in the `config` directory. Then you can refer to the listed middlewares in the
+`app:create`-command and the `--middleware`-option.
 
 ### [Haproxy-Config](https://github.com/factorial-io/haproxy-config)
 

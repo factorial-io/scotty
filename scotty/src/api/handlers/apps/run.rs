@@ -1,7 +1,7 @@
+use crate::api::secure_response::SecureJson;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
-    Json,
 };
 use scotty_core::{
     apps::app_data::AppData, tasks::running_app_context::RunningAppContext, utils::slugify::slugify,
@@ -42,7 +42,7 @@ pub async fn run_app_handler(
     }
     let app_data = app_data.unwrap();
     let app_data = run_app(state, &app_data).await?;
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -67,7 +67,7 @@ pub async fn stop_app_handler(
     }
     let app_data = app_data.unwrap();
     let app_data = stop_app(state, &app_data).await?;
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -92,7 +92,7 @@ pub async fn purge_app_handler(
     }
     let app_data = app_data.unwrap();
     let app_data = purge_app(state, &app_data).await?;
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -116,7 +116,7 @@ pub async fn info_app_handler(
         return Err(AppError::AppNotFound(app_id.clone()));
     }
     let app_data = app_data.unwrap();
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -141,7 +141,7 @@ pub async fn rebuild_app_handler(
     }
     let app_data = app_data.unwrap();
     let app_data = rebuild_app(state, &app_data).await?;
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -170,7 +170,7 @@ pub async fn destroy_app_handler(
         return Err(AppError::CantDestroyUnmanagedApp(app_id.clone()));
     }
     let app_data = destroy_app(state, &app_data).await?;
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }
 
 #[utoipa::path(
@@ -205,5 +205,5 @@ pub async fn adopt_app_handler(
     let app_data = app_data.create_settings_from_runtime(&environment).await?;
     state.apps.update_app(app_data.clone()).await?;
 
-    Ok(Json(app_data))
+    Ok(SecureJson(app_data))
 }

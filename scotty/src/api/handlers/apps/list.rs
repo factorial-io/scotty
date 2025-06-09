@@ -1,7 +1,7 @@
-use axum::{debug_handler, extract::State, response::IntoResponse, Json};
+use axum::{debug_handler, extract::State, response::IntoResponse};
 use scotty_core::apps::shared_app_list::AppDataVec;
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState};
 #[utoipa::path(
     get,
     path = "/api/v1/apps/list",
@@ -18,5 +18,5 @@ pub async fn list_apps_handler(
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
     let apps = state.apps.get_apps().await;
-    Ok(Json(apps))
+    Ok(SecureJson(apps))
 }

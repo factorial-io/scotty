@@ -20,7 +20,7 @@ use crate::{
 use super::super::create_app_request::CustomDomainMapping;
 use super::{service::ServicePortMapping, ttl::AppTtl};
 
-#[derive(Debug, Deserialize, Clone, ToSchema, ToResponse)]
+#[derive(Debug, Deserialize, Serialize, Clone, ToSchema, ToResponse)]
 pub struct AppSettings {
     pub public_services: Vec<ServicePortMapping>,
     pub domain: String,
@@ -34,34 +34,8 @@ pub struct AppSettings {
     pub app_blueprint: Option<String>,
     #[serde(default)]
     pub notify: HashSet<NotificationReceiver>,
-}
-
-// Implement Serialize manually with redaction for sensitive environment variables
-impl Serialize for AppSettings {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use crate::utils::sensitive_data::mask_sensitive_env_map;
-        use serde::ser::SerializeStruct;
-
-        // Create masked environment variables using the utility function
-        let masked_env = mask_sensitive_env_map(&self.environment);
-
-        // Serialize with the struct serializer
-        let mut state = serializer.serialize_struct("AppSettings", 10)?;
-        state.serialize_field("public_services", &self.public_services)?;
-        state.serialize_field("domain", &self.domain)?;
-        state.serialize_field("time_to_live", &self.time_to_live)?;
-        state.serialize_field("destroy_on_ttl", &self.destroy_on_ttl)?;
-        state.serialize_field("basic_auth", &self.basic_auth)?;
-        state.serialize_field("disallow_robots", &self.disallow_robots)?;
-        state.serialize_field("environment", &masked_env)?;
-        state.serialize_field("registry", &self.registry)?;
-        state.serialize_field("app_blueprint", &self.app_blueprint)?;
-        state.serialize_field("notify", &self.notify)?;
-        state.end()
-    }
+    #[serde(default)]
+    pub middlewares: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -77,6 +51,7 @@ impl Default for AppSettings {
             registry: None,
             app_blueprint: None,
             notify: HashSet::new(),
+            middlewares: Vec::new(),
         }
     }
 }
@@ -175,5 +150,89 @@ impl AppSettings {
             info!("No settings file found at {}", &settings_path.display());
             Ok(None)
         }
+    }
+
+    #[cfg(test)]
+    pub fn to_file(&self, settings_path: &Path) -> anyhow::Result<()> {
+        let yaml = serde_yml::to_string(self)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize settings to YAML: {}", e))?;
+
+        std::fs::write(settings_path, yaml).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to write settings to {}: {}",
+                settings_path.display(),
+                e
+            )
+        })?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::sensitive_data::{is_sensitive, mask_sensitive_env_map};
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_environment_vars_not_masked_in_yaml_file() {
+        // Create AppSettings with sensitive environment variables
+        let mut env_vars = HashMap::new();
+        env_vars.insert("API_KEY".to_string(), "secret-api-key-12345".to_string());
+        env_vars.insert(
+            "DATABASE_URL".to_string(),
+            "postgres://user:password@localhost/db".to_string(),
+        );
+        env_vars.insert("NORMAL_VAR".to_string(), "not-sensitive".to_string());
+
+        let settings = AppSettings {
+            public_services: vec![],
+            domain: "test.example.com".to_string(),
+            time_to_live: AppTtl::Days(7),
+            disallow_robots: true,
+            environment: env_vars,
+            ..Default::default()
+        };
+
+        // Create a temporary directory for the test
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let settings_path = temp_dir.path().join(".scotty.yml");
+
+        // Save settings to file
+        settings
+            .to_file(&settings_path)
+            .expect("Failed to save settings");
+
+        // Read the settings back from the file
+        let loaded_settings = AppSettings::from_file(&settings_path)
+            .expect("Failed to load settings")
+            .expect("Settings should exist");
+
+        // Verify sensitive environment variables are not masked
+        assert_eq!(
+            loaded_settings.environment.get("API_KEY").unwrap(),
+            "secret-api-key-12345"
+        );
+        assert_eq!(
+            loaded_settings.environment.get("DATABASE_URL").unwrap(),
+            "postgres://user:password@localhost/db"
+        );
+        assert_eq!(
+            loaded_settings.environment.get("NORMAL_VAR").unwrap(),
+            "not-sensitive"
+        );
+
+        // Verify that if we were to mask them, they would be different
+        let masked_env = mask_sensitive_env_map(&settings.environment);
+        assert_ne!(masked_env.get("API_KEY").unwrap(), "secret-api-key-12345");
+        assert_ne!(
+            masked_env.get("DATABASE_URL").unwrap(),
+            "postgres://user:password@localhost/db"
+        );
+
+        // Verify that the sensitive detection is working correctly
+        assert!(is_sensitive("API_KEY"));
+        assert!(!is_sensitive("NORMAL_VAR"));
     }
 }

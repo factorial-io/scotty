@@ -3,7 +3,7 @@ members = ["scotty-core", "scotty", "scottyctl"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0-alpha.32"
+version = "0.1.0-alpha.37"
 edition = "2021"
 rust-version = "1.86"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
@@ -14,7 +14,7 @@ license-file = "LICENSE"
 [workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.8.0", features = ["ws", "macros"] }
-bollard = "0.18.0"
+bollard = "0.19.0"
 config = "0.15.0"
 readonly = "0.2.12"
 serde = "1.0.210"
