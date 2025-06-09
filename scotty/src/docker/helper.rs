@@ -1,7 +1,7 @@
 use crate::{app_state::SharedAppState, state_machine::StateMachine};
 use anyhow::anyhow;
-use bollard::container::InspectContainerOptions;
 use bollard::models::ContainerStateStatusEnum;
+use bollard::query_parameters::InspectContainerOptions;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use tracing::error;
