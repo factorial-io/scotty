@@ -2,12 +2,12 @@
 # This configuration shows how to use custom Traefik middlewares
 
 public_services:
-  - service: web
-    port: 80
-  - service: api
-    port: 3000
-    domains:
-      - api.my-app.example.com
+    - service: web
+      port: 80
+    - service: api
+      port: 3000
+      domains:
+          - api.my-app.example.com
 
 domain: my-app.example.com
 time_to_live: !Days 7
@@ -17,23 +17,22 @@ destroy_on_ttl: false
 basic_auth: null
 
 # Keep robots protection enabled
-disallow_robots: true
+disallow_robots: false
 
 # Custom middlewares applied to all public services
 # These are applied AFTER built-in middlewares (robots in this case)
 middlewares:
-  - rate-limit
-  - security-headers
-  - cors-policy
-  - compress
+    - rate-limit
+    - security-headers
+    - cors-policy
+    - compress
 
 environment:
-  NODE_ENV: production
-  API_BASE_URL: https://api.my-app.example.com
-  DATABASE_URL: "{{ .Env.DATABASE_URL }}"
-  
+    NODE_ENV: production
+    API_BASE_URL: https://api.my-app.example.com
+
 registry: null
 app_blueprint: null
 
 notify:
-  - Log
+    - Log

@@ -150,7 +150,7 @@ networks:
 ```
 
 The traefik implementation also supports custom middlewares. Please declare them
-in the `config` directory. Then you can refer to the listed middlewared in the
+in the `config` directory. Then you can refer to the listed middlewares in the
 `app:create`-command and the `--middleware`-option.
 
 ### [Haproxy-Config](https://github.com/factorial-io/haproxy-config)
