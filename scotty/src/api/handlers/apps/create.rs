@@ -9,6 +9,7 @@ use scotty_core::{
         create_app_request::CreateAppRequest,
         file_list::{File, FileList},
     },
+    settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
 };
 use tracing::error;
@@ -67,6 +68,22 @@ pub async fn create_app_handler(
 
     // Apply custom domains, if any.
     let settings = settings.apply_custom_domains(&payload.custom_domains)?;
+
+    if state.settings.load_balancer_type == LoadBalancerType::Traefik
+        && !settings.middlewares.is_empty()
+    {
+        // Check if the middlewares are listed in settings.traefik.allowed_middlewares
+        for middleware in &settings.middlewares {
+            if !state
+                .settings
+                .traefik
+                .allowed_middlewares
+                .contains(middleware)
+            {
+                return Err(AppError::MiddlewareNotAllowed(middleware.clone()));
+            }
+        }
+    }
 
     match create_app(state, &payload.app_name, &settings, &file_list).await {
         Ok(app_data) => Ok(SecureJson(app_data)),

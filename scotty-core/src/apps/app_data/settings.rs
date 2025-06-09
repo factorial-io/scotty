@@ -34,6 +34,8 @@ pub struct AppSettings {
     pub app_blueprint: Option<String>,
     #[serde(default)]
     pub notify: HashSet<NotificationReceiver>,
+    #[serde(default)]
+    pub middlewares: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -49,6 +51,7 @@ impl Default for AppSettings {
             registry: None,
             app_blueprint: None,
             notify: HashSet::new(),
+            middlewares: Vec::new(),
         }
     }
 }
@@ -187,13 +190,9 @@ mod tests {
             public_services: vec![],
             domain: "test.example.com".to_string(),
             time_to_live: AppTtl::Days(7),
-            destroy_on_ttl: false,
-            basic_auth: None,
             disallow_robots: true,
             environment: env_vars,
-            registry: None,
-            app_blueprint: None,
-            notify: HashSet::new(),
+            ..Default::default()
         };
 
         // Create a temporary directory for the test

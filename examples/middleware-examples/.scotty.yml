@@ -1,0 +1,39 @@
+# Example .scotty.yml demonstrating the new middlewares feature
+# This configuration shows how to use custom Traefik middlewares
+
+public_services:
+  - service: web
+    port: 80
+  - service: api
+    port: 3000
+    domains:
+      - api.my-app.example.com
+
+domain: my-app.example.com
+time_to_live: !Days 7
+destroy_on_ttl: false
+
+# Basic auth is disabled to showcase custom middlewares only
+basic_auth: null
+
+# Keep robots protection enabled
+disallow_robots: true
+
+# Custom middlewares applied to all public services
+# These are applied AFTER built-in middlewares (robots in this case)
+middlewares:
+  - rate-limit
+  - security-headers
+  - cors-policy
+  - compress
+
+environment:
+  NODE_ENV: production
+  API_BASE_URL: https://api.my-app.example.com
+  DATABASE_URL: "{{ .Env.DATABASE_URL }}"
+  
+registry: null
+app_blueprint: null
+
+notify:
+  - Log

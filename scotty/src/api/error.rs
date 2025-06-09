@@ -72,6 +72,9 @@ pub enum AppError {
 
     #[error("Cant adopt app {0} with existing settings, app can already be controlled by scotty!")]
     CantAdoptAppWithExistingSettings(String),
+
+    #[error("Middleware not allowed: {0}")]
+    MiddlewareNotAllowed(String),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -81,6 +84,7 @@ impl AppError {
             AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::AppNotFound(_) => StatusCode::NOT_FOUND,
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

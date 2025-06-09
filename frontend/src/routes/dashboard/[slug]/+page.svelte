@@ -31,9 +31,7 @@
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
-			if (
-				!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)
-			) {
+			if (!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)) {
 				return;
 			}
 		}
@@ -154,6 +152,10 @@
 			<tr>
 				<td class="text-gray-500 align-top"><strong>Time to live</strong></td>
 				<td class="align-top">{format_ttl(data.settings.time_to_live)}</td>
+			</tr>
+			<tr>
+				<td class="text-gray-500 align-top"><strong>Middlewares</strong></td>
+				<td class="align-top">{format_value(data.settings.middlewares?.join(', '))}</td>
 			</tr>
 			<tr>
 				<td class="text-gray-500 align-top"><strong>Environment</strong></td>

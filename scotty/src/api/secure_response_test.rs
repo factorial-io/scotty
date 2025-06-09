@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use chrono::DateTime;
@@ -28,9 +28,7 @@ fn create_app_settings_with_env_vars(env_vars: HashMap<String, String>) -> AppSe
         basic_auth: None,
         disallow_robots: true,
         environment: env_vars,
-        registry: None,
-        app_blueprint: None,
-        notify: HashSet::new(),
+        ..Default::default()
     }
 }
 

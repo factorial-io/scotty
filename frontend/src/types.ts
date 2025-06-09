@@ -32,6 +32,7 @@ export interface AppSettings {
 	app_blueprint: string;
 	basic_auth: [string, string] | null;
 	environment: Map<string, string> | null;
+	middlewares: string[];
 }
 
 export interface App {

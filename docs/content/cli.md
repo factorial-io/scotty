@@ -84,7 +84,8 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
   [--custom-domain <DOMAIN:SERVICE>] [--custom-domain <DOMAIN:SERVICE> ...] \
   [--env <KEY=VALUE>] [--env <KEY=VALUE> ...] \
   [--env-file <FILE>] \
-  [--registry <REGISTRY>]
+  [--registry <REGISTRY>] \
+  [--middleware <MIDDLEWARE>] [--middleware <MIDDLEWARE> ...]
 ```
 
 This command will create a new app on the server. The `--folder` argument is
@@ -129,6 +130,12 @@ The server needs to be configured accordingly.
 You can use a private registry for the images with the `--registry` argument. The
 argument should contain the name of the registry. The server needs to be
 configured accordingly.
+
+You can add middleware to the app with the `--middleware` argument. The argument
+should contain the name of the middleware. Middleware must be in the allow-list in
+the server configuration before they can be used. You can specify multiple
+middleware by using the `--middleware` argument multiple times. (This is only
+supported for traefik)
 
 ### Some examples:
 

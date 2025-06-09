@@ -63,9 +63,8 @@ impl Default for Settings {
             },
             load_balancer_type: LoadBalancerType::Traefik,
             traefik: TraefikSettings {
-                use_tls: false,
                 network: "proxy".to_string(),
-                certresolver: None,
+                ..Default::default()
             },
             haproxy: HaproxyConfigSettings { use_tls: false },
             onepassword: HashMap::new(),

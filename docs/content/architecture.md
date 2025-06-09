@@ -149,6 +149,10 @@ networks:
     external: true
 ```
 
+The traefik implementation also supports custom middlewares. Please declare them
+in the `config` directory. Then you can refer to the listed middlewared in the
+`app:create`-command and the `--middleware`-option.
+
 ### [Haproxy-Config](https://github.com/factorial-io/haproxy-config)
 
 Scotty supports the legacy setup called haproxy-config. It will create the
