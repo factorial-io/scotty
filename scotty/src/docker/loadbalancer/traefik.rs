@@ -151,6 +151,12 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
 
                 middlewares.push(middleware_name.clone());
             }
+
+            // Add custom middlewares from settings
+            for middleware in &settings.middlewares {
+                middlewares.push(middleware.clone());
+            }
+
             // Connect the middleware to the router
             for (idx, _domain) in domains.iter().enumerate() {
                 labels.insert(
@@ -193,7 +199,7 @@ mod tests {
     #[test]
     fn test_traefik_get_docker_compose_override() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into())),
+            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![]),
             ..Default::default()
         };
 
@@ -210,6 +216,10 @@ mod tests {
                 "FOO".to_string() => "BAR".to_string(),
                 "API_KEY".to_string() => "1234".to_string(),
             },
+            middlewares: vec![
+                "custom-middleware-1".to_string(),
+                "custom-middleware-2".to_string(),
+            ],
             ..Default::default()
         };
 
@@ -267,7 +277,7 @@ mod tests {
             labels
                 .get("traefik.http.routers.web--myapp-0.middlewares")
                 .unwrap(),
-            "web--myapp--basic-auth,web--myapp--robots"
+            "web--myapp--basic-auth,web--myapp--robots,custom-middleware-1,custom-middleware-2"
         );
 
         // check environment.

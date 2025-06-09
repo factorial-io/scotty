@@ -156,6 +156,10 @@
 				<td class="align-top">{format_ttl(data.settings.time_to_live)}</td>
 			</tr>
 			<tr>
+				<td class="text-gray-500 align-top"><strong>Middlewares</strong></td>
+				<td class="align-top">{format_value(data.settings.middlewares?.join(', '))}</td>
+			</tr>
+			<tr>
 				<td class="text-gray-500 align-top"><strong>Environment</strong></td>
 				<td class="align-top"
 					><FormatEnvironmentVariables environment={data.settings.environment} /></td

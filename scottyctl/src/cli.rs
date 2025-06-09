@@ -174,6 +174,10 @@ pub struct CreateCommand {
         help = "Allow search engines to index the app"
     )]
     pub allow_robots: bool,
+
+    /// Custom Traefik middlewares to apply to the app, can be specified multiple times
+    #[arg(long, value_name = "MIDDLEWARE")]
+    pub middleware: Vec<String>,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

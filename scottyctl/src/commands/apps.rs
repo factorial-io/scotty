@@ -259,6 +259,7 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
                 time_to_live: cmd.ttl.clone(),
                 disallow_robots: !cmd.allow_robots,
                 destroy_on_ttl: cmd.destroy_on_ttl,
+                middlewares: cmd.middleware.clone(),
                 ..Default::default()
             },
             files: file_list,
