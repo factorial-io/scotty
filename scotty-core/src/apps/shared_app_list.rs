@@ -49,6 +49,10 @@ impl SharedAppList {
         Ok(())
     }
 
+    pub async fn has_app(&self, app_name: &str) -> bool {
+        self.apps.read().await.contains_key(app_name)
+    }
+
     pub async fn get_app(&self, app_name: &str) -> Option<AppData> {
         let t = self.apps.read().await;
         t.get(app_name).cloned()

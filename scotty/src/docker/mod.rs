@@ -7,6 +7,7 @@ pub mod loadbalancer;
 pub mod purge_app;
 pub mod rebuild_app;
 pub mod run_app;
+pub mod run_app_custom_action;
 pub mod setup;
 pub mod state_machine_handlers;
 pub mod stop_app;

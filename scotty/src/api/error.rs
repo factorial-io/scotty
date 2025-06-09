@@ -64,6 +64,12 @@ pub enum AppError {
     #[error("App settings not found for app: {0}")]
     AppSettingsNotFound(String),
 
+    #[error("App is not running: {0}")]
+    AppNotRunning(String),
+
+    #[error("{0}")]
+    ActionNotFound(String),
+
     #[error("Found invalid notification service ids: {0}")]
     InvalidNotificationServiceIds(String),
 
@@ -84,7 +90,12 @@ impl AppError {
             AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::AppNotFound(_) => StatusCode::NOT_FOUND,
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
+            AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
             AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
+            AppError::AppNotRunning(_) => StatusCode::CONFLICT,
+            AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

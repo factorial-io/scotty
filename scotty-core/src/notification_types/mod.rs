@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::apps::app_data::AppData;
+use crate::settings::app_blueprint::ActionName;
 use crate::utils::serde::{deserialize_app_name, serialize_app_name};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema, Hash, Eq)]
@@ -40,6 +41,7 @@ pub enum MessageType {
     AppDestroyed,
     AppPurged,
     AppRebuilt,
+    AppCustomActionCompleted(ActionName),
     Custom(String),
 }
 impl MessageType {
@@ -51,6 +53,11 @@ impl MessageType {
             MessageType::AppDestroyed => format!("App {} destroyed", app.name),
             MessageType::AppPurged => format!("App {} purged", app.name),
             MessageType::AppRebuilt => format!("App {} rebuilt", app.name),
+            MessageType::AppCustomActionCompleted(action_name) => format!(
+                "Executed custom action {:?} on app {}",
+                action_name, app.name
+            ),
+
             MessageType::Custom(msg) => msg.clone(),
         }
     }
