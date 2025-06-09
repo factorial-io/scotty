@@ -117,20 +117,20 @@ pub async fn blueprint_info(
         use tabled::settings::Padding;
 
         // Add lifecycle actions
-        for action in lifecycle_actions {
-            let action_obj = blueprint.actions.get(&action);
+        for action in &lifecycle_actions {
+            let action_obj = blueprint.actions.get(action);
             if action_obj.is_none() {
                 continue;
             }
             let action_obj = action_obj.unwrap();
             let action_name: String = action.clone().into();
-            let action_type: String = action.clone().get_type().into();
+            let action_type: String = action.get_type().into();
             let description = match &action_obj.description {
                 desc if desc.is_empty() => action_type.as_str(),
                 desc => desc.as_str(),
             };
 
-            // Format the services and commands in a readable wabacon
+            // Format the services and commands in a readable way
             let services_commands = format_services_command(&action_obj.commands);
 
             builder.push_record(vec![
