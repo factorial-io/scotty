@@ -146,7 +146,7 @@ pub async fn blueprint_info(
             match action {
                 ActionName::Custom(name) => {
                     let description = action_obj.description.as_str();
-                    let services_commands = format_services_command(&action_obj.commands);
+                    let services_commands = format_services_commands(&action_obj.commands);
 
                     builder.push_record(vec![
                         &name.green().to_string(),
