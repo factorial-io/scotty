@@ -72,7 +72,7 @@ where
             for (service, script) in &action.commands {
                 let mut augmented_script = Vec::new();
                 for (key, value) in augmented_env.iter() {
-                    augmented_script.push(format!("export {}={}", key, value));
+                    augmented_script.push(format!("export {key}={value}"));
                 }
                 augmented_script.extend(script.iter().cloned());
                 let script_one_line = augmented_script.join("; ");

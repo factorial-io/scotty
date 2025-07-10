@@ -80,7 +80,7 @@ impl tracing::field::Visit for MessageVisitor<'_> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         // For most debug-formatted values
         if field.name() == "message" {
-            let debug_str = format!("{:?}", value);
+            let debug_str = format!("{value:?}");
             // Remove quotes if the debug output is a simple string with quotes
             if debug_str.starts_with('"') && debug_str.ends_with('"') && debug_str.len() > 2 {
                 self.0.push_str(&debug_str[1..debug_str.len() - 1]);

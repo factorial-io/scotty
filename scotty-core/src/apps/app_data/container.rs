@@ -93,9 +93,9 @@ impl ContainerState {
             .iter()
             .map(|domain| {
                 if self.use_tls {
-                    format!("https://{}", domain)
+                    format!("https://{domain}")
                 } else {
-                    format!("http://{}", domain)
+                    format!("http://{domain}")
                 }
             })
             .collect()

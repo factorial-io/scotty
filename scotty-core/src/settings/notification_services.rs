@@ -37,8 +37,7 @@ impl<'de> Deserialize<'de> for NotificationServiceSettings {
                 },
                 _ => {
                     return Err(serde::de::Error::custom(format!(
-                        "Unknown service type: {}",
-                        service_type
+                        "Unknown service type: {service_type}"
                     )))
                 }
             };

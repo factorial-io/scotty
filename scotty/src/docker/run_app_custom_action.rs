@@ -69,11 +69,9 @@ pub async fn run_app_custom_action_prepare(
 
     // Verify the custom action exists in the blueprint
     if !blueprint.unwrap().actions.contains_key(&action) {
-        return Err(AppError::ActionNotFound(format!(
-            "Action not found in blueprint: {:?}",
-            action
-        ))
-        .into());
+        return Err(
+            AppError::ActionNotFound(format!("Action not found in blueprint: {action:?}")).into(),
+        );
     }
 
     info!("Running custom action {:?} on app {}", action, app.name);

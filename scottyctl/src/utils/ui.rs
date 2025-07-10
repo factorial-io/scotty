@@ -105,7 +105,7 @@ impl Ui {
                     sl.read().unwrap().clear_line();
                 }
                 if !result.is_empty() {
-                    println!("\n{}", result);
+                    println!("\n{result}");
                 }
 
                 Ok(())

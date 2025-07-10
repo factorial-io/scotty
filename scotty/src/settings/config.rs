@@ -107,7 +107,7 @@ impl Settings {
 
         // Add the rest of the configuration files.
         builder = builder
-            .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
+            .add_source(File::with_name(&format!("config/{run_mode}")).required(false))
             .add_source(File::with_name("config/local").required(false))
             .add_source(Self::get_environment());
 
@@ -121,7 +121,7 @@ impl Settings {
         settings.telemetry = settings.check_if_optional(&settings.telemetry);
         settings.apps.root_folder = std::fs::canonicalize(&settings.apps.root_folder)
             .map_err(|e| {
-                ConfigError::Message(format!("Failed to get realpath of apps.root_folder: {}", e))
+                ConfigError::Message(format!("Failed to get realpath of apps.root_folder: {e}"))
             })?
             .to_str()
             .ok_or_else(|| {

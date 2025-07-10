@@ -51,7 +51,7 @@ fn format_services_commands(commands: &HashMap<String, Vec<String>>) -> String {
         services_commands.push_str(&format!("{}:", service.blue().bold()));
 
         for cmd in commands {
-            services_commands.push_str(&format!("\n  ▹ {}", cmd));
+            services_commands.push_str(&format!("\n  ▹ {cmd}"));
         }
     }
     services_commands
@@ -97,7 +97,7 @@ pub async fn blueprint_info(
                 builder.push_record(vec![service, &port.to_string()]);
             }
             let table = builder.build().with(Style::modern_rounded()).to_string();
-            output.push_str(&format!("{}\n", table));
+            output.push_str(&format!("{table}\n"));
         }
 
         // Display actions
@@ -163,7 +163,7 @@ pub async fn blueprint_info(
             .with(Style::modern_rounded())
             .with(Padding::new(1, 1, 0, 0));
 
-        output.push_str(&format!("{}\n", table));
+        output.push_str(&format!("{table}\n"));
 
         // Add a note about how to run custom actions
         output.push_str(&format!(

@@ -40,7 +40,7 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
         result = braces_regex
             .replace_all(&last_result, |caps: &regex::Captures| {
                 process_var_with_braces(caps.get(1).unwrap().as_str(), env_vars)
-                    .unwrap_or_else(|e| format!("ERROR: {}", e))
+                    .unwrap_or_else(|e| format!("ERROR: {e}"))
             })
             .to_string();
 
@@ -48,7 +48,7 @@ pub fn process_env_vars(input: &str, env_vars: &HashMap<String, String>) -> anyh
         result = simple_regex
             .replace_all(&result, |caps: &regex::Captures| {
                 let var_name = caps.get(1).unwrap().as_str();
-                get_var_value(var_name, env_vars).unwrap_or_else(|| format!("${}", var_name))
+                get_var_value(var_name, env_vars).unwrap_or_else(|| format!("${var_name}"))
             })
             .to_string();
     }
@@ -117,7 +117,7 @@ fn process_var_with_braces(
         // Simple ${VAR} form
         match get_var_value(var_expr, env_vars) {
             Some(value) => Ok(value),
-            None => Ok(format!("${{{}}}", var_expr)), // Leave unchanged if not found
+            None => Ok(format!("${{{var_expr}}}")), // Leave unchanged if not found
         }
     }
 }

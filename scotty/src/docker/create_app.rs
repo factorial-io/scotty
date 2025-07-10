@@ -188,8 +188,7 @@ fn validate_app(
 
         if !missing_services.is_empty() {
             return Err(AppError::AppBlueprintMismatch(format!(
-                "docker compose does not contain all required services: {:?}",
-                missing_services,
+                "docker compose does not contain all required services: {missing_services:?}",
             ))
             .into());
         }
@@ -222,7 +221,7 @@ pub async fn create_app(
     let candidate = validate_app(app_state.clone(), settings, files)?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
-    let root_directory = format!("{}/{}", root_directory, app_folder);
+    let root_directory = format!("{root_directory}/{app_folder}");
 
     let docker_compose_path = format!("{}/{}", root_directory, candidate.name);
     let app_data = AppData {

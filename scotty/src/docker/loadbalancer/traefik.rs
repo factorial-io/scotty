@@ -26,7 +26,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
         if let Some(labels) = insights.config.unwrap().labels {
             // Filter for Traefik labels and find the host
             for (key, value) in labels.iter() {
-                let haystack = format!("{}={}", key, value);
+                let haystack = format!("{key}={value}");
                 if re_host.is_match(&haystack) {
                     if let Some(caps) = re_host.captures(&haystack) {
                         result.domains.push(caps[1].to_string());
@@ -88,7 +88,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             for (idx, domain) in domains.iter().enumerate() {
                 labels.insert(
                     format!("traefik.http.routers.{}-{}.rule", &service_name, idx),
-                    format!("Host(`{}`)", domain),
+                    format!("Host(`{domain}`)"),
                 );
 
                 if global_settings.traefik.use_tls {

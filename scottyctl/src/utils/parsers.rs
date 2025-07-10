@@ -53,8 +53,7 @@ pub fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
             }))
         }
         _ => Err(format!(
-            "Unknown service type {}, allowed values are log, mattermost, webhook and gitlab",
-            service_type
+            "Unknown service type {service_type}, allowed values are log, mattermost, webhook and gitlab"
         )),
     }
 }
@@ -73,7 +72,7 @@ pub fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
             return Ok(AppTtl::Hours(num_hours)); // Assuming AppTtl has a variant called `Hours`
         }
     }
-    Err(format!("Invalid TTL format: {}", s))
+    Err(format!("Invalid TTL format: {s}"))
 }
 
 pub fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
@@ -148,7 +147,7 @@ pub fn parse_env_file(file_path: &str) -> anyhow::Result<Vec<(String, String)>> 
         .filter_map(|result| {
             result
                 .map_err(|e| {
-                    eprintln!("Warning: {}", e);
+                    eprintln!("Warning: {e}");
                     e
                 })
                 .ok()

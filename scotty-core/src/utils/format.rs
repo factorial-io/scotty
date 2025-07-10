@@ -11,13 +11,13 @@ pub fn format_chrono_duration(duration: &TimeDelta) -> String {
 
     let mut segments = vec![];
     if days > 0 {
-        segments.push(format!("{:02}d", days));
+        segments.push(format!("{days:02}d"));
     }
     if days > 0 || hours > 0 {
-        segments.push(format!("{:02}h", hours));
+        segments.push(format!("{hours:02}h"));
     }
-    segments.push(format!("{:02}m", minutes));
-    segments.push(format!("{:02}s", seconds));
+    segments.push(format!("{minutes:02}m"));
+    segments.push(format!("{seconds:02}s"));
     let formatted = format!(
         "{}{}",
         if is_negative { "-" } else { "" },
@@ -33,12 +33,12 @@ pub fn format_bytes(bytes: usize) -> String {
     let gb = mb / 1024.0;
 
     if gb >= 1f64 {
-        format!("{:.2} GB", gb)
+        format!("{gb:.2} GB")
     } else if mb >= 1f64 {
-        format!("{:.2} MB", mb)
+        format!("{mb:.2} MB")
     } else if kb >= 1f64 {
-        format!("{:.2} KB", kb)
+        format!("{kb:.2} KB")
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }

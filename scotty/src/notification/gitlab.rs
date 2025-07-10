@@ -77,7 +77,7 @@ impl NotificationImpl for NotifyGitlab {
                 &msg.message,
                 msg.urls
                     .iter()
-                    .map(|u| { format!("- [{}]({})", u, u) })
+                    .map(|u| { format!("- [{u}]({u})") })
                     .collect::<Vec<_>>()
                     .join("\n")
             ),

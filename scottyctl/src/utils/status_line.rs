@@ -94,13 +94,13 @@ impl StatusLine {
 
     pub fn println(&self, msg: &str) {
         self.clear_line();
-        println!("{}", msg);
+        println!("{msg}");
         self.trigger_render();
     }
 
     pub fn eprintln(&self, msg: &str) {
         self.clear_line();
-        eprintln!("{}", msg);
+        eprintln!("{msg}");
         self.trigger_render();
     }
 

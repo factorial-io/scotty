@@ -6,7 +6,7 @@ use tokio::time::sleep;
 // Helper to simulate terminal output generation
 async fn simulate_output(secs: u32, ui: &Arc<Ui>) {
     for i in 0..secs {
-        ui.println(format!("{}: Simulating output for {} seconds", i, secs));
+        ui.println(format!("{i}: Simulating output for {secs} seconds"));
         sleep(Duration::from_secs(1)).await;
     }
 }
@@ -16,8 +16,7 @@ async fn generate_large_output(ui: &Arc<Ui>) {
     ui.println("Generating large output to test scrolling...");
     for i in 0..20 {
         ui.println(format!(
-            "Line {} of test output - this is to verify the status line stays at the bottom",
-            i
+            "Line {i} of test output - this is to verify the status line stays at the bottom"
         ));
         sleep(Duration::from_millis(100)).await;
     }
@@ -76,7 +75,7 @@ pub async fn run_tests(context: &AppContext) -> anyhow::Result<()> {
         })
         .await
     {
-        println!("Error was handled as expected: {}", e);
+        println!("Error was handled as expected: {e}");
     }
 
     Ok(())

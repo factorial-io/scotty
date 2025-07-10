@@ -69,7 +69,7 @@ pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> 
         context.server().server.yellow()
     ));
     ui.run(async || {
-        let result = get(context.server(), &format!("apps/{}/{}", verb, app_name)).await?;
+        let result = get(context.server(), &format!("apps/{verb}/{app_name}")).await?;
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
         wait_for_task(context.server(), &app_context, ui).await?;
@@ -85,7 +85,7 @@ pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> 
 }
 
 pub async fn get_app_info(server: &ServerSettings, app_name: &str) -> anyhow::Result<AppData> {
-    let app_data = get(server, &format!("apps/info/{}", app_name)).await?;
+    let app_data = get(server, &format!("apps/info/{app_name}")).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
 
     Ok(app_data)
@@ -131,7 +131,7 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
             });
         }
         let table = builder.build().with(Style::rounded()).to_string();
-        result += format!("\n{}", table).as_str();
+        result += format!("\n{table}").as_str();
     }
 
     Ok(result)
