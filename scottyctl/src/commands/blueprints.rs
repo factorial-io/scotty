@@ -31,10 +31,10 @@ pub async fn list_blueprints(context: &AppContext) -> anyhow::Result<()> {
 
         let mut table = builder.build();
         table.with(Style::modern_rounded());
-        table.modify(Columns::single(0), Width::wrap(15).keep_words(true));
-        table.modify(Columns::single(1), Width::wrap(15).keep_words(true));
-        table.modify(Columns::single(2), Width::wrap(25).keep_words(true));
-        table.modify(Columns::single(3), Width::wrap(40).keep_words(true));
+        table.modify(Columns::one(0), Width::wrap(15).keep_words(true));
+        table.modify(Columns::one(1), Width::wrap(15).keep_words(true));
+        table.modify(Columns::one(2), Width::wrap(25).keep_words(true));
+        table.modify(Columns::one(3), Width::wrap(40).keep_words(true));
 
         ui.success("Got blueprint list!");
         Ok(table.to_string())
