@@ -461,9 +461,9 @@
   integrity sha512-YaDrquRpZwfcXbnlDsSrBQNCChVOT9MGuSg+dMAyfsAa1SmiAhrA5jUYUiIMC59G92kIbY/AaQOWcBdq+lh+zg==
 
 "@sveltejs/kit@^2.17.1":
-  version "2.27.1"
-  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.27.1.tgz#3ae82935edf576d3dc2c4b30b22e2e8c452ebffb"
-  integrity sha512-u5HbL9T4TgWZwXZM7hwdT0f5sDkGaNxsSrLYQoql+eiz2+9rcbbq4MiOAPoRtXG0dys5P5ixBmyQdqZedwZUlA==
+  version "2.27.2"
+  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.27.2.tgz#d1852f67e06a71ce8b0c75a5d5b5d5acfbd16c52"
+  integrity sha512-ALBaWgsY5tTBu99rCzZtNNRNd9Qe7ydeoPchzmkYfVHxy9pHlCjpa5ytneu65juWU8wBh8kFLidv8YAgdipycA==
   dependencies:
     "@standard-schema/spec" "^1.0.0"
     "@sveltejs/acorn-typescript" "^1.0.5"
