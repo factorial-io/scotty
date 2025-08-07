@@ -451,19 +451,19 @@
   integrity sha512-IwQk4yfwLdibDlrXVE04jTZYlLnwsTT2PIOQQGNLWfjavGifnk1JD1LcZjZaBTRcxZu2FfPfNLOE04DSu9lqtQ==
 
 "@sveltejs/adapter-auto@^6.0.0":
-  version "6.0.1"
-  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-auto/-/adapter-auto-6.0.1.tgz#29973229e53fcc3d102a51704ea66a420ccd2e65"
-  integrity sha512-mcWud3pYGPWM2Pphdj8G9Qiq24nZ8L4LB7coCUckUEy5Y7wOWGJ/enaZ4AtJTcSm5dNK1rIkBRoqt+ae4zlxcQ==
+  version "6.0.2"
+  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-auto/-/adapter-auto-6.0.2.tgz#59fc068275cb58d8ef968b51225a51713fb66261"
+  integrity sha512-SEyhlW5dMcsAZBONGCKUlK3+Ywr+8I2OupJh7OJR0URqsGzvkcWKRkBXqWifWVJnehjCGVLaqD/94aZ3xpj1jQ==
 
 "@sveltejs/adapter-static@^3.0.8":
-  version "3.0.8"
-  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-static/-/adapter-static-3.0.8.tgz#f23ee99a9678dbaec58b79d183bc3defbfe99f1a"
-  integrity sha512-YaDrquRpZwfcXbnlDsSrBQNCChVOT9MGuSg+dMAyfsAa1SmiAhrA5jUYUiIMC59G92kIbY/AaQOWcBdq+lh+zg==
+  version "3.0.9"
+  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-static/-/adapter-static-3.0.9.tgz#f31e4c8e54a08598e88eca9d7ebd864e9f4080dc"
+  integrity sha512-aytHXcMi7lb9ljsWUzXYQ0p5X1z9oWud2olu/EpmH7aCu4m84h7QLvb5Wp+CFirKcwoNnYvYWhyP/L8Vh1ztdw==
 
 "@sveltejs/kit@^2.17.1":
-  version "2.27.2"
-  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.27.2.tgz#d1852f67e06a71ce8b0c75a5d5b5d5acfbd16c52"
-  integrity sha512-ALBaWgsY5tTBu99rCzZtNNRNd9Qe7ydeoPchzmkYfVHxy9pHlCjpa5ytneu65juWU8wBh8kFLidv8YAgdipycA==
+  version "2.27.3"
+  resolved "https://registry.yarnpkg.com/@sveltejs/kit/-/kit-2.27.3.tgz#85ea9c62961ef81001ba8aa43a66e94fb5dfdd5a"
+  integrity sha512-jiG3NGZ8RRpi+ncjVnX+oR7uWEgzy//3YLGcTU5mHtjGraeGyNDr7GJFHlk7z0vi8bMXpXIUkEXj6p70FJmHvw==
   dependencies:
     "@standard-schema/spec" "^1.0.0"
     "@sveltejs/acorn-typescript" "^1.0.5"
