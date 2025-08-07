@@ -4,10 +4,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::info;
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 use crate::{
     api::error::AppError, app_state::SharedAppState,
@@ -20,11 +19,6 @@ use scotty_core::{
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CustomActionPayload {
     pub action_name: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct CustomActionResponse {
-    pub task_id: Uuid,
 }
 
 #[debug_handler]
