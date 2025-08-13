@@ -18,8 +18,8 @@
 	const filter = writable('');
 	const sortBy = writable('status');
 
-	function setSort(event: CustomEvent<{ sortBy: string }>) {
-		sortBy.set(event.detail.sortBy);
+	function setSort(event: { sortBy: string }) {
+		sortBy.set(event.sortBy);
 	}
 
 	function doSort(a: App, b: App): number {
@@ -75,12 +75,12 @@
 		<tr>
 			<th class="w-1"></th>
 			<th
-				><TableHeaderSort on:setSort={setSort} sortBy={$sortBy} key="name" name="Name"
+				><TableHeaderSort onsetSort={setSort} sortBy={$sortBy} key="name" name="Name"
 				></TableHeaderSort></th
 			>
 			<th>Services</th>
 			<th
-				><TableHeaderSort on:setSort={setSort} sortBy={$sortBy} key="status" name="Status"
+				><TableHeaderSort onsetSort={setSort} sortBy={$sortBy} key="status" name="Status"
 				></TableHeaderSort></th
 			>
 			<th>Last time started</th>
