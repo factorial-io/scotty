@@ -6,7 +6,7 @@ export const prerender = false;
 
 export async function load({ params }) {
 	let result = await requestTaskDetails(params.slug);
-	if (result.error === true) {
+	if ('error' in result && result.error === true) {
 		error(404, result.message);
 	}
 	return result;
