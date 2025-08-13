@@ -56,3 +56,26 @@ export interface ApiError {
 	message: string;
 	error: boolean;
 }
+
+export interface BlueprintAction {
+	description: string;
+}
+
+export interface Blueprint {
+	actions: Record<string, BlueprintAction>;
+}
+
+export interface BlueprintsResponse {
+	blueprints: Record<string, Blueprint>;
+}
+
+export interface CustomAction {
+	name: string;
+	description: string;
+}
+
+export interface RunningAppContext {
+	task?: {
+		id: string;
+	};
+}

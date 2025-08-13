@@ -113,10 +113,12 @@
 <h3 class="text-xl mt-16 mb-4">Available Services</h3>
 <table class="table">
 	<thead>
-		<th>Name</th>
-		<th>Status</th>
-		<th>Url(s)</th>
-		<th>Started</th>
+		<tr>
+			<th>Name</th>
+			<th>Status</th>
+			<th>Url(s)</th>
+			<th>Started</th>
+		</tr>
 	</thead>
 	<tbody>
 		{#each data.services as service (service.service)}

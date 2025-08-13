@@ -4,14 +4,10 @@
 	export let name: string;
 	export let key: string;
 	export let sortBy: string;
+	export let onsetSort: (event: { sortBy: string }) => void;
 
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher<{
-		setSort: { sortBy: string };
-	}>();
 	function setSort(sortValue: string) {
-		dispatch('setSort', { sortBy: sortValue });
+		onsetSort({ sortBy: sortValue });
 	}
 </script>
 
