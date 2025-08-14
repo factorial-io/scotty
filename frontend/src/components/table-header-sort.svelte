@@ -4,7 +4,7 @@
 	export let name: string;
 	export let key: string;
 	export let sortBy: string;
-	export let onsetSort: (event: { sortBy: string }) => void;
+	export let onsetSort: (event: { sortBy: string }) => void = () => {};
 
 	function setSort(sortValue: string) {
 		onsetSort({ sortBy: sortValue });
