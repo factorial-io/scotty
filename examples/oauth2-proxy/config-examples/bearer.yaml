@@ -1,0 +1,12 @@
+# Bearer token mode configuration (existing behavior)
+# Use this for API access with static tokens
+
+api:
+  bind_address: "0.0.0.0:3000"
+  auth_mode: "bearer"
+  access_token: "your-secret-api-token"
+
+# This is the current/legacy behavior where:
+# - SPA users enter the token via login form
+# - CLI users pass --access-token or set SCOTTY_ACCESS_TOKEN
+# - API calls must include: Authorization: Bearer your-secret-api-token

@@ -1,0 +1,11 @@
+# Development mode configuration
+# Use this for local development without OAuth setup
+
+api:
+  bind_address: "0.0.0.0:3000"
+  auth_mode: "dev"
+  dev_user_email: "developer@localhost"
+  dev_user_name: "Local Developer"
+
+# Start with: SCOTTY_AUTH_MODE=dev cargo run --bin scotty
+# Or set in environment: export SCOTTY_API_AUTH_MODE=dev

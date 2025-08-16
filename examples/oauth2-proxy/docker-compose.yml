@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - oauth-network
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    command:
+      - --http-address=0.0.0.0:4180
+      - --upstream=http://scotty:3000
+      - --provider=gitlab
+      - --gitlab-group=your-gitlab-group  # Optional: restrict to specific group
+      - --client-id=${GITLAB_CLIENT_ID}
+      - --client-secret=${GITLAB_CLIENT_SECRET}
+      - --cookie-secret=${COOKIE_SECRET}  # Generate with: openssl rand -base64 32
+      - --cookie-secure=false  # Set to true in production with HTTPS
+      - --cookie-httponly=true
+      - --cookie-name=_oauth2_proxy
+      - --cookie-expire=168h0m0s  # 1 week
+      - --cookie-refresh=1h0m0s
+      - --email-domain=*  # Allow any email domain, or restrict as needed
+      - --redirect-url=http://localhost/oauth2/callback  # Adjust for your domain
+      - --oidc-issuer-url=https://gitlab.com  # Or your GitLab instance URL
+      - --pass-user-headers=true
+      - --pass-access-token=true
+      - --set-xauthrequest=true
+      - --skip-provider-button=false
+    environment:
+      - GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID}
+      - GITLAB_CLIENT_SECRET=${GITLAB_CLIENT_SECRET}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oauth.rule=Host(`localhost`) && PathPrefix(`/oauth2`)"
+      - "traefik.http.routers.oauth.entrypoints=web"
+      - "traefik.http.services.oauth.loadbalancer.server.port=4180"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token"
+    networks:
+      - oauth-network
+    depends_on:
+      - traefik
+
+  scotty:
+    image: ghcr.io/factorial-io/scotty:latest  # Or your local build
+    environment:
+      - SCOTTY_API_ACCESS_TOKEN=your-api-token  # Keep this for CLI access
+      - SCOTTY_API_HOST=0.0.0.0
+      - SCOTTY_API_PORT=3000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.scotty.rule=Host(`localhost`)"
+      - "traefik.http.routers.scotty.entrypoints=web"
+      - "traefik.http.routers.scotty.middlewares=oauth-auth@docker"
+      - "traefik.http.services.scotty.loadbalancer.server.port=3000"
+    networks:
+      - oauth-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/app/config
+    depends_on:
+      - oauth2-proxy
+
+networks:
+  oauth-network:
+    driver: bridge
