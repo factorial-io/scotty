@@ -456,9 +456,9 @@
   integrity sha512-IwQk4yfwLdibDlrXVE04jTZYlLnwsTT2PIOQQGNLWfjavGifnk1JD1LcZjZaBTRcxZu2FfPfNLOE04DSu9lqtQ==
 
 "@sveltejs/adapter-auto@^6.0.0":
-  version "6.0.2"
-  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-auto/-/adapter-auto-6.0.2.tgz#59fc068275cb58d8ef968b51225a51713fb66261"
-  integrity sha512-SEyhlW5dMcsAZBONGCKUlK3+Ywr+8I2OupJh7OJR0URqsGzvkcWKRkBXqWifWVJnehjCGVLaqD/94aZ3xpj1jQ==
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-auto/-/adapter-auto-6.1.0.tgz#614955b8a447eb92dac910cd1db245b82da4fb91"
+  integrity sha512-shOuLI5D2s+0zTv2ab5M5PqfknXqWbKi+0UwB9yLTRIdzsK1R93JOO8jNhIYSHdW+IYXIYnLniu+JZqXs7h9Wg==
 
 "@sveltejs/adapter-static@^3.0.8":
   version "3.0.9"
