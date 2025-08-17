@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiCall } from '$lib';
-	import type { App } from '../types';
+	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
 	import { goto } from '$app/navigation';
 
 	export let app: App;
 
-	let customActions: unknown[] = [];
+	let customActions: CustomAction[] = [];
 	let isLoading = true;
 	let currentTaskId: string | null = null;
 	let currentAction: string | null = null;
@@ -15,7 +15,7 @@
 		if (app.settings?.app_blueprint) {
 			try {
 				// Fetch all blueprints and filter for the one we need
-				const result = await apiCall('blueprints');
+				const result = (await apiCall('blueprints')) as BlueprintsResponse;
 				if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
 					const blueprint = result.blueprints[app.settings.app_blueprint];
 					// Filter for custom actions only
@@ -56,8 +56,9 @@
 			});
 
 			// RunningAppContext contains a task field with the task details
-			if (result && result.task && result.task.id) {
-				currentTaskId = result.task.id;
+			const context = result as RunningAppContext;
+			if (context && context.task && context.task.id) {
+				currentTaskId = context.task.id;
 				goto(`/tasks/${currentTaskId}`);
 			} else {
 				console.error('Unexpected API response:', result);
@@ -93,10 +94,7 @@
 				Custom Actions
 			{/if}
 		</div>
-		<ul
-			tabindex="0"
-			class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm"
-		>
+		<ul class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm">
 			{#each customActions as action (action)}
 				<li>
 					<button

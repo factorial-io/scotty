@@ -1,6 +1,6 @@
 import { apiCall } from '$lib';
 import { writable } from 'svelte/store';
-import type { TaskDetail } from '../types';
+import type { TaskDetail, ApiError } from '../types';
 
 export const tasks = writable({} as Record<string, TaskDetail>);
 
@@ -37,10 +37,14 @@ export async function requestAllTasks() {
 	tasks.set(tasks_by_id);
 }
 
-export async function requestTaskDetails(taskId: string) {
-	const result = (await apiCall(`task/${taskId}`)) as TaskDetail;
+export async function requestTaskDetails(taskId: string): Promise<TaskDetail | ApiError> {
+	const result = (await apiCall(`task/${taskId}`)) as TaskDetail | ApiError;
+	if ('error' in result && result.error) {
+		return result;
+	}
+	const taskDetail = result as TaskDetail;
 	tasks.update((tasks) => {
-		return { ...tasks, [taskId]: result };
+		return { ...tasks, [taskId]: taskDetail };
 	});
-	return result;
+	return taskDetail;
 }
