@@ -139,13 +139,34 @@ impl ApiRoutes {
         let api = ApiDoc::openapi();
         let authenticated_router = Router::new()
             .route("/api/v1/authenticated/apps/list", get(list_apps_handler))
-            .route("/api/v1/authenticated/apps/run/{app_id}", get(run_app_handler))
-            .route("/api/v1/authenticated/apps/stop/{app_id}", get(stop_app_handler))
-            .route("/api/v1/authenticated/apps/purge/{app_id}", get(purge_app_handler))
-            .route("/api/v1/authenticated/apps/rebuild/{app_id}", get(rebuild_app_handler))
-            .route("/api/v1/authenticated/apps/info/{app_id}", get(info_app_handler))
-            .route("/api/v1/authenticated/apps/destroy/{app_id}", get(destroy_app_handler))
-            .route("/api/v1/authenticated/apps/adopt/{app_id}", get(adopt_app_handler))
+            .route(
+                "/api/v1/authenticated/apps/run/{app_id}",
+                get(run_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/stop/{app_id}",
+                get(stop_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/purge/{app_id}",
+                get(purge_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/rebuild/{app_id}",
+                get(rebuild_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/info/{app_id}",
+                get(info_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/destroy/{app_id}",
+                get(destroy_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/adopt/{app_id}",
+                get(adopt_app_handler),
+            )
             .route(
                 "/api/v1/authenticated/apps/create",
                 post(create_app_handler).layer(DefaultBodyLimit::max(
@@ -153,10 +174,19 @@ impl ApiRoutes {
                 )),
             )
             .route("/api/v1/authenticated/tasks", get(task_list_handler))
-            .route("/api/v1/authenticated/task/{uuid}", get(task_detail_handler))
-            .route("/api/v1/authenticated/validate-token", post(validate_token_handler))
+            .route(
+                "/api/v1/authenticated/task/{uuid}",
+                get(task_detail_handler),
+            )
+            .route(
+                "/api/v1/authenticated/validate-token",
+                post(validate_token_handler),
+            )
             .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
-            .route("/api/v1/authenticated/apps/notify/add", post(add_notification_handler))
+            .route(
+                "/api/v1/authenticated/apps/notify/add",
+                post(add_notification_handler),
+            )
             .route(
                 "/api/v1/authenticated/apps/notify/remove",
                 post(remove_notification_handler),

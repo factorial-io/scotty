@@ -21,8 +21,11 @@ pub async fn login_handler(
     State(state): State<SharedAppState>,
     Json(form): Json<FormData>,
 ) -> impl IntoResponse {
-    debug!("Login attempt with auth mode: {:?}", state.settings.api.auth_mode);
-    
+    debug!(
+        "Login attempt with auth mode: {:?}",
+        state.settings.api.auth_mode
+    );
+
     let json_response = match state.settings.api.auth_mode {
         AuthMode::Development => {
             debug!("Development mode login - always successful");
@@ -31,7 +34,7 @@ pub async fn login_handler(
                 "auth_mode": "dev",
                 "message": "Development mode - login not required"
             })
-        },
+        }
         AuthMode::OAuth => {
             debug!("OAuth mode login - redirect to proxy");
             serde_json::json!({
@@ -40,7 +43,7 @@ pub async fn login_handler(
                 "redirect_url": state.settings.api.oauth_redirect_url,
                 "message": "Please authenticate via OAuth"
             })
-        },
+        }
         AuthMode::Bearer => {
             debug!("Bearer token login attempt");
             let access_token = state.settings.api.access_token.as_ref();

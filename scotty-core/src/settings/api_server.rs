@@ -1,19 +1,14 @@
 use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Clone, PartialEq, Default)]
 pub enum AuthMode {
     #[serde(rename = "dev")]
     Development,
     #[serde(rename = "oauth")]
     OAuth,
     #[serde(rename = "bearer")]
+    #[default]
     Bearer,
-}
-
-impl Default for AuthMode {
-    fn default() -> Self {
-        AuthMode::Bearer
-    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
