@@ -2,6 +2,12 @@
 
 type AuthMode = 'dev' | 'oauth' | 'bearer';
 
+// Type for login API response
+interface LoginResponse {
+	auth_mode?: AuthMode;
+	[key: string]: unknown;
+}
+
 // Cache auth mode to avoid repeated requests
 let authMode: AuthMode | null = null;
 
@@ -12,11 +18,11 @@ async function getAuthMode(): Promise<AuthMode> {
 	}
 
 	try {
-		const result = await publicApiCall('login', {
+		const result = (await publicApiCall('login', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ password: '' }) // Empty password to get auth info
-		}) as any;
+		})) as LoginResponse;
 
 		authMode = result.auth_mode || 'bearer';
 	} catch (error) {
@@ -38,7 +44,10 @@ export async function publicApiCall(url: string, options: RequestInit = {}): Pro
 }
 
 // Authenticated API calls (apps, tasks, etc.) - requires authentication
-export async function authenticatedApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+export async function authenticatedApiCall(
+	url: string,
+	options: RequestInit = {}
+): Promise<unknown> {
 	if (typeof window !== 'undefined') {
 		const mode = await getAuthMode();
 

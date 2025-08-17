@@ -23,7 +23,9 @@ export async function loadApps() {
 }
 
 export async function dispatchAppCommand(command: string, name: string): Promise<string> {
-	const result = (await authenticatedApiCall(`apps/${command}/${name}`)) as { task: { id: string } };
+	const result = (await authenticatedApiCall(`apps/${command}/${name}`)) as {
+		task: { id: string };
+	};
 	return result.task.id;
 }
 

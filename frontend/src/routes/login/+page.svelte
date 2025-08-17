@@ -102,7 +102,7 @@
 							Please log in
 						{/if}
 					</h2>
-					
+
 					{#if message}
 						<p class="text-sm text-gray-600">{message}</p>
 					{:else if authMode === 'oauth'}
