@@ -41,6 +41,7 @@ impl OAuthClient {
             expires_at,
             oidc_access_token: None,
             completed: false,
+            interval: details.interval().as_secs(),
         };
 
         // Store session
@@ -87,23 +88,10 @@ impl OAuthClient {
             }
         }
 
-        // For device flow polling, we need to store the device authorization response
-        // For now, let's create a simple implementation that returns pending until completed
-        // In a real implementation, you'd store the full device authorization response
-
-        // Return authorization pending for now - this would be handled by the actual device flow
-        Err(OAuthError::AuthorizationPending)
-
-        // This code would be used when we have proper device auth response storage:
-        /*
-        match self
-            .client
-            .exchange_device_access_token(&device_auth_response)
-            .request_async(oauth2::reqwest::async_http_client, tokio::time::sleep, None)
-            .await
-        {
-            Ok(token) => {
-                let access_token = token.access_token().secret().clone();
+        // Attempt to exchange the device code for an access token
+        // This uses the stored device code to poll the OIDC provider
+        match self.exchange_device_code_for_token(device_code).await {
+            Ok(access_token) => {
                 info!("Device flow completed successfully");
 
                 // Update session
@@ -118,20 +106,102 @@ impl OAuthClient {
                 Ok(access_token)
             }
             Err(e) => {
-                let error_str = format!("{:?}", e);
-                if error_str.contains("authorization_pending") {
-                    debug!("Authorization pending, continue polling");
-                    Err(OAuthError::AuthorizationPending)
-                } else if error_str.contains("access_denied") {
-                    error!("Device flow access denied by user");
-                    Err(OAuthError::AccessDenied)
-                } else {
-                    error!("Device flow error: {:?}", e);
-                    Err(OAuthError::OAuth2(error_str))
-                }
+                debug!("Device flow polling result: {:?}", e);
+                Err(e)
             }
         }
-        */
+    }
+
+    async fn exchange_device_code_for_token(
+        &self,
+        device_code: &str,
+    ) -> Result<String, OAuthError> {
+        debug!("Exchanging device code for token");
+
+        // Create a device code token request to the OIDC provider
+        let token_url = format!("{}/oauth/token", self.oidc_issuer_url);
+
+        let params = [
+            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+            ("device_code", device_code),
+        ];
+
+        let response = reqwest::Client::new()
+            .post(&token_url)
+            .form(&params)
+            .basic_auth(&self.client_id, Some(&self.client_secret))
+            .send()
+            .await?;
+
+        let status = response.status();
+        let response_text = response.text().await?;
+
+        debug!(
+            "Token exchange response: status={}, body={}",
+            status, response_text
+        );
+
+        if status.is_success() {
+            // Parse the token response
+            let token_response: serde_json::Value =
+                serde_json::from_str(&response_text).map_err(OAuthError::Serde)?;
+
+            if let Some(access_token) = token_response.get("access_token").and_then(|v| v.as_str())
+            {
+                Ok(access_token.to_string())
+            } else {
+                error!("No access_token in response: {}", response_text);
+                Err(OAuthError::OAuth2(
+                    "No access_token in response".to_string(),
+                ))
+            }
+        } else if status == 400 {
+            // Parse error response
+            let error_response: Result<serde_json::Value, _> = serde_json::from_str(&response_text);
+            if let Ok(error) = error_response {
+                if let Some(error_code) = error.get("error").and_then(|v| v.as_str()) {
+                    match error_code {
+                        "authorization_pending" => {
+                            debug!("Authorization still pending");
+                            Err(OAuthError::AuthorizationPending)
+                        }
+                        "access_denied" => {
+                            error!("Device flow access denied by user");
+                            Err(OAuthError::AccessDenied)
+                        }
+                        "expired_token" => {
+                            error!("Device code has expired");
+                            Err(OAuthError::SessionExpired)
+                        }
+                        _ => {
+                            error!("OAuth error: {}", error_code);
+                            Err(OAuthError::OAuth2(format!("OAuth error: {}", error_code)))
+                        }
+                    }
+                } else {
+                    error!("Invalid error response format: {}", response_text);
+                    Err(OAuthError::OAuth2(format!(
+                        "Invalid error response: {}",
+                        response_text
+                    )))
+                }
+            } else {
+                error!("Failed to parse error response: {}", response_text);
+                Err(OAuthError::OAuth2(format!(
+                    "Failed to parse error response: {}",
+                    response_text
+                )))
+            }
+        } else {
+            error!(
+                "Token exchange failed with status {}: {}",
+                status, response_text
+            );
+            Err(OAuthError::OAuth2(format!(
+                "Token exchange failed: HTTP {}",
+                status
+            )))
+        }
     }
 
     pub async fn validate_oidc_token(&self, access_token: &str) -> Result<OidcUser, OAuthError> {

@@ -61,6 +61,7 @@ impl TokenStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn clear(&self) -> Result<(), AuthError> {
         let token_file = self.get_token_file();
 

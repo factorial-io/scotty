@@ -96,6 +96,7 @@ pub async fn auth(
 }
 
 // Legacy function for oauth2-proxy compatibility (kept for backward compatibility)
+#[allow(dead_code)]
 fn authorize_oauth_user(req: &Request) -> Option<CurrentUser> {
     let headers = req.headers();
 

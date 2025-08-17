@@ -17,17 +17,23 @@ pub struct StoredToken {
 
 #[derive(Debug, Clone)]
 pub struct OAuthConfig {
+    #[allow(dead_code)]
     pub enabled: bool,
+    #[allow(dead_code)]
     pub provider: String,
-    pub oauth2_proxy_base_url: String,
+    pub scotty_server_url: String,
+    #[allow(dead_code)]
     pub oidc_issuer_url: String,
+    #[allow(dead_code)]
     pub client_id: String,
+    #[allow(dead_code)]
     pub device_flow_enabled: bool,
 }
 
 #[derive(Debug)]
 pub enum AuthMethod {
     OAuth(StoredToken),
+    #[allow(dead_code)]
     Bearer(String),
     None,
 }
@@ -52,8 +58,10 @@ pub enum AuthError {
     Timeout,
     #[error("Server error")]
     ServerError,
+    #[allow(dead_code)]
     #[error("Token validation failed")]
     TokenValidationFailed,
+    #[allow(dead_code)]
     #[error("No authentication method available")]
     NoAuthMethodAvailable,
     #[error("Invalid server response")]

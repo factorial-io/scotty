@@ -1,5 +1,5 @@
 use super::{AuthError, OAuthConfig, StoredToken};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::{Duration, SystemTime};
 use tokio::time::sleep;
 
@@ -8,37 +8,23 @@ pub struct DeviceCodeResponse {
     pub device_code: String,
     pub user_code: String,
     pub verification_uri: String,
+    #[allow(dead_code)]
     pub verification_uri_complete: Option<String>,
+    #[allow(dead_code)]
     pub expires_in: u64,
+    #[allow(dead_code)]
     pub interval: Option<u64>,
 }
 
 #[derive(Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
-    pub refresh_token: Option<String>,
-    pub expires_in: Option<u64>,
+    #[allow(dead_code)]
     pub token_type: String,
-}
-
-#[derive(Deserialize)]
-struct OidcUser {
-    email: String,
-    name: String,
-    username: String,
-}
-
-#[derive(Serialize, Debug)]
-struct DeviceCodeRequest {
-    client_id: String,
-    scope: String,
-}
-
-#[derive(Serialize, Debug)]
-struct TokenRequest {
-    grant_type: String,
-    device_code: String,
-    client_id: String,
+    #[allow(dead_code)]
+    pub user_id: String,
+    pub user_name: String,
+    pub user_email: String,
 }
 
 #[derive(Deserialize)]
@@ -50,19 +36,21 @@ struct ErrorResponse {
 pub struct DeviceFlowClient {
     client: reqwest::Client,
     config: OAuthConfig,
+    user_provided_server_url: String,
 }
 
 impl DeviceFlowClient {
-    pub fn new(config: OAuthConfig) -> Self {
+    pub fn new(config: OAuthConfig, user_provided_server_url: String) -> Self {
         Self {
             client: reqwest::Client::new(),
             config,
+            user_provided_server_url,
         }
     }
 
     pub async fn start_device_flow(&self) -> Result<DeviceCodeResponse, AuthError> {
         // Use Scotty's native device flow endpoint instead of calling OIDC provider directly
-        let device_url = format!("{}/oauth/device", self.config.oauth2_proxy_base_url);
+        let device_url = format!("{}/oauth/device", self.config.scotty_server_url);
 
         tracing::info!("Starting device flow with Scotty server");
         tracing::info!("Device URL: {}", device_url);
@@ -101,18 +89,13 @@ impl DeviceFlowClient {
 
             match self.try_get_token(device_code).await {
                 Ok(token_response) => {
-                    // Get user info from the obtained token
-                    let user_info = self.get_user_info(&token_response.access_token).await?;
-
                     return Ok(StoredToken {
                         access_token: token_response.access_token,
-                        refresh_token: token_response.refresh_token,
-                        expires_at: token_response
-                            .expires_in
-                            .map(|secs| SystemTime::now() + Duration::from_secs(secs)),
-                        user_email: user_info.email,
-                        user_name: user_info.name,
-                        server_url: self.config.oauth2_proxy_base_url.clone(),
+                        refresh_token: None, // Device flow response doesn't include refresh token
+                        expires_at: None,    // Device flow response doesn't include expiration
+                        user_email: token_response.user_email,
+                        user_name: token_response.user_name,
+                        server_url: self.user_provided_server_url.clone(),
                     });
                 }
                 Err(AuthError::AuthorizationPending) => {
@@ -126,18 +109,14 @@ impl DeviceFlowClient {
     }
 
     async fn try_get_token(&self, device_code: &str) -> Result<TokenResponse, AuthError> {
-        let token_url = format!("{}/oauth/device/token", self.config.oauth2_proxy_base_url);
-
-        let request = TokenRequest {
-            grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
-            device_code: device_code.to_string(),
-            client_id: self.config.client_id.clone(),
-        };
+        let token_url = format!(
+            "{}/oauth/device/token?device_code={}",
+            self.config.scotty_server_url, device_code
+        );
 
         let response = self
             .client
             .post(&token_url)
-            .json(&request)
             .header("Accept", "application/json")
             .send()
             .await?;
@@ -171,34 +150,5 @@ impl DeviceFlowClient {
                 Err(AuthError::ServerError)
             }
         }
-    }
-
-    async fn get_user_info(&self, access_token: &str) -> Result<OidcUser, AuthError> {
-        // Use Scotty's validate-token endpoint to get user info
-        let user_url = format!(
-            "{}/api/v1/authenticated/validate-token",
-            self.config.oauth2_proxy_base_url
-        );
-
-        let response = self
-            .client
-            .post(&user_url)
-            .bearer_auth(access_token)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(AuthError::TokenValidationFailed);
-        }
-
-        // Scotty's validate-token should return user info in the response
-        // For now, we'll create a placeholder user since the actual response format might be different
-        // TODO: Update this once we know the exact format of Scotty's validate-token response
-        let user = OidcUser {
-            email: "oauth-user@example.com".to_string(),
-            name: "OAuth User".to_string(),
-            username: "oauth-user".to_string(),
-        };
-        Ok(user)
     }
 }

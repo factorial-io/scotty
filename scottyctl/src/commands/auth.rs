@@ -33,7 +33,7 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
     println!("✅ OAuth configuration found");
 
     // 2. Start device flow
-    let client = DeviceFlowClient::new(oauth_config);
+    let client = DeviceFlowClient::new(oauth_config, app_context.server().server.clone());
     let device_response = match client.start_device_flow().await {
         Ok(response) => response,
         Err(e) => {

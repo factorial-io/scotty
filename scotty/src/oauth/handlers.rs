@@ -285,7 +285,7 @@ pub async fn start_authorization_flow(
                 csrf_token: csrf_token_raw.secret().clone(), // Store only the raw CSRF token part
                 pkce_verifier: general_purpose::STANDARD.encode(pkce_verifier.secret()), // Store PKCE verifier
                 redirect_url: redirect_url.clone(), // OAuth redirect URL for token exchange
-                frontend_callback_url, // Frontend callback URL
+                frontend_callback_url,              // Frontend callback URL
                 expires_at: SystemTime::now() + Duration::from_secs(600), // 10 minutes
             };
 
@@ -317,6 +317,7 @@ pub struct CallbackQuery {
     pub state: Option<String>,
     pub error: Option<String>,
     pub error_description: Option<String>,
+    #[allow(dead_code)]
     pub session_id: Option<String>,
 }
 

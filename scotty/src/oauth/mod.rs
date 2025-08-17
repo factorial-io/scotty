@@ -16,6 +16,8 @@ use std::time::SystemTime;
 pub struct OAuthClient {
     pub client: BasicClient,
     pub oidc_issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +28,8 @@ pub struct DeviceFlowSession {
     pub expires_at: SystemTime,
     pub oidc_access_token: Option<String>,
     pub completed: bool,
+    // Store the interval from device auth response for proper polling
+    pub interval: u64,
 }
 
 // In-memory storage for device flow sessions
@@ -67,8 +71,8 @@ impl OAuthClient {
         let device_auth_url = format!("{}/oauth/authorize_device", oidc_issuer_url);
 
         let client = BasicClient::new(
-            ClientId::new(client_id),
-            Some(ClientSecret::new(client_secret)),
+            ClientId::new(client_id.clone()),
+            Some(ClientSecret::new(client_secret.clone())),
             AuthUrl::new(auth_url)?,
             Some(TokenUrl::new(token_url)?),
         )
@@ -76,7 +80,9 @@ impl OAuthClient {
 
         Ok(Self {
             client,
-            oidc_issuer_url,
+            oidc_issuer_url: oidc_issuer_url.clone(),
+            client_id,
+            client_secret,
         })
     }
 

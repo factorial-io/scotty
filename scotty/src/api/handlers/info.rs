@@ -11,7 +11,7 @@ pub struct OAuthConfig {
     pub provider: String,
     pub redirect_url: String,
     pub oauth2_proxy_base_url: Option<String>,
-    pub gitlab_url: Option<String>,
+    pub oidc_issuer_url: Option<String>,
     pub client_id: Option<String>,
     pub device_flow_enabled: bool,
 }
@@ -36,7 +36,7 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
     let oauth_config = match state.settings.api.auth_mode {
         AuthMode::OAuth => Some(OAuthConfig {
             enabled: true,
-            provider: "gitlab".to_string(),
+            provider: "oidc".to_string(),
             redirect_url: state.settings.api.oauth.redirect_url.clone(),
             // For native OAuth, use the server's own URL instead of oauth2-proxy URL
             oauth2_proxy_base_url: state
@@ -58,13 +58,7 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
                         Some(bind_addr.clone())
                     }
                 }),
-            gitlab_url: state
-                .settings
-                .api
-                .oauth
-                .oidc_issuer_url
-                .clone()
-                .or_else(|| Some("https://gitlab.com".to_string())),
+            oidc_issuer_url: state.settings.api.oauth.oidc_issuer_url.clone(),
             client_id: state.settings.api.oauth.client_id.clone(),
             device_flow_enabled: state.settings.api.oauth.device_flow_enabled,
         }),
