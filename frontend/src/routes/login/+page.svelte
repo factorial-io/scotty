@@ -16,6 +16,19 @@
 
 	async function checkAuthMode() {
 		try {
+			// First check if already authenticated using validate-token
+			const validateResponse = await fetch('/api/v1/authenticated/validate-token', {
+				method: 'POST',
+				credentials: 'include'
+			});
+
+			if (validateResponse.ok) {
+				// Already authenticated, redirect to dashboard
+				window.location.href = '/dashboard';
+				return;
+			}
+
+			// Not authenticated, get auth mode info
 			const response = await fetch('/api/v1/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -29,14 +42,10 @@
 				oauthRedirectUrl = result.redirect_url || '/oauth2/start';
 				message = result.message || '';
 
-				// Handle different auth modes
+				// Handle dev mode only - OAuth and bearer require explicit login
 				if (authMode === 'dev') {
 					// Development mode - redirect directly to dashboard
 					window.location.href = '/dashboard';
-					return;
-				} else if (authMode === 'oauth' && result.status === 'redirect') {
-					// OAuth mode - redirect to OAuth provider
-					window.location.href = oauthRedirectUrl;
 					return;
 				}
 			}

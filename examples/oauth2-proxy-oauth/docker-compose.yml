@@ -78,10 +78,6 @@ services:
       - "traefik.http.middlewares.oauth-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.oauth-auth.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token"
       - "traefik.http.middlewares.oauth-auth.forwardauth.authRequestHeaders=X-Forwarded-Method,X-Forwarded-Proto,X-Forwarded-Host,X-Forwarded-Uri,X-Forwarded-For,Cookie"
-      # Custom auth redirect middleware - redirect auth failures to login
-      - "traefik.http.middlewares.auth-redirect.redirectregex.regex=^(.*)"
-      - "traefik.http.middlewares.auth-redirect.redirectregex.replacement=/login?return_url=$${1}"
-      - "traefik.http.middlewares.auth-redirect.redirectregex.permanent=false"
     networks:
       - scotty-oauth
 
@@ -99,12 +95,8 @@ services:
       # Authenticated API endpoints (only /api/v1/authenticated/* requires OAuth)
       - "traefik.http.routers.scotty-authenticated.rule=Host(`localhost`) && PathPrefix(`/api/v1/authenticated/`)"
       - "traefik.http.routers.scotty-authenticated.entrypoints=web"
-      - "traefik.http.routers.scotty-authenticated.middlewares=oauth-auth@docker,auth-errors@docker"
+      - "traefik.http.routers.scotty-authenticated.middlewares=oauth-auth@docker"
       - "traefik.http.routers.scotty-authenticated.priority=100"
-      # Error pages middleware to redirect auth failures to OAuth
-      - "traefik.http.middlewares.auth-errors.errors.status=401,403"
-      - "traefik.http.middlewares.auth-errors.errors.service=noop@internal"
-      - "traefik.http.middlewares.auth-errors.errors.query=/oauth2/sign_in?rd={url}"
       # Everything else is public (SPA, assets, public API endpoints)
       - "traefik.http.routers.scotty-public.rule=Host(`localhost`) && !PathPrefix(`/oauth2`)"
       - "traefik.http.routers.scotty-public.entrypoints=web"

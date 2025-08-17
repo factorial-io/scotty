@@ -2,12 +2,6 @@
 
 type AuthMode = 'dev' | 'oauth' | 'bearer';
 
-// Type for login API response
-interface LoginResponse {
-	auth_mode?: AuthMode;
-	[key: string]: unknown;
-}
-
 // Cache auth mode to avoid repeated requests
 let authMode: AuthMode | null = null;
 
@@ -18,12 +12,7 @@ async function getAuthMode(): Promise<AuthMode> {
 	}
 
 	try {
-		const result = (await publicApiCall('login', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ password: '' }) // Empty password to get auth info
-		})) as LoginResponse;
-
+		const result = (await publicApiCall('info')) as { auth_mode?: AuthMode };
 		authMode = result.auth_mode || 'bearer';
 	} catch (error) {
 		console.warn('Failed to detect auth mode, defaulting to bearer:', error);
@@ -91,11 +80,7 @@ function handleUnauthorized(mode: AuthMode) {
 
 	switch (mode) {
 		case 'oauth':
-			// In OAuth mode, redirect to oauth2-proxy login
-			window.location.href = '/oauth2/start';
-			break;
 		case 'bearer':
-			// In bearer mode, redirect to token login page
 			window.location.href = '/login';
 			break;
 		case 'dev':
@@ -130,13 +115,19 @@ export async function checkIfLoggedIn() {
 	}
 
 	// For OAuth mode, cookies handle authentication automatically
-	// Just make a simple API call to verify we're authenticated
+	// Use validate-token to verify we're authenticated
 	if (mode === 'oauth') {
 		try {
-			await publicApiCall('info');
+			await fetch('/api/v1/authenticated/validate-token', {
+				method: 'POST',
+				credentials: 'include'
+			});
 		} catch (error) {
-			// If info endpoint fails, we might not be authenticated
-			console.warn('Failed to fetch info in OAuth mode:', error);
+			// If validate-token fails, we're not authenticated
+			console.warn('Token validation failed in OAuth mode:', error);
+			if (window.location.pathname !== '/login') {
+				window.location.href = '/login';
+			}
 		}
 		return;
 	}
