@@ -15,7 +15,7 @@
 		if (app.settings?.app_blueprint) {
 			try {
 				// Fetch all blueprints and filter for the one we need
-				const result = await authenticatedApiCall('blueprints') as BlueprintsResponse;
+				const result = (await authenticatedApiCall('blueprints')) as BlueprintsResponse;
 				if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
 					const blueprint = result.blueprints[app.settings.app_blueprint];
 					// Filter for custom actions only
