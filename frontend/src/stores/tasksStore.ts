@@ -1,4 +1,4 @@
-import { apiCall } from '$lib';
+import { authenticatedApiCall } from '$lib';
 import { writable } from 'svelte/store';
 import type { TaskDetail } from '../types';
 
@@ -29,7 +29,7 @@ export function updateTask(taskId: string, payload: TaskDetail) {
 }
 
 export async function requestAllTasks() {
-	const results = (await apiCall('tasks')) as { tasks: TaskDetail[] };
+	const results = (await authenticatedApiCall('tasks')) as { tasks: TaskDetail[] };
 	const tasks_by_id = {} as Record<string, TaskDetail>;
 	results.tasks.forEach((task) => {
 		tasks_by_id[task.id] = task;
@@ -38,7 +38,7 @@ export async function requestAllTasks() {
 }
 
 export async function requestTaskDetails(taskId: string) {
-	const result = (await apiCall(`task/${taskId}`)) as TaskDetail;
+	const result = (await authenticatedApiCall(`task/${taskId}`)) as TaskDetail;
 	tasks.update((tasks) => {
 		return { ...tasks, [taskId]: result };
 	});

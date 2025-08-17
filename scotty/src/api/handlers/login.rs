@@ -66,7 +66,7 @@ pub async fn login_handler(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/validate-token",
+    path = "/api/v1/authenticated/validate-token",
     responses(
     (status = 200, description = "Validate token")
     )

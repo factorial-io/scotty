@@ -4,7 +4,7 @@ use scotty_core::apps::shared_app_list::AppDataVec;
 use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState};
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/list",
+    path = "/api/v1/authenticated/apps/list",
     responses(
     (status = 200, response = inline(AppDataVec)),
     (status = 401, description = "Access token is missing or invalid"),

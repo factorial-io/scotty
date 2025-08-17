@@ -12,19 +12,13 @@ async function getAuthMode(): Promise<AuthMode> {
 	}
 
 	try {
-		const response = await fetch('/api/v1/login', {
+		const result = await publicApiCall('login', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ password: '' }), // Empty password to get auth info
-			credentials: 'include'
-		});
+			body: JSON.stringify({ password: '' }) // Empty password to get auth info
+		}) as any;
 
-		if (response.ok) {
-			const result = await response.json();
-			authMode = result.auth_mode || 'bearer';
-		} else {
-			authMode = 'bearer'; // fallback
-		}
+		authMode = result.auth_mode || 'bearer';
 	} catch (error) {
 		console.warn('Failed to detect auth mode, defaulting to bearer:', error);
 		authMode = 'bearer';
@@ -33,7 +27,18 @@ async function getAuthMode(): Promise<AuthMode> {
 	return authMode;
 }
 
-export async function apiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+// Public API calls (health, info, login) - no authentication required
+export async function publicApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+	if (typeof window !== 'undefined') {
+		options.credentials = 'include'; // Always include cookies
+		const response = await fetch(`/api/v1/${url}`, options);
+		const result = await response.json();
+		return result;
+	}
+}
+
+// Authenticated API calls (apps, tasks, etc.) - requires authentication
+export async function authenticatedApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
 	if (typeof window !== 'undefined') {
 		const mode = await getAuthMode();
 
@@ -51,7 +56,7 @@ export async function apiCall(url: string, options: RequestInit = {}): Promise<u
 			}
 		}
 
-		const response = await fetch(`/api/v1/${url}`, options);
+		const response = await fetch(`/api/v1/authenticated/${url}`, options);
 
 		// Handle 401 Unauthorized based on auth mode
 		if (response.status === 401) {
@@ -62,6 +67,12 @@ export async function apiCall(url: string, options: RequestInit = {}): Promise<u
 		const result = await response.json();
 		return result;
 	}
+}
+
+// Legacy function for backward compatibility - will be deprecated
+export async function apiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+	console.warn('apiCall is deprecated. Use authenticatedApiCall or publicApiCall instead.');
+	return authenticatedApiCall(url, options);
 }
 
 function handleUnauthorized(mode: AuthMode) {
@@ -87,7 +98,7 @@ function handleUnauthorized(mode: AuthMode) {
 }
 
 export async function validateToken(token: string) {
-	const response = await fetch('/api/v1/validate-token', {
+	const response = await fetch('/api/v1/authenticated/validate-token', {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${token}`
@@ -113,9 +124,10 @@ export async function checkIfLoggedIn() {
 	// Just make a simple API call to verify we're authenticated
 	if (mode === 'oauth') {
 		try {
-			await apiCall('info');
+			await publicApiCall('info');
 		} catch (error) {
-			// apiCall will handle 401 and redirect appropriately
+			// If info endpoint fails, we might not be authenticated
+			console.warn('Failed to fetch info in OAuth mode:', error);
 		}
 		return;
 	}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { apiCall } from '$lib';
+	import { authenticatedApiCall } from '$lib';
 	import type { App } from '../types';
 	import { goto } from '$app/navigation';
 
@@ -15,7 +15,7 @@
 		if (app.settings?.app_blueprint) {
 			try {
 				// Fetch all blueprints and filter for the one we need
-				const result = await apiCall('blueprints');
+				const result = await authenticatedApiCall('blueprints');
 				if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
 					const blueprint = result.blueprints[app.settings.app_blueprint];
 					// Filter for custom actions only
@@ -47,7 +47,7 @@
 
 		try {
 			currentAction = actionName;
-			const result = await apiCall(`apps/${app.name}/actions`, {
+			const result = await authenticatedApiCall(`apps/${app.name}/actions`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'

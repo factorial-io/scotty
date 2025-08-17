@@ -1,0 +1,29 @@
+version: '3.8'
+
+# Development setup - No authentication required
+# Simple direct access to Scotty for development
+
+services:
+  scotty-dev:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      - SCOTTY__API__AUTH_MODE=dev
+      - SCOTTY__API__BIND_ADDRESS=0.0.0.0:3000
+      - SCOTTY__API__DEV_USER_EMAIL=developer@localhost
+      - SCOTTY__API__DEV_USER_NAME=Local Developer
+    ports:
+      - "3000:3000"  # Direct access for development
+    networks:
+      - scotty-dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../../config/default.yaml:/app/config/default.yaml:ro
+      - ./config/development.yaml:/app/config/local.yaml:ro
+      - ../../config/blueprints:/app/config/blueprints:ro
+      - ./apps:/app/apps
+
+networks:
+  scotty-dev:
+    driver: bridge

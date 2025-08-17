@@ -1,4 +1,4 @@
-import { apiCall } from '$lib';
+import { authenticatedApiCall } from '$lib';
 import { writable } from 'svelte/store';
 import type { ApiError, App } from '../types';
 
@@ -18,12 +18,12 @@ export function getApp(name: string) {
 
 export async function loadApps() {
 	// Fetch the apps from the server
-	const result = (await apiCall('apps/list')) as { apps: App[] };
+	const result = (await authenticatedApiCall('apps/list')) as { apps: App[] };
 	apps.set(result.apps || []);
 }
 
 export async function dispatchAppCommand(command: string, name: string): Promise<string> {
-	const result = (await apiCall(`apps/${command}/${name}`)) as { task: { id: string } };
+	const result = (await authenticatedApiCall(`apps/${command}/${name}`)) as { task: { id: string } };
 	return result.task.id;
 }
 
@@ -36,7 +36,7 @@ export async function stopApp(name: string): Promise<string> {
 }
 
 export async function updateAppInfo(name: string): Promise<App | ApiError> {
-	const result = (await apiCall(`apps/info/${name}`)) as App;
+	const result = (await authenticatedApiCall(`apps/info/${name}`)) as App;
 
 	apps.update((apps) => {
 		const index = apps.findIndex((app) => app.name === name);

@@ -77,7 +77,7 @@ pub async fn get_or_post(
     method: &str,
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
-    let url = format!("{}/api/v1/{}", server.server, action);
+    let url = format!("{}/api/v1/authenticated/{}", server.server, action);
     info!("Calling scotty API at {}", &url);
 
     with_retry(|| async {

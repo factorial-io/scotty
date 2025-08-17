@@ -1,0 +1,129 @@
+version: '3.8'
+
+# OAuth setup with ForwardAuth - GitLab OIDC authentication
+# Designed to protect multiple applications with reusable middleware
+
+services:
+  # Redis for oauth2-proxy session storage
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - scotty-oauth
+    restart: unless-stopped
+
+  # Traefik for routing and service discovery
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - scotty-oauth
+
+  # OAuth2-proxy for GitLab OIDC authentication
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    depends_on:
+      - redis
+    command:
+      - --http-address=0.0.0.0:4180
+      - --provider=gitlab
+      - --client-id=${GITLAB_CLIENT_ID}
+      - --client-secret=${GITLAB_CLIENT_SECRET}
+      - --cookie-secret=${COOKIE_SECRET}
+      - --cookie-secure=false
+      - --cookie-httponly=true
+      - --cookie-name=_oauth2_proxy
+      - --cookie-expire=24h0m0s
+      - --cookie-refresh=5m0s
+      - --email-domain=*
+      - --redirect-url=${OAUTH_REDIRECT_URL:-http://localhost/oauth2/callback}
+      - --oidc-issuer-url=${GITLAB_URL:-https://gitlab.com}
+      - --pass-user-headers=true
+      - --pass-access-token=true
+      - --set-xauthrequest=true
+      - --skip-provider-button=false
+      - --insecure-oidc-allow-unverified-email=true
+      # Redis session storage configuration
+      - --session-store-type=redis
+      - --redis-connection-url=redis://redis:6379
+      # ForwardAuth specific: return 202 (redirect) instead of 401 for better UX
+      - --auth-logging=true
+      - --request-logging=true
+    environment:
+      - GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID}
+      - GITLAB_CLIENT_SECRET=${GITLAB_CLIENT_SECRET}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - GITLAB_URL=${GITLAB_URL:-https://gitlab.com}
+      - OAUTH_REDIRECT_URL=${OAUTH_REDIRECT_URL:-http://localhost/oauth2/callback}
+    labels:
+      - "traefik.enable=true"
+      # OAuth2-proxy routes
+      - "traefik.http.routers.oauth.rule=Host(`localhost`) && PathPrefix(`/oauth2`)"
+      - "traefik.http.routers.oauth.entrypoints=web"
+      - "traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180"
+      # Reusable OAuth ForwardAuth middleware for protecting other apps
+      - "traefik.http.middlewares.oauth-auth.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token"
+      - "traefik.http.middlewares.oauth-auth.forwardauth.authRequestHeaders=X-Forwarded-Method,X-Forwarded-Proto,X-Forwarded-Host,X-Forwarded-Uri,X-Forwarded-For,Cookie"
+      # Custom auth redirect middleware - redirect auth failures to login
+      - "traefik.http.middlewares.auth-redirect.redirectregex.regex=^(.*)"
+      - "traefik.http.middlewares.auth-redirect.redirectregex.replacement=/login?return_url=$${1}"
+      - "traefik.http.middlewares.auth-redirect.redirectregex.permanent=false"
+    networks:
+      - scotty-oauth
+
+  # Scotty protected by OAuth2-proxy ForwardAuth
+  scotty-oauth:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      - SCOTTY__API__AUTH_MODE=oauth
+      - SCOTTY__API__BIND_ADDRESS=0.0.0.0:21342
+      - SCOTTY__API__OAUTH_REDIRECT_URL=/oauth2/start
+    labels:
+      - "traefik.enable=true"
+      # Authenticated API endpoints (only /api/v1/authenticated/* requires OAuth)
+      - "traefik.http.routers.scotty-authenticated.rule=Host(`localhost`) && PathPrefix(`/api/v1/authenticated/`)"
+      - "traefik.http.routers.scotty-authenticated.entrypoints=web"
+      - "traefik.http.routers.scotty-authenticated.middlewares=oauth-auth@docker,auth-errors@docker"
+      - "traefik.http.routers.scotty-authenticated.priority=100"
+      # Error pages middleware to redirect auth failures to OAuth
+      - "traefik.http.middlewares.auth-errors.errors.status=401,403"
+      - "traefik.http.middlewares.auth-errors.errors.service=noop@internal"
+      - "traefik.http.middlewares.auth-errors.errors.query=/oauth2/sign_in?rd={url}"
+      # Everything else is public (SPA, assets, public API endpoints)
+      - "traefik.http.routers.scotty-public.rule=Host(`localhost`) && !PathPrefix(`/oauth2`)"
+      - "traefik.http.routers.scotty-public.entrypoints=web"
+      - "traefik.http.routers.scotty-public.priority=50"
+      - "traefik.http.routers.scotty-public.service=scotty-oauth"
+      - "traefik.http.routers.scotty-authenticated.service=scotty-oauth"
+      - "traefik.http.services.scotty-oauth.loadbalancer.server.port=21342"
+    networks:
+      - scotty-oauth
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../../config/default.yaml:/app/config/default.yaml:ro
+      - ./config/oauth.yaml:/app/config/local.yaml:ro
+      - ../../config/blueprints:/app/config/blueprints:ro
+      - ./apps:/app/apps
+
+networks:
+  scotty-oauth:
+    driver: bridge
+
+volumes:
+  redis-data:

@@ -16,7 +16,7 @@ use tracing::error;
 
 #[utoipa::path(
     post,
-    path = "/api/v1/apps/create",
+    path = "/api/v1/authenticated/apps/create",
     request_body(content = CreateAppRequest, content_type = "application/json"),
     responses(
     (status = 200, response = inline(RunningAppContext)),

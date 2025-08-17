@@ -1,7 +1,7 @@
 <script lang="ts">
 	import 'tailwindcss/tailwind.css';
 	import logo from '$lib/assets/scotty.svg';
-	import { apiCall, checkIfLoggedIn } from '$lib';
+	import { publicApiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
 	import { setupWsListener } from '$lib/ws';
 	import title from '../stores/titleStore';
@@ -20,7 +20,7 @@
 		setupWsListener('/ws');
 
 		checkIfLoggedIn();
-		site_info = (await apiCall('info')) as SiteInfo;
+		site_info = (await publicApiCall('info')) as SiteInfo;
 	});
 </script>
 

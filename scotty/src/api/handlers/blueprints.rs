@@ -6,7 +6,7 @@ use crate::app_state::SharedAppState;
 #[debug_handler]
 #[utoipa::path(
     get,
-    path = "/api/v1/blueprints",
+    path = "/api/v1/authenticated/blueprints",
     responses(
     (status = 200, response = inline(AppBlueprintList)),
     (status = 401, description = "Access token is missing or invalid"),

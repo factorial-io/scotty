@@ -8,7 +8,7 @@ use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::S
 
 #[utoipa::path(
     post,
-    path = "/api/v1/apps/notify/add",
+    path = "/api/v1/authenticated/apps/notify/add",
     request_body(content = AddNotificationRequest, content_type = "application/json"),
     responses(
     (status = 200, response = inline(AppData)),
@@ -65,7 +65,7 @@ pub async fn add_notification_handler(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/apps/notify/remove",
+    path = "/api/v1/authenticated/apps/notify/remove",
     request_body(content = RemoveNotificationRequest, content_type = "application/json"),
     responses(
     (status = 200, response = inline(AppData)),
