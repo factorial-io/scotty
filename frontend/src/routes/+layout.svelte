@@ -1,5 +1,5 @@
 <script lang="ts">
-	import 'tailwindcss/tailwind.css';
+	import '../app.css';
 	import logo from '$lib/assets/scotty.svg';
 	import { publicApiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
