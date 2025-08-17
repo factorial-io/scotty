@@ -57,14 +57,25 @@ api:
   bind_address: "0.0.0.0:21342"
   access_token: "mysecret"
   create_app_max_size: "50M"
+  auth_mode: "bearer"  # "dev", "oauth", or "bearer"
+  dev_user_email: "dev@localhost"
+  dev_user_name: "Dev User"
+  oauth_redirect_url: "/oauth2/start"
 ```
 
 * `bind_address`: The address and port the server listens on.
 * `access_token`: The token to authenticate against the server. This token is
-  needed by the clients to authenticate against the server.
+  needed by the clients to authenticate against the server when `auth_mode` is "bearer".
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
+* `auth_mode`: Authentication mode. Options are:
+  * `"dev"`: Development mode with no authentication (uses fixed dev user)
+  * `"oauth"`: OAuth authentication via oauth2-proxy with OIDC providers
+  * `"bearer"`: Traditional token-based authentication (default)
+* `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
+* `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
+* `oauth_redirect_url`: OAuth redirect path (used when `auth_mode` is "oauth")
 
 ###  Scheduler settings
 
@@ -340,6 +351,10 @@ underscores and prefix the key with `SCOTTY__`.
 | `debug`                                           | `SCOTTY__DEBUG`                                          |
 | `api.access_token`                                | `SCOTTY__API__ACCESS_TOKEN`                              |
 | `api.bind_address`                                | `SCOTTY__API__BIND_ADDRESS`                              |
+| `api.auth_mode`                                   | `SCOTTY__API__AUTH_MODE`                                 |
+| `api.dev_user_email`                              | `SCOTTY__API__DEV_USER_EMAIL`                            |
+| `api.dev_user_name`                               | `SCOTTY__API__DEV_USER_NAME`                             |
+| `api.oauth_redirect_url`                          | `SCOTTY__API__OAUTH_REDIRECT_URL`                        |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |
