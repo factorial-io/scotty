@@ -6,8 +6,8 @@ export const tasks = writable({} as Record<string, TaskDetail>);
 
 export function monitorTask(taskId: string, callback: (result: TaskDetail) => void) {
 	const interval = setInterval(async () => {
-		const result = getTask(taskId);
-		if (result && (result.state === 'Failed' || result.state === 'Finished')) {
+		const result = await requestTaskDetails(taskId);
+		if (!('error' in result) && (result.state === 'Failed' || result.state === 'Finished')) {
 			clearInterval(interval);
 			callback(result);
 		}
