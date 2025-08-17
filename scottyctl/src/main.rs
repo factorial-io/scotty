@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod cli;
 mod commands;
 mod context;
@@ -59,6 +60,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::BlueprintInfo(cmd) => {
             commands::blueprints::blueprint_info(&app_context, cmd).await?
         }
+        Commands::AuthLogin(cmd) => commands::auth::auth_login(&app_context, cmd).await?,
+        Commands::AuthLogout => commands::auth::auth_logout(&app_context).await?,
+        Commands::AuthStatus => commands::auth::auth_status(&app_context).await?,
+        Commands::AuthRefresh => commands::auth::auth_refresh(&app_context).await?,
         Commands::Test => commands::test::run_tests(&app_context).await?,
     }
     Ok(())

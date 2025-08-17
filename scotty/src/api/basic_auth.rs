@@ -47,8 +47,20 @@ pub async fn auth(
             })
         }
         AuthMode::OAuth => {
-            debug!("Using OAuth auth mode with proxy headers");
-            authorize_oauth_user(&req)
+            debug!("Using OAuth auth mode with native tokens");
+            let auth_header = req
+                .headers()
+                .get(http::header::AUTHORIZATION)
+                .and_then(|header| header.to_str().ok());
+
+            let auth_header = if let Some(auth_header) = auth_header {
+                auth_header
+            } else {
+                warn!("Missing Authorization header in OAuth mode");
+                return Err(StatusCode::UNAUTHORIZED);
+            };
+
+            authorize_oauth_user_native(state.clone(), auth_header).await
         }
         AuthMode::Bearer => {
             debug!("Using bearer token auth mode");
@@ -83,6 +95,7 @@ pub async fn auth(
     }
 }
 
+// Legacy function for oauth2-proxy compatibility (kept for backward compatibility)
 fn authorize_oauth_user(req: &Request) -> Option<CurrentUser> {
     let headers = req.headers();
 
@@ -112,6 +125,35 @@ fn authorize_oauth_user(req: &Request) -> Option<CurrentUser> {
         }
         _ => {
             warn!("Missing OAuth headers from proxy");
+            None
+        }
+    }
+}
+
+// Native OAuth token validation
+async fn authorize_oauth_user_native(
+    shared_app_state: SharedAppState,
+    auth_header: &str,
+) -> Option<CurrentUser> {
+    // Extract Bearer token
+    let token = auth_header.strip_prefix("Bearer ")?;
+    
+    debug!("Validating OAuth Bearer token");
+
+    // Get OAuth client for token validation
+    let oauth_state = shared_app_state.oauth_state.as_ref()?;
+    
+    match oauth_state.client.validate_gitlab_token(token).await {
+        Ok(gitlab_user) => {
+            debug!("OAuth token validated for user: {} <{}>", gitlab_user.name, gitlab_user.email);
+            Some(CurrentUser {
+                email: gitlab_user.email,
+                name: gitlab_user.name,
+                access_token: Some(token.to_string()),
+            })
+        }
+        Err(e) => {
+            warn!("OAuth token validation failed: {}", e);
             None
         }
     }

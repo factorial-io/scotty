@@ -42,8 +42,15 @@ use crate::api::handlers::apps::run::__path_run_app_handler;
 use crate::api::handlers::apps::run::__path_stop_app_handler;
 use crate::api::handlers::health::__path_health_checker_handler;
 use crate::api::handlers::info::__path_info_handler;
+use crate::api::handlers::info::{OAuthConfig, ServerInfo};
 use crate::api::handlers::login::__path_login_handler;
 use crate::api::handlers::login::__path_validate_token_handler;
+use crate::oauth::handlers::{
+    exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow, start_device_flow,
+};
+use crate::oauth::handlers::{
+    AuthorizeQuery, CallbackQuery, DeviceFlowResponse, ErrorResponse, SessionExchangeRequest, TokenResponse,
+};
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;
 use crate::api::handlers::health::health_checker_handler;
@@ -102,7 +109,8 @@ use super::handlers::tasks::task_list_handler;
             GitlabContext, WebhookContext, MattermostContext, NotificationReceiver,
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
-            AppStatus, AppTtl, ServicePortMapping, RunningAppContext
+            AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
+            OAuthConfig, ServerInfo, DeviceFlowResponse, TokenResponse, ErrorResponse, AuthorizeQuery, CallbackQuery
         )
     ),
     tags(
@@ -201,6 +209,11 @@ impl ApiRoutes {
             .route("/api/v1/login", post(login_handler))
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))
+            .route("/oauth/device", post(start_device_flow))
+            .route("/oauth/device/token", post(poll_device_token))
+            .route("/oauth/authorize", get(start_authorization_flow))
+            .route("/api/oauth/callback", get(handle_oauth_callback))
+            .route("/oauth/exchange", post(exchange_session_for_token))
             .route("/ws", get(ws_handler))
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
             .merge(Redoc::with_url("/redoc", api.clone()))

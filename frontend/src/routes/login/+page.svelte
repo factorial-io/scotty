@@ -58,7 +58,8 @@
 
 	async function login() {
 		if (authMode === 'oauth') {
-			window.location.href = oauthRedirectUrl;
+			// Redirect to Scotty's native OAuth flow
+			window.location.href = '/oauth/authorize';
 			return;
 		}
 

@@ -1,7 +1,0 @@
-# OAuth mode configuration  
-# Authentication via oauth2-proxy with GitLab OIDC
-
-api:
-  bind_address: "0.0.0.0:21342"
-  auth_mode: "oauth"
-  oauth_redirect_url: "/oauth2/start"

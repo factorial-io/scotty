@@ -25,6 +25,8 @@ scotty-core = { path = "../scotty-core" }
 dotenvy.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 crossterm = "0.29.0"
+open = "5.0"
+thiserror = "1.0"
 [[bin]]
 name = "scottyctl"
 path = "src/main.rs"

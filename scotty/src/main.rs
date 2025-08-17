@@ -4,6 +4,7 @@ mod docker;
 mod http;
 mod init_telemetry;
 mod notification;
+mod oauth;
 mod onepassword;
 mod settings;
 mod state_machine;

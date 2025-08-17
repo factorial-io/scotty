@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 	import { setupWsListener } from '$lib/ws';
 	import title from '../stores/titleStore';
+	import UserInfo from '../components/user-info.svelte';
 
 	type SiteInfo = {
 		domain: string;
@@ -53,6 +54,7 @@
 						>
 					</li>
 				</ul>
+				<UserInfo />
 			</div>
 		</div>
 

@@ -3,6 +3,8 @@ api:
     bind_address: "0.0.0.0:21342"
     access_token: "mysecret"
     create_app_max_size: "50M"
+    oauth:
+        gitlab_url: "https://source.factorial.io"
 scheduler:
     running_app_check: "15s"
     ttl_check: "10m"

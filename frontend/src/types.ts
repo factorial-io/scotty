@@ -79,3 +79,41 @@ export interface RunningAppContext {
 		id: string;
 	};
 }
+
+export interface OAuthConfig {
+	enabled: boolean;
+	provider: string;
+	redirect_url: string;
+	oauth2_proxy_base_url: string | null;
+	gitlab_url: string | null;
+	client_id: string | null;
+	device_flow_enabled: boolean;
+}
+
+export interface ServerInfo {
+	domain: string;
+	version: string;
+	auth_mode: 'dev' | 'oauth' | 'bearer';
+	oauth_config?: OAuthConfig;
+}
+
+export interface DeviceFlowResponse {
+	device_code: string;
+	user_code: string;
+	verification_uri: string;
+	expires_in: number;
+	interval: number;
+}
+
+export interface TokenResponse {
+	access_token: string;
+	token_type: string;
+	user_id: string;
+	user_name: string;
+	user_email: string;
+}
+
+export interface OAuthErrorResponse {
+	error: string;
+	error_description: string;
+}

@@ -1,40 +1,43 @@
-# OAuth Authentication with oauth2-proxy and Traefik
+# OAuth Authentication with GitLab OIDC
 
-Scotty supports OAuth authentication using oauth2-proxy and Traefik's ForwardAuth middleware. This setup provides GitLab OIDC-based authentication that protects your Scotty API endpoints while allowing public access to the web UI and health endpoints.
+Scotty provides built-in OAuth authentication with GitLab OIDC integration. This setup offers secure authentication that protects your Scotty API endpoints while providing a seamless user experience through the web interface.
 
 ## Overview
 
 Scotty supports three authentication modes configured via `auth_mode`:
 
 - **`dev`**: Development mode with no authentication (uses fixed dev user)
-- **`oauth`**: OAuth authentication via oauth2-proxy with GitLab OIDC  
+- **`oauth`**: Native OAuth authentication with GitLab OIDC integration  
 - **`bearer`**: Traditional token-based authentication
 
-In OAuth mode, authentication is handled by the `basic_auth.rs` middleware which extracts user information from headers set by oauth2-proxy.
+In OAuth mode, Scotty handles the complete OAuth 2.0 Authorization Code flow with PKCE (Proof Key for Code Exchange) for enhanced security.
 
 ## How OAuth Mode Works
 
 ### Architecture
 
 ```
-User → Traefik → oauth2-proxy (ForwardAuth) → Scotty
-                      ↓
-                    Redis (sessions)
-                      ↓  
-                 GitLab OIDC
+User → Frontend SPA → Scotty OAuth Endpoints → GitLab OIDC
+                              ↓
+                        Session Management
+                              ↓  
+                         User Authentication
 ```
 
 ### Authentication Flow
 
-1. **Public routes** (UI, health, assets) are accessible without authentication
-2. **Protected routes** (`/api/v1/authenticated/*`) require ForwardAuth validation
-3. **oauth2-proxy** validates user sessions and handles OIDC flows with GitLab
-4. **Traefik** routes traffic and applies ForwardAuth middleware to protected endpoints
-5. **Scotty** receives requests with authenticated user headers
+1. **User initiates login** via the Scotty frontend
+2. **Frontend redirects** to Scotty's `/oauth/authorize` endpoint
+3. **Scotty generates** authorization URL with PKCE challenge and redirects to GitLab
+4. **User authenticates** with GitLab OIDC
+5. **GitLab redirects** back to Scotty's `/oauth/callback` endpoint with authorization code
+6. **Scotty exchanges** authorization code for access token using PKCE verifier
+7. **User information** is extracted and tokens are provided to frontend
+8. **Frontend stores** OAuth tokens and user info in localStorage
 
 ### Route Protection
 
-- **Public**: `/`, `/api/v1/health`, static assets, SPA routes
+- **Public**: `/`, `/api/v1/health`, `/api/v1/info`, `/api/v1/login`, `/oauth/*`, static assets, SPA routes
 - **Protected**: `/api/v1/authenticated/*` - all API operations that modify state
 
 ## Setup Instructions
@@ -44,30 +47,11 @@ User → Traefik → oauth2-proxy (ForwardAuth) → Scotty
 1. Go to GitLab → Settings → Applications  
 2. Create new application:
    - **Name**: Scotty  
-   - **Redirect URI**: `http://localhost/oauth2/callback`
-   - **Scopes**: `openid`, `profile`, `email`
+   - **Redirect URI**: `http://localhost:21342/oauth/callback`
+   - **Scopes**: `openid`, `profile`, `email`, `read_user`
 3. Save the **Application ID** and **Secret**
 
-### 2. Environment Configuration  
-
-Create `.env` file with your OAuth credentials:
-
-```bash
-# GitLab OAuth Application credentials
-GITLAB_CLIENT_ID=your_gitlab_application_id
-GITLAB_CLIENT_SECRET=your_gitlab_application_secret
-
-# Generate with: openssl rand -base64 32 | tr -d "=" | tr "/" "_" | tr "+" "-"
-COOKIE_SECRET=your_random_32_character_string
-
-# Optional: Custom GitLab instance URL (defaults to https://gitlab.com)
-GITLAB_URL=https://your-gitlab.com
-
-# OAuth callback URL (must match GitLab app configuration)
-OAUTH_REDIRECT_URL=http://localhost/oauth2/callback
-```
-
-### 3. Scotty Configuration
+### 2. Scotty Configuration
 
 Configure Scotty for OAuth mode in `config/local.yaml`:
 
@@ -75,121 +59,77 @@ Configure Scotty for OAuth mode in `config/local.yaml`:
 api:
   bind_address: "0.0.0.0:21342"
   auth_mode: "oauth"
-  oauth_redirect_url: "/oauth2/start"
+  oauth:
+    gitlab_url: "https://gitlab.com"  # or your GitLab instance URL
+    client_id: "your_gitlab_application_id"
+    client_secret: "your_gitlab_application_secret"
+    redirect_url: "http://localhost:21342/oauth/callback"
 ```
 
-## Example Setup
+### 3. Environment Variables
 
-Scotty includes a complete OAuth example in `examples/oauth2-proxy-oauth/`. 
-
-### Quick Start
+Alternatively, you can use environment variables:
 
 ```bash
-cd examples/oauth2-proxy-oauth
+# Set authentication mode
+SCOTTY__API__AUTH_MODE=oauth
 
-# Configure your GitLab OAuth credentials
-cp .env.example .env
-# Edit .env with your credentials
+# GitLab OAuth Application credentials  
+SCOTTY__API__OAUTH__CLIENT_ID=your_gitlab_application_id
+SCOTTY__API__OAUTH__CLIENT_SECRET=your_gitlab_application_secret
 
-# Start the complete OAuth stack
-docker compose up -d
-
-# Access Scotty
-open http://localhost
+# OAuth configuration
+SCOTTY__API__OAUTH__GITLAB_URL=https://gitlab.com
+SCOTTY__API__OAUTH__REDIRECT_URL=http://localhost:21342/oauth/callback
 ```
 
-### What's Included
+## OAuth Endpoints
 
-The example provides:
+Scotty provides the following OAuth endpoints:
 
-- **Traefik**: Reverse proxy with ForwardAuth middleware
-- **oauth2-proxy**: GitLab OIDC authentication handler  
-- **Redis**: Session storage for scalability
-- **Scotty**: Configured in OAuth mode
+### `GET /oauth/authorize`
 
-## Docker Compose Configuration
+Initiates the OAuth authorization flow. Redirects to GitLab with proper PKCE parameters.
 
-Here's the key configuration from the working example:
+**Query Parameters:**
+- `redirect_uri` (optional): Where to redirect after successful authentication
 
-```yaml
-services:
-  # Traefik with ForwardAuth setup
-  traefik:
-    image: traefik:v3.0
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"  # Dashboard
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+### `GET /oauth/callback`
 
-  # oauth2-proxy for GitLab OIDC
-  oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
-    command:
-      - --provider=gitlab
-      - --client-id=${GITLAB_CLIENT_ID}
-      - --client-secret=${GITLAB_CLIENT_SECRET}
-      - --cookie-secret=${COOKIE_SECRET}
-      - --redirect-url=${OAUTH_REDIRECT_URL}
-      - --oidc-issuer-url=${GITLAB_URL:-https://gitlab.com}
-      - --pass-user-headers=true
-      - --pass-access-token=true
-      - --session-store-type=redis
-      - --redis-connection-url=redis://redis:6379
-    labels:
-      # OAuth2-proxy routes  
-      - "traefik.http.routers.oauth.rule=Host(`localhost`) && PathPrefix(`/oauth2`)"
-      # Reusable ForwardAuth middleware
-      - "traefik.http.middlewares.oauth-auth.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth"
-      - "traefik.http.middlewares.oauth-auth.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.oauth-auth.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token"
+Handles the OAuth callback from GitLab. Exchanges authorization code for access token.
 
-  # Scotty with route-based authentication
-  scotty:
-    environment:
-      - SCOTTY__API__AUTH_MODE=oauth
-      - SCOTTY__API__OAUTH_REDIRECT_URL=/oauth2/start
-    labels:
-      # Protected API endpoints (require OAuth)
-      - "traefik.http.routers.scotty-authenticated.rule=Host(`localhost`) && PathPrefix(`/api/v1/authenticated/`)"
-      - "traefik.http.routers.scotty-authenticated.middlewares=oauth-auth@docker"
-      - "traefik.http.routers.scotty-authenticated.priority=100"
-      # Public endpoints (no authentication)
-      - "traefik.http.routers.scotty-public.rule=Host(`localhost`) && !PathPrefix(`/oauth2`)"
-      - "traefik.http.routers.scotty-public.priority=50"
+**Query Parameters:**
+- `code`: Authorization code from GitLab
+- `state`: CSRF protection token
+- `session_id`: Session identifier
 
-  # Redis for session storage
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
-```
+**Response:** JSON with token information and user details.
 
 ## User Information
 
-When authenticated, oauth2-proxy provides these headers to Scotty:
+After successful OAuth authentication, Scotty provides:
 
-- **`X-Auth-Request-User`**: GitLab username
-- **`X-Auth-Request-Email`**: User's email address
-- **`X-Auth-Request-Access-Token`**: GitLab OAuth access token
+- **User ID**: GitLab user ID
+- **Username**: GitLab username  
+- **Email**: User's email address
+- **Access Token**: OAuth access token for API calls
 
-Scotty's authentication middleware extracts this information and creates a `CurrentUser` object available to all handlers.
+This information is available to both the frontend (stored in localStorage) and backend (through authentication middleware).
 
 ## Development vs Production
 
 ### Development Setup
 
-Use the provided example for local development:
+For local development, start Scotty with OAuth configuration:
 
 ```bash
-cd examples/oauth2-proxy-dev    # No auth required
-# or
-cd examples/oauth2-proxy-oauth  # Full OAuth setup
+# Set OAuth configuration
+export SCOTTY__API__AUTH_MODE=oauth
+export SCOTTY__API__OAUTH__CLIENT_ID=your_client_id
+export SCOTTY__API__OAUTH__CLIENT_SECRET=your_client_secret
+
+# Run Scotty
+cargo run --bin scotty
 ```
 
 ### Development Mode Alternative
@@ -207,28 +147,59 @@ This bypasses OAuth and uses a fixed development user.
 
 ### Production Considerations
 
-1. **Use HTTPS**: Configure TLS in Traefik and set `--cookie-secure=true`
-2. **Proper domains**: Replace `localhost` with your actual domain
-3. **Secure secrets**: Use Docker secrets or external secret management
-4. **Session persistence**: Configure Redis persistence and backup
-5. **Security headers**: Add additional security middleware
+1. **Use HTTPS**: Configure TLS for your domain and update redirect URLs
+2. **Proper domains**: Replace `localhost` with your actual domain in all configurations
+3. **Secure secrets**: Use environment variables or secret management systems
+4. **CORS configuration**: Ensure proper CORS settings for your domain
+5. **Session security**: Configure appropriate session timeouts
 
-## Session Management
+## Frontend Integration
 
-- **Redis-backed sessions** for scalability and persistence
-- **24-hour expiry** with 5-minute refresh intervals  
-- **Session persistence** across container restarts
-- **Manual logout**: Visit `http://localhost/oauth2/sign_out`
-- **GitLab logout** invalidates session on next request
+The Scotty frontend automatically detects OAuth mode and provides:
 
-## Protecting Additional Applications
+### Login Flow
+- **Login page** shows "Continue to GitLab" button
+- **OAuth callback page** handles the return from GitLab
+- **User info component** displays authenticated user with logout option
 
-The ForwardAuth middleware is reusable. To protect other applications:
+### Token Management
+- **Automatic token storage** in browser localStorage
+- **Token validation** on each API request
+- **Automatic logout** on token expiration or validation failure
 
-```yaml
-labels:
-  - "traefik.http.routers.my-app.middlewares=oauth-auth@docker"
+## CLI Integration (scottyctl)
+
+For CLI usage with OAuth-enabled Scotty, you have two options:
+
+### Device Flow (Recommended)
+```bash
+# Use OAuth device flow for CLI authentication
+scottyctl login --server http://localhost:21342
 ```
+
+### Manual Token
+```bash
+# Extract token from browser localStorage and use manually
+export SCOTTY_ACCESS_TOKEN=your_oauth_token
+scottyctl --server http://localhost:21342 list apps
+```
+
+## Security Features
+
+### PKCE (Proof Key for Code Exchange)
+- **Enhanced security** for public clients (SPAs)
+- **Code challenge/verifier** prevents code interception attacks
+- **SHA256 hashing** of random code verifier
+
+### CSRF Protection  
+- **State parameter** validation prevents CSRF attacks
+- **Session-based** state tracking
+- **Automatic cleanup** of expired sessions
+
+### Token Security
+- **Short-lived tokens** with appropriate expiration
+- **Secure storage** recommendations for production
+- **Token validation** on each authenticated request
 
 ## Troubleshooting
 
@@ -238,54 +209,66 @@ labels:
 ```
 Error: redirect_uri mismatch in GitLab
 ```
-- Ensure GitLab OAuth app redirect URI matches `OAUTH_REDIRECT_URL`
-- Check for trailing slashes and exact URL matching
+- Ensure GitLab OAuth app redirect URI exactly matches Scotty configuration
+- Check for trailing slashes, HTTP vs HTTPS, and port numbers
 
-**Missing OAuth Headers**
+**Invalid Client Credentials**
 ```
-Warning: Missing OAuth headers from proxy
+Error: Invalid client credentials
 ```
-- Verify oauth2-proxy is running and healthy
-- Check Traefik ForwardAuth middleware configuration
-- Ensure `authResponseHeaders` are configured correctly
+- Verify `client_id` and `client_secret` match GitLab OAuth application
+- Ensure credentials are correctly set in configuration or environment variables
 
-**Session/Cookie Issues**
-```  
-Error: Invalid cookie or session expired
+**PKCE Validation Failed**
 ```
-- Clear browser cookies and retry
-- Verify `COOKIE_SECRET` is set and consistent
-- Check Redis connectivity and session storage
+Error: PKCE code challenge validation failed
+```
+- This indicates a potential security issue or session corruption
+- Clear browser data and retry the authentication flow
+
+**Session Expired**
+```
+Error: OAuth session not found or expired
+```
+- OAuth sessions have a limited lifetime
+- Restart the authentication flow from the beginning
 
 ### Debug Commands
 
 ```bash
-# Check service status
-docker compose ps
+# Check Scotty configuration
+curl http://localhost:21342/api/v1/info
 
-# View oauth2-proxy logs  
-docker compose logs oauth2-proxy
+# Test OAuth endpoints
+curl -I http://localhost:21342/oauth/authorize
 
-# View Traefik configuration
-curl http://localhost:8080/api/rawdata
+# Verify authentication (with valid token)
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:21342/api/v1/authenticated/apps
+```
 
-# Test authentication flow
-curl -v http://localhost/api/v1/authenticated/apps
+### Debug Logging
+
+Enable debug logging to troubleshoot OAuth issues:
+
+```bash
+RUST_LOG=debug cargo run --bin scotty
 ```
 
 ## URLs and Access
 
-- **Application**: http://localhost
-- **Traefik Dashboard**: http://localhost:8080
-- **OAuth Logout**: http://localhost/oauth2/sign_out
-- **Health Check**: http://localhost/api/v1/health (public)
+- **Application**: http://localhost:21342
+- **OAuth Authorization**: http://localhost:21342/oauth/authorize  
+- **OAuth Callback**: http://localhost:21342/oauth/callback
+- **API Documentation**: http://localhost:21342/rapidoc
+- **Health Check**: http://localhost:21342/api/v1/health (public)
 
-## Security Notes  
+## Migration from oauth2-proxy
 
-1. **Route-based protection**: Only `/api/v1/authenticated/*` requires authentication
-2. **Header validation**: User information comes from trusted oauth2-proxy headers
-3. **Session security**: Redis-backed sessions with configurable expiry
-4. **Access control**: Configure appropriate GitLab OAuth scopes
-5. **Network isolation**: Use dedicated Docker networks for security
+If you're migrating from the previous oauth2-proxy setup:
 
-For complete working examples, see the `examples/oauth2-proxy-oauth/` and `examples/oauth2-proxy-dev/` directories in the Scotty repository.
+1. **Remove external dependencies**: No need for Traefik ForwardAuth or oauth2-proxy containers
+2. **Update configuration**: Switch from proxy-based to native OAuth configuration  
+3. **Update redirect URLs**: Change from `/oauth2/callback` to `/oauth/callback`
+4. **Test authentication flow**: Verify the complete OAuth flow works end-to-end
+
+The native OAuth implementation provides better integration, reduced complexity, and enhanced security while maintaining the same user experience.

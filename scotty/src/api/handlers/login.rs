@@ -36,12 +36,12 @@ pub async fn login_handler(
             })
         }
         AuthMode::OAuth => {
-            debug!("OAuth mode login - redirect to proxy");
+            debug!("OAuth mode login - redirect to native OAuth flow");
             serde_json::json!({
                 "status": "redirect",
                 "auth_mode": "oauth",
-                "redirect_url": state.settings.api.oauth_redirect_url,
-                "message": "Please authenticate via OAuth"
+                "redirect_url": "/oauth/authorize",
+                "message": "Please authenticate via GitLab OAuth"
             })
         }
         AuthMode::Bearer => {

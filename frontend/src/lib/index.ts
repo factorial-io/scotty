@@ -43,13 +43,21 @@ export async function authenticatedApiCall(
 		// Always include cookies for OAuth mode
 		options.credentials = 'include';
 
-		// Add bearer token only in bearer mode
+		// Add bearer token based on auth mode
 		if (mode === 'bearer') {
 			const currentToken = localStorage.getItem('token');
 			if (currentToken) {
 				options.headers = {
 					...options.headers,
 					Authorization: `Bearer ${currentToken}`
+				};
+			}
+		} else if (mode === 'oauth') {
+			const oauthToken = localStorage.getItem('oauth_token');
+			if (oauthToken) {
+				options.headers = {
+					...options.headers,
+					Authorization: `Bearer ${oauthToken}`
 				};
 			}
 		}
@@ -74,12 +82,17 @@ export async function apiCall(url: string, options: RequestInit = {}): Promise<u
 }
 
 function handleUnauthorized(mode: AuthMode) {
-	if (window.location.pathname === '/login') {
-		return; // Already on login page
+	if (window.location.pathname === '/login' || window.location.pathname.startsWith('/oauth/')) {
+		return; // Already on login page or OAuth flow
 	}
 
 	switch (mode) {
 		case 'oauth':
+			// Clear OAuth tokens and redirect to login
+			localStorage.removeItem('oauth_token');
+			localStorage.removeItem('user_info');
+			window.location.href = '/login';
+			break;
 		case 'bearer':
 			window.location.href = '/login';
 			break;
@@ -100,7 +113,7 @@ export async function validateToken(token: string) {
 		credentials: 'include'
 	});
 
-	if (!response.ok && window.location.pathname !== '/login') {
+	if (!response.ok && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
 		const mode = await getAuthMode();
 		handleUnauthorized(mode);
 	}
@@ -114,19 +127,32 @@ export async function checkIfLoggedIn() {
 		return;
 	}
 
-	// For OAuth mode, cookies handle authentication automatically
-	// Use validate-token to verify we're authenticated
+	// For OAuth mode, check for stored OAuth token
 	if (mode === 'oauth') {
-		try {
-			await fetch('/api/v1/authenticated/validate-token', {
-				method: 'POST',
-				credentials: 'include'
-			});
-		} catch (error) {
-			// If validate-token fails, we're not authenticated
-			console.warn('Token validation failed in OAuth mode:', error);
-			if (window.location.pathname !== '/login') {
-				window.location.href = '/login';
+		const oauthToken = localStorage.getItem('oauth_token');
+		if (!oauthToken && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
+			window.location.href = '/login';
+			return;
+		}
+		
+		if (oauthToken) {
+			// Validate OAuth token
+			try {
+				await fetch('/api/v1/authenticated/validate-token', {
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${oauthToken}`
+					},
+					credentials: 'include'
+				});
+			} catch (error) {
+				// If validate-token fails, clear token and redirect
+				console.warn('OAuth token validation failed:', error);
+				localStorage.removeItem('oauth_token');
+				localStorage.removeItem('user_info');
+				if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
+					window.location.href = '/login';
+				}
 			}
 		}
 		return;

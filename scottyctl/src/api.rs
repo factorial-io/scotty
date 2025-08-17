@@ -3,6 +3,7 @@ use serde_json::Value;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 
+use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
@@ -71,12 +72,30 @@ where
     }
 }
 
+async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
+    // 1. Try stored OAuth token first
+    if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
+        // TODO: Check if token is expired and refresh if needed
+        return Ok(stored_token.access_token);
+    }
+
+    // 2. Fall back to environment variable
+    if let Some(token) = &server.access_token {
+        return Ok(token.clone());
+    }
+
+    Err(anyhow::anyhow!(
+        "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
+    ))
+}
+
 pub async fn get_or_post(
     server: &ServerSettings,
     action: &str,
     method: &str,
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
+    let token = get_auth_token(server).await?;
     let url = format!("{}/api/v1/authenticated/{}", server.server, action);
     info!("Calling scotty API at {}", &url);
 
@@ -94,7 +113,7 @@ pub async fn get_or_post(
         };
 
         let response = response
-            .bearer_auth(server.access_token.as_deref().unwrap_or_default())
+            .bearer_auth(&token)
             .timeout(Duration::from_secs(10)) // Add timeout for requests
             .send()
             .await
