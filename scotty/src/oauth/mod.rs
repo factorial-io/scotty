@@ -15,7 +15,7 @@ use std::time::SystemTime;
 #[derive(Debug, Clone)]
 pub struct OAuthClient {
     pub client: BasicClient,
-    pub gitlab_url: String,
+    pub oidc_issuer_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ pub struct DeviceFlowSession {
     pub user_code: String,
     pub verification_uri: String,
     pub expires_at: SystemTime,
-    pub gitlab_access_token: Option<String>,
+    pub oidc_access_token: Option<String>,
     pub completed: bool,
 }
 
@@ -36,8 +36,8 @@ pub type DeviceFlowStore = Arc<Mutex<HashMap<String, DeviceFlowSession>>>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebFlowSession {
     pub csrf_token: String,
-    pub pkce_verifier: String, // Base64 encoded for storage
-    pub redirect_url: String, // OAuth redirect URL for GitLab token exchange
+    pub pkce_verifier: String,                 // Base64 encoded for storage
+    pub redirect_url: String,                  // OAuth redirect URL for GitLab token exchange
     pub frontend_callback_url: Option<String>, // Frontend callback URL for final redirect
     pub expires_at: SystemTime,
 }
@@ -48,8 +48,8 @@ pub type WebFlowStore = Arc<Mutex<HashMap<String, WebFlowSession>>>;
 // Temporary session for OAuth completion
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OAuthSession {
-    pub gitlab_token: String,
-    pub user: crate::oauth::device_flow::GitLabUser,
+    pub oidc_token: String,
+    pub user: crate::oauth::device_flow::OidcUser,
     pub expires_at: SystemTime,
 }
 
@@ -60,11 +60,11 @@ impl OAuthClient {
     pub fn new(
         client_id: String,
         client_secret: String,
-        gitlab_url: String,
+        oidc_issuer_url: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let auth_url = format!("{}/oauth/authorize", gitlab_url);
-        let token_url = format!("{}/oauth/token", gitlab_url);
-        let device_auth_url = format!("{}/oauth/authorize_device", gitlab_url);
+        let auth_url = format!("{}/oauth/authorize", oidc_issuer_url);
+        let token_url = format!("{}/oauth/token", oidc_issuer_url);
+        let device_auth_url = format!("{}/oauth/authorize_device", oidc_issuer_url);
 
         let client = BasicClient::new(
             ClientId::new(client_id),
@@ -74,7 +74,10 @@ impl OAuthClient {
         )
         .set_device_authorization_url(DeviceAuthorizationUrl::new(device_auth_url)?);
 
-        Ok(Self { client, gitlab_url })
+        Ok(Self {
+            client,
+            oidc_issuer_url,
+        })
     }
 
     /// Generate authorization URL for web flow

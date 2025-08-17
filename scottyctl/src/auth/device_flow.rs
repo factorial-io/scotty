@@ -22,7 +22,7 @@ pub struct TokenResponse {
 }
 
 #[derive(Deserialize)]
-struct GitLabUser {
+struct OidcUser {
     email: String,
     name: String,
     username: String,
@@ -61,7 +61,7 @@ impl DeviceFlowClient {
     }
 
     pub async fn start_device_flow(&self) -> Result<DeviceCodeResponse, AuthError> {
-        // Use Scotty's native device flow endpoint instead of GitLab directly
+        // Use Scotty's native device flow endpoint instead of calling OIDC provider directly
         let device_url = format!("{}/oauth/device", self.config.oauth2_proxy_base_url);
 
         tracing::info!("Starting device flow with Scotty server");
@@ -173,7 +173,7 @@ impl DeviceFlowClient {
         }
     }
 
-    async fn get_user_info(&self, access_token: &str) -> Result<GitLabUser, AuthError> {
+    async fn get_user_info(&self, access_token: &str) -> Result<OidcUser, AuthError> {
         // Use Scotty's validate-token endpoint to get user info
         let user_url = format!(
             "{}/api/v1/authenticated/validate-token",
@@ -194,7 +194,7 @@ impl DeviceFlowClient {
         // Scotty's validate-token should return user info in the response
         // For now, we'll create a placeholder user since the actual response format might be different
         // TODO: Update this once we know the exact format of Scotty's validate-token response
-        let user = GitLabUser {
+        let user = OidcUser {
             email: "oauth-user@example.com".to_string(),
             name: "OAuth User".to_string(),
             username: "oauth-user".to_string(),

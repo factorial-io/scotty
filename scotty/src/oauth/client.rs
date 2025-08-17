@@ -15,12 +15,12 @@ pub fn create_oauth_client(
         None => return Ok(None), // OAuth not configured
     };
 
-    let gitlab_url = oauth_config
-        .gitlab_url
+    let oidc_issuer_url = oauth_config
+        .oidc_issuer_url
         .clone()
         .unwrap_or_else(|| "https://gitlab.com".to_string());
 
-    match OAuthClient::new(client_id, client_secret, gitlab_url) {
+    match OAuthClient::new(client_id, client_secret, oidc_issuer_url) {
         Ok(client) => {
             tracing::info!("OAuth client initialized successfully");
             Ok(Some(client))

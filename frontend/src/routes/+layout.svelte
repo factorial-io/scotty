@@ -6,6 +6,7 @@
 	import { setupWsListener } from '$lib/ws';
 	import title from '../stores/titleStore';
 	import UserInfo from '../components/user-info.svelte';
+	import { authStore } from '../stores/userStore';
 
 	type SiteInfo = {
 		domain: string;
@@ -20,6 +21,9 @@
 	onMount(async () => {
 		setupWsListener('/ws');
 
+		// Initialize the auth store first
+		await authStore.init();
+		
 		checkIfLoggedIn();
 		site_info = (await publicApiCall('info')) as SiteInfo;
 	});

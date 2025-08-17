@@ -41,12 +41,30 @@ your shell, see [here](docs/content/installation.md).
 
 ## Configuring the CLI
 
-The CLI needs only two environment variables to work:
-* `SCOTTY_SERVER` the address of the server
-* `SCOTTY_ACCESS_TOKEN` the bearer token to use
+### Option 1: OAuth Authentication (Recommended)
 
-You can provide the information either via env-vars or by passing the
-`--server` and `--access-token` arguments to the CLI.
+Use OAuth device flow for secure authentication:
+
+```shell
+# Authenticate with OAuth
+scottyctl auth:login --server https://localhost:21342
+
+# Use authenticated commands
+scottyctl apps list
+```
+
+### Option 2: Bearer Token
+
+Use environment variables or command-line arguments:
+
+```shell
+# Via environment variables
+export SCOTTY_SERVER=https://localhost:21342
+export SCOTTY_ACCESS_TOKEN=your_bearer_token
+
+# Via command-line arguments  
+scottyctl --server https://localhost:21342 --access-token your_bearer_token apps list
+```
 
 ## Developing/Contributing
 

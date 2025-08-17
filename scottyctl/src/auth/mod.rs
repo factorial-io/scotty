@@ -20,7 +20,7 @@ pub struct OAuthConfig {
     pub enabled: bool,
     pub provider: String,
     pub oauth2_proxy_base_url: String,
-    pub gitlab_url: String,
+    pub oidc_issuer_url: String,
     pub client_id: String,
     pub device_flow_enabled: bool,
 }

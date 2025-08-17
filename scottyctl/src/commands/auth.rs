@@ -39,8 +39,8 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
         Err(e) => {
             println!("❌ Failed to start device flow");
             println!("   This might be because:");
-            println!("   - GitLab OAuth application is not configured for device flow");
-            println!("   - The client_id 'scottyctl' is not registered in GitLab");
+            println!("   - OIDC provider OAuth application is not configured for device flow");
+            println!("   - The client_id 'scottyctl' is not registered in your OIDC provider");
             println!("   - Network connectivity issues");
             return Err(e.into());
         }

@@ -8,10 +8,10 @@ impl OAuthClient {
         &self,
         store: DeviceFlowStore,
     ) -> Result<DeviceFlowSession, OAuthError> {
-        info!("Starting device flow with GitLab");
-        debug!("GitLab URL: {}", self.gitlab_url);
+        info!("Starting device flow with OIDC provider");
+        debug!("OIDC Issuer URL: {}", self.oidc_issuer_url);
 
-        // Request device and user codes from GitLab
+        // Request device and user codes from OIDC provider
         let details: oauth2::StandardDeviceAuthorizationResponse = self
             .client
             .exchange_device_code()
@@ -39,7 +39,7 @@ impl OAuthClient {
             user_code: user_code.clone(),
             verification_uri: verification_uri.clone(),
             expires_at,
-            gitlab_access_token: None,
+            oidc_access_token: None,
             completed: false,
         };
 
@@ -81,7 +81,7 @@ impl OAuthClient {
 
         // Check if already completed
         if session.completed {
-            if let Some(token) = session.gitlab_access_token {
+            if let Some(token) = session.oidc_access_token {
                 debug!("Session already completed, returning cached token");
                 return Ok(token);
             }
@@ -110,7 +110,7 @@ impl OAuthClient {
                 {
                     let mut sessions = store.lock().unwrap();
                     if let Some(session) = sessions.get_mut(device_code) {
-                        session.gitlab_access_token = Some(access_token.clone());
+                        session.oidc_access_token = Some(access_token.clone());
                         session.completed = true;
                     }
                 }
@@ -134,13 +134,10 @@ impl OAuthClient {
         */
     }
 
-    pub async fn validate_gitlab_token(
-        &self,
-        access_token: &str,
-    ) -> Result<GitLabUser, OAuthError> {
-        debug!("Validating GitLab token");
+    pub async fn validate_oidc_token(&self, access_token: &str) -> Result<OidcUser, OAuthError> {
+        debug!("Validating OIDC token");
 
-        let user_url = format!("{}/api/v4/user", self.gitlab_url);
+        let user_url = format!("{}/oauth/userinfo", self.oidc_issuer_url);
         let response = reqwest::Client::new()
             .get(&user_url)
             .bearer_auth(access_token)
@@ -148,23 +145,31 @@ impl OAuthClient {
             .await?;
 
         if !response.status().is_success() {
-            error!("GitLab token validation failed: {}", response.status());
+            error!("OIDC token validation failed: {}", response.status());
             return Err(OAuthError::Reqwest(
                 response.error_for_status().unwrap_err(),
             ));
         }
 
-        let user: GitLabUser = response.json().await?;
-        debug!("GitLab user validated: {} <{}>", user.name, user.email);
+        let user: OidcUser = response.json().await?;
+        debug!(
+            "OIDC user validated: {} <{}>",
+            user.name.as_deref().unwrap_or("N/A"),
+            user.email.as_deref().unwrap_or("N/A")
+        );
 
         Ok(user)
     }
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct GitLabUser {
-    pub id: u64,
-    pub username: String,
-    pub name: String,
-    pub email: String,
+pub struct OidcUser {
+    #[serde(rename = "sub")]
+    pub id: String, // OIDC subject is typically a string
+    #[serde(rename = "preferred_username", default)]
+    pub username: Option<String>, // Optional in OIDC
+    #[serde(default)]
+    pub name: Option<String>, // Optional in OIDC
+    #[serde(default)]
+    pub email: Option<String>, // Optional in OIDC
 }

@@ -4,7 +4,7 @@ api:
     access_token: "mysecret"
     create_app_max_size: "50M"
     oauth:
-        gitlab_url: "https://source.factorial.io"
+        oidc_issuer_url: "https://source.factorial.io"
 scheduler:
     running_app_check: "15s"
     ttl_check: "10m"

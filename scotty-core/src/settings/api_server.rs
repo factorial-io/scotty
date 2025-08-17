@@ -17,7 +17,7 @@ pub enum AuthMode {
 pub struct OAuthSettings {
     #[serde(default = "default_oauth_redirect_url")]
     pub redirect_url: String,
-    pub gitlab_url: Option<String>,
+    pub oidc_issuer_url: Option<String>,
     pub oauth2_proxy_base_url: Option<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
@@ -29,7 +29,7 @@ impl Default for OAuthSettings {
     fn default() -> Self {
         Self {
             redirect_url: default_oauth_redirect_url(),
-            gitlab_url: None,
+            oidc_issuer_url: None,
             oauth2_proxy_base_url: None,
             client_id: None,
             client_secret: None,

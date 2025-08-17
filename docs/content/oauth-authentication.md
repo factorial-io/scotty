@@ -1,13 +1,13 @@
-# OAuth Authentication with GitLab OIDC
+# OAuth Authentication with OIDC
 
-Scotty provides built-in OAuth authentication with GitLab OIDC integration. This setup offers secure authentication that protects your Scotty API endpoints while providing a seamless user experience through the web interface.
+Scotty provides built-in OAuth authentication with OIDC (OpenID Connect) integration. This setup offers secure authentication that protects your Scotty API endpoints while providing a seamless user experience through the web interface.
 
 ## Overview
 
 Scotty supports three authentication modes configured via `auth_mode`:
 
 - **`dev`**: Development mode with no authentication (uses fixed dev user)
-- **`oauth`**: Native OAuth authentication with GitLab OIDC integration  
+- **`oauth`**: Native OAuth authentication with OIDC provider integration  
 - **`bearer`**: Traditional token-based authentication
 
 In OAuth mode, Scotty handles the complete OAuth 2.0 Authorization Code flow with PKCE (Proof Key for Code Exchange) for enhanced security.
@@ -17,7 +17,7 @@ In OAuth mode, Scotty handles the complete OAuth 2.0 Authorization Code flow wit
 ### Architecture
 
 ```
-User → Frontend SPA → Scotty OAuth Endpoints → GitLab OIDC
+User → Frontend SPA → Scotty OAuth Endpoints → OIDC Provider
                               ↓
                         Session Management
                               ↓  
@@ -28,12 +28,12 @@ User → Frontend SPA → Scotty OAuth Endpoints → GitLab OIDC
 
 1. **User initiates login** via the Scotty frontend
 2. **Frontend redirects** to Scotty's `/oauth/authorize` endpoint
-3. **Scotty generates** authorization URL with PKCE challenge and redirects to GitLab
-4. **User authenticates** with GitLab OIDC
-5. **GitLab redirects** back to Scotty's `/oauth/callback` endpoint with authorization code
+3. **Scotty generates** authorization URL with PKCE challenge and redirects to OIDC provider
+4. **User authenticates** with OIDC provider
+5. **OIDC provider redirects** back to Scotty's `/api/oauth/callback` endpoint with authorization code
 6. **Scotty exchanges** authorization code for access token using PKCE verifier
-7. **User information** is extracted and tokens are provided to frontend
-8. **Frontend stores** OAuth tokens and user info in localStorage
+7. **User information** is extracted via OIDC `/oauth/userinfo` endpoint and session is created
+8. **Frontend exchanges** session for tokens and stores OAuth tokens and user info in localStorage
 
 ### Route Protection
 
@@ -42,14 +42,22 @@ User → Frontend SPA → Scotty OAuth Endpoints → GitLab OIDC
 
 ## Setup Instructions
 
-### 1. GitLab OAuth Application
+### 1. OIDC Provider OAuth Application
 
+Configure your OIDC provider (GitLab, Auth0, Keycloak, etc.):
+
+#### GitLab Example:
 1. Go to GitLab → Settings → Applications  
 2. Create new application:
    - **Name**: Scotty  
-   - **Redirect URI**: `http://localhost:21342/oauth/callback`
+   - **Redirect URI**: `http://localhost:21342/api/oauth/callback`
    - **Scopes**: `openid`, `profile`, `email`, `read_user`
 3. Save the **Application ID** and **Secret**
+
+#### Other OIDC Providers:
+- **Auth0**: Create application in Auth0 dashboard
+- **Keycloak**: Create client in Keycloak admin console  
+- **Google**: Use Google Cloud Console OAuth 2.0 setup
 
 ### 2. Scotty Configuration
 
@@ -60,10 +68,30 @@ api:
   bind_address: "0.0.0.0:21342"
   auth_mode: "oauth"
   oauth:
-    gitlab_url: "https://gitlab.com"  # or your GitLab instance URL
-    client_id: "your_gitlab_application_id"
-    client_secret: "your_gitlab_application_secret"
-    redirect_url: "http://localhost:21342/oauth/callback"
+    oidc_issuer_url: "https://gitlab.com"  # or your OIDC provider URL
+    client_id: "your_oidc_application_id"
+    client_secret: "your_oidc_application_secret"
+    redirect_url: "http://localhost:21342/api/oauth/callback"
+```
+
+**Provider-specific examples:**
+
+```yaml
+# GitLab
+oauth:
+  oidc_issuer_url: "https://gitlab.com"
+
+# Auth0  
+oauth:
+  oidc_issuer_url: "https://your-domain.auth0.com"
+
+# Keycloak
+oauth:
+  oidc_issuer_url: "https://your-keycloak.com/auth/realms/your-realm"
+
+# Google
+oauth:
+  oidc_issuer_url: "https://accounts.google.com"
 ```
 
 ### 3. Environment Variables
@@ -74,13 +102,13 @@ Alternatively, you can use environment variables:
 # Set authentication mode
 SCOTTY__API__AUTH_MODE=oauth
 
-# GitLab OAuth Application credentials  
-SCOTTY__API__OAUTH__CLIENT_ID=your_gitlab_application_id
-SCOTTY__API__OAUTH__CLIENT_SECRET=your_gitlab_application_secret
+# OIDC OAuth Application credentials  
+SCOTTY__API__OAUTH__CLIENT_ID=your_oidc_application_id
+SCOTTY__API__OAUTH__CLIENT_SECRET=your_oidc_application_secret
 
 # OAuth configuration
-SCOTTY__API__OAUTH__GITLAB_URL=https://gitlab.com
-SCOTTY__API__OAUTH__REDIRECT_URL=http://localhost:21342/oauth/callback
+SCOTTY__API__OAUTH__OIDC_ISSUER_URL=https://gitlab.com
+SCOTTY__API__OAUTH__REDIRECT_URL=http://localhost:21342/api/oauth/callback
 ```
 
 ## OAuth Endpoints
@@ -89,29 +117,34 @@ Scotty provides the following OAuth endpoints:
 
 ### `GET /oauth/authorize`
 
-Initiates the OAuth authorization flow. Redirects to GitLab with proper PKCE parameters.
+Initiates the OAuth authorization flow. Redirects to OIDC provider with proper PKCE parameters.
 
 **Query Parameters:**
 - `redirect_uri` (optional): Where to redirect after successful authentication
 
-### `GET /oauth/callback`
+### `GET /api/oauth/callback`
 
-Handles the OAuth callback from GitLab. Exchanges authorization code for access token.
+Handles the OAuth callback from OIDC provider. Exchanges authorization code for access token and creates temporary session.
 
 **Query Parameters:**
-- `code`: Authorization code from GitLab
-- `state`: CSRF protection token
-- `session_id`: Session identifier
+- `code`: Authorization code from OIDC provider
+- `state`: CSRF protection token with embedded session ID
 
-**Response:** JSON with token information and user details.
+### `POST /oauth/exchange`
+
+Exchanges temporary session for OAuth tokens (used by frontend).
+
+**Request Body:**
+- `session_id`: Temporary session identifier
 
 ## User Information
 
-After successful OAuth authentication, Scotty provides:
+After successful OAuth authentication, Scotty provides OIDC-standard user information:
 
-- **User ID**: GitLab user ID
-- **Username**: GitLab username  
-- **Email**: User's email address
+- **Subject (sub)**: OIDC user ID (typically a string)
+- **Username**: Preferred username (optional)  
+- **Name**: User's display name (optional)
+- **Email**: User's email address (optional)
 - **Access Token**: OAuth access token for API calls
 
 This information is available to both the frontend (stored in localStorage) and backend (through authentication middleware).
@@ -158,8 +191,8 @@ This bypasses OAuth and uses a fixed development user.
 The Scotty frontend automatically detects OAuth mode and provides:
 
 ### Login Flow
-- **Login page** shows "Continue to GitLab" button
-- **OAuth callback page** handles the return from GitLab
+- **Login page** shows "Continue with OAuth" button
+- **OAuth callback page** handles the return from OIDC provider
 - **User info component** displays authenticated user with logout option
 
 ### Token Management
@@ -179,9 +212,9 @@ scottyctl login --server http://localhost:21342
 
 ### Manual Token
 ```bash
-# Extract token from browser localStorage and use manually
+# Extract token from browser localStorage and use manually  
 export SCOTTY_ACCESS_TOKEN=your_oauth_token
-scottyctl --server http://localhost:21342 list apps
+scottyctl --server http://localhost:21342 apps list
 ```
 
 ## Security Features
@@ -207,16 +240,17 @@ scottyctl --server http://localhost:21342 list apps
 
 **Redirect URI Mismatch**
 ```
-Error: redirect_uri mismatch in GitLab
+Error: redirect_uri mismatch in OIDC provider
 ```
-- Ensure GitLab OAuth app redirect URI exactly matches Scotty configuration
+- Ensure OIDC provider OAuth app redirect URI exactly matches Scotty configuration  
 - Check for trailing slashes, HTTP vs HTTPS, and port numbers
+- Verify the redirect URI is `http://localhost:21342/api/oauth/callback`
 
 **Invalid Client Credentials**
 ```
 Error: Invalid client credentials
 ```
-- Verify `client_id` and `client_secret` match GitLab OAuth application
+- Verify `client_id` and `client_secret` match OIDC provider OAuth application
 - Ensure credentials are correctly set in configuration or environment variables
 
 **PKCE Validation Failed**
@@ -258,7 +292,8 @@ RUST_LOG=debug cargo run --bin scotty
 
 - **Application**: http://localhost:21342
 - **OAuth Authorization**: http://localhost:21342/oauth/authorize  
-- **OAuth Callback**: http://localhost:21342/oauth/callback
+- **OAuth Callback**: http://localhost:21342/api/oauth/callback
+- **OAuth Session Exchange**: http://localhost:21342/oauth/exchange
 - **API Documentation**: http://localhost:21342/rapidoc
 - **Health Check**: http://localhost:21342/api/v1/health (public)
 
@@ -268,7 +303,8 @@ If you're migrating from the previous oauth2-proxy setup:
 
 1. **Remove external dependencies**: No need for Traefik ForwardAuth or oauth2-proxy containers
 2. **Update configuration**: Switch from proxy-based to native OAuth configuration  
-3. **Update redirect URLs**: Change from `/oauth2/callback` to `/oauth/callback`
-4. **Test authentication flow**: Verify the complete OAuth flow works end-to-end
+3. **Update redirect URLs**: Change from `/oauth2/callback` to `/api/oauth/callback`
+4. **Update configuration keys**: Change `gitlab_url` to `oidc_issuer_url`
+5. **Test authentication flow**: Verify the complete OAuth flow works end-to-end
 
 The native OAuth implementation provides better integration, reduced complexity, and enhanced security while maintaining the same user experience.

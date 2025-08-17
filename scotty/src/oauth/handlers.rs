@@ -1,4 +1,7 @@
-use super::{DeviceFlowStore, OAuthClient, OAuthError, OAuthSession, OAuthSessionStore, WebFlowSession, WebFlowStore};
+use super::{
+    DeviceFlowStore, OAuthClient, OAuthError, OAuthSession, OAuthSessionStore, WebFlowSession,
+    WebFlowStore,
+};
 use crate::app_state::SharedAppState;
 use axum::{
     extract::{Query, State},
@@ -147,26 +150,22 @@ pub async fn poll_device_token(
         .poll_device_token(&params.device_code, oauth_state.device_flow_store.clone())
         .await
     {
-        Ok(gitlab_token) => {
-            // Validate the GitLab token and get user info
-            match oauth_state
-                .client
-                .validate_gitlab_token(&gitlab_token)
-                .await
-            {
+        Ok(oidc_token) => {
+            // Validate the OIDC token and get user info
+            match oauth_state.client.validate_oidc_token(&oidc_token).await {
                 Ok(user) => {
-                    // For now, we'll return the GitLab token as the access token
+                    // For now, we'll return the OIDC token as the access token
                     // In a full implementation, you might want to create a Scotty session token
                     Ok(Json(TokenResponse {
-                        access_token: gitlab_token,
+                        access_token: oidc_token,
                         token_type: "Bearer".to_string(),
-                        user_id: user.username.clone(),
-                        user_name: user.name,
-                        user_email: user.email,
+                        user_id: user.username.clone().unwrap_or(user.id.clone()),
+                        user_name: user.name.unwrap_or("Unknown".to_string()),
+                        user_email: user.email.unwrap_or("unknown@example.com".to_string()),
                     }))
                 }
                 Err(e) => {
-                    error!("Failed to validate GitLab token: {}", e);
+                    error!("Failed to validate OIDC token: {}", e);
                     Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse {
@@ -267,12 +266,12 @@ pub async fn start_authorization_flow(
 
     // Store frontend callback URL separately before consuming params.redirect_uri
     let frontend_callback_url = params.redirect_uri.clone();
-    
+
     // Determine redirect URL - use configured URL from settings
     let redirect_url = params
         .redirect_uri
         .unwrap_or_else(|| app_state.settings.api.oauth.redirect_url.clone());
-    
+
     debug!("Using redirect URL for authorization: {}", redirect_url);
 
     // Generate authorization URL with PKCE
@@ -286,7 +285,7 @@ pub async fn start_authorization_flow(
                 csrf_token: csrf_token_raw.secret().clone(), // Store only the raw CSRF token part
                 pkce_verifier: general_purpose::STANDARD.encode(pkce_verifier.secret()), // Store PKCE verifier
                 redirect_url: redirect_url.clone(), // OAuth redirect URL for token exchange
-                frontend_callback_url: frontend_callback_url, // Frontend callback URL
+                frontend_callback_url, // Frontend callback URL
                 expires_at: SystemTime::now() + Duration::from_secs(600), // 10 minutes
             };
 
@@ -337,10 +336,15 @@ pub async fn handle_oauth_callback(
     State(app_state): State<SharedAppState>,
     Query(params): Query<CallbackQuery>,
 ) -> impl IntoResponse {
-    debug!("Handling OAuth callback with params: code={:?}, state={:?}, error={:?}", 
-           params.code.as_ref().map(|_| "[REDACTED]"), 
-           params.state.as_ref().map(|s| &s[..std::cmp::min(10, s.len())]), 
-           params.error);
+    debug!(
+        "Handling OAuth callback with params: code={:?}, state={:?}, error={:?}",
+        params.code.as_ref().map(|_| "[REDACTED]"),
+        params
+            .state
+            .as_ref()
+            .map(|s| &s[..std::cmp::min(10, s.len())]),
+        params.error
+    );
 
     let oauth_state = match &app_state.oauth_state {
         Some(state) => state,
@@ -400,7 +404,8 @@ pub async fn handle_oauth_callback(
                 error: "invalid_request".to_string(),
                 error_description: "Invalid state format".to_string(),
             }),
-        ).into_response();
+        )
+            .into_response();
     };
 
     let code = params.code.ok_or_else(|| {
@@ -466,7 +471,8 @@ pub async fn handle_oauth_callback(
                     error: "invalid_state".to_string(),
                     error_description: "Invalid state format for CSRF validation".to_string(),
                 }),
-            ).into_response();
+            )
+                .into_response();
         };
 
         if csrf_part != session.csrf_token {
@@ -511,7 +517,10 @@ pub async fn handle_oauth_callback(
         }
     };
 
-    debug!("Using redirect URL for token exchange: {}", session.redirect_url);
+    debug!(
+        "Using redirect URL for token exchange: {}",
+        session.redirect_url
+    );
     match oauth_state
         .client
         .exchange_code_for_token(code, session.redirect_url.clone(), pkce_verifier)
@@ -519,11 +528,7 @@ pub async fn handle_oauth_callback(
     {
         Ok(access_token) => {
             // Validate token and get user info
-            match oauth_state
-                .client
-                .validate_gitlab_token(&access_token)
-                .await
-            {
+            match oauth_state.client.validate_oidc_token(&access_token).await {
                 Ok(user) => {
                     // Clean up session
                     {
@@ -533,13 +538,13 @@ pub async fn handle_oauth_callback(
 
                     debug!(
                         "OAuth web flow completed successfully for user: {}",
-                        user.username
+                        user.username.as_deref().unwrap_or(&user.id)
                     );
 
                     // Create OAuth session for token exchange
                     let oauth_session_id = Uuid::new_v4().to_string();
                     let oauth_session = OAuthSession {
-                        gitlab_token: access_token,
+                        oidc_token: access_token,
                         user: user.clone(),
                         expires_at: SystemTime::now() + Duration::from_secs(300), // 5 minutes
                     };
@@ -551,18 +556,22 @@ pub async fn handle_oauth_callback(
                     }
 
                     // Redirect to frontend with session ID
-                    let frontend_url = if let Some(frontend_callback) = &session.frontend_callback_url {
-                        format!("{}?session_id={}", frontend_callback, oauth_session_id)
-                    } else {
-                        // Fallback to frontend OAuth callback page if no frontend callback specified
-                        format!("http://localhost:21342/oauth/callback?session_id={}", oauth_session_id)
-                    };
+                    let frontend_url =
+                        if let Some(frontend_callback) = &session.frontend_callback_url {
+                            format!("{}?session_id={}", frontend_callback, oauth_session_id)
+                        } else {
+                            // Fallback to frontend OAuth callback page if no frontend callback specified
+                            format!(
+                                "http://localhost:21342/oauth/callback?session_id={}",
+                                oauth_session_id
+                            )
+                        };
 
                     debug!("Redirecting to frontend: {}", frontend_url);
                     Redirect::temporary(&frontend_url).into_response()
                 }
                 Err(e) => {
-                    error!("Failed to validate GitLab token: {}", e);
+                    error!("Failed to validate OIDC token: {}", e);
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse {
@@ -604,7 +613,8 @@ pub async fn handle_oauth_callback(
 pub async fn exchange_session_for_token(
     State(app_state): State<SharedAppState>,
     axum::extract::Json(request): axum::extract::Json<SessionExchangeRequest>,
-) -> Result<axum::response::Json<TokenResponse>, (StatusCode, axum::response::Json<ErrorResponse>)> {
+) -> Result<axum::response::Json<TokenResponse>, (StatusCode, axum::response::Json<ErrorResponse>)>
+{
     debug!("Exchanging session for token: {}", request.session_id);
 
     let oauth_state = match &app_state.oauth_state {
@@ -652,18 +662,37 @@ pub async fn exchange_session_for_token(
         }
     };
 
+    // Create meaningful fallback values based on available OIDC data
+    let display_name = session
+        .user
+        .name
+        .clone()
+        .or_else(|| session.user.username.clone())
+        .unwrap_or_else(|| format!("User {}", &session.user.id[..8.min(session.user.id.len())]));
+
+    let display_email = session.user.email.clone().unwrap_or_else(|| {
+        format!(
+            "{}@oidc-provider.local",
+            session.user.username.as_deref().unwrap_or("user")
+        )
+    });
+
     debug!(
         "Session exchange successful for user: {} <{}>",
-        session.user.name, session.user.email
+        display_name, display_email
     );
 
-    // For now, return the GitLab token directly
+    // For now, return the OIDC token directly
     // TODO: Generate a Scotty JWT token instead
     Ok(axum::response::Json(TokenResponse {
-        access_token: session.gitlab_token,
+        access_token: session.oidc_token,
         token_type: "Bearer".to_string(),
-        user_id: session.user.username.clone(),
-        user_name: session.user.name,
-        user_email: session.user.email,
+        user_id: session
+            .user
+            .username
+            .clone()
+            .unwrap_or(session.user.id.clone()),
+        user_name: display_name,
+        user_email: display_email,
     }))
 }

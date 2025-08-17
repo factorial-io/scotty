@@ -238,7 +238,7 @@ mod tests {
             Some("test_client_secret".to_string())
         );
         assert_eq!(
-            oauth_config.gitlab_url,
+            oauth_config.oidc_issuer_url,
             Some("https://source.factorial.io".to_string())
         );
         assert!(oauth_config.device_flow_enabled);
@@ -250,7 +250,7 @@ mod tests {
         env::set_var("SCOTTY__API__OAUTH__CLIENT_ID", "env_client_id");
         env::set_var("SCOTTY__API__OAUTH__CLIENT_SECRET", "env_client_secret");
         env::set_var(
-            "SCOTTY__API__OAUTH__GITLAB_URL",
+            "SCOTTY__API__OAUTH__OIDC_ISSUER_URL",
             "https://gitlab.env.example.com",
         );
         env::set_var("SCOTTY__API__OAUTH__DEVICE_FLOW_ENABLED", "false");
@@ -271,7 +271,7 @@ mod tests {
             Some("env_client_secret".to_string())
         );
         assert_eq!(
-            oauth_config.gitlab_url,
+            oauth_config.oidc_issuer_url,
             Some("https://gitlab.env.example.com".to_string())
         );
         assert!(!oauth_config.device_flow_enabled);
@@ -279,7 +279,7 @@ mod tests {
         // Clean up environment variables
         env::remove_var("SCOTTY__API__OAUTH__CLIENT_ID");
         env::remove_var("SCOTTY__API__OAUTH__CLIENT_SECRET");
-        env::remove_var("SCOTTY__API__OAUTH__GITLAB_URL");
+        env::remove_var("SCOTTY__API__OAUTH__OIDC_ISSUER_URL");
         env::remove_var("SCOTTY__API__OAUTH__DEVICE_FLOW_ENABLED");
     }
 }

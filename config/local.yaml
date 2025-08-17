@@ -3,7 +3,7 @@ api:
     access_token: hello-world
     auth_mode: oauth
     oauth:
-        gitlab_url: "https://source.factorial.io"
+        oidc_issuer_url: "https://source.factorial.io"
         client_id: "your_client_id"
         client_secret: "your_gitlab_client_secret" # override with SCOTTY__API__OAUTH__CLIENT_SECRET
         redirect_url: "http://localhost:21342/api/oauth/callback"

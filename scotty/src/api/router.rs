@@ -46,10 +46,12 @@ use crate::api::handlers::info::{OAuthConfig, ServerInfo};
 use crate::api::handlers::login::__path_login_handler;
 use crate::api::handlers::login::__path_validate_token_handler;
 use crate::oauth::handlers::{
-    exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow, start_device_flow,
+    exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow,
+    start_device_flow,
 };
 use crate::oauth::handlers::{
-    AuthorizeQuery, CallbackQuery, DeviceFlowResponse, ErrorResponse, SessionExchangeRequest, TokenResponse,
+    AuthorizeQuery, CallbackQuery, DeviceFlowResponse, ErrorResponse, SessionExchangeRequest,
+    TokenResponse,
 };
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;

@@ -62,7 +62,7 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
                 .settings
                 .api
                 .oauth
-                .gitlab_url
+                .oidc_issuer_url
                 .clone()
                 .or_else(|| Some("https://gitlab.com".to_string())),
             client_id: state.settings.api.oauth.client_id.clone(),

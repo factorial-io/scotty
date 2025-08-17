@@ -7,7 +7,9 @@ use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
 use crate::oauth::handlers::OAuthState;
-use crate::oauth::{self, create_device_flow_store, create_oauth_session_store, create_web_flow_store};
+use crate::oauth::{
+    self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
+};
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;

@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import type { TokenResponse, OAuthErrorResponse } from '../../../types';
+	import { authStore } from '../../../stores/userStore';
 
 	let loading = true;
 	let error: string | null = null;
@@ -53,16 +54,21 @@
 
 			const tokenData: TokenResponse = await response.json();
 			
-			// Store token and user info
-			localStorage.setItem('oauth_token', tokenData.access_token);
-			localStorage.setItem('user_info', JSON.stringify({
+			const userInfo = {
 				id: tokenData.user_id,
 				name: tokenData.user_name,
 				email: tokenData.user_email
-			}));
+			};
+
+			// Store token and user info in localStorage
+			localStorage.setItem('oauth_token', tokenData.access_token);
+			localStorage.setItem('user_info', JSON.stringify(userInfo));
 
 			// Clear any old bearer tokens
 			localStorage.removeItem('token');
+
+			// Update the reactive store immediately
+			authStore.setUserInfo(userInfo);
 
 			// Redirect to dashboard
 			await goto('/dashboard');
@@ -90,7 +96,7 @@
 				<span class="loading loading-spinner loading-lg"></span>
 			</div>
 			<p class="text-center">Completing authentication...</p>
-			<p class="text-center text-sm text-gray-500">Please wait while we verify your GitLab credentials</p>
+			<p class="text-center text-sm text-gray-500">Please wait while we verify your credentials</p>
 		</div>
 	</div>
 {:else if error}

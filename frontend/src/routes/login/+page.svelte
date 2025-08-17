@@ -116,7 +116,7 @@
 					{#if message}
 						<p class="text-sm text-gray-600">{message}</p>
 					{:else if authMode === 'oauth'}
-						<p>You'll be redirected to GitLab for authentication</p>
+						<p>You'll be redirected to your OIDC provider for authentication</p>
 					{:else}
 						<p>Please provide the password for this installation</p>
 					{/if}
@@ -136,7 +136,7 @@
 				<div class="card-actions justify-end">
 					<button type="submit" class="btn btn-primary">
 						{#if authMode === 'oauth'}
-							Continue to GitLab
+							Continue with OAuth
 						{:else}
 							Login
 						{/if}

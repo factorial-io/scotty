@@ -137,18 +137,22 @@ async fn authorize_oauth_user_native(
 ) -> Option<CurrentUser> {
     // Extract Bearer token
     let token = auth_header.strip_prefix("Bearer ")?;
-    
+
     debug!("Validating OAuth Bearer token");
 
     // Get OAuth client for token validation
     let oauth_state = shared_app_state.oauth_state.as_ref()?;
-    
-    match oauth_state.client.validate_gitlab_token(token).await {
-        Ok(gitlab_user) => {
-            debug!("OAuth token validated for user: {} <{}>", gitlab_user.name, gitlab_user.email);
+
+    match oauth_state.client.validate_oidc_token(token).await {
+        Ok(oidc_user) => {
+            debug!(
+                "OAuth token validated for user: {} <{}>",
+                oidc_user.name.as_deref().unwrap_or("Unknown"),
+                oidc_user.email.as_deref().unwrap_or("unknown@example.com")
+            );
             Some(CurrentUser {
-                email: gitlab_user.email,
-                name: gitlab_user.name,
+                email: oidc_user.email.unwrap_or("unknown@example.com".to_string()),
+                name: oidc_user.name.unwrap_or("Unknown".to_string()),
                 access_token: Some(token.to_string()),
             })
         }

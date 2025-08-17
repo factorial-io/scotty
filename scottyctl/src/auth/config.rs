@@ -16,7 +16,7 @@ pub struct OAuthConfigResponse {
     pub provider: String,
     pub redirect_url: String,
     pub oauth2_proxy_base_url: Option<String>,
-    pub gitlab_url: Option<String>,
+    pub oidc_issuer_url: Option<String>,
     pub client_id: Option<String>,
     pub device_flow_enabled: bool,
 }
@@ -45,8 +45,8 @@ pub fn server_info_to_oauth_config(server_info: ServerInfo) -> Result<OAuthConfi
             let oauth2_proxy_base_url = oauth_config
                 .oauth2_proxy_base_url
                 .ok_or(AuthError::InvalidResponse)?;
-            let gitlab_url = oauth_config
-                .gitlab_url
+            let oidc_issuer_url = oauth_config
+                .oidc_issuer_url
                 .unwrap_or_else(|| "https://gitlab.com".to_string());
             let client_id = oauth_config.client_id.ok_or(AuthError::InvalidResponse)?;
 
@@ -54,7 +54,7 @@ pub fn server_info_to_oauth_config(server_info: ServerInfo) -> Result<OAuthConfi
                 enabled: true,
                 provider: oauth_config.provider,
                 oauth2_proxy_base_url,
-                gitlab_url,
+                oidc_issuer_url,
                 client_id,
                 device_flow_enabled: oauth_config.device_flow_enabled,
             })
