@@ -6,7 +6,6 @@
 	let password = '';
 	let loading = true;
 	let authMode = 'bearer';
-	let oauthRedirectUrl = '/oauth2/start';
 	let message = '';
 
 	onMount(async () => {
@@ -39,7 +38,6 @@
 			if (response.ok) {
 				const result = await response.json();
 				authMode = result.auth_mode || 'bearer';
-				oauthRedirectUrl = result.redirect_url || '/oauth2/start';
 				message = result.message || '';
 
 				// Handle dev mode only - OAuth and bearer require explicit login

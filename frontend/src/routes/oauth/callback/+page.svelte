@@ -15,11 +15,12 @@
 	async function handleOAuthCallback() {
 		try {
 			const urlParams = $page.url.searchParams;
-			
+
 			// Check for OAuth error
 			const oauthError = urlParams.get('error');
 			if (oauthError) {
-				const errorDescription = urlParams.get('error_description') || 'Unknown OAuth error';
+				const errorDescription =
+					urlParams.get('error_description') || 'Unknown OAuth error';
 				error = `OAuth Error: ${oauthError} - ${errorDescription}`;
 				loading = false;
 				return;
@@ -38,7 +39,7 @@
 			const response = await fetch('/oauth/exchange', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json',
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					session_id: sessionId
@@ -53,7 +54,7 @@
 			}
 
 			const tokenData: TokenResponse = await response.json();
-			
+
 			const userInfo = {
 				id: tokenData.user_id,
 				name: tokenData.user_name,
@@ -72,7 +73,6 @@
 
 			// Redirect to dashboard
 			await goto('/dashboard');
-			
 		} catch (err) {
 			console.error('OAuth callback error:', err);
 			error = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -96,7 +96,9 @@
 				<span class="loading loading-spinner loading-lg"></span>
 			</div>
 			<p class="text-center">Completing authentication...</p>
-			<p class="text-center text-sm text-gray-500">Please wait while we verify your credentials</p>
+			<p class="text-center text-sm text-gray-500">
+				Please wait while we verify your credentials
+			</p>
 		</div>
 	</div>
 {:else if error}
@@ -105,9 +107,7 @@
 			<h2 class="card-title text-error">Authentication Failed</h2>
 			<p class="text-sm">{error}</p>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary" on:click={handleRetry}>
-					Try Again
-				</button>
+				<button class="btn btn-primary" on:click={handleRetry}> Try Again </button>
 			</div>
 		</div>
 	</div>

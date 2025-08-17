@@ -68,11 +68,11 @@ function createAuthStore() {
 		},
 		// Set user info after successful OAuth login
 		setUserInfo: (userInfo: UserInfo) => {
-			update(state => ({ ...state, userInfo, isLoggedIn: true }));
+			update((state) => ({ ...state, userInfo, isLoggedIn: true }));
 		},
 		// Clear user info on logout
 		logout: () => {
-			update(state => ({ ...state, userInfo: null, isLoggedIn: false }));
+			update((state) => ({ ...state, userInfo: null, isLoggedIn: false }));
 		}
 	};
 }
@@ -80,10 +80,10 @@ function createAuthStore() {
 export const authStore = createAuthStore();
 
 // Derived store for easy access to just user info
-export const userInfo = derived(authStore, $authStore => $authStore.userInfo);
+export const userInfo = derived(authStore, ($authStore) => $authStore.userInfo);
 
 // Derived store for auth mode
-export const authMode = derived(authStore, $authStore => $authStore.authMode);
+export const authMode = derived(authStore, ($authStore) => $authStore.authMode);
 
 // Derived store for login status
-export const isLoggedIn = derived(authStore, $authStore => $authStore.isLoggedIn);
+export const isLoggedIn = derived(authStore, ($authStore) => $authStore.isLoggedIn);

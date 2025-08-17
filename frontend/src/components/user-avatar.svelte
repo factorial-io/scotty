@@ -6,7 +6,6 @@
 	export let size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md';
 	export let shape: 'circle' | 'square' = 'circle';
 
-	let imageLoaded = false;
 	let imageError = false;
 
 	$: sizeClass = {
@@ -28,18 +27,20 @@
 	}
 
 	function handleImageLoad() {
-		imageLoaded = true;
 		imageError = false;
 	}
 
 	function handleImageError() {
 		imageError = true;
-		imageLoaded = false;
 	}
 </script>
 
 <div class="avatar">
-	<div class="{sizeClass} {shapeClass} {imageError ? 'bg-primary text-primary-content' : 'bg-gray-200'} flex items-center justify-center overflow-hidden">
+	<div
+		class="{sizeClass} {shapeClass} {imageError
+			? 'bg-primary text-primary-content'
+			: 'bg-gray-200'} flex items-center justify-center overflow-hidden"
+	>
 		{#if !imageError}
 			<img
 				src={gravatarUrl}
@@ -49,7 +50,7 @@
 				on:error={handleImageError}
 			/>
 		{/if}
-		
+
 		{#if imageError || !gravatarUrl}
 			<span class="text-sm font-medium">
 				{initials}

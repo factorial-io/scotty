@@ -113,7 +113,11 @@ export async function validateToken(token: string) {
 		credentials: 'include'
 	});
 
-	if (!response.ok && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
+	if (
+		!response.ok &&
+		window.location.pathname !== '/login' &&
+		!window.location.pathname.startsWith('/oauth/')
+	) {
 		const mode = await getAuthMode();
 		handleUnauthorized(mode);
 	}
@@ -130,18 +134,22 @@ export async function checkIfLoggedIn() {
 	// For OAuth mode, check for stored OAuth token
 	if (mode === 'oauth') {
 		const oauthToken = localStorage.getItem('oauth_token');
-		if (!oauthToken && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
+		if (
+			!oauthToken &&
+			window.location.pathname !== '/login' &&
+			!window.location.pathname.startsWith('/oauth/')
+		) {
 			window.location.href = '/login';
 			return;
 		}
-		
+
 		if (oauthToken) {
 			// Validate OAuth token
 			try {
 				await fetch('/api/v1/authenticated/validate-token', {
 					method: 'POST',
 					headers: {
-						'Authorization': `Bearer ${oauthToken}`
+						Authorization: `Bearer ${oauthToken}`
 					},
 					credentials: 'include'
 				});
@@ -150,7 +158,10 @@ export async function checkIfLoggedIn() {
 				console.warn('OAuth token validation failed:', error);
 				localStorage.removeItem('oauth_token');
 				localStorage.removeItem('user_info');
-				if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/oauth/')) {
+				if (
+					window.location.pathname !== '/login' &&
+					!window.location.pathname.startsWith('/oauth/')
+				) {
 					window.location.href = '/login';
 				}
 			}

@@ -23,7 +23,7 @@
 
 		// Initialize the auth store first
 		await authStore.init();
-		
+
 		checkIfLoggedIn();
 		site_info = (await publicApiCall('info')) as SiteInfo;
 	});

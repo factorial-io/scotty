@@ -8,8 +8,8 @@ import CryptoJS from 'crypto-js';
  * @returns The Gravatar URL
  */
 export function getGravatarUrl(
-	email: string, 
-	size: number = 80, 
+	email: string,
+	size: number = 80,
 	defaultImage: string = 'identicon'
 ): string {
 	if (!email) {
@@ -18,10 +18,10 @@ export function getGravatarUrl(
 
 	// Normalize email: trim whitespace and convert to lowercase
 	const normalizedEmail = email.trim().toLowerCase();
-	
+
 	// Create MD5 hash of the email (required by Gravatar)
 	const hash = CryptoJS.MD5(normalizedEmail).toString();
-	
+
 	// Build Gravatar URL
 	return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=${defaultImage}`;
 }
@@ -43,12 +43,12 @@ export function getUserInitials(name?: string, email?: string): string {
 			return parts[0].charAt(0).toUpperCase();
 		}
 	}
-	
+
 	if (email && email.trim()) {
 		// First letter of email username
 		const username = email.split('@')[0];
 		return username.charAt(0).toUpperCase();
 	}
-	
+
 	return 'U'; // Ultimate fallback
 }
