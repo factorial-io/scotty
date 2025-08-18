@@ -164,7 +164,7 @@ async fn authorize_oauth_user_native(
     }
 }
 
-async fn authorize_bearer_user(
+pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
     auth_token: &str,
 ) -> Option<CurrentUser> {

@@ -9,3 +9,9 @@ pub mod ws;
 
 #[cfg(test)]
 mod secure_response_test;
+
+#[cfg(test)]
+mod bearer_auth_tests;
+
+#[cfg(test)]
+mod oauth_flow_tests;
