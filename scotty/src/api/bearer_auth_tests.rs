@@ -380,15 +380,12 @@ async fn test_oauth_flow_components_integration() {
     match oauth_result {
         Ok(Some(_client)) => {
             // OAuth client created successfully with test config
-            assert!(true, "OAuth client created with test configuration");
         }
         Ok(None) => {
             // OAuth not configured (missing client_id/secret)
-            assert!(true, "OAuth client not configured as expected");
         }
         Err(_e) => {
             // OAuth client creation failed (invalid URL, etc.) - also OK for test
-            assert!(true, "OAuth client creation handled error case");
         }
     }
 

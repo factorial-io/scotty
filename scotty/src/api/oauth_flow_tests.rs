@@ -665,7 +665,6 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
 
     // If we get here, the OAuth state wasn't available or session management failed
     // This is still a valid test - it demonstrates the approach works when OAuth is properly configured
-    assert!(true, "OAuth web flow with AppState session management validated (OAuth state may not be fully configured in test)");
 }
 
 #[tokio::test]
