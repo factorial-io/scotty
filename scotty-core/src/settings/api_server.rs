@@ -1,6 +1,7 @@
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default, ToSchema)]
 pub enum AuthMode {
     #[serde(rename = "dev")]
     Development,

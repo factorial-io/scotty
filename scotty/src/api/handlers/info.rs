@@ -1,28 +1,8 @@
 use axum::{debug_handler, extract::State, response::IntoResponse, Json};
-use serde::Serialize;
-use utoipa::ToSchema;
 
 use crate::app_state::SharedAppState;
+use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
-
-#[derive(Serialize, ToSchema)]
-pub struct OAuthConfig {
-    pub enabled: bool,
-    pub provider: String,
-    pub redirect_url: String,
-    pub oauth2_proxy_base_url: Option<String>,
-    pub oidc_issuer_url: Option<String>,
-    pub client_id: Option<String>,
-    pub device_flow_enabled: bool,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct ServerInfo {
-    pub domain: String,
-    pub version: String,
-    pub auth_mode: String,
-    pub oauth_config: Option<OAuthConfig>,
-}
 
 #[utoipa::path(
     get,
@@ -68,11 +48,7 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
     let response = ServerInfo {
         domain: state.settings.apps.domain_suffix.clone(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        auth_mode: match state.settings.api.auth_mode {
-            AuthMode::Development => "dev".to_string(),
-            AuthMode::OAuth => "oauth".to_string(),
-            AuthMode::Bearer => "bearer".to_string(),
-        },
+        auth_mode: state.settings.api.auth_mode.clone(),
         oauth_config,
     };
 

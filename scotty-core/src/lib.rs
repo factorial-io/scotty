@@ -1,3 +1,4 @@
+pub mod api;
 pub mod apps;
 pub mod notification_types;
 pub mod settings;
