@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use thiserror::Error;
 use utoipa::ToSchema;
 
 /// Device flow response from OAuth provider
@@ -30,75 +30,140 @@ pub struct TokenResponse {
     pub expires_in: Option<u64>,
 }
 
-/// Standard OAuth2 error codes as defined in RFC 6749
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum OAuthErrorCode {
+/// OAuth error types combining internal errors and RFC 6749 standard codes
+#[derive(Debug, Clone, Error, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "error", content = "error_description")]
+pub enum OAuthError {
     /// OAuth is not configured for this server
+    #[error("OAuth not configured")]
+    #[serde(rename = "oauth_not_configured")]
     OauthNotConfigured,
+
     /// Authorization request is pending user approval
+    #[error("Authorization pending")]
+    #[serde(rename = "authorization_pending")]
     AuthorizationPending,
-    /// User denied the authorization request  
+
+    /// User denied the authorization request
+    #[error("Access denied")]
+    #[serde(rename = "access_denied")]
     AccessDenied,
+
     /// Internal server error occurred
-    ServerError,
+    #[error("Server error: {0}")]
+    #[serde(rename = "server_error")]
+    ServerError(String),
+
     /// Invalid request parameters
-    InvalidRequest,
-    /// Device code has expired
+    #[error("Invalid request: {0}")]
+    #[serde(rename = "invalid_request")]
+    InvalidRequest(String),
+
+    /// Token or device code has expired
+    #[error("Token expired")]
+    #[serde(rename = "expired_token")]
     ExpiredToken,
-    /// Invalid session or session not found
-    InvalidSession,
+
     /// Session has expired
+    #[error("Session expired")]
+    #[serde(rename = "expired_session")]
     ExpiredSession,
+
     /// Session not found
+    #[error("Session not found")]
+    #[serde(rename = "session_not_found")]
     SessionNotFound,
+
+    /// Client is polling too frequently
+    #[error("Slow down")]
+    #[serde(rename = "slow_down")]
+    SlowDown,
+
     /// Invalid state parameter
+    #[error("Invalid state parameter")]
+    #[serde(rename = "invalid_state")]
     InvalidState,
+
+    /// OAuth2 library error
+    #[error("OAuth2 error: {0}")]
+    #[serde(rename = "oauth2_error")]
+    OAuth2(String),
+
+    /// HTTP request error
+    #[error("HTTP error: {0}")]
+    #[serde(rename = "http_error")]
+    Http(String),
+
+    /// Serialization error
+    #[error("Serialization error: {0}")]
+    #[serde(rename = "serialization_error")]
+    Serialization(String),
+
+    /// URL parse error
+    #[error("URL parse error: {0}")]
+    #[serde(rename = "url_error")]
+    UrlParse(String),
 }
 
-impl OAuthErrorCode {
-    /// Get the standard error description for this error code
-    pub fn description(&self) -> &'static str {
+impl OAuthError {
+    /// Get the OAuth2 RFC-compliant error code
+    pub fn code(&self) -> &str {
         match self {
-            OAuthErrorCode::OauthNotConfigured => "OAuth is not configured for this server",
-            OAuthErrorCode::AuthorizationPending => "The authorization request is still pending",
-            OAuthErrorCode::AccessDenied => "The authorization request was denied",
-            OAuthErrorCode::ServerError => "Internal server error occurred",
-            OAuthErrorCode::InvalidRequest => "Invalid request parameters",
-            OAuthErrorCode::ExpiredToken => "The device code has expired",
-            OAuthErrorCode::InvalidSession => "Invalid session or session not found",
-            OAuthErrorCode::ExpiredSession => "OAuth session has expired",
-            OAuthErrorCode::SessionNotFound => "OAuth session not found or already used",
-            OAuthErrorCode::InvalidState => "Invalid state parameter",
+            OAuthError::OauthNotConfigured => "oauth_not_configured",
+            OAuthError::AuthorizationPending => "authorization_pending",
+            OAuthError::AccessDenied => "access_denied",
+            OAuthError::ServerError(_) => "server_error",
+            OAuthError::InvalidRequest(_) => "invalid_request",
+            OAuthError::ExpiredToken => "expired_token",
+            OAuthError::ExpiredSession => "expired_session",
+            OAuthError::SessionNotFound => "session_not_found",
+            OAuthError::SlowDown => "slow_down",
+            OAuthError::InvalidState => "invalid_state",
+            OAuthError::OAuth2(_) => "server_error",
+            OAuthError::Http(_) => "server_error",
+            OAuthError::Serialization(_) => "server_error",
+            OAuthError::UrlParse(_) => "invalid_request",
         }
     }
+}
 
-    /// Get the OAuth2 error code as a string
-    pub fn code(&self) -> &'static str {
-        match self {
-            OAuthErrorCode::OauthNotConfigured => "oauth_not_configured",
-            OAuthErrorCode::AuthorizationPending => "authorization_pending",
-            OAuthErrorCode::AccessDenied => "access_denied",
-            OAuthErrorCode::ServerError => "server_error",
-            OAuthErrorCode::InvalidRequest => "invalid_request",
-            OAuthErrorCode::ExpiredToken => "expired_token",
-            OAuthErrorCode::InvalidSession => "invalid_session",
-            OAuthErrorCode::ExpiredSession => "expired_session",
-            OAuthErrorCode::SessionNotFound => "session_not_found",
-            OAuthErrorCode::InvalidState => "invalid_state",
+impl From<OAuthError> for axum::http::StatusCode {
+    fn from(error: OAuthError) -> Self {
+        match error {
+            OAuthError::OauthNotConfigured => axum::http::StatusCode::NOT_FOUND,
+            OAuthError::AuthorizationPending => axum::http::StatusCode::BAD_REQUEST,
+            OAuthError::AccessDenied => axum::http::StatusCode::FORBIDDEN,
+            OAuthError::ServerError(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            OAuthError::InvalidRequest(_) => axum::http::StatusCode::BAD_REQUEST,
+            OAuthError::ExpiredToken => axum::http::StatusCode::UNAUTHORIZED,
+            OAuthError::ExpiredSession => axum::http::StatusCode::UNAUTHORIZED,
+            OAuthError::SessionNotFound => axum::http::StatusCode::NOT_FOUND,
+            OAuthError::SlowDown => axum::http::StatusCode::TOO_MANY_REQUESTS,
+            OAuthError::InvalidState => axum::http::StatusCode::BAD_REQUEST,
+            OAuthError::OAuth2(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            OAuthError::Http(_) => axum::http::StatusCode::BAD_GATEWAY,
+            OAuthError::Serialization(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            OAuthError::UrlParse(_) => axum::http::StatusCode::BAD_REQUEST,
         }
     }
 }
 
-impl fmt::Display for OAuthErrorCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.code())
+// Conversions from common error types
+impl From<reqwest::Error> for OAuthError {
+    fn from(err: reqwest::Error) -> Self {
+        OAuthError::Http(err.to_string())
     }
 }
 
-impl From<OAuthErrorCode> for String {
-    fn from(error_code: OAuthErrorCode) -> Self {
-        error_code.to_string()
+impl From<serde_json::Error> for OAuthError {
+    fn from(err: serde_json::Error) -> Self {
+        OAuthError::Serialization(err.to_string())
+    }
+}
+
+impl From<url::ParseError> for OAuthError {
+    fn from(err: url::ParseError) -> Self {
+        OAuthError::UrlParse(err.to_string())
     }
 }
 
@@ -122,19 +187,25 @@ impl DeviceFlowResponse {
     }
 }
 
-impl ErrorResponse {
-    /// Create an error response with standard error code and description
-    pub fn new(error_code: OAuthErrorCode) -> Self {
+impl From<OAuthError> for ErrorResponse {
+    fn from(error: OAuthError) -> Self {
         Self {
-            error: error_code.code().to_string(),
-            error_description: Some(error_code.description().to_string()),
+            error: error.code().to_string(),
+            error_description: Some(error.to_string()),
         }
     }
+}
 
-    /// Create an error response with custom description (overrides standard description)
-    pub fn with_description(error_code: OAuthErrorCode, description: impl Into<String>) -> Self {
+impl ErrorResponse {
+    /// Create an error response from OAuthError (convenience method)
+    pub fn from(error: OAuthError) -> Self {
+        error.into()
+    }
+
+    /// Create an error response with custom description
+    pub fn with_description(error: OAuthError, description: impl Into<String>) -> Self {
         Self {
-            error: error_code.code().to_string(),
+            error: error.code().to_string(),
             error_description: Some(description.into()),
         }
     }

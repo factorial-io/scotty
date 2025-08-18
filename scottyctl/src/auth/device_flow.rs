@@ -1,5 +1,5 @@
 use super::{AuthError, OAuthConfig, StoredToken};
-use scotty_core::auth::{DeviceFlowResponse, ErrorResponse, OAuthErrorCode, TokenResponse};
+use scotty_core::auth::{DeviceFlowResponse, ErrorResponse, TokenResponse};
 use scotty_core::http::HttpClient;
 use std::time::{Duration, SystemTime};
 use tokio::time::sleep;
@@ -64,7 +64,8 @@ impl DeviceFlowClient {
                     });
                 }
                 Err(AuthError::AuthorizationPending) => {
-                    // Continue polling
+                    // Continue polling - check if this was a slow_down by looking at the detailed error
+                    // If the server returned slow_down, the interval should be increased
                     sleep(poll_interval).await;
                     continue;
                 }
@@ -90,28 +91,67 @@ impl DeviceFlowClient {
                 // If it fails, try to get detailed error information
                 match self.client.post(&token_url, &serde_json::json!({})).await {
                     Ok(response) => {
-                        match response.status().as_u16() {
-                            400 => {
-                                // Parse the error response to check for authorization pending
+                        let status = response.status().as_u16();
+                        match status {
+                            400 | 401 | 403 | 404 | 429 => {
+                                // Parse the error response for OAuth errors
                                 match response.json::<ErrorResponse>().await {
-                                    Ok(error)
-                                        if error.error
-                                            == OAuthErrorCode::AuthorizationPending.code() =>
-                                    {
-                                        Err(AuthError::AuthorizationPending)
-                                    }
                                     Ok(error) => {
-                                        tracing::error!(
-                                            "Token request error: {} - {}",
+                                        tracing::debug!(
+                                            "OAuth error response: {} - {}",
                                             error.error,
-                                            error.error_description.unwrap_or_default()
+                                            error
+                                                .error_description
+                                                .as_deref()
+                                                .unwrap_or("No description")
+                                        );
+
+                                        // Handle specific OAuth errors
+                                        match error.error.as_str() {
+                                            "authorization_pending" => {
+                                                Err(AuthError::AuthorizationPending)
+                                            }
+                                            "slow_down" => {
+                                                tracing::debug!("Server requested slow down");
+                                                Err(AuthError::AuthorizationPending)
+                                                // Treat as continue polling
+                                            }
+                                            "access_denied" => {
+                                                tracing::error!("User denied authorization");
+                                                Err(AuthError::ServerError)
+                                            }
+                                            "session_not_found" => {
+                                                tracing::error!("Device flow session not found");
+                                                Err(AuthError::ServerError)
+                                            }
+                                            "expired_token" | "expired_session" => {
+                                                tracing::error!("Device flow session expired");
+                                                Err(AuthError::Timeout)
+                                            }
+                                            _ => {
+                                                tracing::error!(
+                                                    "Token request error: {} - {}",
+                                                    error.error,
+                                                    error.error_description.unwrap_or_default()
+                                                );
+                                                Err(AuthError::ServerError)
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!(
+                                            "Failed to parse error response (status {}): {}",
+                                            status,
+                                            e
                                         );
                                         Err(AuthError::ServerError)
                                     }
-                                    Err(_) => Err(AuthError::ServerError),
                                 }
                             }
-                            _ => Err(AuthError::ServerError),
+                            _ => {
+                                tracing::error!("Unexpected HTTP status: {}", status);
+                                Err(AuthError::ServerError)
+                            }
                         }
                     }
                     Err(_) => Err(AuthError::ServerError),

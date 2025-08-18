@@ -2,6 +2,7 @@ pub mod config;
 pub mod device_flow;
 pub mod storage;
 
+use scotty_core::auth::OAuthError;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
@@ -66,4 +67,25 @@ pub enum AuthError {
     NoAuthMethodAvailable,
     #[error("Invalid server response")]
     InvalidResponse,
+}
+
+impl From<OAuthError> for AuthError {
+    fn from(error: OAuthError) -> Self {
+        match error {
+            OAuthError::OauthNotConfigured => AuthError::OAuthNotConfigured,
+            OAuthError::AuthorizationPending => AuthError::AuthorizationPending,
+            OAuthError::AccessDenied => AuthError::ServerError,
+            OAuthError::ServerError(_) => AuthError::ServerError,
+            OAuthError::InvalidRequest(_) => AuthError::InvalidResponse,
+            OAuthError::ExpiredToken => AuthError::Timeout,
+            OAuthError::ExpiredSession => AuthError::TokenValidationFailed,
+            OAuthError::SessionNotFound => AuthError::TokenValidationFailed,
+            OAuthError::SlowDown => AuthError::AuthorizationPending, // Treat as continue polling
+            OAuthError::InvalidState => AuthError::InvalidResponse,
+            OAuthError::OAuth2(_) => AuthError::ServerError,
+            OAuthError::Http(_) => AuthError::ServerError,
+            OAuthError::Serialization(_) => AuthError::InvalidResponse,
+            OAuthError::UrlParse(_) => AuthError::InvalidResponse,
+        }
+    }
 }

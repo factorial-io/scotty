@@ -103,7 +103,8 @@ impl OAuthClient {
         // Store PKCE verifier for later use - in a real implementation you'd store this securely
         // For now, we'll include it in the state parameter (not recommended for production)
 
-        let redirect_url = RedirectUrl::new(redirect_url).map_err(OAuthError::Url)?;
+        let redirect_url =
+            RedirectUrl::new(redirect_url).map_err(|e| OAuthError::UrlParse(e.to_string()))?;
 
         let client = self.client.clone().set_redirect_uri(redirect_url);
 
@@ -127,7 +128,8 @@ impl OAuthClient {
         redirect_url: String,
         pkce_verifier: PkceCodeVerifier,
     ) -> Result<String, OAuthError> {
-        let redirect_url = RedirectUrl::new(redirect_url).map_err(OAuthError::Url)?;
+        let redirect_url =
+            RedirectUrl::new(redirect_url).map_err(|e| OAuthError::UrlParse(e.to_string()))?;
 
         let client = self.client.clone().set_redirect_uri(redirect_url);
 
@@ -157,22 +159,5 @@ pub fn create_oauth_session_store() -> OAuthSessionStore {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum OAuthError {
-    #[error("OAuth2 error: {0}")]
-    OAuth2(String),
-    #[error("HTTP error: {0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("Serialization error: {0}")]
-    Serde(#[from] serde_json::Error),
-    #[error("URL parse error: {0}")]
-    Url(#[from] url::ParseError),
-    #[error("Device flow session not found")]
-    SessionNotFound,
-    #[error("Device flow session expired")]
-    SessionExpired,
-    #[error("Authorization pending")]
-    AuthorizationPending,
-    #[error("Device flow denied")]
-    AccessDenied,
-}
+// Use OAuthError from scotty-core
+pub use scotty_core::auth::OAuthError;

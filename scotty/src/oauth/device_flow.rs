@@ -78,7 +78,7 @@ impl OAuthClient {
         // Check if session is expired
         if SystemTime::now() > session.expires_at {
             error!("Device flow session expired");
-            return Err(OAuthError::SessionExpired);
+            return Err(OAuthError::ExpiredSession);
         }
 
         // Check if already completed
@@ -153,8 +153,8 @@ impl OAuthClient {
 
         if status.is_success() {
             // Parse the token response
-            let token_response: serde_json::Value =
-                serde_json::from_str(&response_text).map_err(OAuthError::Serde)?;
+            let token_response: serde_json::Value = serde_json::from_str(&response_text)
+                .map_err(|e| OAuthError::Serialization(e.to_string()))?;
 
             if let Some(access_token) = token_response.get("access_token").and_then(|v| v.as_str())
             {
@@ -181,7 +181,11 @@ impl OAuthClient {
                         }
                         "expired_token" => {
                             error!("Device code has expired");
-                            Err(OAuthError::SessionExpired)
+                            Err(OAuthError::ExpiredSession)
+                        }
+                        "slow_down" => {
+                            debug!("Polling too fast, slow down");
+                            Err(OAuthError::SlowDown)
                         }
                         _ => {
                             error!("OAuth error: {}", error_code);
@@ -227,10 +231,13 @@ impl OAuthClient {
             .await?;
 
         if !response.status().is_success() {
-            error!("OIDC token validation failed: {}", response.status());
-            return Err(OAuthError::Reqwest(
-                response.error_for_status().unwrap_err(),
-            ));
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            error!("OIDC token validation failed: {} - {}", status, error_text);
+            return Err(OAuthError::Http(format!(
+                "OIDC token validation failed: {} - {}",
+                status, error_text
+            )));
         }
 
         let user: OidcUser = response.json().await?;

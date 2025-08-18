@@ -27,7 +27,7 @@ pub fn create_oauth_client(
         }
         Err(e) => {
             tracing::error!("Failed to create OAuth client: {}", e);
-            Err(OAuthError::Url(url::ParseError::EmptyHost)) // Convert to our error type
+            Err(OAuthError::UrlParse("Empty host".to_string())) // Convert to our error type
         }
     }
 }
