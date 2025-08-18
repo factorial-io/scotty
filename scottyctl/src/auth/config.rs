@@ -1,41 +1,20 @@
 use super::{AuthError, OAuthConfig};
 use crate::context::ServerSettings;
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-pub struct ServerInfo {
-    #[allow(dead_code)]
-    pub domain: String,
-    #[allow(dead_code)]
-    pub version: String,
-    #[allow(dead_code)]
-    pub auth_mode: String,
-    pub oauth_config: Option<OAuthConfigResponse>,
-}
-
-#[derive(Deserialize)]
-pub struct OAuthConfigResponse {
-    pub enabled: bool,
-    pub provider: String,
-    #[allow(dead_code)]
-    pub redirect_url: String,
-    pub oauth2_proxy_base_url: Option<String>,
-    pub oidc_issuer_url: Option<String>,
-    pub client_id: Option<String>,
-    pub device_flow_enabled: bool,
-}
+use scotty_core::api::ServerInfo;
+use scotty_core::http::HttpClient;
+use std::time::Duration;
 
 pub async fn get_server_info(server: &ServerSettings) -> Result<ServerInfo, AuthError> {
     let url = format!("{}/api/v1/info", server.server);
 
-    let client = reqwest::Client::new();
-    let response = client.get(&url).send().await?;
+    let client =
+        HttpClient::with_timeout(Duration::from_secs(10)).map_err(|_| AuthError::ServerError)?;
 
-    if !response.status().is_success() {
-        return Err(AuthError::ServerError);
-    }
+    let server_info = client
+        .get_json::<ServerInfo>(&url)
+        .await
+        .map_err(|_| AuthError::ServerError)?;
 
-    let server_info: ServerInfo = response.json().await?;
     Ok(server_info)
 }
 

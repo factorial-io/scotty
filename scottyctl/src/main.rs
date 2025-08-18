@@ -43,11 +43,11 @@ async fn main() -> anyhow::Result<()> {
     );
 
     if needs_preflight {
-        let preflight = PreflightChecker::new(
-            app_context.server().clone(),
-            app_context.ui().clone(),
-        );
-        preflight.check_compatibility(cli.bypass_version_check).await?;
+        let preflight =
+            PreflightChecker::new(app_context.server().clone(), app_context.ui().clone());
+        preflight
+            .check_compatibility(cli.bypass_version_check)
+            .await?;
     }
 
     // Execute the appropriate command with our app context

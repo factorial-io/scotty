@@ -1,4 +1,5 @@
 use super::{DeviceFlowSession, DeviceFlowStore, OAuthClient, OAuthError};
+use base64::{engine::general_purpose, Engine as _};
 use oauth2::Scope;
 use std::time::SystemTime;
 use tracing::{debug, error, info};
@@ -126,10 +127,19 @@ impl OAuthClient {
             ("device_code", device_code),
         ];
 
-        let response = reqwest::Client::new()
+        // Use the shared HTTP client - need to construct this manually since the shared client
+        // doesn't support form data with basic auth directly
+        let auth_header = format!(
+            "Basic {}",
+            general_purpose::STANDARD.encode(format!("{}:{}", self.client_id, self.client_secret))
+        );
+
+        let response = self
+            .http_client
+            .inner()
             .post(&token_url)
             .form(&params)
-            .basic_auth(&self.client_id, Some(&self.client_secret))
+            .header("Authorization", auth_header)
             .send()
             .await?;
 
@@ -208,7 +218,9 @@ impl OAuthClient {
         debug!("Validating OIDC token");
 
         let user_url = format!("{}/oauth/userinfo", self.oidc_issuer_url);
-        let response = reqwest::Client::new()
+        let response = self
+            .http_client
+            .inner()
             .get(&user_url)
             .bearer_auth(access_token)
             .send()

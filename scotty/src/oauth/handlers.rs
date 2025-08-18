@@ -10,7 +10,7 @@ use axum::{
 };
 use base64::{engine::general_purpose, Engine as _};
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeVerifier};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::{Duration, SystemTime};
 use tracing::{debug, error};
 use uuid::Uuid;
@@ -23,34 +23,10 @@ pub struct OAuthState {
     pub session_store: OAuthSessionStore,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct DeviceFlowResponse {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub expires_in: u64,
-    pub interval: u64,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct TokenResponse {
-    pub access_token: String,
-    pub token_type: String,
-    pub user_id: String,
-    pub user_name: String,
-    pub user_email: String,
-}
-
-#[derive(Deserialize, utoipa::IntoParams)]
-pub struct DeviceTokenQuery {
-    pub device_code: String,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct ErrorResponse {
-    pub error: String,
-    pub error_description: String,
-}
+// Re-export the shared OAuth types
+pub use scotty_core::auth::{
+    DeviceFlowResponse, DeviceTokenQuery, ErrorResponse, OAuthErrorCode, TokenResponse,
+};
 
 /// Start OAuth device flow
 #[utoipa::path(
@@ -72,10 +48,7 @@ pub async fn start_device_flow(
         None => {
             return Err((
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "oauth_not_configured".to_string(),
-                    error_description: "OAuth is not configured for this server".to_string(),
-                }),
+                Json(ErrorResponse::new(OAuthErrorCode::OauthNotConfigured)),
             ))
         }
     };
@@ -96,18 +69,19 @@ pub async fn start_device_flow(
                 device_code: session.device_code,
                 user_code: session.user_code,
                 verification_uri: session.verification_uri,
+                verification_uri_complete: None,
                 expires_in,
-                interval: 5, // Poll every 5 seconds
+                interval: Some(5), // Poll every 5 seconds
             }))
         }
         Err(e) => {
             error!("Failed to start device flow: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to start device flow: {}", e),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::ServerError,
+                    format!("Failed to start device flow: {}", e),
+                )),
             ))
         }
     }
@@ -137,10 +111,7 @@ pub async fn poll_device_token(
         None => {
             return Err((
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "oauth_not_configured".to_string(),
-                    error_description: "OAuth is not configured for this server".to_string(),
-                }),
+                Json(ErrorResponse::new(OAuthErrorCode::OauthNotConfigured)),
             ))
         }
     };
@@ -162,56 +133,49 @@ pub async fn poll_device_token(
                         user_id: user.username.clone().unwrap_or(user.id.clone()),
                         user_name: user.name.unwrap_or("Unknown".to_string()),
                         user_email: user.email.unwrap_or("unknown@example.com".to_string()),
+                        refresh_token: None,
+                        expires_in: None,
                     }))
                 }
                 Err(e) => {
                     error!("Failed to validate OIDC token: {}", e);
                     Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ErrorResponse {
-                            error: "server_error".to_string(),
-                            error_description: "Failed to validate token".to_string(),
-                        }),
+                        Json(ErrorResponse::with_description(
+                            OAuthErrorCode::ServerError,
+                            "Failed to validate token",
+                        )),
                     ))
                 }
             }
         }
         Err(OAuthError::AuthorizationPending) => Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "authorization_pending".to_string(),
-                error_description: "The authorization request is still pending".to_string(),
-            }),
+            Json(ErrorResponse::new(OAuthErrorCode::AuthorizationPending)),
         )),
         Err(OAuthError::AccessDenied) => Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "access_denied".to_string(),
-                error_description: "The authorization request was denied".to_string(),
-            }),
+            Json(ErrorResponse::new(OAuthErrorCode::AccessDenied)),
         )),
         Err(OAuthError::SessionNotFound) => Err((
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "invalid_request".to_string(),
-                error_description: "Device code not found or expired".to_string(),
-            }),
+            Json(ErrorResponse::with_description(
+                OAuthErrorCode::InvalidRequest,
+                "Device code not found or expired",
+            )),
         )),
         Err(OAuthError::SessionExpired) => Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "expired_token".to_string(),
-                error_description: "The device code has expired".to_string(),
-            }),
+            Json(ErrorResponse::new(OAuthErrorCode::ExpiredToken)),
         )),
         Err(e) => {
             error!("Device flow error: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "server_error".to_string(),
-                    error_description: format!("OAuth error: {}", e),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::ServerError,
+                    format!("OAuth error: {}", e),
+                )),
             ))
         }
     }
@@ -250,10 +214,7 @@ pub async fn start_authorization_flow(
         None => {
             return (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "oauth_not_configured".to_string(),
-                    error_description: "OAuth is not configured for this server".to_string(),
-                }),
+                Json(ErrorResponse::new(OAuthErrorCode::OauthNotConfigured)),
             )
                 .into_response();
         }
@@ -301,10 +262,10 @@ pub async fn start_authorization_flow(
             error!("Failed to generate authorization URL: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to start authorization: {}", e),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::ServerError,
+                    format!("Failed to start authorization: {}", e),
+                )),
             )
                 .into_response()
         }
@@ -352,10 +313,7 @@ pub async fn handle_oauth_callback(
         None => {
             return (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "oauth_not_configured".to_string(),
-                    error_description: "OAuth is not configured for this server".to_string(),
-                }),
+                Json(ErrorResponse::new(OAuthErrorCode::OauthNotConfigured)),
             )
                 .into_response();
         }
@@ -371,7 +329,7 @@ pub async fn handle_oauth_callback(
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
                 error,
-                error_description: description,
+                error_description: Some(description),
             }),
         )
             .into_response();
@@ -382,10 +340,10 @@ pub async fn handle_oauth_callback(
         error!("Missing state parameter in callback");
         (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_request".to_string(),
-                error_description: "Missing state parameter".to_string(),
-            }),
+            Json(ErrorResponse::with_description(
+                OAuthErrorCode::InvalidRequest,
+                "Missing state parameter",
+            )),
         )
     });
 
@@ -401,10 +359,10 @@ pub async fn handle_oauth_callback(
         error!("Invalid state format in callback");
         return (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_request".to_string(),
-                error_description: "Invalid state format".to_string(),
-            }),
+            Json(ErrorResponse::with_description(
+                OAuthErrorCode::InvalidRequest,
+                "Invalid state format",
+            )),
         )
             .into_response();
     };
@@ -413,10 +371,10 @@ pub async fn handle_oauth_callback(
         error!("Missing authorization code in callback");
         (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_request".to_string(),
-                error_description: "Missing authorization code".to_string(),
-            }),
+            Json(ErrorResponse::with_description(
+                OAuthErrorCode::InvalidRequest,
+                "Missing authorization code",
+            )),
         )
     });
 
@@ -437,10 +395,7 @@ pub async fn handle_oauth_callback(
                 error!("OAuth session expired");
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(ErrorResponse {
-                        error: "expired_session".to_string(),
-                        error_description: "OAuth session has expired".to_string(),
-                    }),
+                    Json(ErrorResponse::new(OAuthErrorCode::ExpiredSession)),
                 )
                     .into_response();
             }
@@ -450,10 +405,10 @@ pub async fn handle_oauth_callback(
             error!("OAuth session not found");
             return (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "invalid_session".to_string(),
-                    error_description: "OAuth session not found".to_string(),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::InvalidSession,
+                    "OAuth session not found",
+                )),
             )
                 .into_response();
         }
@@ -468,10 +423,10 @@ pub async fn handle_oauth_callback(
             error!("Invalid state format for CSRF validation");
             return (
                 StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_state".to_string(),
-                    error_description: "Invalid state format for CSRF validation".to_string(),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::InvalidState,
+                    "Invalid state format for CSRF validation",
+                )),
             )
                 .into_response();
         };
@@ -480,10 +435,10 @@ pub async fn handle_oauth_callback(
             error!("CSRF token mismatch");
             return (
                 StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_state".to_string(),
-                    error_description: "CSRF token validation failed".to_string(),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::InvalidState,
+                    "CSRF token validation failed",
+                )),
             )
                 .into_response();
         }
@@ -497,10 +452,10 @@ pub async fn handle_oauth_callback(
                 error!("Failed to decode PKCE verifier: {}", e);
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: "server_error".to_string(),
-                        error_description: "Invalid PKCE verifier".to_string(),
-                    }),
+                    Json(ErrorResponse::with_description(
+                        OAuthErrorCode::ServerError,
+                        "Invalid PKCE verifier",
+                    )),
                 )
                     .into_response();
             }
@@ -509,10 +464,10 @@ pub async fn handle_oauth_callback(
             error!("Failed to decode PKCE verifier: {}", e);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "server_error".to_string(),
-                    error_description: "Invalid PKCE verifier".to_string(),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::ServerError,
+                    "Invalid PKCE verifier",
+                )),
             )
                 .into_response();
         }
@@ -575,10 +530,10 @@ pub async fn handle_oauth_callback(
                     error!("Failed to validate OIDC token: {}", e);
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ErrorResponse {
-                            error: "server_error".to_string(),
-                            error_description: "Failed to validate token".to_string(),
-                        }),
+                        Json(ErrorResponse::with_description(
+                            OAuthErrorCode::ServerError,
+                            "Failed to validate token",
+                        )),
                     )
                         .into_response()
                 }
@@ -588,10 +543,10 @@ pub async fn handle_oauth_callback(
             error!("Failed to exchange code for token: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "server_error".to_string(),
-                    error_description: format!("Token exchange failed: {}", e),
-                }),
+                Json(ErrorResponse::with_description(
+                    OAuthErrorCode::ServerError,
+                    format!("Token exchange failed: {}", e),
+                )),
             )
                 .into_response()
         }
@@ -625,7 +580,7 @@ pub async fn exchange_session_for_token(
                 StatusCode::NOT_FOUND,
                 axum::response::Json(ErrorResponse {
                     error: "oauth_not_configured".to_string(),
-                    error_description: "OAuth is not configured for this server".to_string(),
+                    error_description: Some("OAuth is not configured for this server".to_string()),
                 }),
             ))
         }
@@ -643,10 +598,7 @@ pub async fn exchange_session_for_token(
                 error!("OAuth session expired: {}", request.session_id);
                 return Err((
                     StatusCode::GONE,
-                    axum::response::Json(ErrorResponse {
-                        error: "session_expired".to_string(),
-                        error_description: "OAuth session has expired".to_string(),
-                    }),
+                    axum::response::Json(ErrorResponse::new(OAuthErrorCode::ExpiredSession)),
                 ));
             }
             session
@@ -655,10 +607,7 @@ pub async fn exchange_session_for_token(
             error!("OAuth session not found: {}", request.session_id);
             return Err((
                 StatusCode::NOT_FOUND,
-                axum::response::Json(ErrorResponse {
-                    error: "session_not_found".to_string(),
-                    error_description: "OAuth session not found or already used".to_string(),
-                }),
+                axum::response::Json(ErrorResponse::new(OAuthErrorCode::SessionNotFound)),
             ));
         }
     };
@@ -695,5 +644,7 @@ pub async fn exchange_session_for_token(
             .unwrap_or(session.user.id.clone()),
         user_name: display_name,
         user_email: display_email,
+        refresh_token: None,
+        expires_in: None,
     }))
 }

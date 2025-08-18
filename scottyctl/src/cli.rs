@@ -24,7 +24,11 @@ pub struct Cli {
     #[arg(long, default_value = "false")]
     pub debug: bool,
 
-    #[arg(long, default_value = "false", help = "Bypass version compatibility check (not recommended)")]
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Bypass version compatibility check (not recommended)"
+    )]
     pub bypass_version_check: bool,
 
     #[command(subcommand)]

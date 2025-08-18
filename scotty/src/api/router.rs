@@ -42,8 +42,6 @@ use crate::api::handlers::apps::run::__path_run_app_handler;
 use crate::api::handlers::apps::run::__path_stop_app_handler;
 use crate::api::handlers::health::__path_health_checker_handler;
 use crate::api::handlers::info::__path_info_handler;
-use scotty_core::api::{OAuthConfig, ServerInfo};
-use scotty_core::settings::api_server::AuthMode;
 use crate::api::handlers::login::__path_login_handler;
 use crate::api::handlers::login::__path_validate_token_handler;
 use crate::oauth::handlers::{
@@ -53,6 +51,8 @@ use crate::oauth::handlers::{
 use crate::oauth::handlers::{
     AuthorizeQuery, CallbackQuery, DeviceFlowResponse, ErrorResponse, TokenResponse,
 };
+use scotty_core::api::{OAuthConfig, ServerInfo};
+use scotty_core::settings::api_server::AuthMode;
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;
 use crate::api::handlers::health::health_checker_handler;

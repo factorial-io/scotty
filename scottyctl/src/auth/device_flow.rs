@@ -1,75 +1,40 @@
 use super::{AuthError, OAuthConfig, StoredToken};
-use serde::Deserialize;
+use scotty_core::auth::{DeviceFlowResponse, ErrorResponse, OAuthErrorCode, TokenResponse};
+use scotty_core::http::HttpClient;
 use std::time::{Duration, SystemTime};
 use tokio::time::sleep;
 
-#[derive(Deserialize)]
-pub struct DeviceCodeResponse {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    #[allow(dead_code)]
-    pub verification_uri_complete: Option<String>,
-    #[allow(dead_code)]
-    pub expires_in: u64,
-    #[allow(dead_code)]
-    pub interval: Option<u64>,
-}
-
-#[derive(Deserialize)]
-pub struct TokenResponse {
-    pub access_token: String,
-    #[allow(dead_code)]
-    pub token_type: String,
-    #[allow(dead_code)]
-    pub user_id: String,
-    pub user_name: String,
-    pub user_email: String,
-}
-
-#[derive(Deserialize)]
-struct ErrorResponse {
-    error: String,
-    error_description: Option<String>,
-}
-
 pub struct DeviceFlowClient {
-    client: reqwest::Client,
+    client: HttpClient,
     config: OAuthConfig,
     user_provided_server_url: String,
 }
 
 impl DeviceFlowClient {
-    pub fn new(config: OAuthConfig, user_provided_server_url: String) -> Self {
-        Self {
-            client: reqwest::Client::new(),
+    pub fn new(config: OAuthConfig, user_provided_server_url: String) -> Result<Self, AuthError> {
+        let client = HttpClient::with_timeout(Duration::from_secs(30))
+            .map_err(|_| AuthError::ServerError)?;
+
+        Ok(Self {
+            client,
             config,
             user_provided_server_url,
-        }
+        })
     }
 
-    pub async fn start_device_flow(&self) -> Result<DeviceCodeResponse, AuthError> {
+    pub async fn start_device_flow(&self) -> Result<DeviceFlowResponse, AuthError> {
         // Use Scotty's native device flow endpoint instead of calling OIDC provider directly
         let device_url = format!("{}/oauth/device", self.config.scotty_server_url);
 
         tracing::info!("Starting device flow with Scotty server");
         tracing::info!("Device URL: {}", device_url);
 
-        let response = self
+        let device_response = self
             .client
-            .post(&device_url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "scottyctl/1.0")
-            .send()
-            .await?;
+            .post_json::<serde_json::Value, DeviceFlowResponse>(&device_url, &serde_json::json!({}))
+            .await
+            .map_err(|_| AuthError::ServerError)?;
 
-        if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            tracing::error!("Device flow request failed: {}", error_text);
-            return Err(AuthError::ServerError);
-        }
-
-        let device_response: DeviceCodeResponse = response.json().await?;
         Ok(device_response)
     }
 
@@ -114,40 +79,43 @@ impl DeviceFlowClient {
             self.config.scotty_server_url, device_code
         );
 
-        let response = self
+        // Try to get the token, the shared HTTP client will handle errors
+        match self
             .client
-            .post(&token_url)
-            .header("Accept", "application/json")
-            .send()
-            .await?;
-
-        match response.status().as_u16() {
-            200 => {
-                let token: TokenResponse = response.json().await?;
-                Ok(token)
-            }
-            400 => {
-                // Check for "authorization_pending" error
-                let error: ErrorResponse = response.json().await?;
-                if error.error == "authorization_pending" {
-                    Err(AuthError::AuthorizationPending)
-                } else {
-                    tracing::error!(
-                        "Token request error: {} - {}",
-                        error.error,
-                        error.error_description.unwrap_or_default()
-                    );
-                    Err(AuthError::ServerError)
+            .post_json::<serde_json::Value, TokenResponse>(&token_url, &serde_json::json!({}))
+            .await
+        {
+            Ok(token) => Ok(token),
+            Err(_) => {
+                // If it fails, try to get detailed error information
+                match self.client.post(&token_url, &serde_json::json!({})).await {
+                    Ok(response) => {
+                        match response.status().as_u16() {
+                            400 => {
+                                // Parse the error response to check for authorization pending
+                                match response.json::<ErrorResponse>().await {
+                                    Ok(error)
+                                        if error.error
+                                            == OAuthErrorCode::AuthorizationPending.code() =>
+                                    {
+                                        Err(AuthError::AuthorizationPending)
+                                    }
+                                    Ok(error) => {
+                                        tracing::error!(
+                                            "Token request error: {} - {}",
+                                            error.error,
+                                            error.error_description.unwrap_or_default()
+                                        );
+                                        Err(AuthError::ServerError)
+                                    }
+                                    Err(_) => Err(AuthError::ServerError),
+                                }
+                            }
+                            _ => Err(AuthError::ServerError),
+                        }
+                    }
+                    Err(_) => Err(AuthError::ServerError),
                 }
-            }
-            status => {
-                let error_text = response.text().await.unwrap_or_default();
-                tracing::error!(
-                    "Token request failed with status {}: {}",
-                    status,
-                    error_text
-                );
-                Err(AuthError::ServerError)
             }
         }
     }

@@ -18,6 +18,7 @@ pub struct OAuthClient {
     pub oidc_issuer_url: String,
     pub client_id: String,
     pub client_secret: String,
+    pub http_client: scotty_core::http::HttpClient,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,11 +79,16 @@ impl OAuthClient {
         )
         .set_device_authorization_url(DeviceAuthorizationUrl::new(device_auth_url)?);
 
+        let http_client =
+            scotty_core::http::HttpClient::with_timeout(std::time::Duration::from_secs(30))
+                .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
         Ok(Self {
             client,
             oidc_issuer_url: oidc_issuer_url.clone(),
             client_id,
             client_secret,
+            http_client,
         })
     }
 
