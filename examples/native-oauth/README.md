@@ -135,7 +135,7 @@ scottyctl login --server http://localhost:21342
 
 # Or manually set token from browser
 export SCOTTY_ACCESS_TOKEN=your_oauth_token
-scottyctl --server http://localhost:21342 apps list
+scottyctl --server http://localhost:21342 app:list
 ```
 
 ## Development vs Production

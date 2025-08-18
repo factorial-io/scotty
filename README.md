@@ -50,7 +50,7 @@ Use OAuth device flow for secure authentication:
 scottyctl auth:login --server https://localhost:21342
 
 # Use authenticated commands
-scottyctl apps list
+scottyctl app:list
 ```
 
 ### Option 2: Bearer Token
@@ -63,7 +63,7 @@ export SCOTTY_SERVER=https://localhost:21342
 export SCOTTY_ACCESS_TOKEN=your_bearer_token
 
 # Via command-line arguments  
-scottyctl --server https://localhost:21342 --access-token your_bearer_token apps list
+scottyctl --server https://localhost:21342 --access-token your_bearer_token app:list
 ```
 
 ## Developing/Contributing
