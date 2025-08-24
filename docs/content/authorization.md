@@ -140,16 +140,19 @@ Apps without explicit groups are assigned to the `default` group.
 
 ### Bearer Token Authentication
 
-The authorization system integrates with bearer token authentication:
+The authorization system requires explicit bearer token assignments:
 
-1. **Primary lookup**: Checks if token exists in authorization assignments
-2. **Legacy fallback**: Uses `api.access_token` configuration if no assignment found
+1. **RBAC Only**: Only tokens explicitly assigned in authorization configuration are accepted
+2. **No Legacy Fallback**: The `api.access_token` configuration is no longer used
+3. **Token Format**: Bearer tokens are identified as `bearer:<token>` in assignments
 
 ```bash
-# Using a bearer token with authorization
-curl -H "Authorization: Bearer dev-token" \
+# Using a bearer token with authorization (token must be in assignments)
+curl -H "Authorization: Bearer admin" \
   https://scotty.example.com/api/v1/authenticated/apps/list
 ```
+
+**Important**: Bearer tokens that are not explicitly listed in the `assignments` section will be rejected with a 401 Unauthorized response.
 
 ### OAuth Integration  
 
@@ -270,16 +273,26 @@ assignments:
 
 For existing Scotty installations:
 
-1. **Backward Compatible**: Authorization is optional and falls back to existing behavior
-2. **Gradual Migration**: Enable authorization without breaking existing workflows
-3. **Legacy Tokens**: `api.access_token` continues to work as fallback
-4. **App Discovery**: Existing apps are assigned to `default` group automatically
+1. **Breaking Change**: Bearer token authentication now requires RBAC assignments
+2. **Migration Required**: Existing `api.access_token` must be added to assignments
+3. **App Discovery**: Existing apps are assigned to `default` group automatically
+4. **OAuth Compatibility**: OAuth authentication continues to work unchanged
 
 ### Enabling Authorization
 
 1. Create `/config/casbin/model.conf` and `/config/casbin/policy.yaml`
 2. Define initial groups, roles, and assignments
-3. Apps will automatically sync their group memberships
-4. API endpoints begin enforcing permissions immediately
+3. **Add existing bearer tokens to assignments** (if using bearer authentication)
+4. Apps will automatically sync their group memberships
+5. API endpoints begin enforcing permissions immediately
 
-The system gracefully handles missing authorization configuration, making it safe to deploy incrementally.
+**Migration Example**: If you currently use `api.access_token: "my-secret-token"`, add this to your policy.yaml:
+
+```yaml
+assignments:
+  "bearer:my-secret-token":
+    - role: "admin"
+      groups: ["*"]
+```
+
+**Warning**: The authorization system no longer falls back to legacy configuration. Missing token assignments will result in authentication failures.

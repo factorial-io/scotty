@@ -207,13 +207,16 @@ Acceptance Criteria:
 - [ ] scottyctl auth:* commands
 - [ ] Permission testing command
 
-### Phase 4: Enforcement 🚧 **PARTIALLY COMPLETED**
+### Phase 4: Enforcement ✅ **COMPLETED**
 - [x] App list filtering by View permission
 - [x] API route protection with permission middleware
 - [x] Comprehensive authorization tests
+- [x] Middleware architecture fixes (State extractor, path extraction)
+- [x] Bearer token authentication without legacy fallback
+- [x] Permission debugging and error handling
 - [ ] Shell access control (app:shell command)
-- [ ] Destroy protection
-- [ ] Create restrictions
+- [ ] Destroy protection (enforced via existing middleware)
+- [ ] Create restrictions (enforced via existing middleware)
 
 ### Phase 5: Production Features
 - [ ] Redis adapter
@@ -227,10 +230,11 @@ Acceptance Criteria:
 The authorization system is built on **Casbin RBAC** with the following key components:
 
 #### Core Service (`AuthorizationService`)
-- **Location**: `/scotty/src/services/authorization.rs`
+- **Location**: `/scotty/src/services/authorization/` (modular structure)
 - **Storage**: File-based YAML configuration + Casbin model file
 - **Policy Model**: Direct user-group-permission mapping for simplicity
 - **Integration**: Automatic initialization and app group synchronization
+- **Debug Support**: Comprehensive debugging methods and proper permission reporting
 
 #### Casbin Model
 ```
@@ -264,9 +268,10 @@ pub enum Permission {
 ```
 
 ### Bearer Token Integration
-- **Primary**: Looks up tokens in authorization assignments (`bearer:<token>`)
-- **Fallback**: Legacy `api.access_token` configuration for backward compatibility
+- **RBAC Only**: Looks up tokens exclusively in authorization assignments (`bearer:<token>`)
+- **No Legacy Fallback**: Removed `api.access_token` fallback - all tokens must be explicitly assigned
 - **User ID Format**: Uses `AuthorizationService::format_user_id()` for consistency
+- **Token Validation**: `authorize_bearer_user()` only accepts tokens found in RBAC assignments
 
 ### App Group Assignment
 1. **Via .scotty.yml**: Apps declare `groups: ["frontend", "staging"]` in settings
@@ -275,9 +280,11 @@ pub enum Permission {
 4. **Multiple Groups**: Apps can belong to multiple groups simultaneously
 
 ### API Protection
-- **Middleware**: `require_permission(Permission::X)` on protected routes
+- **Middleware**: `require_permission(Permission::X)` on protected routes with proper State extractor
+- **Path Extraction**: Updated to support full `/api/v1/authenticated/apps/{action}/{app_name}` paths
 - **App List Filtering**: `/api/v1/authenticated/apps/list` only shows apps user can view
 - **CurrentUser Integration**: Bearer tokens resolve to actual user identities
+- **Error Handling**: Proper middleware ordering prevents "App state not found" errors
 
 ## Success Metrics
 1. **Security**: Zero unauthorized access incidents
