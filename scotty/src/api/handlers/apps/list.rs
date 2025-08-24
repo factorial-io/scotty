@@ -92,9 +92,10 @@ mod tests {
     };
     use std::{collections::HashMap, sync::Arc};
     use tempfile::tempdir;
+    use tempfile::TempDir;
     use tokio::sync::Mutex;
 
-    async fn create_test_auth_service() -> Arc<AuthorizationService> {
+    async fn create_test_auth_service() -> (Arc<AuthorizationService>, TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
 
@@ -107,12 +108,13 @@ p = sub, group, act
 
 [role_definition]
 g = _, _
+g2 = _, _
 
 [policy_effect]
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
+m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
 "#;
         tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
             .await
@@ -134,6 +136,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
             .await
             .unwrap();
 
+        // Use the existing "developer" role from default config
         // Set up user permissions
         service
             .assign_user_role(
@@ -162,14 +165,11 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
             .await
             .unwrap();
 
-        // Keep temp dir alive by leaking it for the test duration
-        std::mem::forget(temp_dir);
-
-        Arc::new(service)
+        (Arc::new(service), temp_dir)
     }
 
-    async fn create_test_app_state() -> SharedAppState {
-        let auth_service = create_test_auth_service().await;
+    async fn create_test_app_state() -> (SharedAppState, TempDir) {
+        let (auth_service, temp_dir) = create_test_auth_service().await;
 
         // Create test settings using default implementation
         let settings = Settings::default();
@@ -244,7 +244,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
             }
         }
 
-        Arc::new(AppState {
+        let app_state = Arc::new(AppState {
             settings,
             stop_flag: stop_flag::StopFlag::new(),
             clients: Arc::new(Mutex::new(HashMap::new())),
@@ -253,12 +253,14 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
             task_manager: crate::tasks::manager::TaskManager::new(),
             oauth_state: None,
             auth_service,
-        })
+        });
+
+        (app_state, temp_dir)
     }
 
     #[tokio::test]
     async fn test_list_apps_filtered_by_user_groups() {
-        let app_state = create_test_app_state().await;
+        let (app_state, _temp_dir) = create_test_app_state().await;
 
         // Test frontend developer - should only see frontend and fullstack apps
         let frontend_user = CurrentUser {
@@ -287,7 +289,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
 
     #[tokio::test]
     async fn test_list_apps_backend_user() {
-        let app_state = create_test_app_state().await;
+        let (app_state, _temp_dir) = create_test_app_state().await;
 
         // Test backend developer - should only see backend and fullstack apps
         let backend_user = CurrentUser {
@@ -316,7 +318,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
 
     #[tokio::test]
     async fn test_list_apps_full_stack_user() {
-        let app_state = create_test_app_state().await;
+        let (app_state, _temp_dir) = create_test_app_state().await;
 
         // Test full-stack developer - should see frontend, backend, and fullstack apps
         let fullstack_user = CurrentUser {
@@ -347,7 +349,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
 
     #[tokio::test]
     async fn test_list_apps_no_permissions() {
-        let app_state = create_test_app_state().await;
+        let (app_state, _temp_dir) = create_test_app_state().await;
 
         // Test user with no permissions - should see no apps
         let no_permissions_user = CurrentUser {

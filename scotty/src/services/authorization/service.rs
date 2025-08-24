@@ -538,9 +538,7 @@ impl AuthorizationService {
 
                 // Add permissions for each group
                 for group in &assignment.groups {
-                    let group_perms = all_permissions
-                        .entry(group.clone())
-                        .or_default();
+                    let group_perms = all_permissions.entry(group.clone()).or_default();
                     for perm in &permissions {
                         if !group_perms.contains(perm) {
                             group_perms.push(perm.clone());

@@ -1,21 +1,23 @@
 groups:
+  default:
+    description: Default group for unassigned apps
+    created_at: '2024-01-01T00:00:00Z'
+  client-a:
+    description: Client A
+    created_at: '2024-01-01T00:00:00Z'
   qa:
     description: QA
     created_at: '2024-01-01T00:00:00Z'
   client-b:
     description: Client B
     created_at: '2024-01-01T00:00:00Z'
-  client-a:
-    description: Client A
-    created_at: '2024-01-01T00:00:00Z'
-  default:
-    description: Default group for unassigned apps
-    created_at: '2024-01-01T00:00:00Z'
 roles:
-  admin:
+  operator:
     permissions:
-    - '*'
-    description: Full system access
+    - view
+    - manage
+    - logs
+    description: Operations team - no shell or destroy
   developer:
     permissions:
     - view
@@ -24,31 +26,32 @@ roles:
     - logs
     - create
     description: Developer access - all except destroy
-  operator:
-    permissions:
-    - view
-    - manage
-    - logs
-    description: Operations team - no shell or destroy
   viewer:
     permissions:
     - view
     description: Read-only access
+  admin:
+    permissions:
+    - '*'
+    description: Full system access
 assignments:
   bearer:client-a:
   - role: developer
     groups:
     - client-a
+  bearer:test-bearer-token-123:
+  - role: admin
+    groups:
+    - client-a
+    - client-b
+    - qa
+    - default
   bearer:hello-world:
   - role: developer
     groups:
     - client-a
     - client-b
     - qa
-  '*':
-  - role: viewer
-    groups:
-    - default
   bearer:admin:
   - role: admin
     groups:
@@ -56,10 +59,7 @@ assignments:
     - client-b
     - qa
     - default
-  bearer:test-bearer-token-123:
-  - role: admin
+  '*':
+  - role: viewer
     groups:
-    - client-a
-    - client-b
-    - qa
     - default
