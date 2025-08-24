@@ -24,6 +24,13 @@ pub struct Cli {
     #[arg(long, default_value = "false")]
     pub debug: bool,
 
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Bypass version compatibility check (not recommended)"
+    )]
+    pub bypass_version_check: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -83,6 +90,22 @@ pub enum Commands {
     /// Show shell completion script.
     #[command(name = "completion")]
     Completion(CompletionCommand),
+
+    /// Authenticate with the Scotty server
+    #[command(name = "auth:login")]
+    AuthLogin(AuthLoginCommand),
+
+    /// Logout and clear stored authentication
+    #[command(name = "auth:logout")]
+    AuthLogout,
+
+    /// Show authentication status
+    #[command(name = "auth:status")]
+    AuthStatus,
+
+    /// Refresh authentication token
+    #[command(name = "auth:refresh")]
+    AuthRefresh,
 
     #[command(name = "test")]
     Test,
@@ -200,6 +223,21 @@ pub struct CreateCommand {
     /// Custom Traefik middlewares to apply to the app, can be specified multiple times
     #[arg(long, value_name = "MIDDLEWARE")]
     pub middleware: Vec<String>,
+}
+
+#[derive(Debug, Parser)]
+pub struct AuthLoginCommand {
+    /// Use a specific OAuth provider URL
+    #[arg(long)]
+    pub provider_url: Option<String>,
+
+    /// Skip browser opening (just show URL)
+    #[arg(long, default_value = "false")]
+    pub no_browser: bool,
+
+    /// Timeout in seconds for device flow
+    #[arg(long, default_value = "300")]
+    pub timeout: u64,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

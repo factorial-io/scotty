@@ -11,7 +11,7 @@ instructs robots to not index your apps.
 
 The primary use-case is to **host ephemeral review apps** for your projects. It
 should be relatively easy to integrate Scotty into existing workflows,
-e.g. with GitLab CI or run it on a case-by-case basis from your local.
+e.g. with CI/CD pipelines or run it on a case-by-case basis from your local.
 
 Scotty is **a very simple orchestrator** for your docker-compose-based apps. The UI
 is designed to be simple and easy to use, so people other than devs can restart

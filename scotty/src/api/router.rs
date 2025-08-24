@@ -44,6 +44,13 @@ use crate::api::handlers::health::__path_health_checker_handler;
 use crate::api::handlers::info::__path_info_handler;
 use crate::api::handlers::login::__path_login_handler;
 use crate::api::handlers::login::__path_validate_token_handler;
+use crate::oauth::handlers::{
+    exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow,
+    start_device_flow,
+};
+use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, TokenResponse};
+use scotty_core::api::{OAuthConfig, ServerInfo};
+use scotty_core::settings::api_server::AuthMode;
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;
 use crate::api::handlers::health::health_checker_handler;
@@ -102,7 +109,8 @@ use super::handlers::tasks::task_list_handler;
             GitlabContext, WebhookContext, MattermostContext, NotificationReceiver,
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
-            AppStatus, AppTtl, ServicePortMapping, RunningAppContext
+            AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
+            OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery
         )
     ),
     tags(
@@ -137,32 +145,62 @@ pub struct ApiRoutes;
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
         let api = ApiDoc::openapi();
-        let protected_router = Router::new()
-            .route("/api/v1/apps/list", get(list_apps_handler))
-            .route("/api/v1/apps/run/{app_id}", get(run_app_handler))
-            .route("/api/v1/apps/stop/{app_id}", get(stop_app_handler))
-            .route("/api/v1/apps/purge/{app_id}", get(purge_app_handler))
-            .route("/api/v1/apps/rebuild/{app_id}", get(rebuild_app_handler))
-            .route("/api/v1/apps/info/{app_id}", get(info_app_handler))
-            .route("/api/v1/apps/destroy/{app_id}", get(destroy_app_handler))
-            .route("/api/v1/apps/adopt/{app_id}", get(adopt_app_handler))
+        let authenticated_router = Router::new()
+            .route("/api/v1/authenticated/apps/list", get(list_apps_handler))
             .route(
-                "/api/v1/apps/create",
+                "/api/v1/authenticated/apps/run/{app_id}",
+                get(run_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/stop/{app_id}",
+                get(stop_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/purge/{app_id}",
+                get(purge_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/rebuild/{app_id}",
+                get(rebuild_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/info/{app_id}",
+                get(info_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/destroy/{app_id}",
+                get(destroy_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/adopt/{app_id}",
+                get(adopt_app_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/create",
                 post(create_app_handler).layer(DefaultBodyLimit::max(
                     state.settings.api.create_app_max_size,
                 )),
             )
-            .route("/api/v1/tasks", get(task_list_handler))
-            .route("/api/v1/task/{uuid}", get(task_detail_handler))
-            .route("/api/v1/validate-token", post(validate_token_handler))
-            .route("/api/v1/blueprints", get(blueprints_handler))
-            .route("/api/v1/apps/notify/add", post(add_notification_handler))
+            .route("/api/v1/authenticated/tasks", get(task_list_handler))
             .route(
-                "/api/v1/apps/notify/remove",
+                "/api/v1/authenticated/task/{uuid}",
+                get(task_detail_handler),
+            )
+            .route(
+                "/api/v1/authenticated/validate-token",
+                post(validate_token_handler),
+            )
+            .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
+            .route(
+                "/api/v1/authenticated/apps/notify/add",
+                post(add_notification_handler),
+            )
+            .route(
+                "/api/v1/authenticated/apps/notify/remove",
                 post(remove_notification_handler),
             )
             .route(
-                "/api/v1/apps/{app_name}/actions",
+                "/api/v1/authenticated/apps/{app_name}/actions",
                 post(run_custom_action_handler),
             )
             .route_layer(middleware::from_fn_with_state(state.clone(), auth));
@@ -171,6 +209,11 @@ impl ApiRoutes {
             .route("/api/v1/login", post(login_handler))
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))
+            .route("/oauth/device", post(start_device_flow))
+            .route("/oauth/device/token", post(poll_device_token))
+            .route("/oauth/authorize", get(start_authorization_flow))
+            .route("/api/oauth/callback", get(handle_oauth_callback))
+            .route("/oauth/exchange", post(exchange_session_for_token))
             .route("/ws", get(ws_handler))
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
             .merge(Redoc::with_url("/redoc", api.clone()))
@@ -178,7 +221,7 @@ impl ApiRoutes {
             .with_state(state.clone());
 
         let router = Router::new()
-            .merge(protected_router)
+            .merge(authenticated_router)
             .merge(public_router)
             .with_state(state.clone());
 

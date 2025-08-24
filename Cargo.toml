@@ -3,7 +3,7 @@ members = ["scotty-core", "scotty", "scottyctl"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0-alpha.37"
+version = "0.2.0-alpha.1"
 edition = "2021"
 rust-version = "1.86"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
@@ -81,6 +81,7 @@ dotenvy = "0.15.7"
 url = "2.5"
 include_dir = "0.7.3"
 mime_guess = "2.0.4"
+semver = "1.0"
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]

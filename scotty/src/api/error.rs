@@ -5,10 +5,11 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use scotty_core::auth::OAuthError;
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Clone, Error, Debug, utoipa::ToResponse)]
+#[derive(Clone, Error, Debug, utoipa::ToResponse, utoipa::ToSchema)]
 pub enum AppError {
     #[error("Service unavailable")]
     ServiceUnavailable,
@@ -81,6 +82,9 @@ pub enum AppError {
 
     #[error("Middleware not allowed: {0}")]
     MiddlewareNotAllowed(String),
+
+    #[error("OAuth error: {0}")]
+    OAuthError(OAuthError),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -96,6 +100,7 @@ impl AppError {
             AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
             AppError::AppNotRunning(_) => StatusCode::CONFLICT,
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -112,10 +117,40 @@ impl From<anyhow::Error> for AppError {
     }
 }
 
+impl From<OAuthError> for AppError {
+    fn from(oauth_error: OAuthError) -> Self {
+        AppError::OAuthError(oauth_error)
+    }
+}
+
+impl From<AppError> for scotty_core::auth::ErrorResponse {
+    fn from(app_error: AppError) -> Self {
+        match app_error {
+            AppError::OAuthError(oauth_error) => oauth_error.into(),
+            // For non-OAuth errors, create a generic error response
+            _ => scotty_core::auth::ErrorResponse {
+                error: "server_error".to_string(),
+                error_description: Some(app_error.to_string()),
+            },
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, body) = self.get_error_msg();
-        let body = serde_json::json!({ "error": true, "message": body });
-        (status, Json(body)).into_response()
+        match &self {
+            // For OAuth errors, return OAuth-compliant ErrorResponse
+            AppError::OAuthError(oauth_error) => {
+                let status: StatusCode = oauth_error.clone().into();
+                let error_response: scotty_core::auth::ErrorResponse = oauth_error.clone().into();
+                (status, Json(error_response)).into_response()
+            }
+            // For all other errors, return standard AppError format
+            _ => {
+                let (status, body) = self.get_error_msg();
+                let body = serde_json::json!({ "error": true, "message": body });
+                (status, Json(body)).into_response()
+            }
+        }
     }
 }

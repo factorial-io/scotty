@@ -1,10 +1,12 @@
 <script lang="ts">
 	import '../app.css';
 	import logo from '$lib/assets/scotty.svg';
-	import { apiCall, checkIfLoggedIn } from '$lib';
+	import { publicApiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
 	import { setupWsListener } from '$lib/ws';
 	import title from '../stores/titleStore';
+	import UserInfo from '../components/user-info.svelte';
+	import { authStore } from '../stores/userStore';
 
 	type SiteInfo = {
 		domain: string;
@@ -19,8 +21,11 @@
 	onMount(async () => {
 		setupWsListener('/ws');
 
+		// Initialize the auth store first
+		await authStore.init();
+
 		checkIfLoggedIn();
-		site_info = (await apiCall('info')) as SiteInfo;
+		site_info = (await publicApiCall('info')) as SiteInfo;
 	});
 </script>
 
@@ -53,6 +58,7 @@
 						>
 					</li>
 				</ul>
+				<UserInfo />
 			</div>
 		</div>
 

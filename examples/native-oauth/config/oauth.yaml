@@ -1,0 +1,50 @@
+# Native OAuth Configuration for Scotty
+# This configuration enables Scotty's built-in OAuth authentication
+
+api:
+  # Server configuration
+  bind_address: "0.0.0.0:21342"
+  
+  # Authentication mode - use native OAuth
+  auth_mode: "oauth"
+  
+  # OAuth configuration for GitLab OIDC
+  oauth:
+    # GitLab instance URL (use your GitLab instance or gitlab.com)
+    gitlab_url: "${GITLAB_URL}"
+    
+    # OAuth application credentials from GitLab
+    client_id: "${GITLAB_CLIENT_ID}"
+    client_secret: "${GITLAB_CLIENT_SECRET}"
+    
+    # Redirect URL for OAuth callback (must match GitLab app config)
+    redirect_url: "${OAUTH_REDIRECT_URL}"
+
+# Apps configuration
+apps:
+  # Directory to scan for Docker Compose applications
+  root_folder: "/app/apps"
+  
+  # TTL for app instances (cleanup after inactivity)
+  ttl: "24h"
+
+# Load balancer configuration (optional)
+load_balancer_type: "Traefik"
+
+traefik:
+  # Docker network for Traefik integration
+  network: "scotty-native-oauth"
+  
+  # Default configuration for apps
+  default_config:
+    # Middleware for basic protection
+    middlewares:
+      - "default@file"
+
+# Logging configuration  
+logging:
+  # Log level (trace, debug, info, warn, error)
+  level: "info"
+  
+  # Log format (json or pretty)
+  format: "pretty"

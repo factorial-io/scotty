@@ -1,74 +1,47 @@
 use anyhow::Context;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde_json::Value;
-use tokio::time::{sleep, Duration};
-use tracing::{error, info};
+use tracing::info;
 
+use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
-use std::sync::Arc;
-
+use scotty_core::http::{HttpClient, RetryError};
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
+use std::sync::Arc;
+use std::time::Duration;
 
-// Constants for retry mechanism
-const MAX_RETRIES: usize = 5;
-const INITIAL_RETRY_DELAY_MS: u64 = 500;
-const MAX_RETRY_DELAY_MS: u64 = 8000; // 8 seconds
+async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
+    // 1. Try stored OAuth token first
+    if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
+        // TODO: Check if token is expired and refresh if needed
+        return Ok(stored_token.access_token);
+    }
 
-/// Helper function to determine if an error is retriable
-fn is_retriable_error(err: &reqwest::Error) -> bool {
-    err.is_timeout()
-        || err.is_connect()
-        || err.is_request()
-        || err.status().is_some_and(|s| s.is_server_error())
+    // 2. Fall back to environment variable
+    if let Some(token) = &server.access_token {
+        return Ok(token.clone());
+    }
+
+    Err(anyhow::anyhow!(
+        "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
+    ))
 }
 
-/// Helper function to execute a future with retry logic
-async fn with_retry<F, Fut, T>(f: F) -> anyhow::Result<T>
-where
-    F: Fn() -> Fut + Clone,
-    Fut: std::future::Future<Output = anyhow::Result<T>>,
-{
-    let mut retry_count = 0;
-    let mut delay = INITIAL_RETRY_DELAY_MS;
+fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", token))
+            .context("Failed to create authorization header")?,
+    );
 
-    loop {
-        match f().await {
-            Ok(value) => return Ok(value),
-            Err(err) => {
-                // Check if we've reached the max retries
-                if retry_count >= MAX_RETRIES - 1 {
-                    return Err(err.context("Exhausted all retry attempts"));
-                }
-
-                // Check if it's a reqwest error that we should retry
-                let should_retry = if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
-                    is_retriable_error(reqwest_err)
-                } else {
-                    // Also retry on JSON parsing errors which might be due to partial responses
-                    err.to_string().contains("Failed to parse")
-                };
-
-                if !should_retry {
-                    return Err(err);
-                }
-
-                retry_count += 1;
-                error!(
-                    "API call failed (attempt {}/{}), retrying in {}ms: {}",
-                    retry_count, MAX_RETRIES, delay, err
-                );
-
-                // Sleep with exponential backoff
-                sleep(Duration::from_millis(delay)).await;
-
-                // Increase delay for next retry with exponential backoff (2x)
-                // but cap it at MAX_RETRY_DELAY_MS
-                delay = (delay * 2).min(MAX_RETRY_DELAY_MS);
-            }
-        }
-    }
+    HttpClient::builder()
+        .with_timeout(Duration::from_secs(10))
+        .with_default_headers(headers)
+        .build()
 }
 
 pub async fn get_or_post(
@@ -77,77 +50,47 @@ pub async fn get_or_post(
     method: &str,
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
-    let url = format!("{}/api/v1/{}", server.server, action);
+    let token = get_auth_token(server).await?;
+    let url = format!("{}/api/v1/authenticated/{}", server.server, action);
     info!("Calling scotty API at {}", &url);
 
-    with_retry(|| async {
-        let client = reqwest::Client::new();
-        let response = match method.to_lowercase().as_str() {
-            "post" => {
-                if let Some(body) = body.clone() {
-                    client.post(&url).json(&body)
-                } else {
-                    client.post(&url)
+    let client = create_authenticated_client(&token)?;
+
+    let result = match method.to_lowercase().as_str() {
+        "post" => {
+            if let Some(body) = body {
+                client.post_json::<Value, Value>(&url, &body).await
+            } else {
+                client.post(&url, &serde_json::json!({})).await?;
+                // For POST without body, we still need to get the response as JSON
+                client.get_json::<Value>(&url).await
+            }
+        }
+        _ => client.get_json::<Value>(&url).await,
+    };
+
+    match result {
+        Ok(value) => Ok(value),
+        Err(RetryError::NonRetriable(err)) => {
+            // Check if this is an HTTP error we can extract more info from
+            if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
+                if let Some(status) = reqwest_err.status() {
+                    if status.is_client_error() {
+                        return Err(anyhow::anyhow!(
+                            "Client error calling scotty API at {}: {}",
+                            &url,
+                            status
+                        ));
+                    }
                 }
             }
-            _ => client.get(&url),
-        };
-
-        let response = response
-            .bearer_auth(server.access_token.as_deref().unwrap_or_default())
-            .timeout(Duration::from_secs(10)) // Add timeout for requests
-            .send()
-            .await
-            .context(format!("Failed to call scotty API at {}", &url))?;
-
-        // Client errors (4xx) shouldn't be retried - fail fast
-        if response.status().is_client_error() {
-            let status = response.status();
-            let content = response.json::<Value>().await.ok();
-            let error_message = if let Some(content) = content {
-                if let Some(message) = content.get("message") {
-                    format!(": {}", message.as_str().unwrap_or("Unknown error"))
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-            return Err(anyhow::anyhow!(
-                "Client error calling scotty API at {} : {}{}",
-                &url,
-                &status,
-                error_message
-            ));
+            Err(err.context(format!("Failed to call scotty API at {}", &url)))
         }
-
-        if response.status().is_success() {
-            let json = response.json::<Value>().await.context(format!(
-                "Failed to parse response from scotty API at {}",
-                &url
-            ))?;
-            Ok(json)
-        } else {
-            let status = &response.status();
-            let content = response.json::<Value>().await.ok();
-            let error_message = if let Some(content) = content {
-                if let Some(message) = content.get("message") {
-                    format!(": {}", message.as_str().unwrap_or("Unknown error"))
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-            Err(anyhow::anyhow!(
-                "Failed to call scotty API at {} : {}{}",
-                &url,
-                &status,
-                error_message
-            ))
-        }
-    })
-    .await
+        Err(RetryError::ExhaustedRetries(err)) => Err(err.context(format!(
+            "Failed to call scotty API at {} after retries",
+            &url
+        ))),
+    }
 }
 
 pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value> {

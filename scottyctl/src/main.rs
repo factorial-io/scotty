@@ -1,13 +1,16 @@
 mod api;
+mod auth;
 mod cli;
 mod commands;
 mod context;
+mod preflight;
 mod utils;
 
 use clap::{CommandFactory, Parser};
 use cli::print_completions;
 use cli::{Cli, Commands};
 use context::{AppContext, ServerSettings};
+use preflight::PreflightChecker;
 use tracing::info;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use utils::tracing_layer::UiLayer;
@@ -32,6 +35,20 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Running command {:?} ...", &cli.command);
+
+    // Run preflight checks for commands that require server connection
+    let needs_preflight = !matches!(
+        &cli.command,
+        Commands::Completion(_) | Commands::AuthLogin(_) | Commands::AuthLogout
+    );
+
+    if needs_preflight {
+        let preflight =
+            PreflightChecker::new(app_context.server().clone(), app_context.ui().clone());
+        preflight
+            .check_compatibility(cli.bypass_version_check)
+            .await?;
+    }
 
     // Execute the appropriate command with our app context
     match &cli.command {
@@ -59,6 +76,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::BlueprintInfo(cmd) => {
             commands::blueprints::blueprint_info(&app_context, cmd).await?
         }
+        Commands::AuthLogin(cmd) => commands::auth::auth_login(&app_context, cmd).await?,
+        Commands::AuthLogout => commands::auth::auth_logout(&app_context).await?,
+        Commands::AuthStatus => commands::auth::auth_status(&app_context).await?,
+        Commands::AuthRefresh => commands::auth::auth_refresh(&app_context).await?,
         Commands::Test => commands::test::run_tests(&app_context).await?,
     }
     Ok(())

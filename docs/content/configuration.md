@@ -57,14 +57,33 @@ api:
   bind_address: "0.0.0.0:21342"
   access_token: "mysecret"
   create_app_max_size: "50M"
+  auth_mode: "bearer"  # "dev", "oauth", or "bearer"
+  dev_user_email: "dev@localhost"
+  dev_user_name: "Dev User"
+  oauth:
+    oidc_issuer_url: "https://gitlab.com"
+    client_id: "your_client_id" 
+    client_secret: "your_client_secret"
+    redirect_url: "http://localhost:21342/api/oauth/callback"
 ```
 
 * `bind_address`: The address and port the server listens on.
 * `access_token`: The token to authenticate against the server. This token is
-  needed by the clients to authenticate against the server.
+  needed by the clients to authenticate against the server when `auth_mode` is "bearer".
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
+* `auth_mode`: Authentication mode. Options are:
+  * `"dev"`: Development mode with no authentication (uses fixed dev user)
+  * `"oauth"`: Native OAuth authentication with OIDC providers
+  * `"bearer"`: Traditional token-based authentication (default)
+* `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
+* `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
+* `oauth`: OAuth configuration section (used when `auth_mode` is "oauth")
+  * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
+  * `client_id`: OAuth application client ID from your OIDC provider
+  * `client_secret`: OAuth application client secret from your OIDC provider  
+  * `redirect_url`: OAuth callback URL - must match your provider's configuration
 
 ###  Scheduler settings
 
@@ -340,6 +359,13 @@ underscores and prefix the key with `SCOTTY__`.
 | `debug`                                           | `SCOTTY__DEBUG`                                          |
 | `api.access_token`                                | `SCOTTY__API__ACCESS_TOKEN`                              |
 | `api.bind_address`                                | `SCOTTY__API__BIND_ADDRESS`                              |
+| `api.auth_mode`                                   | `SCOTTY__API__AUTH_MODE`                                 |
+| `api.dev_user_email`                              | `SCOTTY__API__DEV_USER_EMAIL`                            |
+| `api.dev_user_name`                               | `SCOTTY__API__DEV_USER_NAME`                             |
+| `api.oauth.oidc_issuer_url`                       | `SCOTTY__API__OAUTH__OIDC_ISSUER_URL`                    |
+| `api.oauth.client_id`                             | `SCOTTY__API__OAUTH__CLIENT_ID`                          |
+| `api.oauth.client_secret`                         | `SCOTTY__API__OAUTH__CLIENT_SECRET`                      |
+| `api.oauth.redirect_url`                          | `SCOTTY__API__OAUTH__REDIRECT_URL`                       |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |

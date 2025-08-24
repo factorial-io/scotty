@@ -27,6 +27,11 @@ uuid.workspace = true
 bollard.workspace = true
 deunicode.workspace = true
 url.workspace = true
+reqwest.workspace = true
+semver.workspace = true
+thiserror.workspace = true
+
+axum = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.20.0"

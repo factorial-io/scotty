@@ -6,6 +6,10 @@ use scotty_core::settings::docker::DockerConnectOptions;
 use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
+use crate::oauth::handlers::OAuthState;
+use crate::oauth::{
+    self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
+};
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
@@ -20,6 +24,7 @@ pub struct AppState {
     pub apps: SharedAppList,
     pub docker: Docker,
     pub task_manager: manager::TaskManager,
+    pub oauth_state: Option<OAuthState>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -38,6 +43,27 @@ impl AppState {
             DockerConnectOptions::Http => Docker::connect_with_http_defaults()?,
         };
 
+        // Initialize OAuth if configured
+        let oauth_state = match oauth::client::create_oauth_client(&settings.api.oauth) {
+            Ok(Some(client)) => {
+                tracing::info!("OAuth client initialized");
+                Some(OAuthState {
+                    client,
+                    device_flow_store: create_device_flow_store(),
+                    web_flow_store: create_web_flow_store(),
+                    session_store: create_oauth_session_store(),
+                })
+            }
+            Ok(None) => {
+                tracing::info!("OAuth not configured");
+                None
+            }
+            Err(e) => {
+                tracing::error!("Failed to create OAuth client: {}", e);
+                None
+            }
+        };
+
         Ok(Arc::new(AppState {
             settings,
             stop_flag: stop_flag.clone(),
@@ -45,6 +71,7 @@ impl AppState {
             apps: SharedAppList::new(),
             docker,
             task_manager: manager::TaskManager::new(),
+            oauth_state,
         }))
     }
 }

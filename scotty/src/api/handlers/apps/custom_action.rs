@@ -24,7 +24,7 @@ pub struct CustomActionPayload {
 #[debug_handler]
 #[utoipa::path(
     post,
-    path = "/api/v1/apps/{app_name}/actions",
+    path = "/api/v1/authenticated/apps/{app_name}/actions",
     request_body = CustomActionPayload,
     responses(
         (status = 200, response = inline(RunningAppContext)),
