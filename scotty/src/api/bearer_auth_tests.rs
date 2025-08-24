@@ -96,6 +96,84 @@ async fn test_bearer_auth_invalid_token_blueprints() {
         )
         .await;
 
+    // Should fail since only explicitly assigned tokens should work
+    assert_eq!(response.status_code(), 401);
+}
+
+/// Create Scotty router with actual authorization service (not fallback)
+async fn create_scotty_app_with_rbac_auth() -> axum::Router {
+    let builder = Config::builder().add_source(config::File::with_name("tests/test_bearer_auth"));
+
+    let config = builder.build().unwrap();
+    let settings: crate::settings::config::Settings = config.try_deserialize().unwrap();
+
+    // Create app state with actual authorization service that loads from config
+    let app_state = Arc::new(AppState {
+        settings: settings.clone(),
+        stop_flag: crate::stop_flag::StopFlag::new(),
+        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
+        docker: bollard::Docker::connect_with_local_defaults().unwrap(),
+        task_manager: crate::tasks::manager::TaskManager::new(),
+        oauth_state: None,
+        auth_service: Arc::new(
+            crate::services::AuthorizationService::new_with_fallback(
+                "config/casbin", 
+                settings.api.access_token.clone()
+            ).await,
+        ),
+    });
+
+    ApiRoutes::create(app_state)
+}
+
+#[tokio::test]
+async fn test_bearer_auth_with_rbac_assigned_token() {
+    // First test that the authorization service loads the assignments correctly
+    let auth_service = crate::services::AuthorizationService::new_with_fallback(
+        "config/casbin", 
+        Some("test-token".to_string())
+    ).await;
+    
+    let assignments = auth_service.list_assignments().await;
+    println!("Loaded assignments: {:?}", assignments);
+    
+    // Check if bearer:client-a exists
+    let client_a_token = crate::services::AuthorizationService::format_user_id("", Some("client-a"));
+    println!("Looking for token: {}", client_a_token);
+    assert!(assignments.contains_key(&client_a_token), "client-a token should be in assignments");
+
+    let router = create_scotty_app_with_rbac_auth().await;
+    let server = TestServer::new(router).unwrap();
+
+    // Test with a token that should be in the assignments (from policy.yaml)
+    let response = server
+        .get("/api/v1/authenticated/blueprints")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            axum::http::HeaderValue::from_str("Bearer client-a").unwrap(),
+        )
+        .await;
+
+    // Should succeed since client-a is explicitly assigned in policy.yaml
+    assert_eq!(response.status_code(), 200);
+}
+
+#[tokio::test]
+async fn test_bearer_auth_with_rbac_unassigned_token() {
+    let router = create_scotty_app_with_rbac_auth().await;
+    let server = TestServer::new(router).unwrap();
+
+    // Test with a token that is not explicitly assigned
+    let response = server
+        .get("/api/v1/authenticated/blueprints")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            axum::http::HeaderValue::from_str("Bearer unassigned-token").unwrap(),
+        )
+        .await;
+
+    // Should fail since token is not in assignments
     assert_eq!(response.status_code(), 401);
 }
 

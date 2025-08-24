@@ -155,43 +155,42 @@ impl ApiRoutes {
             // Routes that require specific permissions
             .route(
                 "/api/v1/authenticated/apps/list",
-                get(list_apps_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::View))),
+                get(list_apps_handler),
             )
             .route(
                 "/api/v1/authenticated/apps/run/{app_id}",
                 get(run_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/stop/{app_id}",
                 get(stop_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/purge/{app_id}",
                 get(purge_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/rebuild/{app_id}",
                 get(rebuild_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/info/{app_id}",
                 get(info_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::View))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::View))),
             )
             .route(
                 "/api/v1/authenticated/apps/destroy/{app_id}",
                 get(destroy_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Destroy))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Destroy))),
             )
             .route(
                 "/api/v1/authenticated/apps/adopt/{app_id}",
                 get(adopt_app_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Create))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Create))),
             )
             .route(
                 "/api/v1/authenticated/apps/create",
@@ -199,7 +198,7 @@ impl ApiRoutes {
                     .layer(DefaultBodyLimit::max(
                         state.settings.api.create_app_max_size,
                     ))
-                    .layer(middleware::from_fn(require_permission(Permission::Create))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Create))),
             )
             .route("/api/v1/authenticated/tasks", get(task_list_handler))
             .route(
@@ -212,8 +211,7 @@ impl ApiRoutes {
             )
             .route(
                 "/api/v1/authenticated/blueprints",
-                get(blueprints_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::View))),
+                get(blueprints_handler),
             )
             .route(
                 "/api/v1/authenticated/groups/list",
@@ -221,18 +219,16 @@ impl ApiRoutes {
             )
             .route(
                 "/api/v1/authenticated/apps/notify/add",
-                post(add_notification_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                post(add_notification_handler),
             )
             .route(
                 "/api/v1/authenticated/apps/notify/remove",
-                post(remove_notification_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                post(remove_notification_handler),
             )
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
                 post(run_custom_action_handler)
-                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
+                    .layer(middleware::from_fn_with_state(state.clone(), require_permission(Permission::Manage))),
             )
             // Apply authorization middleware to all authenticated routes
             .route_layer(middleware::from_fn_with_state(

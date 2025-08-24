@@ -25,6 +25,15 @@ pub async fn list_apps_handler(
     Extension(user): Extension<CurrentUser>,
 ) -> Result<impl IntoResponse, AppError> {
     let all_apps = state.apps.get_apps().await;
+    
+    tracing::info!("Total apps discovered: {}", all_apps.apps.len());
+    for app in &all_apps.apps {
+        if let Some(settings) = &app.settings {
+            tracing::info!("Discovered app: {} (groups: {:?})", app.name, settings.groups);
+        } else {
+            tracing::info!("Discovered app: {} (no settings)", app.name);
+        }
+    }
 
     let auth_service = &state.auth_service;
 
@@ -35,13 +44,17 @@ pub async fn list_apps_handler(
 
     // Filter apps based on user's view permissions
     let user_id = AuthorizationService::format_user_id(&user.email, user.access_token.as_deref());
+    tracing::info!("Filtering apps for user_id: {}, email: {}, token: {:?}", user_id, user.email, user.access_token);
+    
     let mut filtered_apps = Vec::new();
 
     for app in all_apps.apps {
-        if auth_service
+        let has_permission = auth_service
             .check_permission(&user_id, &app.name, &Permission::View)
-            .await
-        {
+            .await;
+        tracing::info!("App '{}' permission check for user '{}': {}", app.name, user_id, has_permission);
+        
+        if has_permission {
             filtered_apps.push(app);
         }
     }

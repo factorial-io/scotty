@@ -102,4 +102,11 @@ mod tests {
         assert_eq!(slugify("!@#$%"), "");
         assert_eq!(slugify("   "), "");
     }
+
+    #[test]
+    fn test_slugify_underscores() {
+        assert_eq!(slugify("simple_nginx"), "simple-nginx");
+        assert_eq!(slugify("hello_world_test"), "hello-world-test");
+        assert_eq!(slugify("app_name"), "app-name");
+    }
 }

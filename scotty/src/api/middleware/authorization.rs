@@ -80,12 +80,13 @@ pub async fn authorization_middleware(
 pub fn require_permission(
     permission: Permission,
 ) -> impl Fn(
+    State<SharedAppState>,
     Request,
     Next,
 ) -> std::pin::Pin<
     Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>,
 > + Clone {
-    move |req: Request, next: Next| {
+    move |State(state): State<SharedAppState>, req: Request, next: Next| {
         Box::pin(async move {
             // Extract app name from path
             let app_name = extract_app_name_from_path(req.uri().path());
@@ -100,12 +101,6 @@ pub fn require_permission(
             // Get authorization context
             let auth_context: &AuthorizationContext = req.extensions().get().ok_or_else(|| {
                 warn!("Authorization context not found in request");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
-            // Get state
-            let state: &SharedAppState = req.extensions().get().ok_or_else(|| {
-                warn!("App state not found in request");
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
@@ -143,11 +138,16 @@ pub fn require_permission(
 }
 
 /// Extract app name from request path
-/// Supports patterns like /apps/info/{app_name}, /apps/shell/{app_name}, etc.
+/// Supports patterns like /api/v1/authenticated/apps/info/{app_name}, /apps/shell/{app_name}, etc.
 fn extract_app_name_from_path(path: &str) -> Option<String> {
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
 
-    // Look for patterns like /apps/{action}/{app_name}
+    // Look for patterns like /api/v1/authenticated/apps/{action}/{app_name}
+    if parts.len() >= 6 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "authenticated" && parts[3] == "apps" {
+        return Some(parts[5].to_string());
+    }
+
+    // Look for patterns like /apps/{action}/{app_name} (legacy)
     if parts.len() >= 3 && parts[0] == "apps" {
         return Some(parts[2].to_string());
     }
@@ -161,6 +161,18 @@ mod tests {
 
     #[test]
     fn test_extract_app_name_from_path() {
+        // Test new API v1 paths
+        assert_eq!(
+            extract_app_name_from_path("/api/v1/authenticated/apps/info/my-app"),
+            Some("my-app".to_string())
+        );
+
+        assert_eq!(
+            extract_app_name_from_path("/api/v1/authenticated/apps/info/cd-with-db"),
+            Some("cd-with-db".to_string())
+        );
+
+        // Test legacy paths
         assert_eq!(
             extract_app_name_from_path("/apps/info/my-app"),
             Some("my-app".to_string())

@@ -6,7 +6,7 @@ api:
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
 scheduler:
-    running_app_check: "15s"
+    running_app_check: "15m"
     ttl_check: "10m"
     task_cleanup: "3m"
 telemetry: None

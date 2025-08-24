@@ -63,11 +63,7 @@ pub async fn auth(
             authorize_oauth_user_native(state.clone(), auth_header).await
         }
         AuthMode::Bearer => {
-            debug!("Using bearer token auth mode");
-            if state.settings.api.access_token.is_none() {
-                debug!("No access token configured, allowing request");
-                return Ok(next.run(req).await);
-            }
+            debug!("Using bearer token auth mode with RBAC");
 
             let auth_header = req
                 .headers()
@@ -180,26 +176,15 @@ pub async fn authorize_bearer_user(
     let auth_service = &shared_app_state.auth_service;
     if let Some(user_id) = auth_service.get_user_by_token(token).await {
         debug!("Found user for bearer token: {}", user_id);
+        let token_prefix = &token[..std::cmp::min(token.len(), 8)];
         return Some(CurrentUser {
-            email: format!("token-user-{}", token[..8].to_lowercase()),
-            name: format!("Token User ({})", &token[..8]),
+            email: format!("token-user-{}", token_prefix.to_lowercase()),
+            name: format!("Token User ({})", token_prefix),
             access_token: Some(token.to_string()),
         });
     }
 
-    // Fallback to legacy behavior for backward compatibility when authorization is not used
-    if let Some(required_token) = &shared_app_state.settings.api.access_token {
-        if token == required_token {
-            debug!("Using legacy bearer token authentication (fallback when authorization is not used)");
-            return Some(CurrentUser {
-                email: "api-user@localhost".to_string(),
-                name: "API User".to_string(),
-                access_token: Some(token.to_string()),
-            });
-        }
-    }
-
-    // Token not found in either authorization service or legacy config
-    warn!("Bearer token authentication failed");
+    // Token not found in RBAC assignments
+    warn!("Bearer token authentication failed - token not found in RBAC assignments");
     None
 }
