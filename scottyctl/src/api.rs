@@ -4,23 +4,33 @@ use serde_json::Value;
 use tracing::info;
 
 use crate::auth::storage::TokenStorage;
+use crate::auth::config::get_server_info;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
 use scotty_core::http::{HttpClient, RetryError};
+use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
 use std::sync::Arc;
 use std::time::Duration;
 
 async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
-    // 1. Try stored OAuth token first
-    if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
-        // TODO: Check if token is expired and refresh if needed
-        return Ok(stored_token.access_token);
+    // 1. Check server auth mode to determine if OAuth tokens should be used
+    let server_supports_oauth = match get_server_info(server).await {
+        Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
+        Err(_) => false, // If we can't check, assume OAuth is not supported
+    };
+    
+    // 2. Try stored OAuth token only if server supports OAuth
+    if server_supports_oauth {
+        if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
+            // TODO: Check if token is expired and refresh if needed
+            return Ok(stored_token.access_token);
+        }
     }
 
-    // 2. Fall back to environment variable
+    // 3. Fall back to environment variable or command line token
     if let Some(token) = &server.access_token {
         return Ok(token.clone());
     }
