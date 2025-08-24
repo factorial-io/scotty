@@ -82,6 +82,7 @@ url = "2.5"
 include_dir = "0.7.3"
 mime_guess = "2.0.4"
 semver = "1.0"
+casbin = { version = "2.8", default-features = false, features = ["runtime-tokio", "cached"] }
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]

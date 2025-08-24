@@ -63,11 +63,7 @@ pub async fn auth(
             authorize_oauth_user_native(state.clone(), auth_header).await
         }
         AuthMode::Bearer => {
-            debug!("Using bearer token auth mode");
-            if state.settings.api.access_token.is_none() {
-                debug!("No access token configured, allowing request");
-                return Ok(next.run(req).await);
-            }
+            debug!("Using bearer token auth mode with RBAC");
 
             let auth_header = req
                 .headers()
@@ -164,17 +160,31 @@ async fn authorize_oauth_user_native(
     }
 }
 
+/// Authorize a bearer token user
+///
+/// First attempts to look up the token in the authorization service assignments.
+/// If not found, falls back to the legacy `api.access_token` configuration for
+/// backward compatibility when authorization is not used.
 pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
     auth_token: &str,
 ) -> Option<CurrentUser> {
-    let required_token = shared_app_state.settings.api.access_token.as_ref().unwrap();
-    auth_token
-        .strip_prefix("Bearer ")
-        .filter(|token| token == required_token)
-        .map(|token| CurrentUser {
-            email: "api-user@localhost".to_string(),
-            name: "API User".to_string(),
+    // Extract Bearer token
+    let token = auth_token.strip_prefix("Bearer ")?;
+
+    // Look up the user by token in authorization service
+    let auth_service = &shared_app_state.auth_service;
+    if let Some(user_id) = auth_service.get_user_by_token(token).await {
+        debug!("Found user for bearer token: {}", user_id);
+        let token_prefix = &token[..std::cmp::min(token.len(), 8)];
+        return Some(CurrentUser {
+            email: format!("token-user-{}", token_prefix.to_lowercase()),
+            name: format!("Token User ({})", token_prefix),
             access_token: Some(token.to_string()),
-        })
+        });
+    }
+
+    // Token not found in RBAC assignments
+    warn!("Bearer token authentication failed - token not found in RBAC assignments");
+    None
 }
