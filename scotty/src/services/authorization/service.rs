@@ -54,24 +54,6 @@ impl AuthorizationService {
         })
     }
 
-    /// Create a new authorization service with fallback configuration
-    /// This is used when the main configuration can't be loaded.
-    /// It creates a default setup where everyone has access to the "default" group
-    /// and uses the legacy access token from settings if provided.
-    pub async fn new_with_fallback(config_dir: &str, legacy_access_token: Option<String>) -> Self {
-        match Self::new(config_dir).await {
-            Ok(service) => {
-                info!("Authorization service loaded successfully from config");
-                service
-            }
-            Err(e) => {
-                panic!(
-                    "Failed to load authorization config from '{}': {}. Server cannot start without valid authorization configuration.",
-                    config_dir, e
-                );
-            }
-        }
-    }
 
     /// Create a fallback authorization service with minimal configuration
     pub async fn create_fallback_service(legacy_access_token: Option<String>) -> Self {

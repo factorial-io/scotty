@@ -11,6 +11,7 @@ use crate::{api::router::ApiRoutes, app_state::SharedAppState};
 pub async fn setup_http_server(
     app_state: SharedAppState,
     bind_address: &str,
+    telemetry_enabled: bool,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
     let cors = CorsLayer::new()
         .allow_origin("*".parse::<HeaderValue>().unwrap())
@@ -24,10 +25,13 @@ pub async fn setup_http_server(
         // .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
-    let app = ApiRoutes::create(app_state.clone())
-        .layer(cors)
-        .layer(OtelInResponseLayer)
-        .layer(OtelAxumLayer::default());
+    let mut app = ApiRoutes::create(app_state.clone()).layer(cors);
+    
+    if telemetry_enabled {
+        app = app
+            .layer(OtelInResponseLayer)
+            .layer(OtelAxumLayer::default());
+    }
 
     println!("🚀 API-Server starting at http://{}", &bind_address);
     let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();

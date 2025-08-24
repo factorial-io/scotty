@@ -4,6 +4,7 @@ use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::docker::DockerConnectOptions;
 use tokio::sync::{broadcast, Mutex};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::oauth::handlers::OAuthState;
@@ -67,11 +68,18 @@ impl AppState {
 
         // Initialize authorization service (always available with fallback)
         let auth_service = Arc::new(
-            AuthorizationService::new_with_fallback(
-                "config/casbin",
-                settings.api.access_token.clone(),
-            )
-            .await,
+            match AuthorizationService::new("config/casbin").await {
+                Ok(service) => {
+                    info!("Authorization service loaded successfully from config");
+                    service
+                }
+                Err(e) => {
+                    panic!(
+                        "Failed to load authorization config from 'config/casbin': {}. Server cannot start without valid authorization configuration.",
+                        e
+                    );
+                }
+            }
         );
 
         Ok(Arc::new(AppState {

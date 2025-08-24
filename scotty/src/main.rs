@@ -58,11 +58,17 @@ async fn main() -> anyhow::Result<()> {
     let app_state = app_state::AppState::new().await?;
     init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
 
+    // Determine if telemetry tracing is enabled
+    let telemetry_enabled = app_state.settings.telemetry.as_ref()
+        .map(|settings| settings.to_lowercase().split(',').any(|s| s == "traces"))
+        .unwrap_or(false);
+
     // Setup http server.
     {
         let handle = setup_http_server(
             app_state.clone(),
             &app_state.clone().settings.api.bind_address,
+            telemetry_enabled,
         )
         .await?;
 

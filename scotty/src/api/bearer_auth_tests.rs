@@ -22,7 +22,8 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
+            crate::services::AuthorizationService::new("../config/casbin").await
+                .expect("Failed to load RBAC config for test"),
         ),
     });
 
@@ -30,34 +31,6 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
     ApiRoutes::create(app_state)
 }
 
-/// Create Scotty router with no bearer token configured
-async fn create_scotty_app_without_bearer_token() -> axum::Router {
-    // Load test configuration and override to remove access token
-    let builder = Config::builder()
-        .add_source(config::File::with_name("tests/test_bearer_auth"))
-        .set_override("api.access_token", Option::<String>::None)
-        .unwrap();
-
-    let config = builder.build().unwrap();
-    let settings: crate::settings::config::Settings = config.try_deserialize().unwrap();
-
-    // Create app state with test configuration
-    let app_state = Arc::new(AppState {
-        settings,
-        stop_flag: crate::stop_flag::StopFlag::new(),
-        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
-        apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: bollard::Docker::connect_with_local_defaults().unwrap(),
-        task_manager: crate::tasks::manager::TaskManager::new(),
-        oauth_state: None,
-        auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
-        ),
-    });
-
-    // Create the actual Scotty router with all routes
-    ApiRoutes::create(app_state)
-}
 
 #[tokio::test]
 async fn test_bearer_auth_valid_token_blueprints() {
@@ -117,10 +90,8 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new_with_fallback(
-                "config/casbin", 
-                settings.api.access_token.clone()
-            ).await,
+            crate::services::AuthorizationService::new("../config/casbin").await
+                .expect("Failed to load RBAC config for test"),
         ),
     });
 
@@ -130,10 +101,8 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
 #[tokio::test]
 async fn test_bearer_auth_with_rbac_assigned_token() {
     // First test that the authorization service loads the assignments correctly
-    let auth_service = crate::services::AuthorizationService::new_with_fallback(
-        "config/casbin", 
-        Some("test-token".to_string())
-    ).await;
+    let auth_service = crate::services::AuthorizationService::new("../config/casbin").await
+        .expect("Failed to load RBAC config for test");
     
     let assignments = auth_service.list_assignments().await;
     println!("Loaded assignments: {:?}", assignments);
@@ -222,22 +191,6 @@ async fn test_bearer_auth_public_endpoint() {
     );
 }
 
-#[tokio::test]
-async fn test_bearer_auth_no_token_configured() {
-    let router = create_scotty_app_without_bearer_token().await;
-    let server = TestServer::new(router).unwrap();
-
-    // When no token is configured, bearer mode should allow all requests
-    let response = server.get("/api/v1/authenticated/blueprints").await;
-
-    assert_eq!(response.status_code(), 200);
-    let body = response.text();
-    assert!(
-        body.contains("test-blueprint"),
-        "Response should contain test blueprint when no token configured: {}",
-        body
-    );
-}
 
 #[tokio::test]
 async fn test_bearer_auth_apps_list_endpoint() {
@@ -281,7 +234,8 @@ async fn create_scotty_app_with_oauth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None, // OAuth client creation may fail in tests, that's OK
         auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
+            crate::services::AuthorizationService::new("../config/casbin").await
+                .expect("Failed to load RBAC config for test"),
         ),
     });
 
@@ -368,7 +322,8 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
+            crate::services::AuthorizationService::new("../config/casbin").await
+                .expect("Failed to load RBAC config for test"),
         ),
     });
 
