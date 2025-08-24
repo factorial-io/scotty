@@ -102,7 +102,7 @@ pub mod permission_serde {
     use super::{Permission, PermissionOrWildcard};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    pub fn serialize<S>(perms: &Vec<PermissionOrWildcard>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(perms: &[PermissionOrWildcard], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {

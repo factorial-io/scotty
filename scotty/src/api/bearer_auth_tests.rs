@@ -22,7 +22,8 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin").await
+            crate::services::AuthorizationService::new("../config/casbin")
+                .await
                 .expect("Failed to load RBAC config for test"),
         ),
     });
@@ -30,7 +31,6 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
     // Create the actual Scotty router with all routes
     ApiRoutes::create(app_state)
 }
-
 
 #[tokio::test]
 async fn test_bearer_auth_valid_token_blueprints() {
@@ -90,7 +90,8 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin").await
+            crate::services::AuthorizationService::new("../config/casbin")
+                .await
                 .expect("Failed to load RBAC config for test"),
         ),
     });
@@ -101,16 +102,21 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
 #[tokio::test]
 async fn test_bearer_auth_with_rbac_assigned_token() {
     // First test that the authorization service loads the assignments correctly
-    let auth_service = crate::services::AuthorizationService::new("../config/casbin").await
+    let auth_service = crate::services::AuthorizationService::new("../config/casbin")
+        .await
         .expect("Failed to load RBAC config for test");
-    
+
     let assignments = auth_service.list_assignments().await;
     println!("Loaded assignments: {:?}", assignments);
-    
+
     // Check if bearer:client-a exists
-    let client_a_token = crate::services::AuthorizationService::format_user_id("", Some("client-a"));
+    let client_a_token =
+        crate::services::AuthorizationService::format_user_id("", Some("client-a"));
     println!("Looking for token: {}", client_a_token);
-    assert!(assignments.contains_key(&client_a_token), "client-a token should be in assignments");
+    assert!(
+        assignments.contains_key(&client_a_token),
+        "client-a token should be in assignments"
+    );
 
     let router = create_scotty_app_with_rbac_auth().await;
     let server = TestServer::new(router).unwrap();
@@ -191,7 +197,6 @@ async fn test_bearer_auth_public_endpoint() {
     );
 }
 
-
 #[tokio::test]
 async fn test_bearer_auth_apps_list_endpoint() {
     let router = create_scotty_app_with_bearer_auth().await;
@@ -234,7 +239,8 @@ async fn create_scotty_app_with_oauth() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None, // OAuth client creation may fail in tests, that's OK
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin").await
+            crate::services::AuthorizationService::new("../config/casbin")
+                .await
                 .expect("Failed to load RBAC config for test"),
         ),
     });
@@ -322,7 +328,8 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin").await
+            crate::services::AuthorizationService::new("../config/casbin")
+                .await
                 .expect("Failed to load RBAC config for test"),
         ),
     });

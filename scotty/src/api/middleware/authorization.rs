@@ -143,7 +143,12 @@ fn extract_app_name_from_path(path: &str) -> Option<String> {
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
 
     // Look for patterns like /api/v1/authenticated/apps/{action}/{app_name}
-    if parts.len() >= 6 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "authenticated" && parts[3] == "apps" {
+    if parts.len() >= 6
+        && parts[0] == "api"
+        && parts[1] == "v1"
+        && parts[2] == "authenticated"
+        && parts[3] == "apps"
+    {
         return Some(parts[5].to_string());
     }
 

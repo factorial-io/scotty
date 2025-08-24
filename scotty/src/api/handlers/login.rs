@@ -46,7 +46,7 @@ pub async fn login_handler(
         }
         AuthMode::Bearer => {
             debug!("Bearer token login attempt");
-            
+
             // Use authorization service to validate the token
             let auth_service = &state.auth_service;
             if let Some(_user_id) = auth_service.get_user_by_token(&form.password).await {
@@ -69,7 +69,6 @@ pub async fn login_handler(
 
     Json(json_response)
 }
-
 
 #[utoipa::path(
     post,

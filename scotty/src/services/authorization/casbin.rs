@@ -1,6 +1,6 @@
 use anyhow::Result;
 use casbin::prelude::*;
-use tracing::{debug, info};
+use tracing::info;
 
 use super::types::{AuthConfig, Permission, PermissionOrWildcard};
 
@@ -14,7 +14,7 @@ impl CasbinManager {
         config: &AuthConfig,
     ) -> Result<()> {
         info!("Starting Casbin policy synchronization");
-        
+
         // Clear existing policies
         let _ = enforcer.clear_policy().await;
 
@@ -49,13 +49,14 @@ impl CasbinManager {
                 if let Some(role_config) = config.roles.get(&assignment.role) {
                     for group in &assignment.groups {
                         for permission in &role_config.permissions {
-                            Self::add_permission_policies(enforcer, user, group, permission).await?;
+                            Self::add_permission_policies(enforcer, user, group, permission)
+                                .await?;
                         }
                     }
                 }
             }
         }
-        
+
         info!("Casbin policy synchronization completed");
 
         Ok(())
@@ -88,7 +89,10 @@ impl CasbinManager {
             }
             PermissionOrWildcard::Permission(perm) => {
                 let action = perm.as_str();
-                info!("Adding p: {} {} {} (user-group policy)", user, group, action);
+                info!(
+                    "Adding p: {} {} {} (user-group policy)",
+                    user, group, action
+                );
                 enforcer
                     .add_policy(vec![
                         user.to_string(),

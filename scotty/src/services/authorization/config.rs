@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::warn;
 
-use super::types::{AuthConfig, AuthConfigForSave, GroupConfig, PermissionOrWildcard, Permission, RoleConfig};
+use super::types::{
+    AuthConfig, AuthConfigForSave, GroupConfig, Permission, PermissionOrWildcard, RoleConfig,
+};
 
 /// Configuration loading and management functionality
 pub struct ConfigManager;
@@ -32,7 +34,7 @@ impl ConfigManager {
             roles: config.roles.clone(),
             assignments: config.assignments.clone(),
         };
-        
+
         let yaml = serde_yml::to_string(&save_config)?;
         tokio::fs::write(config_path, yaml)
             .await

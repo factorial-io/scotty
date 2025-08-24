@@ -67,20 +67,18 @@ impl AppState {
         };
 
         // Initialize authorization service (always available with fallback)
-        let auth_service = Arc::new(
-            match AuthorizationService::new("config/casbin").await {
-                Ok(service) => {
-                    info!("Authorization service loaded successfully from config");
-                    service
-                }
-                Err(e) => {
-                    panic!(
+        let auth_service = Arc::new(match AuthorizationService::new("config/casbin").await {
+            Ok(service) => {
+                info!("Authorization service loaded successfully from config");
+                service
+            }
+            Err(e) => {
+                panic!(
                         "Failed to load authorization config from 'config/casbin': {}. Server cannot start without valid authorization configuration.",
                         e
                     );
-                }
             }
-        );
+        });
 
         Ok(Arc::new(AppState {
             settings,

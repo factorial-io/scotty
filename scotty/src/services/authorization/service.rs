@@ -3,7 +3,7 @@ use casbin::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, instrument, warn};
+use tracing::info;
 
 use super::casbin::CasbinManager;
 use super::config::ConfigManager;
@@ -53,7 +53,6 @@ impl AuthorizationService {
             config_path: policy_path,
         })
     }
-
 
     /// Create a fallback authorization service with minimal configuration
     pub async fn create_fallback_service(legacy_access_token: Option<String>) -> Self {
@@ -541,7 +540,7 @@ impl AuthorizationService {
                 for group in &assignment.groups {
                     let group_perms = all_permissions
                         .entry(group.clone())
-                        .or_insert_with(Vec::new);
+                        .or_default();
                     for perm in &permissions {
                         if !group_perms.contains(perm) {
                             group_perms.push(perm.clone());

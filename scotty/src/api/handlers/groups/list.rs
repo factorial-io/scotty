@@ -60,12 +60,15 @@ mod tests {
     async fn test_list_user_groups_with_fallback_token() {
         // Create a test authorization service with a token
         let test_token = "test-token-123";
-        let auth_service = AuthorizationService::create_fallback_service(Some(test_token.to_string())).await;
-        
+        let auth_service =
+            AuthorizationService::create_fallback_service(Some(test_token.to_string())).await;
+
         // Verify the token user has admin role for default group
         let user_id = AuthorizationService::format_user_id("", Some(test_token));
-        let user_groups = auth_service.get_user_groups_with_permissions(&user_id).await;
-        
+        let user_groups = auth_service
+            .get_user_groups_with_permissions(&user_id)
+            .await;
+
         // Should have one group (default) with admin permissions (*)
         assert_eq!(user_groups.len(), 1);
         assert_eq!(user_groups[0].name, "default");

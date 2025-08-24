@@ -6,15 +6,19 @@ use tokio::sync::RwLock;
 use tracing::info;
 
 use super::casbin::CasbinManager;
-use super::types::{Assignment, AuthConfig, GroupConfig, Permission, PermissionOrWildcard, RoleConfig};
 use super::service::AuthorizationService;
+use super::types::{
+    Assignment, AuthConfig, GroupConfig, Permission, PermissionOrWildcard, RoleConfig,
+};
 
 /// Fallback authorization service creation
 pub struct FallbackService;
 
 impl FallbackService {
     /// Create a fallback authorization service with minimal configuration
-    pub async fn create_fallback_service(legacy_access_token: Option<String>) -> AuthorizationService {
+    pub async fn create_fallback_service(
+        legacy_access_token: Option<String>,
+    ) -> AuthorizationService {
         // Create a minimal Casbin model in memory
         let model_text = r#"
 [request_definition]

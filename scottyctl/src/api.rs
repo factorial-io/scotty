@@ -3,8 +3,8 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde_json::Value;
 use tracing::info;
 
-use crate::auth::storage::TokenStorage;
 use crate::auth::config::get_server_info;
+use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
@@ -21,7 +21,7 @@ async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error
         Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
         Err(_) => false, // If we can't check, assume OAuth is not supported
     };
-    
+
     // 2. Try stored OAuth token only if server supports OAuth
     if server_supports_oauth {
         if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {

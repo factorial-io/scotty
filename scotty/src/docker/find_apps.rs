@@ -179,7 +179,10 @@ pub async fn inspect_app(
             {
                 debug!("Failed to sync app groups for {}: {}", app_data.name, e);
             } else {
-                debug!("Synced app '{}' to groups: {:?}", app_data.name, app_settings.groups);
+                debug!(
+                    "Synced app '{}' to groups: {:?}",
+                    app_data.name, app_settings.groups
+                );
             }
         }
     } else {

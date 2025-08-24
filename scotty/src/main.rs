@@ -59,7 +59,10 @@ async fn main() -> anyhow::Result<()> {
     init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
 
     // Determine if telemetry tracing is enabled
-    let telemetry_enabled = app_state.settings.telemetry.as_ref()
+    let telemetry_enabled = app_state
+        .settings
+        .telemetry
+        .as_ref()
         .map(|settings| settings.to_lowercase().split(',').any(|s| s == "traces"))
         .unwrap_or(false);
 

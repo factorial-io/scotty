@@ -26,7 +26,7 @@ pub async fn setup_http_server(
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     let mut app = ApiRoutes::create(app_state.clone()).layer(cors);
-    
+
     if telemetry_enabled {
         app = app
             .layer(OtelInResponseLayer)
