@@ -131,7 +131,7 @@ async fn create_app_prepare(
     Ok(sm)
 }
 
-fn validate_app(
+async fn validate_app(
     app_state: SharedAppState,
     settings: &AppSettings,
     files: &FileList,
@@ -194,6 +194,15 @@ fn validate_app(
         }
     }
 
+    // Validate that all specified groups exist in the authorization system
+    if let Err(missing_groups) = app_state
+        .auth_service
+        .validate_groups(&settings.groups)
+        .await
+    {
+        return Err(AppError::GroupsNotFound(missing_groups).into());
+    }
+
     Ok(docker_compose_file.unwrap().clone())
 }
 
@@ -218,7 +227,7 @@ pub async fn create_app(
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
-    let candidate = validate_app(app_state.clone(), settings, files)?;
+    let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");

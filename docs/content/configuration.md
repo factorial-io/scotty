@@ -70,6 +70,7 @@ api:
 * `bind_address`: The address and port the server listens on.
 * `access_token`: The token to authenticate against the server. This token is
   needed by the clients to authenticate against the server when `auth_mode` is "bearer".
+  **Note**: When authorization is enabled, this serves as a fallback token for backward compatibility.
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
@@ -84,6 +85,111 @@ api:
   * `client_id`: OAuth application client ID from your OIDC provider
   * `client_secret`: OAuth application client secret from your OIDC provider  
   * `redirect_url`: OAuth callback URL - must match your provider's configuration
+
+### Authorization settings
+
+Scotty includes an optional group-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
+
+**Authorization is entirely optional** - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.
+
+#### Configuration Files
+
+Authorization requires two configuration files in the `config/casbin/` directory:
+
+```
+config/
+├── casbin/
+│   ├── model.conf       # Casbin RBAC model (auto-generated)
+│   └── policy.yaml      # Groups, roles, and assignments
+└── default.yaml         # Main configuration
+```
+
+#### Example Authorization Configuration
+
+Create `config/casbin/policy.yaml` with your access control setup:
+
+```yaml
+# Group definitions - organize apps by purpose
+groups:
+  frontend:
+    description: "Frontend applications"
+    created_at: "2023-12-01T00:00:00Z"
+  backend: 
+    description: "Backend services"
+    created_at: "2023-12-01T00:00:00Z"
+  production:
+    description: "Production environment"
+    created_at: "2023-12-01T00:00:00Z"
+
+# Role definitions with permissions
+roles:
+  admin:
+    description: "Full administrative access"
+    permissions: ["*"]  # Wildcard for all permissions
+    created_at: "2023-12-01T00:00:00Z"
+  developer:
+    description: "Development access"
+    permissions: ["view", "manage", "shell", "logs", "create"]
+    created_at: "2023-12-01T00:00:00Z"
+  operator:
+    description: "Operations access without shell"
+    permissions: ["view", "manage", "logs"]
+    created_at: "2023-12-01T00:00:00Z"
+
+# User/token assignments to roles within groups
+assignments:
+  "alice@example.com":
+    - role: "admin"
+      groups: ["*"]  # Global access
+  "bob@example.com":
+    - role: "developer"
+      groups: ["frontend", "backend"]
+  "bearer:ci-token":
+    - role: "developer"
+      groups: ["staging"]
+
+# App group mappings (managed automatically from .scotty.yml)
+apps:
+  "my-frontend-app": ["frontend"]
+  "my-backend-api": ["backend"]
+```
+
+#### App Group Assignment
+
+Apps declare group membership in their `.scotty.yml` configuration:
+
+```yaml
+# Apps can belong to multiple groups
+groups:
+  - "frontend"
+  - "staging"
+
+public_services:
+  - service: "web"
+    port: 3000
+```
+
+#### Available Permissions
+
+- `view` - See app status and information
+- `manage` - Start, stop, restart applications
+- `logs` - View application logs
+- `shell` - Execute shell commands in containers
+- `create` - Create new apps in group
+- `destroy` - Delete apps from group
+
+#### Bearer Token Integration
+
+When authorization is enabled, bearer tokens can be assigned specific permissions:
+
+1. **Primary**: Tokens defined in authorization assignments (e.g., `bearer:my-token`)
+2. **Fallback**: Legacy `api.access_token` configuration for backward compatibility
+
+Example CLI usage with authorized token:
+```bash
+export SCOTTY_ACCESS_TOKEN="my-authorized-token"
+scottyctl app:list  # Shows only apps user has 'view' permission for
+```
 
 ###  Scheduler settings
 

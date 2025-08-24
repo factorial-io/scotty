@@ -6,7 +6,8 @@
 Scotty is a so-called *Micro-Platform-as-a-Service*. It allows you to **manage** all your
 docker-compose-based apps with **a simple UI and CLI**. Scotty provides a simple
 REST API so you can interact with your apps. It takes care of the lifetime
-of your apps and adds basic auth to prevent unauthorized access if needed and
+of your apps and includes **group-based authorization** to control access to applications
+and operations. It adds basic auth to prevent unauthorized access if needed and
 instructs robots to not index your apps.
 
 The primary use-case is to **host ephemeral review apps** for your projects. It
@@ -27,7 +28,7 @@ It's not a solution for production-grade deployments. It's not a replacement for
 tools like Nomad, Kubernetes or OpenShift. If you need fine-grained control on
 how your apps are executed, Scotty might not be the right tool for you.
 It does not orchestrate your apps on a cluster of machines.
-It's a single-node solution, with limited access control and no support for
+It's a single-node solution with optional group-based access control and no support for
 scaling your apps.
 
 It is also not a replacement for tools like Dockyard or Portainer. You
@@ -43,5 +44,6 @@ Check out the following sections:
 * [First Steps Guide](first-steps.md) to get up and running with Scotty
 * [Installation Guide](installation.md) for more detailed installation options
 * [Configuration Guide](configuration.md) to learn about all available settings
+* [Authorization System](authorization.md) for group-based access control
 * [Architecture Documentation](architecture.md) to understand how Scotty works
 * [CLI Documentation](cli.md) for all available commands

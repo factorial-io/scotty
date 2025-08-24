@@ -10,6 +10,7 @@ use crate::oauth::handlers::OAuthState;
 use crate::oauth::{
     self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
 };
+use crate::services::AuthorizationService;
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
@@ -25,6 +26,7 @@ pub struct AppState {
     pub docker: Docker,
     pub task_manager: manager::TaskManager,
     pub oauth_state: Option<OAuthState>,
+    pub auth_service: Arc<AuthorizationService>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -32,7 +34,6 @@ pub type SharedAppState = Arc<AppState>;
 impl AppState {
     pub async fn new() -> anyhow::Result<SharedAppState> {
         let settings = Settings::new()?;
-        println!("Used settings: {:?}", &settings);
 
         let stop_flag = stop_flag::StopFlag::new();
         stop_flag::register_signal_handler(&stop_flag);
@@ -64,6 +65,15 @@ impl AppState {
             }
         };
 
+        // Initialize authorization service (always available with fallback)
+        let auth_service = Arc::new(
+            AuthorizationService::new_with_fallback(
+                "config/casbin",
+                settings.api.access_token.clone(),
+            )
+            .await,
+        );
+
         Ok(Arc::new(AppState {
             settings,
             stop_flag: stop_flag.clone(),
@@ -72,6 +82,22 @@ impl AppState {
             docker,
             task_manager: manager::TaskManager::new(),
             oauth_state,
+            auth_service,
+        }))
+    }
+
+    pub async fn new_for_config_only() -> anyhow::Result<SharedAppState> {
+        let settings = Settings::new()?;
+
+        Ok(Arc::new(AppState {
+            settings,
+            stop_flag: stop_flag::StopFlag::new(),
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            apps: SharedAppList::new(),
+            docker: Docker::connect_with_local_defaults()?,
+            task_manager: manager::TaskManager::new(),
+            oauth_state: None,
+            auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
         }))
     }
 }

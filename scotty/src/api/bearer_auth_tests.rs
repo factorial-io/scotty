@@ -21,6 +21,9 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
+        auth_service: Arc::new(
+            crate::services::AuthorizationService::create_fallback_service(None).await,
+        ),
     });
 
     // Create the actual Scotty router with all routes
@@ -47,6 +50,9 @@ async fn create_scotty_app_without_bearer_token() -> axum::Router {
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None,
+        auth_service: Arc::new(
+            crate::services::AuthorizationService::create_fallback_service(None).await,
+        ),
     });
 
     // Create the actual Scotty router with all routes
@@ -196,6 +202,9 @@ async fn create_scotty_app_with_oauth() -> axum::Router {
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: None, // OAuth client creation may fail in tests, that's OK
+        auth_service: Arc::new(
+            crate::services::AuthorizationService::create_fallback_service(None).await,
+        ),
     });
 
     // Create the actual Scotty router with all routes
@@ -280,6 +289,9 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
+        auth_service: Arc::new(
+            crate::services::AuthorizationService::create_fallback_service(None).await,
+        ),
     });
 
     ApiRoutes::create(app_state)

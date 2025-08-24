@@ -144,6 +144,57 @@ pub async fn inspect_app(
     {
         app_data.status = AppStatus::Unsupported;
     }
+
+    // Sync app groups to authorization service
+    if let Some(app_settings) = &app_data.settings {
+        // Validate groups exist before syncing
+        if let Err(missing_groups) = app_state
+            .auth_service
+            .validate_groups(&app_settings.groups)
+            .await
+        {
+            error!(
+                "App '{}' references non-existent groups: {:?}. Assigning to 'default' group instead.",
+                name, missing_groups
+            );
+            // Fallback to default group if specified groups don't exist
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_groups(&name, vec!["default".to_string()])
+                .await
+            {
+                debug!("Failed to set default group for {}: {}", name, e);
+            } else {
+                debug!(
+                    "Assigned app '{}' to default group due to invalid groups",
+                    name
+                );
+            }
+        } else {
+            // Groups are valid, proceed with sync
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_groups(&name, app_settings.groups.clone())
+                .await
+            {
+                debug!("Failed to sync app groups for {}: {}", name, e);
+            } else {
+                debug!("Synced app '{}' to groups: {:?}", name, app_settings.groups);
+            }
+        }
+    } else {
+        // No settings file, assign to default group
+        if let Err(e) = app_state
+            .auth_service
+            .set_app_groups(&name, vec!["default".to_string()])
+            .await
+        {
+            debug!("Failed to set default group for {}: {}", name, e);
+        } else {
+            debug!("Assigned app '{}' to default group", name);
+        }
+    }
+
     Ok(app_data)
 }
 

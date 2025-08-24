@@ -164,17 +164,42 @@ async fn authorize_oauth_user_native(
     }
 }
 
+/// Authorize a bearer token user
+///
+/// First attempts to look up the token in the authorization service assignments.
+/// If not found, falls back to the legacy `api.access_token` configuration for
+/// backward compatibility when authorization is not used.
 pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
     auth_token: &str,
 ) -> Option<CurrentUser> {
-    let required_token = shared_app_state.settings.api.access_token.as_ref().unwrap();
-    auth_token
-        .strip_prefix("Bearer ")
-        .filter(|token| token == required_token)
-        .map(|token| CurrentUser {
-            email: "api-user@localhost".to_string(),
-            name: "API User".to_string(),
+    // Extract Bearer token
+    let token = auth_token.strip_prefix("Bearer ")?;
+
+    // Look up the user by token in authorization service
+    let auth_service = &shared_app_state.auth_service;
+    if let Some(user_id) = auth_service.get_user_by_token(token).await {
+        debug!("Found user for bearer token: {}", user_id);
+        return Some(CurrentUser {
+            email: format!("token-user-{}", token[..8].to_lowercase()),
+            name: format!("Token User ({})", &token[..8]),
             access_token: Some(token.to_string()),
-        })
+        });
+    }
+
+    // Fallback to legacy behavior for backward compatibility when authorization is not used
+    if let Some(required_token) = &shared_app_state.settings.api.access_token {
+        if token == required_token {
+            debug!("Using legacy bearer token authentication (fallback when authorization is not used)");
+            return Some(CurrentUser {
+                email: "api-user@localhost".to_string(),
+                name: "API User".to_string(),
+                access_token: Some(token.to_string()),
+            });
+        }
+    }
+
+    // Token not found in either authorization service or legacy config
+    warn!("Bearer token authentication failed");
+    None
 }

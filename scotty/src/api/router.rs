@@ -53,6 +53,7 @@ use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;
+use crate::api::handlers::groups::list::__path_list_user_groups_handler;
 use crate::api::handlers::health::health_checker_handler;
 use crate::api::handlers::tasks::TaskList;
 use crate::api::handlers::tasks::__path_task_detail_handler;
@@ -75,11 +76,14 @@ use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
 use super::handlers::blueprints::blueprints_handler;
+use super::handlers::groups::list::{list_user_groups_handler, GroupInfo, UserGroupsResponse};
 use super::handlers::info::info_handler;
 use super::handlers::login::login_handler;
 use super::handlers::login::validate_token_handler;
 use super::handlers::tasks::task_detail_handler;
 use super::handlers::tasks::task_list_handler;
+use super::middleware::authorization::{authorization_middleware, require_permission};
+use crate::services::authorization::Permission;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -99,6 +103,7 @@ use super::handlers::tasks::task_list_handler;
         login_handler,
         info_handler,
         blueprints_handler,
+        list_user_groups_handler,
         add_notification_handler,
         remove_notification_handler,
         adopt_app_handler,
@@ -110,7 +115,8 @@ use super::handlers::tasks::task_list_handler;
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
-            OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery
+            OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
+            GroupInfo, UserGroupsResponse
         )
     ),
     tags(
@@ -146,40 +152,54 @@ impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
         let api = ApiDoc::openapi();
         let authenticated_router = Router::new()
-            .route("/api/v1/authenticated/apps/list", get(list_apps_handler))
+            // Routes that require specific permissions
+            .route(
+                "/api/v1/authenticated/apps/list",
+                get(list_apps_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::View))),
+            )
             .route(
                 "/api/v1/authenticated/apps/run/{app_id}",
-                get(run_app_handler),
+                get(run_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/stop/{app_id}",
-                get(stop_app_handler),
+                get(stop_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/purge/{app_id}",
-                get(purge_app_handler),
+                get(purge_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/rebuild/{app_id}",
-                get(rebuild_app_handler),
+                get(rebuild_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/info/{app_id}",
-                get(info_app_handler),
+                get(info_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::View))),
             )
             .route(
                 "/api/v1/authenticated/apps/destroy/{app_id}",
-                get(destroy_app_handler),
+                get(destroy_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Destroy))),
             )
             .route(
                 "/api/v1/authenticated/apps/adopt/{app_id}",
-                get(adopt_app_handler),
+                get(adopt_app_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Create))),
             )
             .route(
                 "/api/v1/authenticated/apps/create",
-                post(create_app_handler).layer(DefaultBodyLimit::max(
-                    state.settings.api.create_app_max_size,
-                )),
+                post(create_app_handler)
+                    .layer(DefaultBodyLimit::max(
+                        state.settings.api.create_app_max_size,
+                    ))
+                    .layer(middleware::from_fn(require_permission(Permission::Create))),
             )
             .route("/api/v1/authenticated/tasks", get(task_list_handler))
             .route(
@@ -190,19 +210,35 @@ impl ApiRoutes {
                 "/api/v1/authenticated/validate-token",
                 post(validate_token_handler),
             )
-            .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
+            .route(
+                "/api/v1/authenticated/blueprints",
+                get(blueprints_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::View))),
+            )
+            .route(
+                "/api/v1/authenticated/groups/list",
+                get(list_user_groups_handler),
+            )
             .route(
                 "/api/v1/authenticated/apps/notify/add",
-                post(add_notification_handler),
+                post(add_notification_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/notify/remove",
-                post(remove_notification_handler),
+                post(remove_notification_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
-                post(run_custom_action_handler),
+                post(run_custom_action_handler)
+                    .layer(middleware::from_fn(require_permission(Permission::Manage))),
             )
+            // Apply authorization middleware to all authenticated routes
+            .route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                authorization_middleware,
+            ))
             .route_layer(middleware::from_fn_with_state(state.clone(), auth));
 
         let public_router = Router::new()
