@@ -13,6 +13,7 @@ use scotty_core::settings::api_server::AuthMode;
 pub struct CurrentUser {
     pub email: String,
     pub name: String,
+    #[allow(dead_code)] // Future use for profile pictures
     pub picture: Option<String>,
     #[allow(dead_code)] // Used for OAuth token forwarding in future implementations
     pub access_token: Option<String>,

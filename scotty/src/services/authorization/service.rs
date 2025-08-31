@@ -73,6 +73,7 @@ impl AuthorizationService {
     }
 
     /// Debug method to print the complete state of the authorization service
+    #[allow(dead_code)] // Useful for debugging
     pub async fn debug_authorization_state(&self) {
         println!("=== AUTHORIZATION SERVICE COMPLETE STATE ===");
         println!("Config path: {}", self.config_path);
@@ -268,11 +269,6 @@ impl AuthorizationService {
         }
     }
 
-    /// Format user identifier for new identifier-based authorization
-    pub fn format_identifier_user_id(identifier: &str) -> String {
-        format!("identifier:{}", identifier)
-    }
-
     /// Check if authorization is enabled (has any assignments)
     pub async fn is_enabled(&self) -> bool {
         let config = self.config.read().await;
@@ -313,16 +309,6 @@ impl AuthorizationService {
 
         let config = self.config.read().await;
         ConfigManager::save_config(&config, &self.config_path).await
-    }
-
-    /// Get all scopes an app belongs to
-    pub async fn get_app_scopes(&self, app: &str) -> Vec<String> {
-        let config = self.config.read().await;
-        config
-            .apps
-            .get(app)
-            .cloned()
-            .unwrap_or_else(|| vec!["default".to_string()])
     }
 
     /// Get all available scopes defined in the authorization configuration

@@ -176,17 +176,25 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let shared_app_list = SharedAppList::new();
 
         // Create mock apps with different group memberships
-        let mut frontend_settings = AppSettings::default();
-        frontend_settings.scopes = vec!["frontend".to_string()];
+        let frontend_settings = AppSettings {
+            scopes: vec!["frontend".to_string()],
+            ..Default::default()
+        };
 
-        let mut backend_settings = AppSettings::default();
-        backend_settings.scopes = vec!["backend".to_string()];
+        let backend_settings = AppSettings {
+            scopes: vec!["backend".to_string()],
+            ..Default::default()
+        };
 
-        let mut fullstack_settings = AppSettings::default();
-        fullstack_settings.scopes = vec!["frontend".to_string(), "backend".to_string()];
+        let fullstack_settings = AppSettings {
+            scopes: vec!["frontend".to_string(), "backend".to_string()],
+            ..Default::default()
+        };
 
-        let mut staging_settings = AppSettings::default();
-        staging_settings.scopes = vec!["staging".to_string()];
+        let staging_settings = AppSettings {
+            scopes: vec!["staging".to_string()],
+            ..Default::default()
+        };
 
         let frontend_app = AppData {
             name: "frontend-app".to_string(),

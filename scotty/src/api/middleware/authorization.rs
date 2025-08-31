@@ -18,6 +18,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct AuthorizationContext {
     pub user: CurrentUser,
+    #[allow(dead_code)] // Used for future permission caching
     pub effective_permissions: HashMap<String, Vec<String>>,
 }
 
