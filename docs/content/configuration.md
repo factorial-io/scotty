@@ -56,9 +56,9 @@ frontend_directory: ./frontend/build
 api:
   bind_address: "0.0.0.0:21342"
   bearer_tokens:
-    admin: "secure-admin-token-abc123" 
-    client-a: "secure-client-token-def456"
-    deployment: "secure-deploy-token-ghi789"
+    admin: "placeholder-will-be-overridden" 
+    client-a: "placeholder-will-be-overridden"
+    deployment: "placeholder-will-be-overridden"
   create_app_max_size: "50M"
   auth_mode: "bearer"  # "dev", "oauth", or "bearer"
   dev_user_email: "dev@localhost"
@@ -71,7 +71,7 @@ api:
 ```
 
 * `bind_address`: The address and port the server listens on.
-* `bearer_tokens`: **Required for bearer authentication**. Map of logical token identifiers to secure bearer tokens. Each identifier corresponds to a user/role in the authorization system and can be overridden via environment variables (e.g., `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`).
+* `bearer_tokens`: **Required for bearer authentication**. Map of logical token identifiers to secure bearer tokens. **Security Note**: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
@@ -194,6 +194,81 @@ scottyctl app:list  # Shows only apps user has 'view' permission for
 ```
 
 **Important**: The `api.access_token` configuration is **no longer supported**. Use `api.bearer_tokens` instead.
+
+#### Bearer Token Security Best Practices
+
+🔒 **NEVER store actual bearer tokens in configuration files!** Follow these security guidelines:
+
+##### 1. Use Environment Variables for Actual Tokens
+
+Store only placeholder values in configuration files and override with secure environment variables:
+
+```bash
+# Production deployment - set actual secure tokens via environment variables
+export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
+export SCOTTY__API__BEARER_TOKENS__DEPLOYMENT="$(openssl rand -base64 32)"
+export SCOTTY__API__BEARER_TOKENS__CLIENT_A="$(openssl rand -base64 32)"
+
+# Start Scotty server
+./scotty
+```
+
+##### 2. Generate Strong Tokens
+
+Use cryptographically secure random tokens:
+
+```bash
+# Generate 32-byte base64-encoded tokens (recommended)
+openssl rand -base64 32
+
+# Or use system UUID (less entropy but still secure)
+uuidgen
+```
+
+##### 3. Configuration File Security
+
+In your `config/local.yaml` or `config/default.yaml`:
+
+```yaml
+api:
+  bearer_tokens:
+    admin: "OVERRIDE_VIA_ENV_VAR"           # Will be overridden by SCOTTY__API__BEARER_TOKENS__ADMIN
+    deployment: "OVERRIDE_VIA_ENV_VAR"      # Will be overridden by SCOTTY__API__BEARER_TOKENS__DEPLOYMENT
+    monitoring: "OVERRIDE_VIA_ENV_VAR"      # Will be overridden by SCOTTY__API__BEARER_TOKENS__MONITORING
+```
+
+##### 4. Token Rotation
+
+Regularly rotate bearer tokens:
+
+1. Generate new secure tokens
+2. Update environment variables
+3. Restart Scotty server
+4. Update CLI configurations and automation tools
+
+##### 5. Access Control
+
+- **Principle of Least Privilege**: Create different tokens with different permissions via authorization system
+- **Scope Limitation**: Use authorization scopes to limit what each token can access
+- **Audit Regularly**: Review token assignments and remove unused tokens
+
+Example secure deployment setup:
+
+```bash
+#!/bin/bash
+# secure-deploy.sh - Production deployment script
+
+# Generate secure tokens if they don't exist
+export SCOTTY__API__BEARER_TOKENS__ADMIN="${ADMIN_TOKEN:-$(openssl rand -base64 32)}"
+export SCOTTY__API__BEARER_TOKENS__DEPLOY="${DEPLOY_TOKEN:-$(openssl rand -base64 32)}"
+
+# Set restrictive file permissions
+chmod 700 config/
+chmod 600 config/*.yaml
+
+# Start server with secure token environment
+exec ./scotty
+```
 
 ###  Scheduler settings
 

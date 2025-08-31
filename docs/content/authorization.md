@@ -226,22 +226,33 @@ assignments:
 
 ### Bearer Token Access
 
+Configure bearer tokens in authorization assignments using their logical identifiers:
+
 ```yaml
 assignments:
-  # CI/CD deployment token
-  "bearer:ci-deploy-token":
+  # CI/CD deployment token (maps to bearer_tokens.deployment in API config)
+  "identifier:deployment":
     - role: "developer"
       scopes: ["staging"]
       
-  # Monitoring token
-  "bearer:monitoring-token":
+  # Monitoring token (maps to bearer_tokens.monitoring in API config)
+  "identifier:monitoring":
     - role: "viewer"
       scopes: ["production", "staging"]
       
-  # Emergency access token
-  "bearer:emergency-token":
+  # Admin token (maps to bearer_tokens.admin in API config)
+  "identifier:admin":
     - role: "admin"
       scopes: ["*"]
+```
+
+**Security Reminder**: The actual bearer tokens should be configured via environment variables:
+
+```bash
+# Set secure tokens via environment variables
+export SCOTTY__API__BEARER_TOKENS__DEPLOYMENT="$(openssl rand -base64 32)"
+export SCOTTY__API__BEARER_TOKENS__MONITORING="$(openssl rand -base64 32)" 
+export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
 ```
 
 ## Best Practices
@@ -286,13 +297,31 @@ For existing Scotty installations:
 4. Apps will automatically sync their scope memberships
 5. API endpoints begin enforcing permissions immediately
 
-**Migration Example**: If you currently use `api.access_token: "my-secret-token"`, add this to your policy.yaml:
+**Migration Example**: If you currently use `api.access_token: "my-secret-token"`, follow these steps:
 
+1. **Update API configuration** to use `api.bearer_tokens` with a logical identifier:
+```yaml
+api:
+  bearer_tokens:
+    legacy: "OVERRIDE_VIA_ENV_VAR"  # Will be overridden by environment variable
+```
+
+2. **Set the actual token via environment variable**:
+```bash
+export SCOTTY__API__BEARER_TOKENS__LEGACY="my-secret-token"
+```
+
+3. **Add the identifier to authorization policy.yaml**:
 ```yaml
 assignments:
-  "bearer:my-secret-token":
+  "identifier:legacy":
     - role: "admin"
       scopes: ["*"]
+```
+
+**Recommended**: Generate a new secure token instead of reusing the old one:
+```bash
+export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
 ```
 
 **Warning**: The authorization system no longer falls back to legacy configuration. Missing token assignments will result in authentication failures.

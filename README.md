@@ -66,7 +66,7 @@ export SCOTTY_ACCESS_TOKEN=your_secure_bearer_token
 scottyctl --server https://localhost:21342 --access-token your_secure_bearer_token app:list
 ```
 
-**Note**: Server administrators configure bearer tokens via `api.bearer_tokens` in configuration files or environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`.
+**Security Note**: Server administrators should **never store actual bearer tokens in configuration files**. Instead, use placeholder values in config files and set actual secure tokens via environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`. See the [configuration documentation](docs/content/configuration.md) for security best practices.
 
 ## Developing/Contributing
 
