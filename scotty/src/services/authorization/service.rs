@@ -9,7 +9,7 @@ use super::casbin::CasbinManager;
 use super::config::ConfigManager;
 use super::fallback::FallbackService;
 use super::types::{
-    Assignment, AuthConfig, GroupConfig, Permission, PermissionOrWildcard, RoleConfig,
+    Assignment, AuthConfig, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
 };
 
 /// Casbin-based authorization service
@@ -42,8 +42,8 @@ impl AuthorizationService {
         CasbinManager::sync_policies_to_casbin(&mut enforcer, &config).await?;
 
         info!(
-            "Authorization service initialized with {} groups, {} roles",
-            config.groups.len(),
+            "Authorization service initialized with {} scopes, {} roles",
+            config.scopes.len(),
             config.roles.len()
         );
 
@@ -80,10 +80,10 @@ impl AuthorizationService {
         let config = self.config.read().await;
         let enforcer = self.enforcer.read().await;
 
-        // Print groups
-        println!("GROUPS:");
-        for (group_name, group_config) in &config.groups {
-            println!("  - {}: {}", group_name, group_config.description);
+        // Print scopes
+        println!("SCOPES:");
+        for (scope_name, scope_config) in &config.scopes {
+            println!("  - {}: {}", scope_name, scope_config.description);
         }
 
         // Print roles
@@ -110,21 +110,21 @@ impl AuthorizationService {
         for (user_id, assignments) in &config.assignments {
             for assignment in assignments {
                 println!(
-                    "  - User '{}' has role '{}' in groups: [{}]",
+                    "  - User '{}' has role '{}' in scopes: [{}]",
                     user_id,
                     assignment.role,
-                    assignment.groups.join(", ")
+                    assignment.scopes.join(", ")
                 );
             }
         }
 
-        // Print app to group mappings
-        println!("APP GROUP MAPPINGS:");
-        for (app_name, groups) in &config.apps {
+        // Print app to scope mappings
+        println!("APP SCOPE MAPPINGS:");
+        for (app_name, scopes) in &config.apps {
             println!(
-                "  - App '{}' is in groups: [{}]",
+                "  - App '{}' is in scopes: [{}]",
                 app_name,
-                groups.join(", ")
+                scopes.join(", ")
             );
         }
 
@@ -150,14 +150,14 @@ impl AuthorizationService {
             }
         }
 
-        // Print all Casbin app->group groupings (g2)
-        println!("CASBIN APP->GROUP GROUPINGS (g2):");
-        let app_group_groupings = enforcer.get_named_grouping_policy("g2");
-        if app_group_groupings.is_empty() {
-            println!("  - NO APP->GROUP GROUPINGS FOUND!");
+        // Print all Casbin app->scope groupings (g2)
+        println!("CASBIN APP->SCOPE GROUPINGS (g2):");
+        let app_scope_groupings = enforcer.get_named_grouping_policy("g2");
+        if app_scope_groupings.is_empty() {
+            println!("  - NO APP->SCOPE GROUPINGS FOUND!");
         } else {
-            for grouping in &app_group_groupings {
-                println!("  - App->Group: [{}]", grouping.join(", "));
+            for grouping in &app_scope_groupings {
+                println!("  - App->Scope: [{}]", grouping.join(", "));
             }
         }
 
@@ -226,8 +226,8 @@ impl AuthorizationService {
         ConfigManager::save_config(&config, &self.config_path).await
     }
 
-    /// Get all groups an app belongs to
-    pub async fn get_app_groups(&self, app: &str) -> Vec<String> {
+    /// Get all scopes an app belongs to
+    pub async fn get_app_scopes(&self, app: &str) -> Vec<String> {
         let config = self.config.read().await;
         config
             .apps
@@ -236,36 +236,36 @@ impl AuthorizationService {
             .unwrap_or_else(|| vec!["default".to_string()])
     }
 
-    /// Get all available groups defined in the authorization configuration
-    pub async fn get_groups(&self) -> Vec<String> {
+    /// Get all available scopes defined in the authorization configuration
+    pub async fn get_scopes(&self) -> Vec<String> {
         let config = self.config.read().await;
-        config.groups.keys().cloned().collect()
+        config.scopes.keys().cloned().collect()
     }
 
-    /// Validate that all specified groups exist in the authorization system
-    /// Returns Ok(()) if all groups exist, or Err with missing groups if not
-    pub async fn validate_groups(&self, groups: &[String]) -> Result<(), Vec<String>> {
-        let available_groups = self.get_groups().await;
-        let missing_groups: Vec<String> = groups
+    /// Validate that all specified scopes exist in the authorization system
+    /// Returns Ok(()) if all scopes exist, or Err with missing scopes if not
+    pub async fn validate_scopes(&self, scopes: &[String]) -> Result<(), Vec<String>> {
+        let available_scopes = self.get_scopes().await;
+        let missing_scopes: Vec<String> = scopes
             .iter()
-            .filter(|group| !available_groups.contains(group))
+            .filter(|scope| !available_scopes.contains(scope))
             .cloned()
             .collect();
 
-        if missing_groups.is_empty() {
+        if missing_scopes.is_empty() {
             Ok(())
         } else {
-            Err(missing_groups)
+            Err(missing_scopes)
         }
     }
 
-    /// Get all groups a user has access to with their permissions
-    pub async fn get_user_groups_with_permissions(
+    /// Get all scopes a user has access to with their permissions
+    pub async fn get_user_scopes_with_permissions(
         &self,
         user: &str,
-    ) -> Vec<crate::api::handlers::groups::list::GroupInfo> {
+    ) -> Vec<crate::api::handlers::scopes::list::ScopeInfo> {
         let config = self.config.read().await;
-        let mut user_groups = Vec::new();
+        let mut user_scopes = Vec::new();
 
         // Collect assignments from both specific user and wildcard "*"
         let mut all_assignments = Vec::new();
@@ -297,29 +297,29 @@ impl AuthorizationService {
             };
 
             // Add each group the user has access to
-            for group in &assignment.groups {
-                let group_info = crate::api::handlers::groups::list::GroupInfo {
-                    name: group.clone(),
+            for scope in &assignment.scopes {
+                let scope_info = crate::api::handlers::scopes::list::ScopeInfo {
+                    name: scope.clone(),
                     description: config
-                        .groups
-                        .get(group)
-                        .map(|g| g.description.clone())
-                        .unwrap_or_else(|| format!("Group: {}", group)),
+                        .scopes
+                        .get(scope)
+                        .map(|s| s.description.clone())
+                        .unwrap_or_else(|| format!("Scope: {}", scope)),
                     permissions: permissions.clone(),
                 };
 
-                // Only add if not already in the list (user might have multiple roles for same group)
-                if !user_groups
+                // Only add if not already in the list (user might have multiple roles for same scope)
+                if !user_scopes
                     .iter()
-                    .any(|g: &crate::api::handlers::groups::list::GroupInfo| {
-                        g.name == group_info.name
+                    .any(|s: &crate::api::handlers::scopes::list::ScopeInfo| {
+                        s.name == scope_info.name
                     })
                 {
-                    user_groups.push(group_info);
+                    user_scopes.push(scope_info);
                 } else {
-                    // If group already exists, merge permissions
-                    if let Some(existing) = user_groups.iter_mut().find(
-                        |g: &&mut crate::api::handlers::groups::list::GroupInfo| g.name == *group,
+                    // If scope already exists, merge permissions
+                    if let Some(existing) = user_scopes.iter_mut().find(
+                        |s: &&mut crate::api::handlers::scopes::list::ScopeInfo| s.name == *scope,
                     ) {
                         for perm in &permissions {
                             if !existing.permissions.contains(perm) {
@@ -331,16 +331,16 @@ impl AuthorizationService {
             }
         }
 
-        user_groups
+        user_scopes
     }
 
-    /// Assign an app to groups
-    /// Note: Caller should validate groups exist using validate_groups() before calling this
-    pub async fn set_app_groups(&self, app: &str, groups: Vec<String>) -> Result<()> {
+    /// Assign an app to scopes
+    /// Note: Caller should validate scopes exist using validate_scopes() before calling this
+    pub async fn set_app_scopes(&self, app: &str, scopes: Vec<String>) -> Result<()> {
         let mut config = self.config.write().await;
         let mut enforcer = self.enforcer.write().await;
 
-        // Remove existing app-group associations from Casbin (g2 policies)
+        // Remove existing app-scope associations from Casbin (g2 policies)
         let existing_policies = enforcer.get_named_grouping_policy("g2");
         let app_policies: Vec<_> = existing_policies
             .iter()
@@ -351,15 +351,15 @@ impl AuthorizationService {
             enforcer.remove_named_grouping_policy("g2", policy).await?;
         }
 
-        // Add new app-group associations to Casbin (g2 policies)
-        for group in &groups {
+        // Add new app-scope associations to Casbin (g2 policies)
+        for scope in &scopes {
             enforcer
-                .add_named_grouping_policy("g2", vec![app.to_string(), group.clone()])
+                .add_named_grouping_policy("g2", vec![app.to_string(), scope.clone()])
                 .await?;
         }
 
         // Update config
-        config.apps.insert(app.to_string(), groups);
+        config.apps.insert(app.to_string(), scopes);
 
         // Save config
         drop(config);
@@ -369,17 +369,17 @@ impl AuthorizationService {
         Ok(())
     }
 
-    /// Create a new group
-    pub async fn create_group(&self, name: &str, description: &str) -> Result<()> {
+    /// Create a new scope
+    pub async fn create_scope(&self, name: &str, description: &str) -> Result<()> {
         let mut config = self.config.write().await;
 
-        if config.groups.contains_key(name) {
-            anyhow::bail!("Group '{}' already exists", name);
+        if config.scopes.contains_key(name) {
+            anyhow::bail!("Scope '{}' already exists", name);
         }
 
-        config.groups.insert(
+        config.scopes.insert(
             name.to_string(),
-            GroupConfig {
+            ScopeConfig {
                 description: description.to_string(),
                 created_at: chrono::Utc::now(),
             },
@@ -388,15 +388,15 @@ impl AuthorizationService {
         drop(config);
         self.save_config().await?;
 
-        info!("Created group '{}'", name);
+        info!("Created scope '{}'", name);
         Ok(())
     }
 
-    /// Get all groups
-    pub async fn list_groups(&self) -> Vec<(String, GroupConfig)> {
+    /// Get all scopes
+    pub async fn list_scopes(&self) -> Vec<(String, ScopeConfig)> {
         let config = self.config.read().await;
         config
-            .groups
+            .scopes
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect()
@@ -430,12 +430,12 @@ impl AuthorizationService {
         Ok(())
     }
 
-    /// Assign role to user for specific groups
+    /// Assign role to user for specific scopes
     pub async fn assign_user_role(
         &self,
         user: &str,
         role: &str,
-        groups: Vec<String>,
+        scopes: Vec<String>,
     ) -> Result<()> {
         let mut config = self.config.write().await;
         let mut enforcer = self.enforcer.write().await;
@@ -445,21 +445,21 @@ impl AuthorizationService {
             anyhow::bail!("Role '{}' does not exist", role);
         }
 
-        // Note: We now use direct user-group-permission policies instead of user->role mappings
+        // Note: We now use direct user-scope-permission policies instead of user->role mappings
 
-        // Add user permissions for each group to Casbin (direct user-group-permission policies)
+        // Add user permissions for each scope to Casbin (direct user-scope-permission policies)
         if let Some(role_config) = config.roles.get(role) {
-            for group in &groups {
+            for scope in &scopes {
                 for permission in &role_config.permissions {
                     match permission {
                         PermissionOrWildcard::Wildcard => {
-                            // Add all permissions for this user-group combination
+                            // Add all permissions for this user-scope combination
                             for perm in Permission::all() {
                                 let action = perm.as_str();
                                 enforcer
                                     .add_policy(vec![
                                         user.to_string(),
-                                        group.clone(),
+                                        scope.clone(),
                                         action.to_string(),
                                     ])
                                     .await?;
@@ -470,7 +470,7 @@ impl AuthorizationService {
                             enforcer
                                 .add_policy(vec![
                                     user.to_string(),
-                                    group.clone(),
+                                    scope.clone(),
                                     action.to_string(),
                                 ])
                                 .await?;
@@ -489,11 +489,11 @@ impl AuthorizationService {
         // Check if assignment already exists
         if !assignments
             .iter()
-            .any(|a| a.role == role && a.groups == groups)
+            .any(|a| a.role == role && a.scopes == scopes)
         {
             assignments.push(Assignment {
                 role: role.to_string(),
-                groups,
+                scopes,
             });
         }
 
@@ -536,12 +536,12 @@ impl AuthorizationService {
                     })
                     .collect();
 
-                // Add permissions for each group
-                for group in &assignment.groups {
-                    let group_perms = all_permissions.entry(group.clone()).or_default();
+                // Add permissions for each scope
+                for scope in &assignment.scopes {
+                    let scope_perms = all_permissions.entry(scope.clone()).or_default();
                     for perm in &permissions {
-                        if !group_perms.contains(perm) {
-                            group_perms.push(perm.clone());
+                        if !scope_perms.contains(perm) {
+                            scope_perms.push(perm.clone());
                         }
                     }
                 }

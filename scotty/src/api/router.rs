@@ -53,8 +53,8 @@ use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
 use crate::api::handlers::blueprints::__path_blueprints_handler;
-use crate::api::handlers::groups::list::__path_list_user_groups_handler;
 use crate::api::handlers::health::health_checker_handler;
+use crate::api::handlers::scopes::list::__path_list_user_scopes_handler;
 use crate::api::handlers::tasks::TaskList;
 use crate::api::handlers::tasks::__path_task_detail_handler;
 use crate::api::handlers::tasks::__path_task_list_handler;
@@ -76,10 +76,10 @@ use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
 use super::handlers::blueprints::blueprints_handler;
-use super::handlers::groups::list::{list_user_groups_handler, GroupInfo, UserGroupsResponse};
 use super::handlers::info::info_handler;
 use super::handlers::login::login_handler;
 use super::handlers::login::validate_token_handler;
+use super::handlers::scopes::list::{list_user_scopes_handler, ScopeInfo, UserScopesResponse};
 use super::handlers::tasks::task_detail_handler;
 use super::handlers::tasks::task_list_handler;
 use super::middleware::authorization::{authorization_middleware, require_permission};
@@ -103,7 +103,7 @@ use crate::services::authorization::Permission;
         login_handler,
         info_handler,
         blueprints_handler,
-        list_user_groups_handler,
+        list_user_scopes_handler,
         add_notification_handler,
         remove_notification_handler,
         adopt_app_handler,
@@ -116,7 +116,7 @@ use crate::services::authorization::Permission;
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
-            GroupInfo, UserGroupsResponse
+            ScopeInfo, UserScopesResponse
         )
     ),
     tags(
@@ -225,8 +225,8 @@ impl ApiRoutes {
             )
             .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
             .route(
-                "/api/v1/authenticated/groups/list",
-                get(list_user_groups_handler),
+                "/api/v1/authenticated/scopes/list",
+                get(list_user_scopes_handler),
             )
             .route(
                 "/api/v1/authenticated/apps/notify/add",

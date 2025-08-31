@@ -8,7 +8,7 @@ use tracing::info;
 use super::casbin::CasbinManager;
 use super::service::AuthorizationService;
 use super::types::{
-    Assignment, AuthConfig, GroupConfig, Permission, PermissionOrWildcard, RoleConfig,
+    Assignment, AuthConfig, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
 };
 
 /// Fallback authorization service creation
@@ -25,7 +25,7 @@ impl FallbackService {
 r = sub, app, act
 
 [policy_definition]
-p = sub, group, act
+p = sub, scope, act
 
 [role_definition]
 g = _, _
@@ -34,7 +34,7 @@ g = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
+m = r.sub == p.sub && g(r.app, p.scope) && r.act == p.act
 "#;
 
         let m = DefaultModel::from_str(model_text)
@@ -46,7 +46,7 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
             .await
             .expect("Failed to create fallback Casbin enforcer");
 
-        // Create default configuration with everyone having access to "default" group
+        // Create default configuration with everyone having access to "default" scope
         let mut config = Self::create_minimal_config();
 
         // Add legacy access token if provided
@@ -56,12 +56,12 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
                 user_id,
                 vec![Assignment {
                     role: "admin".to_string(),
-                    groups: vec!["default".to_string()],
+                    scopes: vec!["default".to_string()],
                 }],
             );
         }
 
-        // Assign all apps to default group and sync policies
+        // Assign all apps to default scope and sync policies
         CasbinManager::sync_policies_to_casbin(&mut enforcer, &config)
             .await
             .expect("Failed to sync fallback policies to Casbin");
@@ -78,10 +78,10 @@ m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
     /// Create minimal configuration for fallback service
     fn create_minimal_config() -> AuthConfig {
         AuthConfig {
-            groups: HashMap::from([(
+            scopes: HashMap::from([(
                 "default".to_string(),
-                GroupConfig {
-                    description: "Default group for all users".to_string(),
+                ScopeConfig {
+                    description: "Default scope for all users".to_string(),
                     created_at: Utc::now(),
                 },
             )]),

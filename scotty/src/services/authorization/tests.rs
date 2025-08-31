@@ -12,7 +12,7 @@ async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {
 r = sub, app, act
 
 [policy_definition]
-p = sub, group, act
+p = sub, scope, act
 
 [role_definition]
 g = _, _
@@ -22,7 +22,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = g(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
+m = g(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
 "#;
     tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
         .await
@@ -36,21 +36,21 @@ m = g(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
 async fn test_basic_authorization_flow() {
     let (service, _temp_dir) = create_test_service().await;
 
-    // Create a group
+    // Create a scope
     service
-        .create_group("test-group", "Test group for authorization")
+        .create_scope("test-scope", "Test scope for authorization")
         .await
         .unwrap();
 
-    // Set app to group
+    // Set app to scope
     service
-        .set_app_groups("test-app", vec!["test-group".to_string()])
+        .set_app_scopes("test-app", vec!["test-scope".to_string()])
         .await
         .unwrap();
 
-    // Assign developer role to user for test-group
+    // Assign developer role to user for test-scope
     service
-        .assign_user_role("test-user", "developer", vec!["test-group".to_string()])
+        .assign_user_role("test-user", "developer", vec!["test-scope".to_string()])
         .await
         .unwrap();
 
@@ -82,22 +82,22 @@ async fn test_basic_authorization_flow() {
 }
 
 #[tokio::test]
-async fn test_multi_group_app() {
+async fn test_multi_scope_app() {
     let (service, _temp_dir) = create_test_service().await;
 
-    // Create multiple groups
+    // Create multiple scopes
     service
-        .create_group("frontend", "Frontend applications")
+        .create_scope("frontend", "Frontend applications")
         .await
         .unwrap();
     service
-        .create_group("backend", "Backend services")
+        .create_scope("backend", "Backend services")
         .await
         .unwrap();
 
-    // App belongs to multiple groups
+    // App belongs to multiple scopes
     service
-        .set_app_groups(
+        .set_app_scopes(
             "full-stack-app",
             vec!["frontend".to_string(), "backend".to_string()],
         )
@@ -128,26 +128,26 @@ async fn test_multi_group_app() {
             .await
     );
 
-    println!("✅ Multi-group app test passed");
+    println!("✅ Multi-scope app test passed");
 }
 
 #[tokio::test]
 async fn test_admin_permissions() {
     let (service, _temp_dir) = create_test_service().await;
 
-    // Create group and app
+    // Create scope and app
     service
-        .create_group("admin-group", "Admin test group")
+        .create_scope("admin-scope", "Admin test scope")
         .await
         .unwrap();
     service
-        .set_app_groups("admin-app", vec!["admin-group".to_string()])
+        .set_app_scopes("admin-app", vec!["admin-scope".to_string()])
         .await
         .unwrap();
 
     // Assign admin role
     service
-        .assign_user_role("admin-user", "admin", vec!["admin-group".to_string()])
+        .assign_user_role("admin-user", "admin", vec!["admin-scope".to_string()])
         .await
         .unwrap();
 
@@ -180,11 +180,11 @@ async fn test_admin_permissions() {
 async fn test_bearer_token_app_filtering() {
     let (service, _temp_dir) = create_test_service().await;
 
-    // Create groups (ignore errors if they already exist)
-    let _ = service.create_group("client-a", "Client A group").await;
-    let _ = service.create_group("client-b", "Client B group").await;
-    let _ = service.create_group("qa", "QA group").await;
-    let _ = service.create_group("default", "Default group").await;
+    // Create scopes (ignore errors if they already exist)
+    let _ = service.create_scope("client-a", "Client A scope").await;
+    let _ = service.create_scope("client-b", "Client B scope").await;
+    let _ = service.create_scope("qa", "QA scope").await;
+    let _ = service.create_scope("default", "Default scope").await;
 
     // Create developer role (ignore error if it already exists)
     let _ = service
@@ -201,41 +201,41 @@ async fn test_bearer_token_app_filtering() {
         )
         .await;
 
-    // Create apps and assign them to different groups
+    // Create apps and assign them to different scopes
     service
-        .set_app_groups("simple_nginx", vec!["client-a".to_string()])
+        .set_app_scopes("simple_nginx", vec!["client-a".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("simple_nginx_2", vec!["client-a".to_string()])
+        .set_app_scopes("simple_nginx_2", vec!["client-a".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("scotty-demo", vec!["client-b".to_string()])
+        .set_app_scopes("scotty-demo", vec!["client-b".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("test-env", vec!["client-b".to_string()])
+        .set_app_scopes("test-env", vec!["client-b".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("cd-with-db", vec!["qa".to_string()])
+        .set_app_scopes("cd-with-db", vec!["qa".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("circle_dot", vec!["qa".to_string()])
+        .set_app_scopes("circle_dot", vec!["qa".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("traefik", vec!["default".to_string()])
+        .set_app_scopes("traefik", vec!["default".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("legacy-and-invalid", vec!["default".to_string()])
+        .set_app_scopes("legacy-and-invalid", vec!["default".to_string()])
         .await
         .unwrap();
 
-    // Create bearer token users with different group access
+    // Create bearer token users with different scope access
     let client_a_user = "bearer:client-a";
     let hello_world_user = "bearer:hello-world";
 
@@ -257,7 +257,7 @@ async fn test_bearer_token_app_filtering() {
         .await
         .unwrap();
 
-    // Test client-a token - should only see client-a group apps
+    // Test client-a token - should only see client-a scope apps
     println!("Testing client-a token permissions...");
 
     // client-a should see client-a apps
@@ -274,29 +274,29 @@ async fn test_bearer_token_app_filtering() {
         "client-a should see simple_nginx_2"
     );
 
-    // client-a should NOT see apps from other groups
+    // client-a should NOT see apps from other scopes
     assert!(
         !service
             .check_permission(client_a_user, "scotty-demo", &Permission::View)
             .await,
-        "client-a should NOT see scotty-demo (client-b group)"
+        "client-a should NOT see scotty-demo (client-b scope)"
     );
     assert!(
         !service
             .check_permission(client_a_user, "cd-with-db", &Permission::View)
             .await,
-        "client-a should NOT see cd-with-db (qa group)"
+        "client-a should NOT see cd-with-db (qa scope)"
     );
     assert!(
         !service
             .check_permission(client_a_user, "traefik", &Permission::View)
             .await,
-        "client-a should NOT see traefik (default group)"
+        "client-a should NOT see traefik (default scope)"
     );
 
     println!("✅ client-a token filtering works correctly");
 
-    // Test hello-world token - should see client-a, client-b, qa groups
+    // Test hello-world token - should see client-a, client-b, qa scopes
     println!("Testing hello-world token permissions...");
 
     // hello-world should see client-a apps
@@ -341,18 +341,18 @@ async fn test_bearer_token_app_filtering() {
         "hello-world should see circle_dot"
     );
 
-    // hello-world should NOT see default group apps (not assigned)
+    // hello-world should NOT see default scope apps (not assigned)
     assert!(
         !service
             .check_permission(hello_world_user, "traefik", &Permission::View)
             .await,
-        "hello-world should NOT see traefik (default group)"
+        "hello-world should NOT see traefik (default scope)"
     );
     assert!(
         !service
             .check_permission(hello_world_user, "legacy-and-invalid", &Permission::View)
             .await,
-        "hello-world should NOT see legacy-and-invalid (default group)"
+        "hello-world should NOT see legacy-and-invalid (default scope)"
     );
 
     println!("✅ hello-world token filtering works correctly");
@@ -375,16 +375,16 @@ async fn test_bearer_token_app_filtering() {
 }
 
 #[tokio::test]
-async fn test_app_filtering_with_multiple_groups() {
+async fn test_app_filtering_with_multiple_scopes() {
     let (service, _temp_dir) = create_test_service().await;
 
-    // Create groups
+    // Create scopes
     service
-        .create_group("shared", "Shared apps group")
+        .create_scope("shared", "Shared apps scope")
         .await
         .unwrap();
     service
-        .create_group("private", "Private apps group")
+        .create_scope("private", "Private apps scope")
         .await
         .unwrap();
 
@@ -397,20 +397,20 @@ async fn test_app_filtering_with_multiple_groups() {
         )
         .await;
 
-    // Create an app that belongs to multiple groups
+    // Create an app that belongs to multiple scopes
     service
-        .set_app_groups(
-            "multi-group-app",
+        .set_app_scopes(
+            "multi-scope-app",
             vec!["shared".to_string(), "private".to_string()],
         )
         .await
         .unwrap();
     service
-        .set_app_groups("shared-only-app", vec!["shared".to_string()])
+        .set_app_scopes("shared-only-app", vec!["shared".to_string()])
         .await
         .unwrap();
     service
-        .set_app_groups("private-only-app", vec!["private".to_string()])
+        .set_app_scopes("private-only-app", vec!["private".to_string()])
         .await
         .unwrap();
 
@@ -438,7 +438,7 @@ async fn test_app_filtering_with_multiple_groups() {
 
     // Test access patterns
 
-    // shared_user should see apps in shared group (including multi-group app)
+    // shared_user should see apps in shared scope (including multi-scope app)
     assert!(
         service
             .check_permission(shared_user, "shared-only-app", &Permission::View)
@@ -446,7 +446,7 @@ async fn test_app_filtering_with_multiple_groups() {
     );
     assert!(
         service
-            .check_permission(shared_user, "multi-group-app", &Permission::View)
+            .check_permission(shared_user, "multi-scope-app", &Permission::View)
             .await
     );
     assert!(
@@ -455,7 +455,7 @@ async fn test_app_filtering_with_multiple_groups() {
             .await
     );
 
-    // private_user should see apps in private group (including multi-group app)
+    // private_user should see apps in private scope (including multi-scope app)
     assert!(
         !service
             .check_permission(private_user, "shared-only-app", &Permission::View)
@@ -463,7 +463,7 @@ async fn test_app_filtering_with_multiple_groups() {
     );
     assert!(
         service
-            .check_permission(private_user, "multi-group-app", &Permission::View)
+            .check_permission(private_user, "multi-scope-app", &Permission::View)
             .await
     );
     assert!(
@@ -480,7 +480,7 @@ async fn test_app_filtering_with_multiple_groups() {
     );
     assert!(
         service
-            .check_permission(both_user, "multi-group-app", &Permission::View)
+            .check_permission(both_user, "multi-scope-app", &Permission::View)
             .await
     );
     assert!(
@@ -489,7 +489,7 @@ async fn test_app_filtering_with_multiple_groups() {
             .await
     );
 
-    println!("✅ Multi-group app filtering test passed");
+    println!("✅ Multi-scope app filtering test passed");
 }
 
 #[tokio::test]
@@ -504,11 +504,11 @@ async fn test_live_policy_file_app_filtering() {
         .unwrap();
 
     // Use the same approach as live server - simulate what find_apps.rs does
-    // Read .scotty.yml files and sync their groups to the authorization service
+    // Read .scotty.yml files and sync their scopes to the authorization service
     let mut apps_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     apps_path.push("../apps");
 
-    // Manually read and sync app groups like find_apps.rs does
+    // Manually read and sync app scopes like find_apps.rs does
     let apps = [
         "simple_nginx",
         "simple_nginx_2",
@@ -521,29 +521,29 @@ async fn test_live_policy_file_app_filtering() {
         if scotty_yml_path.exists() {
             if let Ok(file_content) = std::fs::read_to_string(&scotty_yml_path) {
                 if let Ok(settings) = serde_yml::from_str::<serde_yml::Value>(&file_content) {
-                    if let Some(groups) = settings.get("groups").and_then(|g| g.as_sequence()) {
-                        let group_names: Vec<String> = groups
+                    if let Some(scopes) = settings.get("scopes").and_then(|g| g.as_sequence()) {
+                        let scope_names: Vec<String> = scopes
                             .iter()
                             .filter_map(|g| g.as_str().map(|s| s.to_string()))
                             .collect();
-                        if !group_names.is_empty() {
+                        if !scope_names.is_empty() {
                             service
-                                .set_app_groups(app_name, group_names.clone())
+                                .set_app_scopes(app_name, scope_names.clone())
                                 .await
                                 .unwrap();
-                            println!("Synced app '{}' to groups: {:?}", app_name, group_names);
+                            println!("Synced app '{}' to scopes: {:?}", app_name, scope_names);
                         }
                     }
                 }
             }
         } else {
-            // No .scotty.yml file, assign to default group like find_apps.rs does
+            // No .scotty.yml file, assign to default scope like find_apps.rs does
             service
-                .set_app_groups(app_name, vec!["default".to_string()])
+                .set_app_scopes(app_name, vec!["default".to_string()])
                 .await
                 .unwrap();
             println!(
-                "Assigned app '{}' to default group (no .scotty.yml)",
+                "Assigned app '{}' to default scope (no .scotty.yml)",
                 app_name
             );
         }
@@ -619,7 +619,7 @@ async fn test_live_policy_file_app_filtering() {
     // Expected vs actual behavior checks (commented out for debugging)
     println!("\nExpected behavior checks:");
     println!(
-        "  client-a should NOT see cd-with-db (qa group): {} - got {}",
+        "  client-a should NOT see cd-with-db (qa scope): {} - got {}",
         if !cd_with_db_permission {
             "OK"
         } else {
@@ -628,7 +628,7 @@ async fn test_live_policy_file_app_filtering() {
         cd_with_db_permission
     );
     println!(
-        "  client-a should NOT see scotty-demo (client-b group): {} - got {}",
+        "  client-a should NOT see scotty-demo (client-b scope): {} - got {}",
         if !scotty_demo_permission {
             "OK"
         } else {
@@ -637,7 +637,7 @@ async fn test_live_policy_file_app_filtering() {
         scotty_demo_permission
     );
     println!(
-        "  client-a should see simple_nginx (client-a group): {} - got {}",
+        "  client-a should see simple_nginx (client-a scope): {} - got {}",
         if simple_nginx_permission {
             "OK"
         } else {
@@ -646,7 +646,7 @@ async fn test_live_policy_file_app_filtering() {
         simple_nginx_permission
     );
     println!(
-        "  client-a should see simple_nginx_2 (client-a group): {} - got {}",
+        "  client-a should see simple_nginx_2 (client-a scope): {} - got {}",
         if simple_nginx_2_permission {
             "OK"
         } else {
@@ -655,18 +655,18 @@ async fn test_live_policy_file_app_filtering() {
         simple_nginx_2_permission
     );
 
-    // Debug: Print all group assignments and user roles
+    // Debug: Print all scope assignments and user roles
     println!("\nDetailed debug information:");
 
-    let client_a_groups = service
-        .get_user_groups_with_permissions(client_a_user)
+    let client_a_scopes = service
+        .get_user_scopes_with_permissions(client_a_user)
         .await;
-    println!("client-a groups: {:?}", client_a_groups);
+    println!("client-a scopes: {:?}", client_a_scopes);
 
-    let hello_world_groups = service
-        .get_user_groups_with_permissions(hello_world_user)
+    let hello_world_scopes = service
+        .get_user_scopes_with_permissions(hello_world_user)
         .await;
-    println!("hello-world groups: {:?}", hello_world_groups);
+    println!("hello-world scopes: {:?}", hello_world_scopes);
 
     // Debug Casbin internal state
     let enforcer = service.get_enforcer_for_testing().await;
@@ -706,19 +706,19 @@ async fn test_live_policy_file_app_filtering() {
 
     // Comment out the assertions temporarily to see all debug output
     /*
-    // client-a should NOT see qa group app (cd-with-db)
-    assert!(!cd_with_db_permission, "client-a should NOT see cd-with-db (qa group)");
+    // client-a should NOT see qa scope app (cd-with-db)
+    assert!(!cd_with_db_permission, "client-a should NOT see cd-with-db (qa scope)");
 
-    // client-a should NOT see client-b group app (scotty-demo)
-    assert!(!scotty_demo_permission, "client-a should NOT see scotty-demo (client-b group)");
+    // client-a should NOT see client-b scope app (scotty-demo)
+    assert!(!scotty_demo_permission, "client-a should NOT see scotty-demo (client-b scope)");
 
-    // client-a SHOULD see client-a group apps
-    assert!(simple_nginx_permission, "client-a should see simple_nginx (client-a group)");
-    assert!(simple_nginx_2_permission, "client-a should see simple_nginx_2 (client-a group)");
+    // client-a SHOULD see client-a scope apps
+    assert!(simple_nginx_permission, "client-a should see simple_nginx (client-a scope)");
+    assert!(simple_nginx_2_permission, "client-a should see simple_nginx_2 (client-a scope)");
 
-    // hello-world should see apps from all its groups (client-a, client-b, qa)
-    assert!(hello_cd_with_db, "hello-world should see cd-with-db (qa group)");
-    assert!(hello_scotty_demo, "hello-world should see scotty-demo (client-b group)");
-    assert!(hello_simple_nginx, "hello-world should see simple_nginx (client-a group)");
+    // hello-world should see apps from all its scopes (client-a, client-b, qa)
+    assert!(hello_cd_with_db, "hello-world should see cd-with-db (qa scope)");
+    assert!(hello_scotty_demo, "hello-world should see scotty-demo (client-b scope)");
+    assert!(hello_simple_nginx, "hello-world should see simple_nginx (client-a scope)");
     */
 }

@@ -32,7 +32,7 @@ pub async fn list_apps_handler(
             tracing::info!(
                 "Discovered app: {} (groups: {:?})",
                 app.name,
-                settings.groups
+                settings.scopes
             );
         } else {
             tracing::info!("Discovered app: {} (no settings)", app.name);
@@ -124,15 +124,15 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
 
         // Create groups
         service
-            .create_group("frontend", "Frontend applications")
+            .create_scope("frontend", "Frontend applications")
             .await
             .unwrap();
         service
-            .create_group("backend", "Backend services")
+            .create_scope("backend", "Backend services")
             .await
             .unwrap();
         service
-            .create_group("staging", "Staging environment")
+            .create_scope("staging", "Staging environment")
             .await
             .unwrap();
 
@@ -177,16 +177,16 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
 
         // Create mock apps with different group memberships
         let mut frontend_settings = AppSettings::default();
-        frontend_settings.groups = vec!["frontend".to_string()];
+        frontend_settings.scopes = vec!["frontend".to_string()];
 
         let mut backend_settings = AppSettings::default();
-        backend_settings.groups = vec!["backend".to_string()];
+        backend_settings.scopes = vec!["backend".to_string()];
 
         let mut fullstack_settings = AppSettings::default();
-        fullstack_settings.groups = vec!["frontend".to_string(), "backend".to_string()];
+        fullstack_settings.scopes = vec!["frontend".to_string(), "backend".to_string()];
 
         let mut staging_settings = AppSettings::default();
-        staging_settings.groups = vec!["staging".to_string()];
+        staging_settings.scopes = vec!["staging".to_string()];
 
         let frontend_app = AppData {
             name: "frontend-app".to_string(),
@@ -238,7 +238,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         for app in shared_app_list.get_apps().await.apps {
             if let Some(settings) = &app.settings {
                 auth_service
-                    .set_app_groups(&app.name, settings.groups.clone())
+                    .set_app_scopes(&app.name, settings.scopes.clone())
                     .await
                     .unwrap();
             }

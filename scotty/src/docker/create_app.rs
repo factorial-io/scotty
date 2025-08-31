@@ -195,12 +195,12 @@ async fn validate_app(
     }
 
     // Validate that all specified groups exist in the authorization system
-    if let Err(missing_groups) = app_state
+    if let Err(missing_scopes) = app_state
         .auth_service
-        .validate_groups(&settings.groups)
+        .validate_scopes(&settings.scopes)
         .await
     {
-        return Err(AppError::GroupsNotFound(missing_groups).into());
+        return Err(AppError::ScopesNotFound(missing_scopes).into());
     }
 
     Ok(docker_compose_file.unwrap().clone())

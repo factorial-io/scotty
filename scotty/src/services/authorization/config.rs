@@ -5,7 +5,7 @@ use std::path::Path;
 use tracing::warn;
 
 use super::types::{
-    AuthConfig, AuthConfigForSave, GroupConfig, Permission, PermissionOrWildcard, RoleConfig,
+    AuthConfig, AuthConfigForSave, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
 };
 
 /// Configuration loading and management functionality
@@ -30,7 +30,7 @@ impl ConfigManager {
     pub async fn save_config(config: &AuthConfig, config_path: &str) -> Result<()> {
         // Create a config without apps for saving
         let save_config = AuthConfigForSave {
-            groups: config.groups.clone(),
+            scopes: config.scopes.clone(),
             roles: config.roles.clone(),
             assignments: config.assignments.clone(),
         };
@@ -45,10 +45,10 @@ impl ConfigManager {
     /// Create default configuration when no config file exists
     fn default_config() -> AuthConfig {
         AuthConfig {
-            groups: HashMap::from([(
+            scopes: HashMap::from([(
                 "default".to_string(),
-                GroupConfig {
-                    description: "Default group".to_string(),
+                ScopeConfig {
+                    description: "Default scope".to_string(),
                     created_at: Utc::now(),
                 },
             )]),

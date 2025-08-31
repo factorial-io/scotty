@@ -22,22 +22,7 @@ pub struct AuthorizationContext {
 }
 
 impl AuthorizationContext {
-    /// Check if user has a specific permission for an app
-    pub async fn can_access_app(
-        &self,
-        auth_service: &AuthorizationService,
-        app: &str,
-        permission: &Permission,
-    ) -> bool {
-        let user_id = AuthorizationService::format_user_id(
-            &self.user.email,
-            self.user.access_token.as_deref(),
-        );
-
-        auth_service
-            .check_permission(&user_id, app, permission)
-            .await
-    }
+    // Removed unused can_access_app method
 }
 
 /// Middleware that adds authorization context to requests
@@ -76,16 +61,14 @@ pub async fn authorization_middleware(
     Ok(next.run(req).await)
 }
 
+/// Future type for the permission middleware
+type PermissionFuture =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>>;
+
 /// Middleware factory that creates permission-checking middleware for specific actions
 pub fn require_permission(
     permission: Permission,
-) -> impl Fn(
-    State<SharedAppState>,
-    Request,
-    Next,
-) -> std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>,
-> + Clone {
+) -> impl Fn(State<SharedAppState>, Request, Next) -> PermissionFuture + Clone {
     move |State(state): State<SharedAppState>, req: Request, next: Next| {
         Box::pin(async move {
             // Extract app name from path

@@ -63,23 +63,23 @@ pub enum PermissionOrWildcard {
 /// Authorization configuration loaded from YAML
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
-    pub groups: HashMap<String, GroupConfig>,
+    pub scopes: HashMap<String, ScopeConfig>,
     pub roles: HashMap<String, RoleConfig>,
     pub assignments: HashMap<String, Vec<Assignment>>,
     #[serde(default)]
-    pub apps: HashMap<String, Vec<String>>,
+    pub apps: HashMap<String, Vec<String>>, // Maps app_name -> scope_names
 }
 
 /// Configuration structure for saving (excludes dynamically managed apps)
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthConfigForSave {
-    pub groups: HashMap<String, GroupConfig>,
+    pub scopes: HashMap<String, ScopeConfig>,
     pub roles: HashMap<String, RoleConfig>,
     pub assignments: HashMap<String, Vec<Assignment>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GroupConfig {
+pub struct ScopeConfig {
     pub description: String,
     pub created_at: DateTime<Utc>,
 }
@@ -94,7 +94,7 @@ pub struct RoleConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Assignment {
     pub role: String,
-    pub groups: Vec<String>,
+    pub scopes: Vec<String>,
 }
 
 /// Custom serde module for permission serialization

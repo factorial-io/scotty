@@ -86,8 +86,8 @@ pub enum AppError {
     #[error("OAuth error: {0}")]
     OAuthError(OAuthError),
 
-    #[error("Groups not found in authorization system: {0:?}")]
-    GroupsNotFound(Vec<String>),
+    #[error("Scopes not found in authorization system: {0:?}")]
+    ScopesNotFound(Vec<String>),
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -104,7 +104,7 @@ impl AppError {
             AppError::AppNotRunning(_) => StatusCode::CONFLICT,
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
-            AppError::GroupsNotFound(_) => StatusCode::BAD_REQUEST,
+            AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

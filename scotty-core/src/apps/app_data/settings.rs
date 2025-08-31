@@ -20,7 +20,7 @@ use crate::{
 use super::super::create_app_request::CustomDomainMapping;
 use super::{service::ServicePortMapping, ttl::AppTtl};
 
-fn default_groups() -> Vec<String> {
+fn default_scopes() -> Vec<String> {
     vec!["default".to_string()]
 }
 
@@ -40,8 +40,8 @@ pub struct AppSettings {
     pub notify: HashSet<NotificationReceiver>,
     #[serde(default)]
     pub middlewares: Vec<String>,
-    #[serde(default = "default_groups")]
-    pub groups: Vec<String>,
+    #[serde(default = "default_scopes", alias = "groups")]
+    pub scopes: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -58,7 +58,7 @@ impl Default for AppSettings {
             app_blueprint: None,
             notify: HashSet::new(),
             middlewares: Vec::new(),
-            groups: default_groups(),
+            scopes: default_scopes(),
         }
     }
 }
