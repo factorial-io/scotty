@@ -58,7 +58,8 @@ pub struct RemoveAssignmentRequest {
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct TestPermissionRequest {
-    /// User identifier to test
+    /// User identifier to test (defaults to current user if not specified)
+    #[cfg_attr(feature = "clap", arg(long, short = 'u'))]
     #[cfg_attr(feature = "utoipa", schema(example = "identifier:admin"))]
     pub user_id: Option<String>, // None means test current user
     /// App name to test permission on
