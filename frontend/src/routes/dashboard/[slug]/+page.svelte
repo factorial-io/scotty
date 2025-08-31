@@ -4,7 +4,12 @@
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
-	import { getAppPermissions, permissionsLoaded, permissionsLoading, loadUserPermissions } from '../../../stores/permissionStore';
+	import {
+		getAppPermissions,
+		permissionsLoaded,
+		permissionsLoading,
+		loadUserPermissions
+	} from '../../../stores/permissionStore';
 	import type { App, AppTtl, TaskDetail } from '../../../types';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
@@ -22,7 +27,7 @@
 
 	onMount(async () => {
 		setTitle(`App: ${data.name}`);
-		
+
 		// Ensure permissions are loaded when page is accessed directly
 		if (!$permissionsLoaded) {
 			try {
@@ -33,7 +38,7 @@
 		}
 	});
 
-	$: permissions = $permissionsLoaded 
+	$: permissions = $permissionsLoaded
 		? getAppPermissions(data.name, ['view', 'manage', 'destroy', 'shell', 'logs'])
 		: { view: false, manage: false, destroy: false, shell: false, logs: false };
 
@@ -42,15 +47,15 @@
 	// Calculate available actions after permissions are loaded
 	$: availableActions = (() => {
 		let actions: string[] = [];
-		
+
 		if (permissions.manage) {
 			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
 		}
-		
+
 		if (permissions.destroy && data.settings) {
 			actions.push('Destroy');
 		}
-		
+
 		return actions;
 	})();
 
@@ -71,15 +76,15 @@
 
 	function getAvailableActions(): string[] {
 		let actions: string[] = [];
-		
+
 		if (permissions.manage) {
 			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
 		}
-		
+
 		if (permissions.destroy && data.settings) {
 			actions.push('Destroy');
 		}
-		
+
 		return actions;
 	}
 
@@ -168,8 +173,8 @@
 		{#if customActionsAvailable && availableActions.length > 0}
 			<div class="divider divider-horizontal mx-0"></div>
 		{/if}
-		<CustomActionsDropdown 
-			app={data} 
+		<CustomActionsDropdown
+			app={data}
 			canManage={permissions.manage}
 			bind:hasActions={customActionsAvailable}
 		/>

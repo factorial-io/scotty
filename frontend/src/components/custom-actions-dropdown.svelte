@@ -9,7 +9,7 @@
 
 	let customActions: CustomAction[] = [];
 	let isLoading = true;
-	
+
 	// Export a reactive value that indicates if actions are available
 	export let hasActions: boolean = false;
 	let currentTaskId: string | null = null;

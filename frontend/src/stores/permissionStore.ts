@@ -2,9 +2,9 @@ import { writable, derived, get } from 'svelte/store';
 import { authMode, isLoggedIn } from './userStore';
 import { authenticatedApiCall } from '$lib';
 
-export type Permission = 
+export type Permission =
 	| 'view'
-	| 'manage' 
+	| 'manage'
 	| 'shell'
 	| 'logs'
 	| 'create'
@@ -38,12 +38,12 @@ export { permissionsLoading };
  */
 export async function loadUserPermissions(): Promise<void> {
 	if (get(permissionsLoading)) return; // Prevent duplicate loading
-	
+
 	permissionsLoading.set(true);
 	permissionsLoadAttempted.set(true);
-	
+
 	try {
-		// Load user scopes with permissions  
+		// Load user scopes with permissions
 		console.log('Loading user permissions from scopes/list endpoint...');
 		const scopesResponse = await authenticatedApiCall('scopes/list');
 		const response = scopesResponse as { scopes: ScopeInfo[] };
@@ -53,7 +53,6 @@ export async function loadUserPermissions(): Promise<void> {
 		// For now, we don't have an endpoint that gives us app->scope mappings
 		// Apps are filtered by backend, so we assume user can see apps they have permissions for
 		// This is a simplification - in a full implementation, you'd want this mapping
-		
 	} catch (error) {
 		console.error('Error loading user permissions:', error);
 		userScopes.set([]);
@@ -74,12 +73,12 @@ export function hasPermission(appName: string, permission: Permission): boolean 
 	}
 
 	const scopes = get(userScopes);
-	
+
 	// Check if user has this permission in any of their scopes
 	// Since we don't have app->scope mapping yet, we check all user scopes
 	// This is permissive - if user has the permission in any scope, they can use it
-	return scopes.some(scope => 
-		scope.permissions.includes(permission) || scope.permissions.includes('*')
+	return scopes.some(
+		(scope) => scope.permissions.includes(permission) || scope.permissions.includes('*')
 	);
 }
 
@@ -93,13 +92,16 @@ export function hasAdminPermission(): boolean {
 /**
  * Get all permissions for an app (batch operation)
  */
-export function getAppPermissions(appName: string, permissions: Permission[]): Record<string, boolean> {
+export function getAppPermissions(
+	appName: string,
+	permissions: Permission[]
+): Record<string, boolean> {
 	const results: Record<string, boolean> = {};
-	
-	permissions.forEach(permission => {
+
+	permissions.forEach((permission) => {
 		results[permission] = hasPermission(appName, permission);
 	});
-	
+
 	return results;
 }
 
@@ -109,20 +111,27 @@ export function getAppPermissions(appName: string, permissions: Permission[]): R
 export function getUserEffectivePermissions(): Permission[] {
 	const scopes = get(userScopes);
 	const allPermissions = new Set<Permission>();
-	
-	scopes.forEach(scope => {
-		scope.permissions.forEach(perm => {
+
+	scopes.forEach((scope) => {
+		scope.permissions.forEach((perm) => {
 			if (perm === '*') {
 				// Add all permissions if wildcard
-				['view', 'manage', 'shell', 'logs', 'create', 'destroy', 'admin_read', 'admin_write'].forEach(p => 
-					allPermissions.add(p as Permission)
-				);
+				[
+					'view',
+					'manage',
+					'shell',
+					'logs',
+					'create',
+					'destroy',
+					'admin_read',
+					'admin_write'
+				].forEach((p) => allPermissions.add(p as Permission));
 			} else {
 				allPermissions.add(perm as Permission);
 			}
 		});
 	});
-	
+
 	return Array.from(allPermissions);
 }
 
@@ -137,13 +146,10 @@ export function clearPermissionCache(): void {
 /**
  * Derived store for reactive access to user scopes
  */
-export const permissions = derived(
-	[userScopes, isLoggedIn],
-	([$userScopes, $isLoggedIn]) => {
-		if (!$isLoggedIn) return [];
-		return $userScopes;
-	}
-);
+export const permissions = derived([userScopes, isLoggedIn], ([$userScopes, $isLoggedIn]) => {
+	if (!$isLoggedIn) return [];
+	return $userScopes;
+});
 
 /**
  * Derived store for loading state

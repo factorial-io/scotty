@@ -62,7 +62,7 @@ function createAuthStore() {
 				}
 
 				set({ authMode, userInfo, isLoggedIn });
-				
+
 				// Load permissions if user is logged in
 				if (isLoggedIn) {
 					// Import here to avoid circular dependency
