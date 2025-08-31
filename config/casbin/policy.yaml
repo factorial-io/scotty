@@ -16,6 +16,14 @@ roles:
     permissions:
     - view
     description: Read-only access
+  developer:
+    permissions:
+    - view
+    - manage
+    - shell
+    - logs
+    - create
+    description: Developer access - all except destroy
   admin:
     permissions:
     - '*'
@@ -26,15 +34,21 @@ roles:
     - manage
     - logs
     description: Operations team - no shell or destroy
-  developer:
-    permissions:
-    - view
-    - manage
-    - shell
-    - logs
-    - create
-    description: Developer access - all except destroy
 assignments:
+  identifier:test-bearer-token-123:
+  - role: admin
+    scopes:
+    - client-a
+    - client-b
+    - qa
+    - default
+  identifier:admin:
+  - role: admin
+    scopes:
+    - client-a
+    - client-b
+    - qa
+    - default
   '*':
   - role: viewer
     scopes:
@@ -45,20 +59,6 @@ assignments:
     - client-a
     - client-b
     - qa
-  identifier:admin:
-  - role: admin
-    scopes:
-    - client-a
-    - client-b
-    - qa
-    - default
-  identifier:test-bearer-token-123:
-  - role: admin
-    scopes:
-    - client-a
-    - client-b
-    - qa
-    - default
   identifier:client-a:
   - role: developer
     scopes:

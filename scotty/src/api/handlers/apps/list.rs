@@ -47,7 +47,7 @@ pub async fn list_apps_handler(
     }
 
     // Filter apps based on user's view permissions
-    let user_id = AuthorizationService::format_user_id(&user.email, user.access_token.as_deref());
+    let user_id = AuthorizationService::get_user_id_for_authorization(&user);
     tracing::info!(
         "Filtering apps for user_id: {}, email: {}, token: {:?}",
         user_id,

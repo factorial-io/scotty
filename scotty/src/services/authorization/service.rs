@@ -192,12 +192,61 @@ impl AuthorizationService {
         result
     }
 
+    /// Check if a user has a global permission (not tied to a specific app)
+    /// For global permissions like AdminRead/AdminWrite, this checks if the user has the permission
+    /// across any of their scopes rather than requiring a specific app
+    pub async fn check_global_permission(&self, user: &str, action: &Permission) -> bool {
+        info!(
+            "Checking global permission: user='{}', action='{}'",
+            user,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+        
+        // Get user assignments
+        let all_assignments = [
+            config.assignments.get(user).map(|v| v.as_slice()).unwrap_or(&[]),
+            config.assignments.get("*").map(|v| v.as_slice()).unwrap_or(&[]),
+        ].concat();
+
+        // Check if user has the permission in any of their roles
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    info!("Global permission granted: {} has {} via role {}", user, action.as_str(), assignment.role);
+                    return true;
+                }
+            }
+        }
+
+        info!("Global permission denied: {} lacks {}", user, action.as_str());
+        false
+    }
+
     /// Format user identifier for authorization checks
     pub fn format_user_id(email: &str, token: Option<&str>) -> String {
         if let Some(token) = token {
             format!("bearer:{}", token)
         } else {
             email.to_string()
+        }
+    }
+
+    /// Get the correct user ID for authorization checks from a CurrentUser
+    /// Handles both bearer token users (with identifier: format) and OAuth users
+    pub fn get_user_id_for_authorization(user: &crate::api::basic_auth::CurrentUser) -> String {
+        if user.email.starts_with("identifier:") {
+            // Bearer token users already have the correct identifier format
+            user.email.clone()
+        } else {
+            // OAuth users need to be formatted
+            Self::format_user_id(&user.email, user.access_token.as_deref())
         }
     }
 

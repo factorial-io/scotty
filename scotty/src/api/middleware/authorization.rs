@@ -40,13 +40,7 @@ pub async fn authorization_middleware(
         return Ok(next.run(req).await);
     }
 
-    // For bearer token users, the email already contains the identifier format (identifier:admin)
-    // For OAuth users, use the standard format
-    let user_id = if user.email.starts_with("identifier:") {
-        user.email.clone()
-    } else {
-        AuthorizationService::format_user_id(&user.email, user.access_token.as_deref())
-    };
+    let user_id = AuthorizationService::get_user_id_for_authorization(&user);
 
     // Get user's effective permissions for debugging
     let effective_permissions = auth_service.get_user_permissions(&user_id).await;
@@ -71,22 +65,12 @@ pub async fn authorization_middleware(
 type PermissionFuture =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>>;
 
-/// Middleware factory that creates permission-checking middleware for specific actions
+/// Middleware factory that creates permission-checking middleware for app-specific or global actions
 pub fn require_permission(
     permission: Permission,
 ) -> impl Fn(State<SharedAppState>, Request, Next) -> PermissionFuture + Clone {
     move |State(state): State<SharedAppState>, req: Request, next: Next| {
         Box::pin(async move {
-            // Extract app name from path
-            let app_name = extract_app_name_from_path(req.uri().path());
-
-            if app_name.is_none() {
-                warn!("Could not extract app name from path: {}", req.uri().path());
-                return Err(StatusCode::BAD_REQUEST);
-            }
-
-            let app_name = app_name.unwrap();
-
             // Get authorization context
             let auth_context: &AuthorizationContext = req.extensions().get().ok_or_else(|| {
                 warn!("Authorization context not found in request");
@@ -95,36 +79,65 @@ pub fn require_permission(
 
             let auth_service = &state.auth_service;
 
-            // Check permission
-            let user_id = AuthorizationService::format_user_id(
-                &auth_context.user.email,
-                auth_context.user.access_token.as_deref(),
-            );
-            let allowed = auth_service
-                .check_permission(&user_id, &app_name, &permission)
-                .await;
+            let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+
+            // Check if this is a global permission (AdminRead/AdminWrite) or app-specific
+            let is_global_permission = matches!(permission, Permission::AdminRead | Permission::AdminWrite);
+
+            let allowed = if is_global_permission {
+                // Use global permission check for admin permissions
+                auth_service
+                    .check_global_permission(&user_id, &permission)
+                    .await
+            } else {
+                // Extract app name for app-specific permissions
+                let app_name = extract_app_name_from_path(req.uri().path());
+                if let Some(app_name) = app_name {
+                    auth_service
+                        .check_permission(&user_id, &app_name, &permission)
+                        .await
+                } else {
+                    warn!("Could not extract app name from path for app-specific permission: {}", req.uri().path());
+                    false
+                }
+            };
 
             if !allowed {
-                warn!(
-                    "Access denied: user {} cannot {} on app {}",
-                    auth_context.user.email,
-                    permission.as_str(),
-                    app_name
-                );
+                if is_global_permission {
+                    warn!(
+                        "Access denied: user {} lacks global {} permission",
+                        auth_context.user.email,
+                        permission.as_str()
+                    );
+                } else {
+                    warn!(
+                        "Access denied: user {} lacks {} permission",
+                        auth_context.user.email,
+                        permission.as_str()
+                    );
+                }
                 return Err(StatusCode::FORBIDDEN);
             }
 
-            info!(
-                "Access granted: user {} can {} on app {}",
-                auth_context.user.email,
-                permission.as_str(),
-                app_name
-            );
+            if is_global_permission {
+                info!(
+                    "Access granted: user {} has global {} permission",
+                    auth_context.user.email,
+                    permission.as_str()
+                );
+            } else {
+                info!(
+                    "Access granted: user {} has {} permission",
+                    auth_context.user.email,
+                    permission.as_str()
+                );
+            }
 
             Ok(next.run(req).await)
         })
     }
 }
+
 
 /// Extract app name from request path
 /// Supports patterns like /api/v1/authenticated/apps/info/{app_name}, /apps/shell/{app_name}, etc.

@@ -36,7 +36,7 @@ pub async fn list_user_scopes_handler(
     let auth_service = &state.auth_service;
 
     // Get user ID
-    let user_id = AuthorizationService::format_user_id(&user.email, user.access_token.as_deref());
+    let user_id = AuthorizationService::get_user_id_for_authorization(&user);
 
     debug!("Fetching scopes for user: {}", user_id);
 
