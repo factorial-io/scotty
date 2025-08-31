@@ -5,9 +5,13 @@
 	import { goto } from '$app/navigation';
 
 	export let app: App;
+	export let canManage: boolean = false;
 
 	let customActions: CustomAction[] = [];
 	let isLoading = true;
+	
+	// Export a reactive value that indicates if actions are available
+	export let hasActions: boolean = false;
 	let currentTaskId: string | null = null;
 	let currentAction: string | null = null;
 
@@ -43,7 +47,7 @@
 	});
 
 	async function triggerCustomAction(actionName: string) {
-		if (currentTaskId !== null || !isSupported()) return;
+		if (currentTaskId !== null || !isSupported() || !canManage) return;
 
 		try {
 			currentAction = actionName;
@@ -74,16 +78,22 @@
 	function isSupported() {
 		return app.status === 'Running' && app.settings?.app_blueprint;
 	}
+
+	// Check if custom actions should be available
+	function hasAvailableActions() {
+		return !isLoading && customActions.length > 0 && canManage && isSupported();
+	}
+
+	// Update the exported hasActions variable reactively
+	$: hasActions = hasAvailableActions();
 </script>
 
-{#if isLoading}
-	<div class="btn btn-sm join-item loading">Loading actions...</div>
-{:else if customActions.length > 0}
+{#if hasAvailableActions()}
 	<div class="dropdown">
 		<div
 			tabindex="0"
 			role="button"
-			class="btn btn-sm join-item {currentTaskId !== null || !isSupported()
+			class="btn btn-sm join-item {currentTaskId !== null || !canManage || !isSupported()
 				? 'btn-disabled'
 				: ''}"
 		>
@@ -101,19 +111,12 @@
 						on:click={() => triggerCustomAction(action.name)}
 						data-tip={action.description}
 						class="tooltip tooltip-right"
-						disabled={currentTaskId !== null || !isSupported()}
+						disabled={currentTaskId !== null || !canManage || !isSupported()}
 					>
 						{action.name}
 					</button>
 				</li>
 			{/each}
 		</ul>
-	</div>
-{:else if !isLoading && app.settings?.app_blueprint && isSupported()}
-	<div
-		class="btn btn-sm join-item btn-disabled tooltip tooltip-bottom"
-		data-tip="No custom actions defined in blueprint"
-	>
-		Custom Actions
 	</div>
 {/if}
