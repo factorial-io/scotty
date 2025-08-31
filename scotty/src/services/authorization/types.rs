@@ -12,6 +12,8 @@ pub enum Permission {
     Logs,
     Create,
     Destroy,
+    AdminRead,
+    AdminWrite,
 }
 
 impl Permission {
@@ -24,6 +26,8 @@ impl Permission {
             Permission::Logs,
             Permission::Create,
             Permission::Destroy,
+            Permission::AdminRead,
+            Permission::AdminWrite,
         ]
     }
 
@@ -36,6 +40,8 @@ impl Permission {
             Permission::Logs => "logs",
             Permission::Create => "create",
             Permission::Destroy => "destroy",
+            Permission::AdminRead => "admin_read",
+            Permission::AdminWrite => "admin_write",
         }
     }
 
@@ -48,6 +54,8 @@ impl Permission {
             "logs" => Some(Permission::Logs),
             "create" => Some(Permission::Create),
             "destroy" => Some(Permission::Destroy),
+            "admin_read" => Some(Permission::AdminRead),
+            "admin_write" => Some(Permission::AdminWrite),
             _ => None,
         }
     }
@@ -91,7 +99,7 @@ pub struct RoleConfig {
     pub description: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Assignment {
     pub role: String,
     pub scopes: Vec<String>,

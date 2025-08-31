@@ -52,6 +52,18 @@ use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, 
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
+use crate::api::handlers::admin::assignments::{
+    __path_create_assignment_handler, __path_list_assignments_handler, __path_remove_assignment_handler,
+};
+use crate::api::handlers::admin::permissions::{
+    __path_get_user_permissions_handler, __path_list_available_permissions_handler, __path_test_permission_handler,
+};
+use crate::api::handlers::admin::roles::{
+    __path_create_role_handler, __path_list_roles_handler,
+};
+use crate::api::handlers::admin::scopes::{
+    __path_create_scope_handler, __path_list_scopes_handler,
+};
 use crate::api::handlers::blueprints::__path_blueprints_handler;
 use crate::api::handlers::health::health_checker_handler;
 use crate::api::handlers::scopes::list::__path_list_user_scopes_handler;
@@ -72,6 +84,24 @@ use super::handlers::apps::run::adopt_app_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::purge_app_handler;
+use super::handlers::admin::assignments::{
+    create_assignment_handler, list_assignments_handler, remove_assignment_handler,
+    AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
+    RemoveAssignmentRequest, RemoveAssignmentResponse,
+};
+use crate::services::authorization::types::Assignment;
+use super::handlers::admin::permissions::{
+    get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
+    AvailablePermissionsResponse, TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse,
+};
+use super::handlers::admin::roles::{
+    create_role_handler, list_roles_handler,
+    CreateRoleRequest, CreateRoleResponse, RoleInfo, RolesListResponse,
+};
+use super::handlers::admin::scopes::{
+    create_scope_handler, list_scopes_handler,
+    CreateScopeRequest, CreateScopeResponse, ScopeInfo as AdminScopeInfo, ScopesListResponse,
+};
 use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
@@ -108,6 +138,17 @@ use crate::services::authorization::Permission;
         remove_notification_handler,
         adopt_app_handler,
         run_custom_action_handler,
+        // Admin endpoints
+        list_scopes_handler,
+        create_scope_handler,
+        list_roles_handler,
+        create_role_handler,
+        list_assignments_handler,
+        create_assignment_handler,
+        remove_assignment_handler,
+        test_permission_handler,
+        get_user_permissions_handler,
+        list_available_permissions_handler,
     ),
     components(
         schemas(
@@ -116,7 +157,13 @@ use crate::services::authorization::Permission;
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
-            ScopeInfo, UserScopesResponse
+            ScopeInfo, UserScopesResponse,
+            // Admin API schemas
+            AdminScopeInfo, ScopesListResponse, CreateScopeRequest, CreateScopeResponse,
+            RoleInfo, RolesListResponse, CreateRoleRequest, CreateRoleResponse,
+            AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
+            RemoveAssignmentRequest, RemoveAssignmentResponse, Assignment,
+            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse
         )
     ),
     tags(
@@ -241,6 +288,72 @@ impl ApiRoutes {
                 post(run_custom_action_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::Manage),
+                )),
+            )
+            // Admin API routes - require AdminRead/AdminWrite permissions
+            .route(
+                "/api/v1/authenticated/admin/scopes",
+                get(list_scopes_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminRead),
+                    ))
+                    .post(create_scope_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminWrite),
+                    )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/roles",
+                get(list_roles_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminRead),
+                    ))
+                    .post(create_role_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminWrite),
+                    )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/assignments",
+                get(list_assignments_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminRead),
+                    ))
+                    .post(create_assignment_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminWrite),
+                    ))
+                    .delete(remove_assignment_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::AdminWrite),
+                    )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/permissions",
+                get(list_available_permissions_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::AdminRead),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/permissions/test",
+                post(test_permission_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::AdminRead),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/permissions/user/:user_id",
+                get(get_user_permissions_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::AdminRead),
                 )),
             )
             // Apply authorization middleware to all authenticated routes

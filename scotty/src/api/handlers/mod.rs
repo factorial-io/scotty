@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod apps;
 pub mod blueprints;
 pub mod health;
