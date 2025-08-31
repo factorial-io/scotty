@@ -4,6 +4,7 @@
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
+	import { getAppPermissions, permissionsLoaded } from '../../../stores/permissionStore';
 	import type { App, AppTtl, TaskDetail } from '../../../types';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
@@ -23,10 +24,26 @@
 		setTitle(`App: ${data.name}`);
 	});
 
-	let actions = ['Run', 'Stop', 'Purge', 'Rebuild'];
-	if (data.settings) {
-		actions.push('Destroy');
+	$: permissions = $permissionsLoaded 
+		? getAppPermissions(data.name, ['view', 'manage', 'destroy', 'shell', 'logs'])
+		: { view: false, manage: false, destroy: false, shell: false, logs: false };
+
+	$: availableActions = getAvailableActions();
+	
+	function getAvailableActions(): string[] {
+		let actions: string[] = [];
+		
+		if (permissions.manage) {
+			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
+		}
+		
+		if (permissions.destroy && data.settings) {
+			actions.push('Destroy');
+		}
+		
+		return actions;
 	}
+
 	let current_task: string | null = null;
 	let current_action: string | null = null;
 
@@ -94,7 +111,7 @@
 <h3 class="text-xl mt-16 mb-4">Available Actions</h3>
 <div class="flex flex-wrap items-center gap-2">
 	<div class="join">
-		{#each actions as action (action)}
+		{#each availableActions as action (action)}
 			<button
 				disabled={current_task !== null || !isSupported()}
 				class="btn btn-sm join-item"
