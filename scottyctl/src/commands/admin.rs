@@ -4,13 +4,32 @@ use serde_json::json;
 use tabled::{builder::Builder, settings::Style};
 
 use scotty_core::admin::{
-    CreateScopeRequest, CreateRoleRequest, CreateAssignmentRequest,
-    RemoveAssignmentRequest, TestPermissionRequest, GetUserPermissionsRequest,
+    CreateScopeRequest, CreateRoleRequest, 
+    CreateAssignmentRequest, RemoveAssignmentRequest, 
+    TestPermissionRequest, GetUserPermissionsRequest,
+    SuccessResponse,
 };
 use crate::{
     api::{get, post, delete},
     context::AppContext,
+    utils::ui::Ui,
 };
+
+/// Helper function to handle success responses from admin API calls
+fn handle_success_response(
+    ui: &Ui,
+    result: serde_json::Value,
+    success_message: String,
+    error_prefix: &str,
+) -> anyhow::Result<()> {
+    let response: SuccessResponse = serde_json::from_value(result)?;
+    if response.success {
+        ui.success(success_message);
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("{}: {}", error_prefix, response.message))
+    }
+}
 
 // Scopes Management
 pub async fn list_scopes(context: &AppContext) -> anyhow::Result<()> {
@@ -62,9 +81,14 @@ pub async fn create_scope(context: &AppContext, cmd: &CreateScopeRequest) -> any
         "description": cmd.description
     });
 
-    let _result = post(context.server(), "admin/scopes", payload).await?;
-    ui.success(format!("Scope '{}' created successfully.", cmd.name.bright_green()));
-    Ok(())
+    let result = post(context.server(), "admin/scopes", payload).await?;
+    
+    handle_success_response(
+        ui,
+        result,
+        format!("Scope '{}' created successfully.", cmd.name.bright_green()),
+        "Failed to create scope",
+    )
 }
 
 // Roles Management
@@ -122,9 +146,14 @@ pub async fn create_role(context: &AppContext, cmd: &CreateRoleRequest) -> anyho
         "permissions": cmd.permissions
     });
 
-    let _result = post(context.server(), "admin/roles", payload).await?;
-    ui.success(format!("Role '{}' created successfully.", cmd.name.bright_green()));
-    Ok(())
+    let result = post(context.server(), "admin/roles", payload).await?;
+    
+    handle_success_response(
+        ui,
+        result,
+        format!("Role '{}' created successfully.", cmd.name.bright_green()),
+        "Failed to create role",
+    )
 }
 
 // Assignments Management
@@ -187,9 +216,14 @@ pub async fn create_assignment(context: &AppContext, cmd: &CreateAssignmentReque
         "scopes": cmd.scopes
     });
 
-    let _result = post(context.server(), "admin/assignments", payload).await?;
-    ui.success(format!("Assignment for user '{}' created successfully.", cmd.user_id.bright_green()));
-    Ok(())
+    let result = post(context.server(), "admin/assignments", payload).await?;
+    
+    handle_success_response(
+        ui,
+        result,
+        format!("Assignment for user '{}' created successfully.", cmd.user_id.bright_green()),
+        "Failed to create assignment",
+    )
 }
 
 pub async fn remove_assignment(context: &AppContext, cmd: &RemoveAssignmentRequest) -> anyhow::Result<()> {
@@ -206,9 +240,14 @@ pub async fn remove_assignment(context: &AppContext, cmd: &RemoveAssignmentReque
         "scopes": cmd.scopes
     });
 
-    let _result = delete(context.server(), "admin/assignments", Some(payload)).await?;
-    ui.success(format!("Assignment for user '{}' removed successfully.", cmd.user_id.bright_green()));
-    Ok(())
+    let result = delete(context.server(), "admin/assignments", Some(payload)).await?;
+    
+    handle_success_response(
+        ui,
+        result,
+        format!("Assignment for user '{}' removed successfully.", cmd.user_id.bright_green()),
+        "Failed to remove assignment",
+    )
 }
 
 // Permissions Management
