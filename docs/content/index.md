@@ -31,7 +31,7 @@ features:
       width: 96
       height: 96
   - title: Perfect for ephemeral review apps
-    details: Scotty stops apps per default after a certain TTL. It includes group-based authorization to control access and adds basic auth to prevent unauthorized access.
+    details: Scotty stops apps per default after a certain TTL. It includes scope-based authorization to control access and adds basic auth to prevent unauthorized access.
     icon:
       src: ./assets/index/artifacts.svg
       width: 96

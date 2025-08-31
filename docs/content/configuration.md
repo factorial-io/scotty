@@ -88,7 +88,7 @@ api:
 
 ### Authorization settings
 
-Scotty includes an optional group-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
+Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
 
 **Authorization is entirely optional** - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.
 
@@ -109,8 +109,8 @@ config/
 Create `config/casbin/policy.yaml` with your access control setup:
 
 ```yaml
-# Group definitions - organize apps by purpose
-groups:
+# Scope definitions - organize apps by purpose
+scopes:
   frontend:
     description: "Frontend applications"
     created_at: "2023-12-01T00:00:00Z"
@@ -136,31 +136,31 @@ roles:
     permissions: ["view", "manage", "logs"]
     created_at: "2023-12-01T00:00:00Z"
 
-# User/token assignments to roles within groups
+# User/token assignments to roles within scopes
 assignments:
   "alice@example.com":
     - role: "admin"
-      groups: ["*"]  # Global access
+      scopes: ["*"]  # Global access
   "bob@example.com":
     - role: "developer"
-      groups: ["frontend", "backend"]
+      scopes: ["frontend", "backend"]
   "bearer:ci-token":
     - role: "developer"
-      groups: ["staging"]
+      scopes: ["staging"]
 
-# App group mappings (managed automatically from .scotty.yml)
+# App scope mappings (managed automatically from .scotty.yml)
 apps:
   "my-frontend-app": ["frontend"]
   "my-backend-api": ["backend"]
 ```
 
-#### App Group Assignment
+#### App Scope Assignment
 
-Apps declare group membership in their `.scotty.yml` configuration:
+Apps declare scope membership in their `.scotty.yml` configuration:
 
 ```yaml
-# Apps can belong to multiple groups
-groups:
+# Apps can belong to multiple scopes
+scopes:
   - "frontend"
   - "staging"
 
@@ -175,8 +175,8 @@ public_services:
 - `manage` - Start, stop, restart applications
 - `logs` - View application logs
 - `shell` - Execute shell commands in containers
-- `create` - Create new apps in group
-- `destroy` - Delete apps from group
+- `create` - Create new apps in scope
+- `destroy` - Delete apps from scope
 
 #### Bearer Token Integration
 

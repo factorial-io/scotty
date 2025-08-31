@@ -1,20 +1,20 @@
 # Authorization System
 
-Scotty includes a powerful group-based authorization system that controls access to applications and their features. This system allows you to restrict sensitive operations, isolate applications by team or environment, and support multi-tenant scenarios.
+Scotty includes a powerful scope-based authorization system that controls access to applications and their features. This system allows you to restrict sensitive operations, isolate applications by team or environment, and support multi-tenant scenarios.
 
 ## Overview
 
 The authorization system is built on **Casbin RBAC** and provides:
 
-- **Group-based access control**: Organize apps into logical groups
+- **Scope-based access control**: Organize apps into logical scopes
 - **Role-based permissions**: Define what actions users can perform
-- **Flexible assignments**: Assign users to roles within specific groups
+- **Flexible assignments**: Assign users to roles within specific scopes
 - **Bearer token integration**: Secure API access with granular permissions
-- **Automatic synchronization**: Apps declare group membership via configuration
+- **Automatic synchronization**: Apps declare scope membership via configuration
 
 ## Core Concepts
 
-### App Groups
+### App Scopes
 
 Collections of applications organized by purpose:
 
@@ -23,7 +23,7 @@ Collections of applications organized by purpose:
 - **Client-based**: `client-acme`, `client-widgets`
 - **Purpose-based**: `databases`, `services`, `tools`
 
-Apps can belong to multiple groups simultaneously (e.g., an app could be in both `production` and `team-frontend` groups).
+Apps can belong to multiple scopes simultaneously (e.g., an app could be in both `production` and `team-frontend` scopes).
 
 ### Permissions
 
@@ -33,8 +33,8 @@ Granular actions users can perform on applications:
 - `manage` - Start, stop, restart applications
 - `logs` - View application logs  
 - `shell` - Execute shell commands in containers
-- `create` - Create new apps in group
-- `destroy` - Delete apps from group
+- `create` - Create new apps in scope
+- `destroy` - Delete apps from scope
 
 ### Roles
 
@@ -47,16 +47,16 @@ Named collections of permissions for common access patterns:
 
 ### Assignments
 
-Map users or bearer tokens to roles within specific groups:
+Map users or bearer tokens to roles within specific scopes:
 
 ```yaml
 assignments:
   "frontend-dev@example.com":
     - role: "developer"
-      groups: ["frontend", "staging"]
+      scopes: ["frontend", "staging"]
   "bearer:dev-token":
     - role: "developer" 
-      groups: ["development"]
+      scopes: ["development"]
 ```
 
 ## Configuration
@@ -66,8 +66,8 @@ assignments:
 Create `/config/casbin/policy.yaml`:
 
 ```yaml
-# Group definitions
-groups:
+# Scope definitions
+scopes:
   frontend:
     description: "Frontend applications"
     created_at: "2023-12-01T00:00:00Z"
@@ -97,31 +97,31 @@ roles:
 assignments:
   "frontend-dev@example.com":
     - role: "developer"
-      groups: ["frontend"]
+      scopes: ["frontend"]
   "backend-dev@example.com":
     - role: "developer"
-      groups: ["backend"]
+      scopes: ["backend"]
   "ops@example.com":
     - role: "operator"
-      groups: ["frontend", "backend", "production"]
+      scopes: ["frontend", "backend", "production"]
   "admin@example.com":
     - role: "admin"
-      groups: ["*"]  # Global access
+      scopes: ["*"]  # Global access
 
-# App group mappings (managed automatically)
+# App scope mappings (managed automatically)
 apps:
   "my-frontend-app": ["frontend"]
   "my-backend-api": ["backend"]
   "shared-service": ["frontend", "backend"]
 ```
 
-### App Group Assignment
+### App Scope Assignment
 
-Apps declare group membership in their `.scotty.yml` file:
+Apps declare scope membership in their `.scotty.yml` file:
 
 ```yaml
-# App belongs to frontend and staging groups
-groups:
+# App belongs to frontend and staging scopes
+scopes:
   - "frontend"
   - "staging"
 
@@ -134,7 +134,7 @@ environment:
   NODE_ENV: "development"
 ```
 
-Apps without explicit groups are assigned to the `default` group.
+Apps without explicit scopes are assigned to the `default` scope.
 
 ## Authentication Integration
 
@@ -162,10 +162,10 @@ OAuth users are identified by their email address and can be assigned to roles:
 assignments:
   "alice@company.com":
     - role: "admin"
-      groups: ["*"]
+      scopes: ["*"]
   "bob@company.com":
     - role: "developer"
-      groups: ["team-frontend"]
+      scopes: ["team-frontend"]
 ```
 
 ## Permission Enforcement
@@ -193,7 +193,7 @@ When access is denied, users receive:
 
 ```yaml
 # Teams with separate environments
-groups:
+scopes:
   team-alpha:
     description: "Team Alpha applications"
   team-beta:
@@ -205,23 +205,23 @@ assignments:
   # Team Alpha developer
   "alice@company.com":
     - role: "developer"
-      groups: ["team-alpha"]
+      scopes: ["team-alpha"]
     - role: "viewer"
-      groups: ["production"]
+      scopes: ["production"]
       
   # Team Beta developer
   "bob@company.com":
     - role: "developer"
-      groups: ["team-beta"]
+      scopes: ["team-beta"]
     - role: "viewer" 
-      groups: ["production"]
+      scopes: ["production"]
       
   # Platform engineer
   "charlie@company.com":
     - role: "operator"
-      groups: ["production"]
+      scopes: ["production"]
     - role: "admin"
-      groups: ["team-alpha", "team-beta"]
+      scopes: ["team-alpha", "team-beta"]
 ```
 
 ### Bearer Token Access
@@ -231,17 +231,17 @@ assignments:
   # CI/CD deployment token
   "bearer:ci-deploy-token":
     - role: "developer"
-      groups: ["staging"]
+      scopes: ["staging"]
       
   # Monitoring token
   "bearer:monitoring-token":
     - role: "viewer"
-      groups: ["production", "staging"]
+      scopes: ["production", "staging"]
       
   # Emergency access token
   "bearer:emergency-token":
     - role: "admin"
-      groups: ["*"]
+      scopes: ["*"]
 ```
 
 ## Best Practices
@@ -249,23 +249,23 @@ assignments:
 ### Security
 
 1. **Principle of Least Privilege**: Grant minimum required permissions
-2. **Group Isolation**: Use groups to separate sensitive environments
+2. **Scope Isolation**: Use scopes to separate sensitive environments
 3. **Regular Audits**: Review assignments and remove unused access
 4. **Emergency Access**: Maintain admin access for critical situations
 
 ### Organization
 
-1. **Clear Naming**: Use descriptive group and role names
-2. **Documentation**: Document group purposes and access patterns
-3. **Consistency**: Establish naming conventions for groups
-4. **Automation**: Integrate with CI/CD for app group assignment
+1. **Clear Naming**: Use descriptive scope and role names
+2. **Documentation**: Document scope purposes and access patterns
+3. **Consistency**: Establish naming conventions for scopes
+4. **Automation**: Integrate with CI/CD for app scope assignment
 
 ### Performance
 
-1. **Group Structure**: Keep group hierarchies simple
+1. **Scope Structure**: Keep scope hierarchies simple
 2. **Assignment Scope**: Avoid overly broad assignments
 3. **Caching**: Authorization checks are cached for performance
-4. **Regular Cleanup**: Remove obsolete groups and assignments
+4. **Regular Cleanup**: Remove obsolete scopes and assignments
 
 ## Migration
 
@@ -275,15 +275,15 @@ For existing Scotty installations:
 
 1. **Breaking Change**: Bearer token authentication now requires RBAC assignments
 2. **Migration Required**: Existing `api.access_token` must be added to assignments
-3. **App Discovery**: Existing apps are assigned to `default` group automatically
+3. **App Discovery**: Existing apps are assigned to `default` scope automatically
 4. **OAuth Compatibility**: OAuth authentication continues to work unchanged
 
 ### Enabling Authorization
 
 1. Create `/config/casbin/model.conf` and `/config/casbin/policy.yaml`
-2. Define initial groups, roles, and assignments
+2. Define initial scopes, roles, and assignments
 3. **Add existing bearer tokens to assignments** (if using bearer authentication)
-4. Apps will automatically sync their group memberships
+4. Apps will automatically sync their scope memberships
 5. API endpoints begin enforcing permissions immediately
 
 **Migration Example**: If you currently use `api.access_token: "my-secret-token"`, add this to your policy.yaml:
@@ -292,7 +292,7 @@ For existing Scotty installations:
 assignments:
   "bearer:my-secret-token":
     - role: "admin"
-      groups: ["*"]
+      scopes: ["*"]
 ```
 
 **Warning**: The authorization system no longer falls back to legacy configuration. Missing token assignments will result in authentication failures.

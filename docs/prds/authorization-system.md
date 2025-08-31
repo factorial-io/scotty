@@ -1,7 +1,7 @@
 # Product Requirements Document: Scotty Authorization System
 
 ## Executive Summary
-Implement a lightweight, group-based authorization system for Scotty that controls access to applications and their features, supporting both bearer token and OAuth authentication modes.
+Implement a lightweight, scope-based authorization system for Scotty that controls access to applications and their features, supporting both bearer token and OAuth authentication modes.
 
 ## Problem Statement
 Currently, Scotty has all-or-nothing access control. Users with valid authentication can perform any action on any application. We need granular control to:
@@ -27,14 +27,14 @@ Currently, Scotty has all-or-nothing access control. Users with valid authentica
 
 ### 1. Platform Administrator
 - Manages Scotty infrastructure
-- Creates app groups and roles
+- Creates app scopes and roles
 - Assigns permissions globally
 - Needs: Full control, ability to delegate
 
 ### 2. Development Team Lead
 - Manages team's applications
 - Grants access to team members
-- Needs: Control over specific app groups
+- Needs: Control over specific app scopes
 
 ### 3. Developer
 - Deploys and manages applications
@@ -53,14 +53,14 @@ Currently, Scotty has all-or-nothing access control. Users with valid authentica
 
 ## Core Concepts
 
-### App Groups
+### App Scopes
 Collections of applications organized by purpose:
 - **Environment-based**: production, staging, development
 - **Team-based**: team-a, team-b, platform
 - **Client-based**: client-x, client-y
 - **Purpose-based**: databases, services, tools
 
-Apps can belong to multiple groups (e.g., an app could be in both "production" and "team-a" groups).
+Apps can belong to multiple scopes (e.g., an app could be in both "production" and "team-a" scopes).
 
 ### Permissions
 Granular actions on applications:
@@ -68,8 +68,8 @@ Granular actions on applications:
 - `manage` - Start, stop, restart apps
 - `logs` - View application logs
 - `shell` - Execute shell commands in containers
-- `create` - Create new apps in group
-- `destroy` - Delete apps from group
+- `create` - Create new apps in scope
+- `destroy` - Delete apps from scope
 
 ### Roles
 Named collections of permissions:
@@ -79,30 +79,30 @@ Named collections of permissions:
 - `viewer` - View only
 
 ### Assignments
-Mapping of users/tokens to roles within groups.
+Mapping of users/tokens to roles within scopes.
 
 ## User Stories
 
-### Epic 1: Group Management
+### Epic 1: Scope Management
 
-**Story 1.1**: As an admin, I want to create app groups
+**Story 1.1**: As an admin, I want to create app scopes
 ```yaml
 Acceptance Criteria:
-- Can create group via API/CLI
-- Group has name and description
-- Groups are unique by name
+- Can create scope via API/CLI
+- Scope has name and description
+- Scopes are unique by name
 - Changes persist across restarts
 ```
 
-**Story 1.2**: As an admin, I want to assign apps to groups
+**Story 1.2**: As an admin, I want to assign apps to scopes
 ```yaml
 Acceptance Criteria:
-- Apps can declare groups in .scotty.yml (single or multiple)
-- Can specify groups via CLI when creating/adopting apps
-- Unassigned apps go to "default" group
+- Apps can declare scopes in .scotty.yml (single or multiple)
+- Can specify scopes via CLI when creating/adopting apps
+- Unassigned apps go to "default" scope
 - Can reassign via API/CLI
-- Group assignment affects permissions immediately
-- Apps can belong to multiple groups simultaneously
+- Scope assignment affects permissions immediately
+- Apps can belong to multiple scopes simultaneously
 ```
 
 ### Epic 2: Role Management
@@ -123,8 +123,8 @@ Acceptance Criteria:
 Acceptance Criteria:
 - Can assign by bearer token
 - Can assign by OAuth email/subject
-- Can assign different roles per group
-- Supports wildcard group (*) for global roles
+- Can assign different roles per scope
+- Supports wildcard scope (*) for global roles
 ```
 
 **Story 3.2**: As a developer, I want to know my permissions
@@ -141,7 +141,7 @@ Acceptance Criteria:
 ```yaml
 Acceptance Criteria:
 - Only users with shell permission can access
-- Applies per app group
+- Applies per app scope
 - Returns 403 Forbidden when denied
 - Audit log shows attempts (future)
 ```
@@ -187,22 +187,22 @@ Acceptance Criteria:
 - [x] Casbin integration (v2.8 with proper RBAC model)
 - [x] File-based YAML storage (config + policy files)
 - [x] Authorization middleware with Permission enum
-- [x] Group and role models (Groups, Roles, Assignments)
-- [x] App group assignment via .scotty.yml groups field
-- [x] Automatic group sync during app discovery
+- [x] Scope and role models (Scopes, Roles, Assignments)
+- [x] App scope assignment via .scotty.yml scopes field
+- [x] Automatic scope sync during app discovery
 - [x] Bearer token integration with authorization assignments
-- [x] Direct user-group-permission policy model
-- [x] Comprehensive test suite with group-based filtering
+- [x] Direct user-scope-permission policy model
+- [x] Comprehensive test suite with scope-based filtering
 
 ### Phase 2: Management API 🚧 **IN PROGRESS**
-- [x] Core service methods (create_group, assign_user_role, etc.)
-- [ ] REST API endpoints for group CRUD operations
+- [x] Core service methods (create_scope, assign_user_role, etc.)
+- [ ] REST API endpoints for scope CRUD operations
 - [ ] REST API endpoints for role management  
 - [ ] REST API endpoints for user assignments
 - [ ] Permission testing endpoint
 
 ### Phase 3: CLI Support
-- [ ] scottyctl group:* commands
+- [ ] scottyctl scope:* commands
 - [ ] scottyctl role:* commands
 - [ ] scottyctl auth:* commands
 - [ ] Permission testing command
@@ -232,8 +232,8 @@ The authorization system is built on **Casbin RBAC** with the following key comp
 #### Core Service (`AuthorizationService`)
 - **Location**: `/scotty/src/services/authorization/` (modular structure)
 - **Storage**: File-based YAML configuration + Casbin model file
-- **Policy Model**: Direct user-group-permission mapping for simplicity
-- **Integration**: Automatic initialization and app group synchronization
+- **Policy Model**: Direct user-scope-permission mapping for simplicity
+- **Integration**: Automatic initialization and app scope synchronization
 - **Debug Support**: Comprehensive debugging methods and proper permission reporting
 
 #### Casbin Model
@@ -242,7 +242,7 @@ The authorization system is built on **Casbin RBAC** with the following key comp
 r = sub, app, act
 
 [policy_definition]  
-p = sub, group, act
+p = sub, scope, act
 
 [role_definition]
 g = _, _
@@ -251,7 +251,7 @@ g = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g(r.app, p.group) && r.act == p.act
+m = r.sub == p.sub && g(r.app, p.scope) && r.act == p.act
 ```
 
 #### Permission Enum
@@ -262,8 +262,8 @@ pub enum Permission {
     Manage,  // Start, stop, restart apps
     Shell,   // Execute shell commands in containers
     Logs,    // View application logs
-    Create,  // Create new apps in group
-    Destroy, // Delete apps from group
+    Create,  // Create new apps in scope
+    Destroy, // Delete apps from scope
 }
 ```
 
@@ -273,11 +273,11 @@ pub enum Permission {
 - **User ID Format**: Uses `AuthorizationService::format_user_id()` for consistency
 - **Token Validation**: `authorize_bearer_user()` only accepts tokens found in RBAC assignments
 
-### App Group Assignment
-1. **Via .scotty.yml**: Apps declare `groups: ["frontend", "staging"]` in settings
-2. **Automatic Sync**: During app discovery, groups are synced to Casbin policies
-3. **Default Group**: Apps without explicit groups assigned to "default"
-4. **Multiple Groups**: Apps can belong to multiple groups simultaneously
+### App Scope Assignment
+1. **Via .scotty.yml**: Apps declare `scopes: ["frontend", "staging"]` in settings
+2. **Automatic Sync**: During app discovery, scopes are synced to Casbin policies
+3. **Default Scope**: Apps without explicit scopes assigned to "default"
+4. **Multiple Scopes**: Apps can belong to multiple scopes simultaneously
 
 ### API Protection
 - **Middleware**: `require_permission(Permission::X)` on protected routes with proper State extractor
@@ -290,14 +290,14 @@ pub enum Permission {
 1. **Security**: Zero unauthorized access incidents
 2. **Usability**: <2 min to grant new user access
 3. **Performance**: <5ms permission check latency  
-4. **Adoption**: 100% apps assigned to groups
+4. **Adoption**: 100% apps assigned to scopes
 5. **Reliability**: 99.9% authorization service uptime
 
 ## Open Questions
-1. Should we support permission inheritance between groups?
+1. Should we support permission inheritance between scopes?
 2. How to handle emergency access scenarios?
 3. Should permissions be time-limited?
-4. Integration with external IdP groups/roles?
+4. Integration with external IdP scopes/roles?
 5. Backup and disaster recovery for permissions?
 
 ## Appendix: Example Configuration
@@ -305,8 +305,8 @@ pub enum Permission {
 ### Authorization Configuration (`config/casbin/policy.yaml`)
 
 ```yaml
-# Group definitions
-groups:
+# Scope definitions
+scopes:
   frontend:
     description: "Frontend applications" 
     created_at: "2023-12-01T00:00:00Z"
@@ -336,25 +336,25 @@ roles:
     permissions: ["view"]
     created_at: "2023-12-01T00:00:00Z"
 
-# User/token assignments to roles within groups
+# User/token assignments to roles within scopes
 assignments:
   "bearer:frontend-dev-token":
     - role: "developer"
-      groups: ["frontend"]
+      scopes: ["frontend"]
   "bearer:backend-dev-token": 
     - role: "developer"
-      groups: ["backend"]
+      scopes: ["backend"]
   "frontend-dev@example.com":
     - role: "developer" 
-      groups: ["frontend"]
+      scopes: ["frontend"]
   "ops-engineer@example.com":
     - role: "operator"
-      groups: ["frontend", "backend", "production"]
+      scopes: ["frontend", "backend", "production"]
   "alice@example.com":
     - role: "admin"
-      groups: ["*"]  # Global admin access
+      scopes: ["*"]  # Global admin access
 
-# App -> Group mappings (managed automatically from .scotty.yml)
+# App -> Scope mappings (managed automatically from .scotty.yml)
 apps:
   "my-frontend-app": ["frontend"]
   "my-backend-api": ["backend"] 
@@ -365,8 +365,8 @@ apps:
 ### App Configuration Example (`.scotty.yml`)
 
 ```yaml
-# App declares which groups it belongs to
-groups:
+# App declares which scopes it belongs to
+scopes:
   - "frontend"
   - "staging"
 
@@ -387,7 +387,7 @@ time_to_live:
 ## Remote Shell Feature (app:shell)
 
 ### Overview
-The `app:shell` command enables secure remote shell access to Docker containers managed by Scotty, with authorization controls per app group.
+The `app:shell` command enables secure remote shell access to Docker containers managed by Scotty, with authorization controls per app scope.
 
 ### Requirements
 
@@ -399,7 +399,7 @@ The `app:shell` command enables secure remote shell access to Docker containers 
 - Support custom shell selection (sh, bash, etc.)
 
 #### Security Requirements
-- Require `shell` permission for app's group
+- Require `shell` permission for app's scope
 - Encrypt communication end-to-end
 - Audit shell session initiation
 - Terminate on permission revocation
@@ -431,7 +431,7 @@ Acceptance Criteria:
 ```yaml
 Acceptance Criteria:
 - Only users with shell permission can connect
-- Permission checked per app group
+- Permission checked per app scope
 - Failed attempts logged
 - Active sessions can be monitored
 ```
@@ -447,9 +447,9 @@ scottyctl app:shell my-app web
 # With custom shell
 scottyctl app:shell my-app --shell=/bin/bash
 
-# Create app with group assignment
-scottyctl app:create my-app --groups production,team-a
+# Create app with scope assignment
+scottyctl app:create my-app --scopes production,team-a
 
-# Adopt existing app into groups
-scottyctl app:adopt existing-app --groups staging,team-b
+# Adopt existing app into scopes
+scottyctl app:adopt existing-app --scopes staging,team-b
 ```
