@@ -22,7 +22,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = g(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
+m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
 "#;
     tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
         .await
