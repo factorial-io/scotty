@@ -1,7 +1,7 @@
 debug: false
 api:
     bind_address: "0.0.0.0:21342"
-    access_token: "mysecret"
+    auth_mode: bearer
     create_app_max_size: "50M"
     bearer_tokens:
         admin: "gFW5k1fdvYw8iB2xCxw5qZXj5pkP9dga"

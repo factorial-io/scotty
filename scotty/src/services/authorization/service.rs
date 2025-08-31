@@ -245,8 +245,8 @@ impl AuthorizationService {
             // Bearer token users already have the correct identifier format
             user.email.clone()
         } else {
-            // OAuth users need to be formatted
-            Self::format_user_id(&user.email, user.access_token.as_deref())
+            // OAuth users use their email address directly
+            user.email.clone()
         }
     }
 
