@@ -107,30 +107,26 @@ async fn test_bearer_auth_with_rbac_assigned_token() {
         .expect("Failed to load RBAC config for test");
 
     let assignments = auth_service.list_assignments().await;
-    println!("Loaded assignments: {:?}", assignments);
-
-    // Check if bearer:client-a exists
-    let client_a_token =
-        crate::services::AuthorizationService::format_user_id("", Some("client-a"));
-    println!("Looking for token: {}", client_a_token);
+    // Check if identifier:client-a exists  
+    let client_a_identifier = "identifier:client-a";
     assert!(
-        assignments.contains_key(&client_a_token),
-        "client-a token should be in assignments"
+        assignments.contains_key(client_a_identifier),
+        "client-a identifier should be in assignments"
     );
 
     let router = create_scotty_app_with_rbac_auth().await;
     let server = TestServer::new(router).unwrap();
 
-    // Test with a token that should be in the assignments (from policy.yaml)
+    // Test with the secure token that maps to client-a identifier (from test config)
     let response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
             axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str("Bearer client-a").unwrap(),
+            axum::http::HeaderValue::from_str("Bearer client-a-secure-token-456").unwrap(),
         )
         .await;
 
-    // Should succeed since client-a is explicitly assigned in policy.yaml
+    // Should succeed since client-a-secure-token-456 maps to identifier:client-a in policy.yaml
     assert_eq!(response.status_code(), 200);
 }
 

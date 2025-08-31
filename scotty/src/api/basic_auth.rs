@@ -162,9 +162,8 @@ async fn authorize_oauth_user_native(
 
 /// Authorize a bearer token user
 ///
-/// First attempts to look up the token in the authorization service assignments.
-/// If not found, falls back to the legacy `api.access_token` configuration for
-/// backward compatibility when authorization is not used.
+/// Performs reverse lookup to find token identifier, then looks up user assignments
+/// by identifier in the authorization service.
 pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
     auth_token: &str,
@@ -172,19 +171,37 @@ pub async fn authorize_bearer_user(
     // Extract Bearer token
     let token = auth_token.strip_prefix("Bearer ")?;
 
-    // Look up the user by token in authorization service
+    // Reverse lookup: find which identifier maps to this token
+    let identifier = find_token_identifier(&shared_app_state, token)?;
+    debug!("Found identifier '{}' for bearer token", identifier);
+
+    // Look up the user by identifier in authorization service
     let auth_service = &shared_app_state.auth_service;
-    if let Some(user_id) = auth_service.get_user_by_token(token).await {
-        debug!("Found user for bearer token: {}", user_id);
-        let token_prefix = &token[..std::cmp::min(token.len(), 8)];
+    let user_id = format!("identifier:{}", identifier);
+    
+    if let Some(_user_info) = auth_service.get_user_by_identifier(&user_id).await {
+        debug!("Found user assignments for identifier: {}", identifier);
         return Some(CurrentUser {
-            email: format!("token-user-{}", token_prefix.to_lowercase()),
-            name: format!("Token User ({})", token_prefix),
+            email: format!("identifier:{}", identifier), // Use identifier format for user.email
+            name: format!("Token User ({})", identifier),
             access_token: Some(token.to_string()),
         });
     }
 
-    // Token not found in RBAC assignments
-    warn!("Bearer token authentication failed - token not found in RBAC assignments");
+    // Identifier not found in RBAC assignments
+    warn!("Bearer token authentication failed - identifier '{}' not found in RBAC assignments", identifier);
+    None
+}
+
+/// Find the token identifier by reverse-looking up the actual token
+fn find_token_identifier(shared_app_state: &SharedAppState, token: &str) -> Option<String> {
+    // Search through configured bearer tokens to find matching identifier
+    for (identifier, configured_token) in &shared_app_state.settings.api.bearer_tokens {
+        if configured_token == token {
+            return Some(identifier.clone());
+        }
+    }
+    
+    debug!("Token not found in bearer_tokens configuration");
     None
 }

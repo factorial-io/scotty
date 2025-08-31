@@ -218,7 +218,6 @@ pub async fn remove_assignment_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::services::authorization::AuthorizationService;
 
     #[tokio::test]

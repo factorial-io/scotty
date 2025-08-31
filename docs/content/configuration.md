@@ -55,7 +55,10 @@ frontend_directory: ./frontend/build
 ```yaml
 api:
   bind_address: "0.0.0.0:21342"
-  access_token: "mysecret"
+  bearer_tokens:
+    admin: "secure-admin-token-abc123" 
+    client-a: "secure-client-token-def456"
+    deployment: "secure-deploy-token-ghi789"
   create_app_max_size: "50M"
   auth_mode: "bearer"  # "dev", "oauth", or "bearer"
   dev_user_email: "dev@localhost"
@@ -68,9 +71,7 @@ api:
 ```
 
 * `bind_address`: The address and port the server listens on.
-* `access_token`: The token to authenticate against the server. This token is
-  needed by the clients to authenticate against the server when `auth_mode` is "bearer".
-  **Note**: When authorization is enabled, this serves as a fallback token for backward compatibility.
+* `bearer_tokens`: **Required for bearer authentication**. Map of logical token identifiers to secure bearer tokens. Each identifier corresponds to a user/role in the authorization system and can be overridden via environment variables (e.g., `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`).
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
@@ -144,7 +145,7 @@ assignments:
   "bob@example.com":
     - role: "developer"
       scopes: ["frontend", "backend"]
-  "bearer:ci-token":
+  "identifier:deployment":  # Maps to bearer_tokens.deployment
     - role: "developer"
       scopes: ["staging"]
 
@@ -180,16 +181,19 @@ public_services:
 
 #### Bearer Token Integration
 
-When authorization is enabled, bearer tokens can be assigned specific permissions:
+Bearer tokens are configured using logical identifiers that map to secure tokens:
 
-1. **Primary**: Tokens defined in authorization assignments (e.g., `bearer:my-token`)
-2. **Fallback**: Legacy `api.access_token` configuration for backward compatibility
+1. **Configuration**: Define secure tokens in `api.bearer_tokens` section
+2. **Authorization**: Reference identifiers in policy assignments as `identifier:name`
+3. **Environment Override**: Use `SCOTTY__API__BEARER_TOKENS__NAME=secure_token`
 
 Example CLI usage with authorized token:
 ```bash
-export SCOTTY_ACCESS_TOKEN="my-authorized-token"
+export SCOTTY_ACCESS_TOKEN="secure-admin-token-abc123"
 scottyctl app:list  # Shows only apps user has 'view' permission for
 ```
+
+**Important**: The `api.access_token` configuration is **no longer supported**. Use `api.bearer_tokens` instead.
 
 ###  Scheduler settings
 
@@ -452,8 +456,8 @@ As an alternative you can override the configuration by setting environment
 variables, this is especiall useful for sensitive data like passwords.
 
 The environment variables must be prefixed with `SCOTTY__` and the keys must be
-concatenated with *double underscores*. For example to override the access token
-you can set the environment variable `SCOTTY__API__ACCESS_TOKEN`.
+concatenated with *double underscores*. For example to override bearer tokens
+you can set environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN`.
 
 Rule of thumb is: If you want to override a key, replace the dots with double
 underscores and prefix the key with `SCOTTY__`.
@@ -463,7 +467,8 @@ underscores and prefix the key with `SCOTTY__`.
 | name of value in the config file                  | environment variable                                     |
 |---------------------------------------------------|----------------------------------------------------------|
 | `debug`                                           | `SCOTTY__DEBUG`                                          |
-| `api.access_token`                                | `SCOTTY__API__ACCESS_TOKEN`                              |
+| `api.bearer_tokens.admin`                         | `SCOTTY__API__BEARER_TOKENS__ADMIN`                      |
+| `api.bearer_tokens.deployment`                    | `SCOTTY__API__BEARER_TOKENS__DEPLOYMENT`                 |
 | `api.bind_address`                                | `SCOTTY__API__BIND_ADDRESS`                              |
 | `api.auth_mode`                                   | `SCOTTY__API__AUTH_MODE`                                 |
 | `api.dev_user_email`                              | `SCOTTY__API__DEV_USER_EMAIL`                            |

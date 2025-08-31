@@ -3,7 +3,9 @@ api:
     bind_address: "0.0.0.0:21342"
     create_app_max_size: "50M"
     auth_mode: "bearer"
-    access_token: "test-bearer-token-123"
+    bearer_tokens:
+        admin: "test-bearer-token-123"
+        client-a: "client-a-secure-token-456"
 scheduler:
     running_app_check: "10m"
     ttl_check: "10m"

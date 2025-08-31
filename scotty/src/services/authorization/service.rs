@@ -201,6 +201,11 @@ impl AuthorizationService {
         }
     }
 
+    /// Format user identifier for new identifier-based authorization
+    pub fn format_identifier_user_id(identifier: &str) -> String {
+        format!("identifier:{}", identifier)
+    }
+
     /// Check if authorization is enabled (has any assignments)
     pub async fn is_enabled(&self) -> bool {
         let config = self.config.read().await;
@@ -220,8 +225,25 @@ impl AuthorizationService {
         }
     }
 
+    /// Look up user information by identifier (new format: identifier:admin)
+    pub async fn get_user_by_identifier(&self, identifier_user_id: &str) -> Option<String> {
+        let config = self.config.read().await;
+
+        // Check if user assignments exist for this identifier
+        if config.assignments.contains_key(identifier_user_id) {
+            Some(identifier_user_id.to_string())
+        } else {
+            None
+        }
+    }
+
     /// Save current configuration to file
     async fn save_config(&self) -> Result<()> {
+        // Skip saving for fallback service (in-memory only)
+        if self.config_path.starts_with("fallback/") {
+            return Ok(());
+        }
+        
         let config = self.config.read().await;
         ConfigManager::save_config(&config, &self.config_path).await
     }

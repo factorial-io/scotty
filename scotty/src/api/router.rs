@@ -350,7 +350,7 @@ impl ApiRoutes {
                 )),
             )
             .route(
-                "/api/v1/authenticated/admin/permissions/user/:user_id",
+                "/api/v1/authenticated/admin/permissions/user/{user_id}",
                 get(get_user_permissions_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::AdminRead),

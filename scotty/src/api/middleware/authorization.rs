@@ -40,7 +40,13 @@ pub async fn authorization_middleware(
         return Ok(next.run(req).await);
     }
 
-    let user_id = AuthorizationService::format_user_id(&user.email, user.access_token.as_deref());
+    // For bearer token users, the email already contains the identifier format (identifier:admin)
+    // For OAuth users, use the standard format
+    let user_id = if user.email.starts_with("identifier:") {
+        user.email.clone()
+    } else {
+        AuthorizationService::format_user_id(&user.email, user.access_token.as_deref())
+    };
 
     // Get user's effective permissions for debugging
     let effective_permissions = auth_service.get_user_permissions(&user_id).await;

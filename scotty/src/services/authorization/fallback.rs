@@ -29,12 +29,13 @@ p = sub, scope, act
 
 [role_definition]
 g = _, _
+g2 = _, _
 
 [policy_effect]
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g(r.app, p.scope) && r.act == p.act
+m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
 "#;
 
         let m = DefaultModel::from_str(model_text)
@@ -48,6 +49,10 @@ m = r.sub == p.sub && g(r.app, p.scope) && r.act == p.act
 
         // Create default configuration with everyone having access to "default" scope
         let mut config = Self::create_minimal_config();
+        
+        // Add test app mappings to default scope for fallback service
+        config.apps.insert("test-app".to_string(), vec!["default".to_string()]);
+        config.apps.insert("nonexistent-app".to_string(), vec!["default".to_string()]);
 
         // Add legacy access token if provided
         if let Some(token) = legacy_access_token {

@@ -1,23 +1,17 @@
 scopes:
+  client-b:
+    description: Client B
+    created_at: '2024-01-01T00:00:00Z'
   qa:
     description: QA
     created_at: '2024-01-01T00:00:00Z'
   client-a:
     description: Client A
     created_at: '2024-01-01T00:00:00Z'
-  client-b:
-    description: Client B
-    created_at: '2024-01-01T00:00:00Z'
   default:
     description: Default scope for unassigned apps
     created_at: '2024-01-01T00:00:00Z'
 roles:
-  operator:
-    permissions:
-    - view
-    - manage
-    - logs
-    description: Operations team - no shell or destroy
   viewer:
     permissions:
     - view
@@ -26,6 +20,12 @@ roles:
     permissions:
     - '*'
     description: Full system access
+  operator:
+    permissions:
+    - view
+    - manage
+    - logs
+    description: Operations team - no shell or destroy
   developer:
     permissions:
     - view
@@ -39,27 +39,27 @@ assignments:
   - role: viewer
     scopes:
     - default
-  bearer:admin:
+  identifier:hello-world:
+  - role: developer
+    scopes:
+    - client-a
+    - client-b
+    - qa
+  identifier:admin:
   - role: admin
     scopes:
     - client-a
     - client-b
     - qa
     - default
-  bearer:client-a:
-  - role: developer
-    scopes:
-    - client-a
-  bearer:test-bearer-token-123:
+  identifier:test-bearer-token-123:
   - role: admin
     scopes:
     - client-a
     - client-b
     - qa
     - default
-  bearer:hello-world:
+  identifier:client-a:
   - role: developer
     scopes:
     - client-a
-    - client-b
-    - qa
