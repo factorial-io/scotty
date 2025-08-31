@@ -156,5 +156,5 @@ export const permissions = derived([userScopes, isLoggedIn], ([$userScopes, $isL
  */
 export const permissionsLoaded = derived(
 	[userScopes, permissionsLoading, permissionsLoadAttempted],
-	([$userScopes, $loading, $attempted]) => !$loading && $attempted
+	([, $loading, $attempted]) => !$loading && $attempted
 );

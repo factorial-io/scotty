@@ -74,20 +74,6 @@
 		});
 	}
 
-	function getAvailableActions(): string[] {
-		let actions: string[] = [];
-
-		if (permissions.manage) {
-			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
-		}
-
-		if (permissions.destroy && data.settings) {
-			actions.push('Destroy');
-		}
-
-		return actions;
-	}
-
 	let current_task: string | null = null;
 	let current_action: string | null = null;
 	let customActionsAvailable: boolean = false;
