@@ -63,7 +63,7 @@ pub async fn create_scope(context: &AppContext, cmd: &CreateScopeRequest) -> any
     });
 
     let _result = post(context.server(), "admin/scopes", payload).await?;
-    ui.success(format!("✅ Scope '{}' created successfully.", cmd.name.bright_green()));
+    ui.success(format!("Scope '{}' created successfully.", cmd.name.bright_green()));
     Ok(())
 }
 
@@ -123,7 +123,7 @@ pub async fn create_role(context: &AppContext, cmd: &CreateRoleRequest) -> anyho
     });
 
     let _result = post(context.server(), "admin/roles", payload).await?;
-    ui.success(format!("✅ Role '{}' created successfully.", cmd.name.bright_green()));
+    ui.success(format!("Role '{}' created successfully.", cmd.name.bright_green()));
     Ok(())
 }
 
@@ -188,7 +188,7 @@ pub async fn create_assignment(context: &AppContext, cmd: &CreateAssignmentReque
     });
 
     let _result = post(context.server(), "admin/assignments", payload).await?;
-    ui.success(format!("✅ Assignment for user '{}' created successfully.", cmd.user_id.bright_green()));
+    ui.success(format!("Assignment for user '{}' created successfully.", cmd.user_id.bright_green()));
     Ok(())
 }
 
@@ -207,7 +207,7 @@ pub async fn remove_assignment(context: &AppContext, cmd: &RemoveAssignmentReque
     });
 
     let _result = delete(context.server(), "admin/assignments", Some(payload)).await?;
-    ui.success(format!("✅ Assignment for user '{}' removed successfully.", cmd.user_id.bright_green()));
+    ui.success(format!("Assignment for user '{}' removed successfully.", cmd.user_id.bright_green()));
     Ok(())
 }
 
@@ -264,7 +264,7 @@ pub async fn test_permission(context: &AppContext, cmd: &TestPermissionRequest) 
     
     if allowed {
         ui.success(format!(
-            "✅ User '{}' {} access '{}' permission on app '{}'",
+            "User '{}' {} access '{}' permission on app '{}'",
             user_display.bright_green(),
             "HAS".bright_green(),
             cmd.permission.bright_blue(),
@@ -272,7 +272,7 @@ pub async fn test_permission(context: &AppContext, cmd: &TestPermissionRequest) 
         ));
     } else {
         ui.failed(format!(
-            "❌ User '{}' {} access '{}' permission on app '{}'",
+            "User '{}' {} access '{}' permission on app '{}'",
             user_display.bright_red(),
             "DOES NOT HAVE".bright_red(),
             cmd.permission.bright_blue(),
