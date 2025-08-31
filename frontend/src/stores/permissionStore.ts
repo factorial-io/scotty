@@ -30,6 +30,8 @@ const appScopes = writable<AppScopeMapping>({});
 
 // Loading state
 const permissionsLoading = writable<boolean>(false);
+const permissionsLoadAttempted = writable<boolean>(false);
+export { permissionsLoading };
 
 /**
  * Load user's permissions and app scope mappings
@@ -38,6 +40,7 @@ export async function loadUserPermissions(): Promise<void> {
 	if (get(permissionsLoading)) return; // Prevent duplicate loading
 	
 	permissionsLoading.set(true);
+	permissionsLoadAttempted.set(true);
 	
 	try {
 		// Load user scopes with permissions  
@@ -146,6 +149,6 @@ export const permissions = derived(
  * Derived store for loading state
  */
 export const permissionsLoaded = derived(
-	[userScopes, permissionsLoading],
-	([$userScopes, $loading]) => !$loading && $userScopes.length >= 0
+	[userScopes, permissionsLoading, permissionsLoadAttempted],
+	([$userScopes, $loading, $attempted]) => !$loading && $attempted
 );
