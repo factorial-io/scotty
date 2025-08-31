@@ -3,6 +3,7 @@
 
 	export let email: string = '';
 	export let name: string = '';
+	export let picture: string = '';
 	export let size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md';
 	export let shape: 'circle' | 'square' = 'circle';
 
@@ -20,6 +21,7 @@
 
 	$: gravatarUrl = getGravatarUrl(email, getSizePixels(size), 'mp'); // 'mp' = mystery person (Gravatar default)
 	$: initials = getUserInitials(name, email);
+	$: imageUrl = picture || gravatarUrl;
 
 	function getSizePixels(size: string): number {
 		const sizeMap = { xs: 24, sm: 32, md: 48, lg: 64, xl: 96 };
@@ -43,7 +45,7 @@
 	>
 		{#if !imageError}
 			<img
-				src={gravatarUrl}
+				src={imageUrl}
 				alt="Avatar for {name || email}"
 				class="w-full h-full object-cover"
 				on:load={handleImageLoad}
@@ -51,7 +53,7 @@
 			/>
 		{/if}
 
-		{#if imageError || !gravatarUrl}
+		{#if imageError || !imageUrl}
 			<span class="text-sm font-medium">
 				{initials}
 			</span>

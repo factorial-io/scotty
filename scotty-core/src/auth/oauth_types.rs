@@ -24,6 +24,7 @@ pub struct TokenResponse {
     pub user_id: String,
     pub user_name: String,
     pub user_email: String,
+    pub user_picture: Option<String>,
     /// Optional refresh token
     pub refresh_token: Option<String>,
     /// Optional token expiration time in seconds

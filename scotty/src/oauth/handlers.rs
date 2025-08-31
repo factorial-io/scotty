@@ -120,6 +120,7 @@ pub async fn poll_device_token(
                         user_id: user.username.clone().unwrap_or(user.id.clone()),
                         user_name: user.name.unwrap_or("Unknown".to_string()),
                         user_email: user.email.unwrap_or("unknown@example.com".to_string()),
+                        user_picture: user.picture,
                         refresh_token: None,
                         expires_in: None,
                     }))
@@ -563,6 +564,7 @@ pub async fn exchange_session_for_token(
             .unwrap_or(session.user.id.clone()),
         user_name: display_name,
         user_email: display_email,
+        user_picture: session.user.picture,
         refresh_token: None,
         expires_in: None,
     }))

@@ -13,6 +13,7 @@ use scotty_core::settings::api_server::AuthMode;
 pub struct CurrentUser {
     pub email: String,
     pub name: String,
+    pub picture: Option<String>,
     #[allow(dead_code)] // Used for OAuth token forwarding in future implementations
     pub access_token: Option<String>,
 }
@@ -43,6 +44,7 @@ pub async fn auth(
                     .dev_user_name
                     .clone()
                     .unwrap_or_else(|| "Dev User".to_string()),
+                picture: None,
                 access_token: None,
             })
         }
@@ -129,6 +131,7 @@ fn authorize_oauth_user(req: &Request) -> Option<CurrentUser> {
             Some(CurrentUser {
                 email,
                 name,
+                picture: None,
                 access_token,
             })
         }
@@ -175,6 +178,7 @@ async fn authorize_oauth_user_native(
             Some(CurrentUser {
                 email: oidc_user.email.unwrap_or("unknown@example.com".to_string()),
                 name: oidc_user.name.unwrap_or("Unknown".to_string()),
+                picture: oidc_user.picture,
                 access_token: Some(token.to_string()),
             })
         }
@@ -223,6 +227,7 @@ pub async fn authorize_bearer_user(
         return Some(CurrentUser {
             email: format!("identifier:{}", identifier), // Use identifier format for user.email
             name: format!("Token User ({})", identifier),
+            picture: None,
             access_token: Some(token.to_string()),
         });
     }

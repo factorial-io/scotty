@@ -5,6 +5,7 @@ export interface UserInfo {
 	id: string;
 	name: string;
 	email: string;
+	picture?: string;
 }
 
 export interface AuthState {

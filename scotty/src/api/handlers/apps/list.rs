@@ -266,6 +266,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let frontend_user = CurrentUser {
             email: "frontend-dev@example.com".to_string(),
             name: "Frontend Dev".to_string(),
+            picture: None,
             access_token: None,
         };
 
@@ -295,6 +296,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let backend_user = CurrentUser {
             email: "backend-dev@example.com".to_string(),
             name: "Backend Dev".to_string(),
+            picture: None,
             access_token: None,
         };
 
@@ -324,6 +326,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let fullstack_user = CurrentUser {
             email: "full-stack-dev@example.com".to_string(),
             name: "Full Stack Dev".to_string(),
+            picture: None,
             access_token: None,
         };
 
@@ -355,6 +358,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let no_permissions_user = CurrentUser {
             email: "no-access@example.com".to_string(),
             name: "No Access User".to_string(),
+            picture: None,
             access_token: None,
         };
 
