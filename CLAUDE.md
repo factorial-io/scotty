@@ -173,3 +173,4 @@ Scotty generates appropriate configurations for:
 - Conventional commits are enforced via git-cliff
 - Pre-push hooks via cargo-husky perform quality checks
 - Container apps directory must have identical paths on host and container for bind mounts
+- Use conventional commit messages

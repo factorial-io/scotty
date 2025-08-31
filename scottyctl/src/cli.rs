@@ -5,6 +5,10 @@ use crate::utils::parsers::{
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use scotty_core::{
+    admin::{
+        CreateScopeRequest, CreateRoleRequest, CreateAssignmentRequest, 
+        RemoveAssignmentRequest, TestPermissionRequest, GetUserPermissionsRequest
+    },
     apps::app_data::{AppTtl, ServicePortMapping},
     apps::create_app_request::CustomDomainMapping,
     notification_types::NotificationReceiver,
@@ -106,6 +110,46 @@ pub enum Commands {
     /// Refresh authentication token
     #[command(name = "auth:refresh")]
     AuthRefresh,
+
+    /// List all authorization scopes
+    #[command(name = "admin:scopes:list")]
+    AdminScopesList,
+
+    /// Create a new authorization scope
+    #[command(name = "admin:scopes:create")]
+    AdminScopesCreate(CreateScopeRequest),
+
+    /// List all authorization roles
+    #[command(name = "admin:roles:list")]
+    AdminRolesList,
+
+    /// Create a new authorization role
+    #[command(name = "admin:roles:create")]
+    AdminRolesCreate(CreateRoleRequest),
+
+    /// List all user assignments
+    #[command(name = "admin:assignments:list")]
+    AdminAssignmentsList,
+
+    /// Create a new user assignment
+    #[command(name = "admin:assignments:create")]
+    AdminAssignmentsCreate(CreateAssignmentRequest),
+
+    /// Remove a user assignment
+    #[command(name = "admin:assignments:remove")]
+    AdminAssignmentsRemove(RemoveAssignmentRequest),
+
+    /// List all available permissions
+    #[command(name = "admin:permissions:list")]
+    AdminPermissionsList,
+
+    /// Test permission for a user on an app
+    #[command(name = "admin:permissions:test")]
+    AdminPermissionsTest(TestPermissionRequest),
+
+    /// Get permissions for a specific user
+    #[command(name = "admin:permissions:user")]
+    AdminPermissionsUser(GetUserPermissionsRequest),
 
     #[command(name = "test")]
     Test,
@@ -239,6 +283,7 @@ pub struct AuthLoginCommand {
     #[arg(long, default_value = "300")]
     pub timeout: u64,
 }
+
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());

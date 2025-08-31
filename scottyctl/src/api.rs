@@ -1,5 +1,5 @@
 use anyhow::Context;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
 use serde_json::Value;
 use tracing::info;
 
@@ -12,6 +12,7 @@ use scotty_core::http::{HttpClient, RetryError};
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
+use scotty_core::version::VersionManager;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -48,6 +49,16 @@ fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
             .context("Failed to create authorization header")?,
     );
 
+    // Add user agent with version
+    let version = VersionManager::current_version()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_str(&format!("scottyctl/{}", version))
+            .context("Failed to create user agent header")?,
+    );
+
     HttpClient::builder()
         .with_timeout(Duration::from_secs(10))
         .with_default_headers(headers)
@@ -74,6 +85,15 @@ pub async fn get_or_post(
                 client.post(&url, &serde_json::json!({})).await?;
                 // For POST without body, we still need to get the response as JSON
                 client.get_json::<Value>(&url).await
+            }
+        }
+        "delete" => {
+            if let Some(body) = body {
+                let response = client.request_with_body(reqwest::Method::DELETE, &url, &body).await?;
+                response.json::<Value>().await.map_err(|e| RetryError::NonRetriable(e.into()))
+            } else {
+                let response = client.request(reqwest::Method::DELETE, &url).await?;
+                response.json::<Value>().await.map_err(|e| RetryError::NonRetriable(e.into()))
             }
         }
         _ => client.get_json::<Value>(&url).await,
@@ -105,6 +125,14 @@ pub async fn get_or_post(
 
 pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value> {
     get_or_post(server, method, "GET", None).await
+}
+
+pub async fn post(server: &ServerSettings, method: &str, body: Value) -> anyhow::Result<Value> {
+    get_or_post(server, method, "post", Some(body)).await
+}
+
+pub async fn delete(server: &ServerSettings, method: &str, body: Option<Value>) -> anyhow::Result<Value> {
+    get_or_post(server, method, "delete", body).await
 }
 
 pub async fn wait_for_task(

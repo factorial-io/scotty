@@ -86,21 +86,24 @@ use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::purge_app_handler;
 use super::handlers::admin::assignments::{
     create_assignment_handler, list_assignments_handler, remove_assignment_handler,
-    AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
-    RemoveAssignmentRequest, RemoveAssignmentResponse,
 };
 use crate::services::authorization::types::Assignment;
 use super::handlers::admin::permissions::{
     get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
-    AvailablePermissionsResponse, TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse,
 };
 use super::handlers::admin::roles::{
     create_role_handler, list_roles_handler,
-    CreateRoleRequest, CreateRoleResponse, RoleInfo, RolesListResponse,
 };
 use super::handlers::admin::scopes::{
     create_scope_handler, list_scopes_handler,
+};
+use scotty_core::admin::{
     CreateScopeRequest, CreateScopeResponse, ScopeInfo as AdminScopeInfo, ScopesListResponse,
+    CreateRoleRequest, CreateRoleResponse, RoleInfo, RolesListResponse,
+    AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
+    RemoveAssignmentRequest, RemoveAssignmentResponse,
+    AvailablePermissionsResponse, TestPermissionRequest, TestPermissionResponse, 
+    UserPermissionsResponse,
 };
 use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;

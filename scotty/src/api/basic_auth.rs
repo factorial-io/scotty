@@ -77,7 +77,7 @@ pub async fn auth(
                 return Err(StatusCode::UNAUTHORIZED);
             };
 
-            authorize_bearer_user(state, auth_header).await
+            authorize_bearer_user(state.clone(), auth_header).await
         }
     };
 
@@ -86,7 +86,19 @@ pub async fn auth(
         req.extensions_mut().insert(user);
         Ok(next.run(req).await)
     } else {
-        warn!("Authentication failed");
+        let method = req.method();
+        let uri = req.uri();
+        let auth_mode = &state.settings.api.auth_mode;
+        let has_auth_header = req.headers().contains_key(http::header::AUTHORIZATION);
+        
+        warn!(
+            "Authentication failed for {} {} | auth_mode: {:?} | has_auth_header: {} | user_agent: {:?}", 
+            method,
+            uri,
+            auth_mode,
+            has_auth_header,
+            req.headers().get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("unknown")
+        );
         Err(StatusCode::UNAUTHORIZED)
     }
 }
@@ -133,12 +145,25 @@ async fn authorize_oauth_user_native(
     auth_header: &str,
 ) -> Option<CurrentUser> {
     // Extract Bearer token
-    let token = auth_header.strip_prefix("Bearer ")?;
+    let token = match auth_header.strip_prefix("Bearer ") {
+        Some(token) => token,
+        None => {
+            warn!("OAuth authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)", 
+                  auth_header.chars().take(20).collect::<String>());
+            return None;
+        }
+    };
 
     debug!("Validating OAuth Bearer token");
 
     // Get OAuth client for token validation
-    let oauth_state = shared_app_state.oauth_state.as_ref()?;
+    let oauth_state = match shared_app_state.oauth_state.as_ref() {
+        Some(state) => state,
+        None => {
+            warn!("OAuth authentication failed - OAuth state not initialized (server may not be configured for OAuth)");
+            return None;
+        }
+    };
 
     match oauth_state.client.validate_oidc_token(token).await {
         Ok(oidc_user) => {
@@ -169,10 +194,24 @@ pub async fn authorize_bearer_user(
     auth_token: &str,
 ) -> Option<CurrentUser> {
     // Extract Bearer token
-    let token = auth_token.strip_prefix("Bearer ")?;
+    let token = match auth_token.strip_prefix("Bearer ") {
+        Some(token) => token,
+        None => {
+            warn!("Bearer token authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)", 
+                  auth_token.chars().take(20).collect::<String>());
+            return None;
+        }
+    };
 
     // Reverse lookup: find which identifier maps to this token
-    let identifier = find_token_identifier(&shared_app_state, token)?;
+    let identifier = match find_token_identifier(&shared_app_state, token) {
+        Some(id) => id,
+        None => {
+            warn!("Bearer token authentication failed - token not found in bearer_tokens configuration (token starts with: {}...)", 
+                  token.chars().take(8).collect::<String>());
+            return None;
+        }
+    };
     debug!("Found identifier '{}' for bearer token", identifier);
 
     // Look up the user by identifier in authorization service
@@ -202,6 +241,5 @@ fn find_token_identifier(shared_app_state: &SharedAppState, token: &str) -> Opti
         }
     }
     
-    debug!("Token not found in bearer_tokens configuration");
     None
 }

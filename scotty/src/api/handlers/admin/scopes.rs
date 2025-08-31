@@ -3,32 +3,9 @@ use crate::{
     api::error::AppError, app_state::SharedAppState,
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
-use serde::{Deserialize, Serialize};
+use scotty_core::admin::{CreateScopeRequest, ScopeInfo, ScopesListResponse, CreateScopeResponse};
 use tracing::info;
 
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct ScopeInfo {
-    pub name: String,
-    pub description: String,
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct ScopesListResponse {
-    pub scopes: Vec<ScopeInfo>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct CreateScopeRequest {
-    pub name: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct CreateScopeResponse {
-    pub success: bool,
-    pub message: String,
-}
 
 #[utoipa::path(
     get,

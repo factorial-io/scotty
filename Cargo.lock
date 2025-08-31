@@ -3219,6 +3219,7 @@ dependencies = [
  "bollard",
  "cargo-husky",
  "chrono",
+ "clap",
  "clokwerk",
  "deunicode",
  "readonly",

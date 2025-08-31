@@ -4,33 +4,9 @@ use crate::{
     services::authorization::{Permission, types::PermissionOrWildcard},
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
-use serde::{Deserialize, Serialize};
+use scotty_core::admin::{CreateRoleRequest, RoleInfo, RolesListResponse, CreateRoleResponse};
 use tracing::info;
 
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct RoleInfo {
-    pub name: String,
-    pub description: String,
-    pub permissions: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct RolesListResponse {
-    pub roles: Vec<RoleInfo>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct CreateRoleRequest {
-    pub name: String,
-    pub description: String,
-    pub permissions: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct CreateRoleResponse {
-    pub success: bool,
-    pub message: String,
-}
 
 #[utoipa::path(
     get,

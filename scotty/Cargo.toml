@@ -29,7 +29,7 @@ readonly.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 tempfile = "3.10.1"
-scotty-core = { path = "../scotty-core" }
+scotty-core = { path = "../scotty-core", features = ["utoipa"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_yml.workspace = true
