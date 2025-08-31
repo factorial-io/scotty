@@ -399,7 +399,7 @@ pub async fn get_user_permissions(
         Ok(format!(
             "Permissions for user '{}':\n{}",
             cmd.user_id.bright_blue(),
-            table.to_string()
+            table
         ))
     })
     .await
