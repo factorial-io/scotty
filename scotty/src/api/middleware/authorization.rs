@@ -1,15 +1,15 @@
 use axum::{
-    extract::{Request, State},
+    extract::{MatchedPath, Request, State},
     http::StatusCode,
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
     Extension,
 };
 use std::collections::HashMap;
 use tracing::{info, warn};
 
 use crate::{
-    api::basic_auth::CurrentUser,
+    api::{basic_auth::CurrentUser, error::AppError},
     app_state::SharedAppState,
     services::{authorization::Permission, AuthorizationService},
 };
@@ -32,13 +32,13 @@ pub async fn authorization_middleware(
     Extension(user): Extension<CurrentUser>,
     mut req: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, axum::response::Response> {
     let auth_service = &state.auth_service;
 
     // Check if authorization has any assignments configured
     if !auth_service.is_enabled().await {
-        info!("Authorization has no assignments configured, allowing request");
-        return Ok(next.run(req).await);
+        warn!("Authorization is not properly configured - no assignments found. Denying request for security.");
+        return Err(AppError::AuthorizationNotConfigured.into_response());
     }
 
     let user_id = AuthorizationService::get_user_id_for_authorization(&user);
@@ -93,7 +93,7 @@ pub fn require_permission(
                     .await
             } else {
                 // Extract app name for app-specific permissions
-                let app_name = extract_app_name_from_path(req.uri().path());
+                let app_name = extract_app_name_from_request(&req);
                 if let Some(app_name) = app_name {
                     auth_service
                         .check_permission(&user_id, &app_name, &permission)
@@ -143,8 +143,40 @@ pub fn require_permission(
     }
 }
 
-/// Extract app name from request path
-/// Supports patterns like /api/v1/authenticated/apps/info/{app_name}, /apps/shell/{app_name}, etc.
+/// Extract app name from request using MatchedPath when available
+/// Falls back to path parsing for backwards compatibility
+fn extract_app_name_from_request(req: &Request) -> Option<String> {
+    // First, try to use MatchedPath for more robust extraction
+    if let Some(matched_path) = req.extensions().get::<MatchedPath>() {
+        let template = matched_path.as_str();
+        let actual_path = req.uri().path();
+
+        // Check if template contains app parameter placeholders
+        if template.contains("{app_id}") || template.contains("{app_name}") {
+            return extract_app_name_from_template(template, actual_path);
+        }
+    }
+
+    // Fallback to the original path parsing for backwards compatibility
+    extract_app_name_from_path(req.uri().path())
+}
+
+/// Extract app name using route template matching by finding parameter position
+fn extract_app_name_from_template(template: &str, actual_path: &str) -> Option<String> {
+    let template_parts: Vec<&str> = template.split('/').collect();
+    let path_parts: Vec<&str> = actual_path.split('/').collect();
+
+    // Find the position of {app_id} or {app_name} in the template
+    for (i, part) in template_parts.iter().enumerate() {
+        if *part == "{app_id}" || *part == "{app_name}" {
+            return path_parts.get(i).map(|s| s.to_string());
+        }
+    }
+
+    None
+}
+
+/// Legacy path parsing function (kept for backwards compatibility)
 fn extract_app_name_from_path(path: &str) -> Option<String> {
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
 
@@ -200,5 +232,44 @@ mod tests {
         );
 
         assert_eq!(extract_app_name_from_path("/health"), None);
+    }
+
+    #[test]
+    fn test_extract_app_name_from_template() {
+        // Test {app_id} pattern
+        assert_eq!(
+            extract_app_name_from_template(
+                "/api/v1/authenticated/apps/info/{app_id}",
+                "/api/v1/authenticated/apps/info/my-app"
+            ),
+            Some("my-app".to_string())
+        );
+
+        // Test {app_name} pattern
+        assert_eq!(
+            extract_app_name_from_template(
+                "/api/v1/authenticated/apps/{app_name}/actions",
+                "/api/v1/authenticated/apps/test-app/actions"
+            ),
+            Some("test-app".to_string())
+        );
+
+        // Test complex app names
+        assert_eq!(
+            extract_app_name_from_template(
+                "/api/v1/authenticated/apps/run/{app_id}",
+                "/api/v1/authenticated/apps/run/my-complex-app-name"
+            ),
+            Some("my-complex-app-name".to_string())
+        );
+
+        // Test template without app parameter
+        assert_eq!(
+            extract_app_name_from_template(
+                "/api/v1/authenticated/apps/list",
+                "/api/v1/authenticated/apps/list"
+            ),
+            None
+        );
     }
 }

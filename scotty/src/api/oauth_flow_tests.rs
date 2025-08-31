@@ -46,7 +46,10 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
+            crate::services::authorization::fallback::FallbackService::create_fallback_service(
+                Some("test-oauth-token".to_string()),
+            )
+            .await,
         ),
     });
 
@@ -529,7 +532,10 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: oauth_state.clone(),
         auth_service: Arc::new(
-            crate::services::AuthorizationService::create_fallback_service(None).await,
+            crate::services::authorization::fallback::FallbackService::create_fallback_service(
+                Some("test-oauth-token".to_string()),
+            )
+            .await,
         ),
     });
 

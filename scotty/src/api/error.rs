@@ -88,6 +88,9 @@ pub enum AppError {
 
     #[error("Scopes not found in authorization system: {0:?}")]
     ScopesNotFound(Vec<String>),
+
+    #[error("Authorization system is not properly configured - no assignments found")]
+    AuthorizationNotConfigured,
 }
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
@@ -105,6 +108,7 @@ impl AppError {
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
+            AppError::AuthorizationNotConfigured => StatusCode::SERVICE_UNAVAILABLE,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

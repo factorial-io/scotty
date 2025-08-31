@@ -4,14 +4,14 @@ use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::docker::DockerConnectOptions;
 use tokio::sync::{broadcast, Mutex};
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{
     self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
 };
-use crate::services::AuthorizationService;
+use crate::services::{authorization::fallback::FallbackService, AuthorizationService};
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
@@ -73,10 +73,11 @@ impl AppState {
                 service
             }
             Err(e) => {
-                panic!(
-                        "Failed to load authorization config from 'config/casbin': {}. Server cannot start without valid authorization configuration.",
-                        e
-                    );
+                warn!(
+                    "Failed to load authorization config from 'config/casbin': {}. Falling back to default configuration with view-only permissions.",
+                    e
+                );
+                FallbackService::create_fallback_service(settings.api.access_token.clone()).await
             }
         });
 
