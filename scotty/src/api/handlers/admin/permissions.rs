@@ -1,6 +1,7 @@
 use crate::api::basic_auth::CurrentUser;
 use crate::{
-    api::error::AppError, app_state::SharedAppState,
+    api::error::AppError,
+    app_state::SharedAppState,
     services::authorization::{AuthorizationService, Permission},
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
@@ -9,7 +10,7 @@ use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TestPermissionRequest {
-    pub user_id: Option<String>,  // If None, test current user
+    pub user_id: Option<String>, // If None, test current user
     pub app_name: String,
     pub permission: String,
 }
@@ -152,7 +153,10 @@ pub async fn list_available_permissions_handler(
     State(_state): State<SharedAppState>,
     Extension(user): Extension<CurrentUser>,
 ) -> Result<impl IntoResponse, AppError> {
-    info!("Admin listing available permissions by user: {}", user.email);
+    info!(
+        "Admin listing available permissions by user: {}",
+        user.email
+    );
 
     let permissions: Vec<String> = Permission::all()
         .into_iter()

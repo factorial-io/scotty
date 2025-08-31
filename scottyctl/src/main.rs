@@ -81,15 +81,25 @@ async fn main() -> anyhow::Result<()> {
         Commands::AuthStatus => commands::auth::auth_status(&app_context).await?,
         Commands::AuthRefresh => commands::auth::auth_refresh(&app_context).await?,
         Commands::AdminScopesList => commands::admin::list_scopes(&app_context).await?,
-        Commands::AdminScopesCreate(cmd) => commands::admin::create_scope(&app_context, cmd).await?,
+        Commands::AdminScopesCreate(cmd) => {
+            commands::admin::create_scope(&app_context, cmd).await?
+        }
         Commands::AdminRolesList => commands::admin::list_roles(&app_context).await?,
         Commands::AdminRolesCreate(cmd) => commands::admin::create_role(&app_context, cmd).await?,
         Commands::AdminAssignmentsList => commands::admin::list_assignments(&app_context).await?,
-        Commands::AdminAssignmentsCreate(cmd) => commands::admin::create_assignment(&app_context, cmd).await?,
-        Commands::AdminAssignmentsRemove(cmd) => commands::admin::remove_assignment(&app_context, cmd).await?,
+        Commands::AdminAssignmentsCreate(cmd) => {
+            commands::admin::create_assignment(&app_context, cmd).await?
+        }
+        Commands::AdminAssignmentsRemove(cmd) => {
+            commands::admin::remove_assignment(&app_context, cmd).await?
+        }
         Commands::AdminPermissionsList => commands::admin::list_permissions(&app_context).await?,
-        Commands::AdminPermissionsTest(cmd) => commands::admin::test_permission(&app_context, cmd).await?,
-        Commands::AdminPermissionsUser(cmd) => commands::admin::get_user_permissions(&app_context, cmd).await?,
+        Commands::AdminPermissionsTest(cmd) => {
+            commands::admin::test_permission(&app_context, cmd).await?
+        }
+        Commands::AdminPermissionsUser(cmd) => {
+            commands::admin::get_user_permissions(&app_context, cmd).await?
+        }
         Commands::Test => commands::test::run_tests(&app_context).await?,
     }
     Ok(())

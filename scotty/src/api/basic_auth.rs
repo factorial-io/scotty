@@ -92,7 +92,7 @@ pub async fn auth(
         let uri = req.uri();
         let auth_mode = &state.settings.api.auth_mode;
         let has_auth_header = req.headers().contains_key(http::header::AUTHORIZATION);
-        
+
         warn!(
             "Authentication failed for {} {} | auth_mode: {:?} | has_auth_header: {} | user_agent: {:?}", 
             method,
@@ -221,7 +221,7 @@ pub async fn authorize_bearer_user(
     // Look up the user by identifier in authorization service
     let auth_service = &shared_app_state.auth_service;
     let user_id = format!("identifier:{}", identifier);
-    
+
     if let Some(_user_info) = auth_service.get_user_by_identifier(&user_id).await {
         debug!("Found user assignments for identifier: {}", identifier);
         return Some(CurrentUser {
@@ -233,7 +233,10 @@ pub async fn authorize_bearer_user(
     }
 
     // Identifier not found in RBAC assignments
-    warn!("Bearer token authentication failed - identifier '{}' not found in RBAC assignments", identifier);
+    warn!(
+        "Bearer token authentication failed - identifier '{}' not found in RBAC assignments",
+        identifier
+    );
     None
 }
 
@@ -245,6 +248,6 @@ fn find_token_identifier(shared_app_state: &SharedAppState, token: &str) -> Opti
             return Some(identifier.clone());
         }
     }
-    
+
     None
 }

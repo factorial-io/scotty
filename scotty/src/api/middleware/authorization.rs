@@ -82,7 +82,8 @@ pub fn require_permission(
             let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
 
             // Check if this is a global permission (AdminRead/AdminWrite) or app-specific
-            let is_global_permission = matches!(permission, Permission::AdminRead | Permission::AdminWrite);
+            let is_global_permission =
+                matches!(permission, Permission::AdminRead | Permission::AdminWrite);
 
             let allowed = if is_global_permission {
                 // Use global permission check for admin permissions
@@ -97,7 +98,10 @@ pub fn require_permission(
                         .check_permission(&user_id, &app_name, &permission)
                         .await
                 } else {
-                    warn!("Could not extract app name from path for app-specific permission: {}", req.uri().path());
+                    warn!(
+                        "Could not extract app name from path for app-specific permission: {}",
+                        req.uri().path()
+                    );
                     false
                 }
             };
@@ -137,7 +141,6 @@ pub fn require_permission(
         })
     }
 }
-
 
 /// Extract app name from request path
 /// Supports patterns like /api/v1/authenticated/apps/info/{app_name}, /apps/shell/{app_name}, etc.

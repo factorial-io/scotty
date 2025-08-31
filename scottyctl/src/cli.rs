@@ -6,8 +6,8 @@ use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use scotty_core::{
     admin::{
-        CreateScopeRequest, CreateRoleRequest, CreateAssignmentRequest, 
-        RemoveAssignmentRequest, TestPermissionRequest, GetUserPermissionsRequest
+        CreateAssignmentRequest, CreateRoleRequest, CreateScopeRequest, GetUserPermissionsRequest,
+        RemoveAssignmentRequest, TestPermissionRequest,
     },
     apps::app_data::{AppTtl, ServicePortMapping},
     apps::create_app_request::CustomDomainMapping,
@@ -283,7 +283,6 @@ pub struct AuthLoginCommand {
     #[arg(long, default_value = "300")]
     pub timeout: u64,
 }
-
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());

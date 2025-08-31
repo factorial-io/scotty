@@ -203,12 +203,21 @@ impl AuthorizationService {
         );
 
         let config = self.config.read().await;
-        
+
         // Get user assignments
         let all_assignments = [
-            config.assignments.get(user).map(|v| v.as_slice()).unwrap_or(&[]),
-            config.assignments.get("*").map(|v| v.as_slice()).unwrap_or(&[]),
-        ].concat();
+            config
+                .assignments
+                .get(user)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+            config
+                .assignments
+                .get("*")
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+        ]
+        .concat();
 
         // Check if user has the permission in any of their roles
         for assignment in &all_assignments {
@@ -219,13 +228,22 @@ impl AuthorizationService {
                 });
 
                 if has_permission {
-                    info!("Global permission granted: {} has {} via role {}", user, action.as_str(), assignment.role);
+                    info!(
+                        "Global permission granted: {} has {} via role {}",
+                        user,
+                        action.as_str(),
+                        assignment.role
+                    );
                     return true;
                 }
             }
         }
 
-        info!("Global permission denied: {} lacks {}", user, action.as_str());
+        info!(
+            "Global permission denied: {} lacks {}",
+            user,
+            action.as_str()
+        );
         false
     }
 
@@ -292,7 +310,7 @@ impl AuthorizationService {
         if self.config_path.starts_with("fallback/") {
             return Ok(());
         }
-        
+
         let config = self.config.read().await;
         ConfigManager::save_config(&config, &self.config_path).await
     }

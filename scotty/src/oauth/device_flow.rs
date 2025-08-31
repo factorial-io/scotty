@@ -242,7 +242,7 @@ impl OAuthClient {
 
         let response_text = response.text().await?;
         info!("Raw OIDC userinfo response: {}", response_text);
-        
+
         let user: OidcUser = serde_json::from_str(&response_text)?;
         info!(
             "OIDC user validated: {} <{}> | username: {:?} | custom_claims: {:?}",
@@ -261,7 +261,7 @@ pub struct OidcUser {
     // Required claim
     #[serde(rename = "sub")]
     pub id: String, // OIDC subject is typically a string
-    
+
     // Standard profile claims
     #[serde(rename = "preferred_username", default)]
     pub username: Option<String>,
@@ -283,13 +283,13 @@ pub struct OidcUser {
     pub zoneinfo: Option<String>,
     #[serde(default)]
     pub updated_at: Option<i64>,
-    
-    // Email claims  
+
+    // Email claims
     #[serde(default)]
     pub email: Option<String>,
     #[serde(default)]
     pub email_verified: Option<bool>,
-    
+
     // Capture any custom/unknown claims as well
     #[serde(flatten)]
     pub custom_claims: std::collections::HashMap<String, serde_json::Value>,

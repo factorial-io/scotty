@@ -1,11 +1,8 @@
 use crate::api::basic_auth::CurrentUser;
-use crate::{
-    api::error::AppError, app_state::SharedAppState,
-};
+use crate::{api::error::AppError, app_state::SharedAppState};
 use axum::{extract::State, response::IntoResponse, Extension, Json};
-use scotty_core::admin::{CreateScopeRequest, ScopeInfo, ScopesListResponse, CreateScopeResponse};
+use scotty_core::admin::{CreateScopeRequest, CreateScopeResponse, ScopeInfo, ScopesListResponse};
 use tracing::info;
-
 
 #[utoipa::path(
     get,
@@ -90,7 +87,10 @@ pub async fn create_scope_handler(
 
     // Check if scope already exists
     let existing_scopes = auth_service.list_scopes().await;
-    if existing_scopes.iter().any(|(name, _)| name == &request.name) {
+    if existing_scopes
+        .iter()
+        .any(|(name, _)| name == &request.name)
+    {
         return Ok(Json(CreateScopeResponse {
             success: false,
             message: format!("Scope '{}' already exists", request.name),
@@ -145,10 +145,8 @@ e = some(where (p.eft == allow))
 [matchers]
 m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act"#;
 
-        std::fs::write(
-            format!("{}/model.conf", config_dir),
-            model_content,
-        ).expect("Failed to write model.conf");
+        std::fs::write(format!("{}/model.conf", config_dir), model_content)
+            .expect("Failed to write model.conf");
 
         // Create empty policy.yaml
         let policy_content = r#"scopes:
@@ -162,12 +160,12 @@ roles:
 assignments: {}
 apps: {}"#;
 
-        std::fs::write(
-            format!("{}/policy.yaml", config_dir),
-            policy_content,
-        ).expect("Failed to write policy.yaml");
+        std::fs::write(format!("{}/policy.yaml", config_dir), policy_content)
+            .expect("Failed to write policy.yaml");
 
-        let service = AuthorizationService::new(config_dir).await.expect("Failed to create service");
+        let service = AuthorizationService::new(config_dir)
+            .await
+            .expect("Failed to create service");
         (service, temp_dir)
     }
 

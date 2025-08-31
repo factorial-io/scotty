@@ -107,7 +107,7 @@ async fn test_bearer_auth_with_rbac_assigned_token() {
         .expect("Failed to load RBAC config for test");
 
     let assignments = auth_service.list_assignments().await;
-    // Check if identifier:client-a exists  
+    // Check if identifier:client-a exists
     let client_a_identifier = "identifier:client-a";
     assert!(
         assignments.contains_key(client_a_identifier),

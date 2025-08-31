@@ -1,7 +1,6 @@
 use crate::api::basic_auth::CurrentUser;
 use crate::{
-    api::error::AppError, app_state::SharedAppState, 
-    services::authorization::types::Assignment,
+    api::error::AppError, app_state::SharedAppState, services::authorization::types::Assignment,
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
 use serde::{Deserialize, Serialize};

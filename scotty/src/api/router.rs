@@ -53,14 +53,14 @@ use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
 use crate::api::handlers::admin::assignments::{
-    __path_create_assignment_handler, __path_list_assignments_handler, __path_remove_assignment_handler,
+    __path_create_assignment_handler, __path_list_assignments_handler,
+    __path_remove_assignment_handler,
 };
 use crate::api::handlers::admin::permissions::{
-    __path_get_user_permissions_handler, __path_list_available_permissions_handler, __path_test_permission_handler,
+    __path_get_user_permissions_handler, __path_list_available_permissions_handler,
+    __path_test_permission_handler,
 };
-use crate::api::handlers::admin::roles::{
-    __path_create_role_handler, __path_list_roles_handler,
-};
+use crate::api::handlers::admin::roles::{__path_create_role_handler, __path_list_roles_handler};
 use crate::api::handlers::admin::scopes::{
     __path_create_scope_handler, __path_list_scopes_handler,
 };
@@ -76,6 +76,14 @@ use crate::static_files::serve_embedded_file;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
+use super::handlers::admin::assignments::{
+    create_assignment_handler, list_assignments_handler, remove_assignment_handler,
+};
+use super::handlers::admin::permissions::{
+    get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
+};
+use super::handlers::admin::roles::{create_role_handler, list_roles_handler};
+use super::handlers::admin::scopes::{create_scope_handler, list_scopes_handler};
 use super::handlers::apps::create::create_app_handler;
 use super::handlers::apps::custom_action::run_custom_action_handler;
 use super::handlers::apps::notify::add_notification_handler;
@@ -84,27 +92,6 @@ use super::handlers::apps::run::adopt_app_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
 use super::handlers::apps::run::purge_app_handler;
-use super::handlers::admin::assignments::{
-    create_assignment_handler, list_assignments_handler, remove_assignment_handler,
-};
-use crate::services::authorization::types::Assignment;
-use super::handlers::admin::permissions::{
-    get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
-};
-use super::handlers::admin::roles::{
-    create_role_handler, list_roles_handler,
-};
-use super::handlers::admin::scopes::{
-    create_scope_handler, list_scopes_handler,
-};
-use scotty_core::admin::{
-    CreateScopeRequest, CreateScopeResponse, ScopeInfo as AdminScopeInfo, ScopesListResponse,
-    CreateRoleRequest, CreateRoleResponse, RoleInfo, RolesListResponse,
-    AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
-    RemoveAssignmentRequest, RemoveAssignmentResponse,
-    AvailablePermissionsResponse, TestPermissionRequest, TestPermissionResponse, 
-    UserPermissionsResponse,
-};
 use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
@@ -116,7 +103,15 @@ use super::handlers::scopes::list::{list_user_scopes_handler, ScopeInfo, UserSco
 use super::handlers::tasks::task_detail_handler;
 use super::handlers::tasks::task_list_handler;
 use super::middleware::authorization::{authorization_middleware, require_permission};
+use crate::services::authorization::types::Assignment;
 use crate::services::authorization::Permission;
+use scotty_core::admin::{
+    AssignmentInfo, AssignmentsListResponse, AvailablePermissionsResponse, CreateAssignmentRequest,
+    CreateAssignmentResponse, CreateRoleRequest, CreateRoleResponse, CreateScopeRequest,
+    CreateScopeResponse, RemoveAssignmentRequest, RemoveAssignmentResponse, RoleInfo,
+    RolesListResponse, ScopeInfo as AdminScopeInfo, ScopesListResponse, TestPermissionRequest,
+    TestPermissionResponse, UserPermissionsResponse,
+};
 
 #[derive(OpenApi)]
 #[openapi(

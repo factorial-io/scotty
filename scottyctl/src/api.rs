@@ -89,11 +89,19 @@ pub async fn get_or_post(
         }
         "delete" => {
             if let Some(body) = body {
-                let response = client.request_with_body(reqwest::Method::DELETE, &url, &body).await?;
-                response.json::<Value>().await.map_err(|e| RetryError::NonRetriable(e.into()))
+                let response = client
+                    .request_with_body(reqwest::Method::DELETE, &url, &body)
+                    .await?;
+                response
+                    .json::<Value>()
+                    .await
+                    .map_err(|e| RetryError::NonRetriable(e.into()))
             } else {
                 let response = client.request(reqwest::Method::DELETE, &url).await?;
-                response.json::<Value>().await.map_err(|e| RetryError::NonRetriable(e.into()))
+                response
+                    .json::<Value>()
+                    .await
+                    .map_err(|e| RetryError::NonRetriable(e.into()))
             }
         }
         _ => client.get_json::<Value>(&url).await,
@@ -131,7 +139,11 @@ pub async fn post(server: &ServerSettings, method: &str, body: Value) -> anyhow:
     get_or_post(server, method, "post", Some(body)).await
 }
 
-pub async fn delete(server: &ServerSettings, method: &str, body: Option<Value>) -> anyhow::Result<Value> {
+pub async fn delete(
+    server: &ServerSettings,
+    method: &str,
+    body: Option<Value>,
+) -> anyhow::Result<Value> {
     get_or_post(server, method, "delete", body).await
 }
 
