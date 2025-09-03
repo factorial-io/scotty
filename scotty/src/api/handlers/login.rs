@@ -55,7 +55,11 @@ pub async fn login_handler(
                     // Found matching token, now check if this identifier has assignments
                     let auth_service = &state.auth_service;
                     let user_id = format!("identifier:{}", identifier);
-                    if auth_service.get_user_by_identifier(&user_id).await.is_some() {
+                    if auth_service
+                        .get_user_by_identifier(&user_id)
+                        .await
+                        .is_some()
+                    {
                         debug!("Token validated for identifier: {}", identifier);
                         token_valid = true;
                         break;

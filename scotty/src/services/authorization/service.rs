@@ -276,6 +276,7 @@ impl AuthorizationService {
     }
 
     /// Look up user information by bearer token
+    #[allow(dead_code)]
     pub async fn get_user_by_token(&self, token: &str) -> Option<String> {
         let config = self.config.read().await;
         let token_user_id = Self::format_user_id("", Some(token));

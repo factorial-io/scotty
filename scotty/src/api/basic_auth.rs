@@ -80,7 +80,10 @@ pub async fn auth(
                     "Missing Authorization header in bearer mode | {} {} | user_agent: {:?}",
                     req.method(),
                     req.uri(),
-                    req.headers().get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("unknown")
+                    req.headers()
+                        .get("user-agent")
+                        .and_then(|h| h.to_str().ok())
+                        .unwrap_or("unknown")
                 );
                 return Err(StatusCode::UNAUTHORIZED);
             };
