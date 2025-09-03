@@ -21,7 +21,7 @@ reqwest.workspace = true
 tabled.workspace = true
 walkdir.workspace = true
 tracing.workspace = true
-scotty-core = { path = "../scotty-core" }
+scotty-core = { path = "../scotty-core", features = ["clap", "utoipa"] }
 dotenvy.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 crossterm = "0.29.0"

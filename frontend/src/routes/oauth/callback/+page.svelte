@@ -58,7 +58,8 @@
 			const userInfo = {
 				id: tokenData.user_id,
 				name: tokenData.user_name,
-				email: tokenData.user_email
+				email: tokenData.user_email,
+				picture: tokenData.user_picture
 			};
 
 			// Store token and user info in localStorage
@@ -70,6 +71,10 @@
 
 			// Update the reactive store immediately
 			authStore.setUserInfo(userInfo);
+
+			// Load permissions
+			const { loadUserPermissions } = await import('../../../stores/permissionStore');
+			await loadUserPermissions();
 
 			// Redirect to dashboard
 			await goto('/dashboard');

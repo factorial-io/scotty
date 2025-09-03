@@ -27,6 +27,7 @@
 			<UserAvatar
 				email={$userInfo.email || ''}
 				name={$userInfo.name || $userInfo.id || 'User'}
+				picture={$userInfo.picture || ''}
 				size="sm"
 			/>
 		</div>
@@ -39,6 +40,7 @@
 					<UserAvatar
 						email={$userInfo.email || ''}
 						name={$userInfo.name || $userInfo.id || 'User'}
+						picture={$userInfo.picture || ''}
 						size="md"
 					/>
 					<div class="flex flex-col">

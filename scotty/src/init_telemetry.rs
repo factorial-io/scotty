@@ -47,15 +47,20 @@ where
         Box::new(
             tracing_subscriber::fmt::layer()
                 .with_line_number(false)
-                .with_thread_names(true)
-                .with_timer(tracing_subscriber::fmt::time::uptime()),
+                .with_thread_names(false)
+                .with_timer(tracing_subscriber::fmt::time::SystemTime)
+                .with_target(true)
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE) // Disable span list display
+                .event_format(
+                    tracing_subscriber::fmt::format().compact(), // Use compact format
+                ),
         )
     } else {
         Box::new(
             tracing_subscriber::fmt::layer()
-                .json()
                 //.with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-                .with_timer(tracing_subscriber::fmt::time::uptime()),
+                .with_timer(tracing_subscriber::fmt::time::SystemTime)
+                .with_target(true),
         )
     }
 }
@@ -68,7 +73,8 @@ pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
         format!(
             // `otel::tracing` should be a level info to emit opentelemetry trace & span
             // `otel::setup` set to debug to log detected resources, configuration read and infered
-            "{},otel::tracing=trace,otel=debug",
+            // Filter out verbose HTTP request details from axum tracing
+            "{},otel::tracing=trace,otel=debug,axum_tracing_opentelemetry=error",
             std::env::var("RUST_LOG")
                 .or_else(|_| std::env::var("OTEL_LOG_LEVEL"))
                 .unwrap_or_else(|_| "warn".to_string())

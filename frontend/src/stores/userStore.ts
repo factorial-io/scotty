@@ -5,6 +5,7 @@ export interface UserInfo {
 	id: string;
 	name: string;
 	email: string;
+	picture?: string;
 }
 
 export interface AuthState {
@@ -61,6 +62,14 @@ function createAuthStore() {
 				}
 
 				set({ authMode, userInfo, isLoggedIn });
+
+				// Load permissions if user is logged in
+				if (isLoggedIn) {
+					// Import here to avoid circular dependency
+					import('./permissionStore').then(({ loadUserPermissions }) => {
+						loadUserPermissions().catch(console.error);
+					});
+				}
 			} catch (error) {
 				console.error('Failed to initialize auth store:', error);
 				set({ authMode: 'bearer', userInfo: null, isLoggedIn: false });

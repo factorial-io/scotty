@@ -55,16 +55,18 @@ scottyctl app:list
 
 ### Option 2: Bearer Token
 
-Use environment variables or command-line arguments:
+Bearer tokens are configured on the server with logical identifiers that map to secure tokens. Use environment variables or command-line arguments:
 
 ```shell
 # Via environment variables
 export SCOTTY_SERVER=https://localhost:21342
-export SCOTTY_ACCESS_TOKEN=your_bearer_token
+export SCOTTY_ACCESS_TOKEN=your_secure_bearer_token
 
 # Via command-line arguments  
-scottyctl --server https://localhost:21342 --access-token your_bearer_token app:list
+scottyctl --server https://localhost:21342 --access-token your_secure_bearer_token app:list
 ```
+
+**Security Note**: Server administrators should **never store actual bearer tokens in configuration files**. Instead, use placeholder values in config files and set actual secure tokens via environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`. See the [configuration documentation](docs/content/configuration.md) for security best practices.
 
 ## Developing/Contributing
 

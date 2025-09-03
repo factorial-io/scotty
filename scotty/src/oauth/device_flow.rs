@@ -240,11 +240,16 @@ impl OAuthClient {
             )));
         }
 
-        let user: OidcUser = response.json().await?;
-        debug!(
-            "OIDC user validated: {} <{}>",
+        let response_text = response.text().await?;
+        info!("Raw OIDC userinfo response: {}", response_text);
+
+        let user: OidcUser = serde_json::from_str(&response_text)?;
+        info!(
+            "OIDC user validated: {} <{}> | username: {:?} | custom_claims: {:?}",
             user.name.as_deref().unwrap_or("N/A"),
-            user.email.as_deref().unwrap_or("N/A")
+            user.email.as_deref().unwrap_or("N/A"),
+            user.username,
+            user.custom_claims
         );
 
         Ok(user)
@@ -253,12 +258,39 @@ impl OAuthClient {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct OidcUser {
+    // Required claim
     #[serde(rename = "sub")]
     pub id: String, // OIDC subject is typically a string
+
+    // Standard profile claims
     #[serde(rename = "preferred_username", default)]
-    pub username: Option<String>, // Optional in OIDC
+    pub username: Option<String>,
     #[serde(default)]
-    pub name: Option<String>, // Optional in OIDC
+    pub name: Option<String>,
     #[serde(default)]
-    pub email: Option<String>, // Optional in OIDC
+    pub given_name: Option<String>,
+    #[serde(default)]
+    pub family_name: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+    #[serde(default)]
+    pub picture: Option<String>,
+    #[serde(default)]
+    pub website: Option<String>,
+    #[serde(default)]
+    pub locale: Option<String>,
+    #[serde(default)]
+    pub zoneinfo: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<i64>,
+
+    // Email claims
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub email_verified: Option<bool>,
+
+    // Capture any custom/unknown claims as well
+    #[serde(flatten)]
+    pub custom_claims: std::collections::HashMap<String, serde_json::Value>,
 }

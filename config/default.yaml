@@ -1,12 +1,18 @@
 debug: false
 api:
     bind_address: "0.0.0.0:21342"
-    access_token: "mysecret"
+    auth_mode: bearer
     create_app_max_size: "50M"
+    bearer_tokens:
+        admin: "gFW5k1fdvYw8iB2xCxw5qZXj5pkP9dga"
+        client-a: "j3Xq973L67JVAsQpU4PfZAMKdMsfdXsu"
+        client-b: "mPFMijuZeEAaus94hWApEHzD8JMhrcRk"
+        hello-world: "mv7UuZddtVpAM5c6tWCFejCp1vizuSlX"
+        test-bearer-token-123: "9oWZsLsUzFvC01nPqB6nzZpDK6Zlv3KR"
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
 scheduler:
-    running_app_check: "15s"
+    running_app_check: "15m"
     ttl_check: "10m"
     task_cleanup: "3m"
 telemetry: None

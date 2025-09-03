@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::HashMap;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default, ToSchema)]
@@ -53,6 +54,8 @@ pub struct ApiServer {
     pub dev_user_name: Option<String>,
     #[serde(default)]
     pub oauth: OAuthSettings,
+    #[serde(default)]
+    pub bearer_tokens: HashMap<String, String>,
 }
 
 fn default_oauth_redirect_url() -> String {
@@ -73,6 +76,7 @@ impl Default for ApiServer {
             dev_user_email: Some("dev@localhost".to_string()),
             dev_user_name: Some("Dev User".to_string()),
             oauth: OAuthSettings::default(),
+            bearer_tokens: HashMap::new(),
         }
     }
 }

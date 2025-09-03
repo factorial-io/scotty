@@ -203,7 +203,32 @@ pub async fn adopt_app_handler(
     }
     let environment = collect_environment_from_app(&state, &app_data).await?;
     let app_data = app_data.create_settings_from_runtime(&environment).await?;
+
+    // Validate that all specified scopes exist in the authorization system
+    if let Some(settings) = &app_data.settings {
+        if let Err(missing_scopes) = state.auth_service.validate_scopes(&settings.scopes).await {
+            return Err(AppError::ScopesNotFound(missing_scopes));
+        }
+    }
+
     state.apps.update_app(app_data.clone()).await?;
+
+    // Sync app scopes to authorization service
+    if let Some(app_settings) = &app_data.settings {
+        if let Err(e) = state
+            .auth_service
+            .set_app_scopes(&app_data.name, app_settings.scopes.clone())
+            .await
+        {
+            tracing::debug!("Failed to sync app scopes for {}: {}", app_data.name, e);
+        } else {
+            tracing::debug!(
+                "Synced adopted app '{}' to groups: {:?}",
+                app_data.name,
+                app_settings.scopes
+            );
+        }
+    }
 
     Ok(SecureJson(app_data))
 }

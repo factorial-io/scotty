@@ -45,6 +45,12 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
+        auth_service: Arc::new(
+            crate::services::authorization::fallback::FallbackService::create_fallback_service(
+                Some("test-oauth-token".to_string()),
+            )
+            .await,
+        ),
     });
 
     ApiRoutes::create(app_state)
@@ -525,6 +531,12 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         docker: bollard::Docker::connect_with_local_defaults().unwrap(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: oauth_state.clone(),
+        auth_service: Arc::new(
+            crate::services::authorization::fallback::FallbackService::create_fallback_service(
+                Some("test-oauth-token".to_string()),
+            )
+            .await,
+        ),
     });
 
     let router = ApiRoutes::create(app_state.clone());
@@ -578,7 +590,17 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
                         id: "test_user_123".to_string(),
                         username: Some("testuser".to_string()),
                         name: Some("Test User".to_string()),
+                        given_name: None,
+                        family_name: None,
+                        nickname: None,
+                        picture: None,
+                        website: None,
+                        locale: None,
+                        zoneinfo: None,
+                        updated_at: None,
                         email: Some("test@example.com".to_string()),
+                        email_verified: Some(true),
+                        custom_claims: std::collections::HashMap::new(),
                     },
                     expires_at: SystemTime::now() + Duration::from_secs(3600), // 1 hour
                 },

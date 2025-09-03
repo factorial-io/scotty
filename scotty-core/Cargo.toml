@@ -11,6 +11,11 @@ license-file.workspace = true
 name = "scotty_core"
 path = "src/lib.rs"
 
+[features]
+default = []
+clap = ["dep:clap"]
+utoipa = ["dep:utoipa"]
+
 [dependencies]
 async-trait.workspace = true
 anyhow.workspace = true
@@ -20,7 +25,7 @@ chrono.workspace = true
 serde_yml.workspace = true
 tracing.workspace = true
 tokio.workspace = true
-utoipa.workspace = true
+utoipa = { workspace = true, optional = true }
 clokwerk.workspace = true
 readonly.workspace = true
 uuid.workspace = true
@@ -32,6 +37,7 @@ semver.workspace = true
 thiserror.workspace = true
 
 axum = { workspace = true }
+clap = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3.20.0"

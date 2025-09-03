@@ -1,0 +1,8 @@
+groups:
+  - client-a
+public_services: []
+domain: simple_nginx_2.ddev.site
+time_to_live: !Days 7
+basic_auth: null
+disallow_robots: true
+environment: {}

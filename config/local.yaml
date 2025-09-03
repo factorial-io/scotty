@@ -1,7 +1,6 @@
 api:
     bind_address: "127.0.0.1:21342"
-    access_token: hello-world
-    auth_mode: oauth
+    auth_mode: bearer
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
         client_id: "your_client_id"
