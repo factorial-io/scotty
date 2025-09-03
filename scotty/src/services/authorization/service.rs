@@ -275,6 +275,18 @@ impl AuthorizationService {
         !config.assignments.is_empty()
     }
 
+    /// Look up user information by bearer token
+    pub async fn get_user_by_token(&self, token: &str) -> Option<String> {
+        let config = self.config.read().await;
+        let token_user_id = Self::format_user_id("", Some(token));
+
+        // Only authenticate tokens that are explicitly listed in assignments
+        if config.assignments.contains_key(&token_user_id) {
+            Some(token_user_id)
+        } else {
+            None
+        }
+    }
 
     /// Look up user information by identifier (new format: identifier:admin)
     pub async fn get_user_by_identifier(&self, identifier_user_id: &str) -> Option<String> {
