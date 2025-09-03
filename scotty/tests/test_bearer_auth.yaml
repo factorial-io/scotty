@@ -6,6 +6,7 @@ api:
     bearer_tokens:
         admin: "test-bearer-token-123"
         client-a: "client-a-secure-token-456"
+        no-rbac: "token-without-rbac-assignments"
 scheduler:
     running_app_check: "10m"
     ttl_check: "10m"

@@ -47,17 +47,30 @@ pub async fn login_handler(
         AuthMode::Bearer => {
             debug!("Bearer token login attempt");
 
-            // Use authorization service to validate the token
-            let auth_service = &state.auth_service;
-            if let Some(_user_id) = auth_service.get_user_by_token(&form.password).await {
-                debug!("Token validated via authorization service");
+            // First, check if the provided token matches any configured bearer tokens
+            // by doing a reverse lookup to find the identifier
+            let mut token_valid = false;
+            for (identifier, configured_token) in &state.settings.api.bearer_tokens {
+                if configured_token == &form.password {
+                    // Found matching token, now check if this identifier has assignments
+                    let auth_service = &state.auth_service;
+                    let user_id = format!("identifier:{}", identifier);
+                    if auth_service.get_user_by_identifier(&user_id).await.is_some() {
+                        debug!("Token validated for identifier: {}", identifier);
+                        token_valid = true;
+                        break;
+                    }
+                }
+            }
+
+            if token_valid {
                 serde_json::json!({
                     "status": "success",
                     "auth_mode": "bearer",
                     "token": form.password.clone(),
                 })
             } else {
-                debug!("Token validation failed - not found in RBAC assignments");
+                debug!("Token validation failed - token not found or no RBAC assignments");
                 serde_json::json!({
                     "status": "error",
                     "auth_mode": "bearer",

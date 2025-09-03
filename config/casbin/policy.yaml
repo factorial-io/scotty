@@ -1,17 +1,29 @@
 scopes:
-  client-a:
-    description: Client A
-    created_at: '2024-01-01T00:00:00Z'
-  default:
-    description: Default scope for unassigned apps
-    created_at: '2024-01-01T00:00:00Z'
   client-b:
     description: Client B
     created_at: '2024-01-01T00:00:00Z'
   qa:
     description: QA
     created_at: '2024-01-01T00:00:00Z'
+  client-a:
+    description: Client A
+    created_at: '2024-01-01T00:00:00Z'
+  default:
+    description: Default scope for unassigned apps
+    created_at: '2024-01-01T00:00:00Z'
 roles:
+  viewer:
+    permissions:
+    - view
+    description: Read-only access
+  developer:
+    permissions:
+    - view
+    - manage
+    - shell
+    - logs
+    - create
+    description: Developer access - all except destroy
   admin:
     permissions:
     - '*'
@@ -22,30 +34,17 @@ roles:
     - manage
     - logs
     description: Operations team - no shell or destroy
-  developer:
-    permissions:
-    - view
-    - manage
-    - shell
-    - logs
-    - create
-    description: Developer access - all except destroy
-  viewer:
-    permissions:
-    - view
-    description: Read-only access
 assignments:
   identifier:client-a:
   - role: developer
     scopes:
     - client-a
-  identifier:admin:
-  - role: admin
+  identifier:hello-world:
+  - role: developer
     scopes:
     - client-a
     - client-b
     - qa
-    - default
   identifier:test-bearer-token-123:
   - role: admin
     scopes:
@@ -57,9 +56,10 @@ assignments:
   - role: viewer
     scopes:
     - default
-  identifier:hello-world:
-  - role: developer
+  identifier:admin:
+  - role: admin
     scopes:
     - client-a
     - client-b
     - qa
+    - default

@@ -15,16 +15,25 @@
 
 	async function checkAuthMode() {
 		try {
-			// First check if already authenticated using validate-token
-			const validateResponse = await fetch('/api/v1/authenticated/validate-token', {
-				method: 'POST',
-				credentials: 'include'
-			});
+			// First check if we have a stored token and validate it
+			const storedToken = localStorage.getItem('token');
+			if (storedToken) {
+				const validateResponse = await fetch('/api/v1/authenticated/validate-token', {
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${storedToken}`
+					},
+					credentials: 'include'
+				});
 
-			if (validateResponse.ok) {
-				// Already authenticated, redirect to dashboard
-				window.location.href = '/dashboard';
-				return;
+				if (validateResponse.ok) {
+					// Already authenticated, redirect to dashboard
+					window.location.href = '/dashboard';
+					return;
+				} else {
+					// Token is invalid, remove it
+					localStorage.removeItem('token');
+				}
 			}
 
 			// Not authenticated, get auth mode info

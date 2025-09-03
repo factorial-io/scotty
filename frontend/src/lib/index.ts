@@ -104,7 +104,7 @@ function handleUnauthorized(mode: AuthMode) {
 	}
 }
 
-export async function validateToken(token: string) {
+export async function validateToken(token: string): Promise<void> {
 	const response = await fetch('/api/v1/authenticated/validate-token', {
 		method: 'POST',
 		headers: {
@@ -113,13 +113,15 @@ export async function validateToken(token: string) {
 		credentials: 'include'
 	});
 
-	if (
-		!response.ok &&
-		window.location.pathname !== '/login' &&
-		!window.location.pathname.startsWith('/oauth/')
-	) {
-		const mode = await getAuthMode();
-		handleUnauthorized(mode);
+	if (!response.ok) {
+		if (
+			window.location.pathname !== '/login' &&
+			!window.location.pathname.startsWith('/oauth/')
+		) {
+			const mode = await getAuthMode();
+			handleUnauthorized(mode);
+		}
+		throw new Error('Token validation failed');
 	}
 }
 
@@ -175,7 +177,16 @@ export async function checkIfLoggedIn() {
 		if (!token && window.location.pathname !== '/login') {
 			window.location.href = '/login';
 		} else if (token) {
-			validateToken(token);
+			// Validate bearer token
+			try {
+				await validateToken(token);
+			} catch (error) {
+				console.warn('Bearer token validation failed:', error);
+				localStorage.removeItem('token');
+				if (window.location.pathname !== '/login') {
+					window.location.href = '/login';
+				}
+			}
 		}
 	}
 }
