@@ -1,6 +1,8 @@
 use axum::{debug_handler, extract::State, response::IntoResponse, Json};
+use tracing::debug;
 
 use crate::app_state::SharedAppState;
+use scotty_core::settings::api_server::AuthMode;
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct FormData {
@@ -11,7 +13,7 @@ pub struct FormData {
     post,
     path = "/api/v1/login",
     responses(
-    (status = 200, description = "Login via bearer token")
+    (status = 200, description = "Login endpoint - behavior depends on auth mode")
     )
 )]
 #[debug_handler]
@@ -19,18 +21,67 @@ pub async fn login_handler(
     State(state): State<SharedAppState>,
     Json(form): Json<FormData>,
 ) -> impl IntoResponse {
-    let access_token = state.settings.api.access_token.as_ref();
+    debug!(
+        "Login attempt with auth mode: {:?}",
+        state.settings.api.auth_mode
+    );
 
-    let json_response = if access_token.is_some() && &form.password != access_token.unwrap() {
-        serde_json::json!({
-            "status": "error",
-            "message": "Invalid token",
-        })
-    } else {
-        serde_json::json!({
-            "status": "success",
-            "token": form.password.clone(),
-        })
+    let json_response = match state.settings.api.auth_mode {
+        AuthMode::Development => {
+            debug!("Development mode login - always successful");
+            serde_json::json!({
+                "status": "success",
+                "auth_mode": "dev",
+                "message": "Development mode - login not required"
+            })
+        }
+        AuthMode::OAuth => {
+            debug!("OAuth mode login - redirect to native OAuth flow");
+            serde_json::json!({
+                "status": "redirect",
+                "auth_mode": "oauth",
+                "redirect_url": "/oauth/authorize",
+                "message": "Please authenticate via GitLab OAuth"
+            })
+        }
+        AuthMode::Bearer => {
+            debug!("Bearer token login attempt");
+
+            // First, check if the provided token matches any configured bearer tokens
+            // by doing a reverse lookup to find the identifier
+            let mut token_valid = false;
+            for (identifier, configured_token) in &state.settings.api.bearer_tokens {
+                if configured_token == &form.password {
+                    // Found matching token, now check if this identifier has assignments
+                    let auth_service = &state.auth_service;
+                    let user_id = format!("identifier:{}", identifier);
+                    if auth_service
+                        .get_user_by_identifier(&user_id)
+                        .await
+                        .is_some()
+                    {
+                        debug!("Token validated for identifier: {}", identifier);
+                        token_valid = true;
+                        break;
+                    }
+                }
+            }
+
+            if token_valid {
+                serde_json::json!({
+                    "status": "success",
+                    "auth_mode": "bearer",
+                    "token": form.password.clone(),
+                })
+            } else {
+                debug!("Token validation failed - token not found or no RBAC assignments");
+                serde_json::json!({
+                    "status": "error",
+                    "auth_mode": "bearer",
+                    "message": "Invalid token",
+                })
+            }
+        }
     };
 
     Json(json_response)
@@ -38,7 +89,7 @@ pub async fn login_handler(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/validate-token",
+    path = "/api/v1/authenticated/validate-token",
     responses(
     (status = 200, description = "Validate token")
     )

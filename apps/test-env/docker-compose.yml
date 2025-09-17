@@ -1,0 +1,5 @@
+services:
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./html:/usr/share/nginx/html

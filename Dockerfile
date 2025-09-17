@@ -61,7 +61,7 @@ COPY --from=builder /app/config ${APP}/config
 # USER $APP_USER
 WORKDIR ${APP}
 
-HEALTHCHECK --interval=30s --timeout=3s \
+HEALTHCHECK --interval=10s --timeout=2s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:21342/api/v1/health || exit 1
 
 ENV RUST_LOG=api

@@ -25,7 +25,7 @@ use scotty_core::{
 use scotty_core::apps::app_data::{AppData, AppStatus};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-enum RunAppCustomActionStates {
+pub(crate) enum RunAppCustomActionStates {
     RunDockerLogin,
     RunPostActions,
     UpdateAppData,

@@ -29,6 +29,7 @@ export default function (defaultConfig) {
             "installation",
             "configuration",
             "cli",
+            "oauth-authentication",
             "changelog",
         ],
     });

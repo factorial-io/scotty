@@ -12,7 +12,7 @@ use scotty_core::tasks::task_details::TaskDetails;
 
 #[utoipa::path(
     get,
-    path = "/api/v1/task/{uuid}",
+    path = "/api/v1/authenticated/task/{uuid}",
     responses(
     (status = 200, response = inline(TaskDetails)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -40,7 +40,7 @@ pub struct TaskList {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks",
+    path = "/api/v1/authenticated/tasks",
     responses(
     (status = 200, response = inline(TaskList)),
     (status = 401, description = "Access token is missing or invalid"),

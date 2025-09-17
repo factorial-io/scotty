@@ -22,7 +22,7 @@ use crate::{
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/run/{app_id}",
+    path = "/api/v1/authenticated/apps/run/{app_id}",
     responses(
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -47,7 +47,7 @@ pub async fn run_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/stop/{app_id}",
+    path = "/api/v1/authenticated/apps/stop/{app_id}",
     responses(
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -72,7 +72,7 @@ pub async fn stop_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/purge/{app_id}",
+    path = "/api/v1/authenticated/apps/purge/{app_id}",
     responses(
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -97,7 +97,7 @@ pub async fn purge_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/info/{app_id}",
+    path = "/api/v1/authenticated/apps/info/{app_id}",
     responses(
     (status = 200, response = inline(AppData)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -121,7 +121,7 @@ pub async fn info_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/rebuild/{app_id}",
+    path = "/api/v1/authenticated/apps/rebuild/{app_id}",
     responses(
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -146,7 +146,7 @@ pub async fn rebuild_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/destroy/{app_id}",
+    path = "/api/v1/authenticated/apps/destroy/{app_id}",
     responses(
     (status = 200, response = inline(RunningAppContext)),
     (status = 400, response = inline(AppError)),
@@ -175,7 +175,7 @@ pub async fn destroy_app_handler(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/apps/adopt/{app_id}",
+    path = "/api/v1/authenticated/apps/adopt/{app_id}",
     responses(
     (status = 200, response = inline(AppData)),
     (status = 400, response = inline(AppError)),
@@ -203,7 +203,32 @@ pub async fn adopt_app_handler(
     }
     let environment = collect_environment_from_app(&state, &app_data).await?;
     let app_data = app_data.create_settings_from_runtime(&environment).await?;
+
+    // Validate that all specified scopes exist in the authorization system
+    if let Some(settings) = &app_data.settings {
+        if let Err(missing_scopes) = state.auth_service.validate_scopes(&settings.scopes).await {
+            return Err(AppError::ScopesNotFound(missing_scopes));
+        }
+    }
+
     state.apps.update_app(app_data.clone()).await?;
+
+    // Sync app scopes to authorization service
+    if let Some(app_settings) = &app_data.settings {
+        if let Err(e) = state
+            .auth_service
+            .set_app_scopes(&app_data.name, app_settings.scopes.clone())
+            .await
+        {
+            tracing::debug!("Failed to sync app scopes for {}: {}", app_data.name, e);
+        } else {
+            tracing::debug!(
+                "Synced adopted app '{}' to groups: {:?}",
+                app_data.name,
+                app_settings.scopes
+            );
+        }
+    }
 
     Ok(SecureJson(app_data))
 }
