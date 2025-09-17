@@ -174,3 +174,4 @@ Scotty generates appropriate configurations for:
 - Pre-push hooks via cargo-husky perform quality checks
 - Container apps directory must have identical paths on host and container for bind mounts
 - Use conventional commit messages
+- Please check your code with `cargo fmt` and `cargo clippy`
