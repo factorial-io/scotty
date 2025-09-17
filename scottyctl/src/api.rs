@@ -153,36 +153,29 @@ pub async fn wait_for_task(
     ui: &Arc<Ui>,
 ) -> anyhow::Result<()> {
     let mut done = false;
-    let mut last_position = 0;
-    let mut last_err_position = 0;
+    // TODO: Remove these when unified output streaming is implemented
+    let _last_position = 0;
+    let _last_err_position = 0;
 
     while !done {
         let result = get(server, &format!("task/{}", &context.task.id)).await?;
 
         let task: TaskDetails = serde_json::from_value(result).context("Failed to parse task")?;
 
-        // Handle stderr
-        {
-            let stderr = &task.stderr[last_err_position..];
-            if let Some(last_newline_pos) = stderr.rfind('\n') {
-                let mut partial_output = stderr[..=last_newline_pos].to_string();
-                last_err_position += last_newline_pos + 1;
-
-                // Remove the newline before printing
-                partial_output.pop();
-                ui.eprintln(partial_output.blue().to_string());
-            }
-        }
-        // Handle stdout
-        {
-            let stdout = &task.stdout[last_position..];
-            if let Some(last_newline_pos) = stdout.rfind('\n') {
-                let mut partial_output = stdout[..=last_newline_pos].to_string();
-                last_position += last_newline_pos + 1;
-
-                // Remove the newline before printing
-                partial_output.pop();
-                ui.println(partial_output.blue().to_string());
+        // TODO: Implement unified output streaming for CLI
+        // This functionality needs to be updated to use the new unified output system
+        // Will be implemented as part of Phase 2 CLI commands
+        // For now, just show task status updates
+        if task.state != State::Running {
+            match task.state {
+                State::Finished => ui.println("Task completed successfully".green().to_string()),
+                State::Failed => {
+                    ui.eprintln("Task failed".red().to_string());
+                    if let Some(exit_code) = task.last_exit_code {
+                        ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                    }
+                },
+                State::Running => {}, // Should not happen since we check above
             }
         }
 

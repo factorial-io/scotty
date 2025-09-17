@@ -3,7 +3,10 @@
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, sync::Arc};
 
-use scotty_core::settings::scheduler_interval::SchedulerInterval;
+use scotty_core::settings::{
+    output::OutputSettings,
+    scheduler_interval::SchedulerInterval,
+};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 use tokio::process::Command;
@@ -12,6 +15,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
+use scotty_core::output::{TaskOutput, OutputStreamType};
 
 #[derive(Clone, Debug)]
 pub struct TaskManager {
@@ -44,6 +48,30 @@ impl TaskManager {
         Some(details.clone())
     }
 
+    pub async fn get_task_output(&self, uuid: &Uuid) -> Option<TaskOutput> {
+        let processes = self.processes.read().await;
+        let task_state = processes.get(uuid)?;
+        let output = task_state.output.read().await;
+        Some(output.clone())
+    }
+
+    /// Add a message to a task's output stream
+    pub async fn add_task_message(&self, uuid: &Uuid, stream_type: OutputStreamType, message: String) -> bool {
+        let processes = self.processes.read().await;
+        if let Some(task_state) = processes.get(uuid) {
+            let mut output = task_state.output.write().await;
+            output.add_line(stream_type, message);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Add an info message to a task's stdout
+    pub async fn add_task_info(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::Stdout, message).await
+    }
+
     pub async fn get_task_handle(
         &self,
         uuid: &Uuid,
@@ -63,11 +91,26 @@ impl TaskManager {
         env: &HashMap<String, String>,
         details: Arc<RwLock<TaskDetails>>,
     ) -> Uuid {
+        self.start_process_with_settings(cwd, cmd, args, env, details, &OutputSettings::default()).await
+    }
+
+    pub async fn start_process_with_settings(
+        &self,
+        cwd: &Path,
+        cmd: &str,
+        args: &[&str],
+        env: &HashMap<String, String>,
+        details: Arc<RwLock<TaskDetails>>,
+        output_settings: &OutputSettings,
+    ) -> Uuid {
         let cwd = cwd.to_path_buf();
         let cmd = cmd.to_string();
         let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
         let env = env.clone();
         let id = details.read().await.id;
+
+        // Create TaskOutput for this task with settings
+        let output = Arc::new(RwLock::new(TaskOutput::new_with_settings(id, output_settings)));
 
         {
             let mut details = details.write().await;
@@ -76,6 +119,7 @@ impl TaskManager {
 
         let handle = {
             let details = details.clone();
+            let output = output.clone();
 
             tokio::task::spawn(async move {
                 info!(
@@ -86,7 +130,7 @@ impl TaskManager {
                     args.join(" ")
                 );
                 let details = details.clone();
-                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details).await;
+                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details, &output).await;
 
                 match exit_code {
                     Ok(0) => {
@@ -100,17 +144,17 @@ impl TaskManager {
                         details.last_exit_code = Some(e);
                         details.state = State::Failed;
                     }
-                    Err(e) => {
+                    Err(_e) => {
                         let mut details = details.write().await;
                         details.finish_time = Some(chrono::Utc::now());
                         details.state = State::Failed;
-                        details.stdout = e.to_string();
+                        // Error message will be added to output separately
                     }
                 }
             })
         };
         {
-            self.add_task(&id, details.clone(), Some(Arc::new(RwLock::new(handle))))
+            self.add_task_with_output(&id, details.clone(), Some(Arc::new(RwLock::new(handle))), output.clone())
                 .await;
         }
 
@@ -123,8 +167,19 @@ impl TaskManager {
         details: Arc<RwLock<TaskDetails>>,
         handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
     ) {
+        let output = Arc::new(RwLock::new(TaskOutput::new(*id)));
+        self.add_task_with_output(id, details, handle, output).await;
+    }
+
+    pub async fn add_task_with_output(
+        &self,
+        id: &Uuid,
+        details: Arc<RwLock<TaskDetails>>,
+        handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
+        output: Arc<RwLock<TaskOutput>>,
+    ) {
         let mut processes = self.processes.write().await;
-        let task_state = TaskState { details, handle };
+        let task_state = TaskState { details, handle, output };
         processes.insert(*id, task_state);
     }
 
@@ -161,7 +216,8 @@ async fn spawn_process(
     cmd: &str,
     args: &Vec<String>,
     env: &HashMap<String, String>,
-    details: &Arc<RwLock<TaskDetails>>,
+    _details: &Arc<RwLock<TaskDetails>>,
+    output: &Arc<RwLock<TaskOutput>>,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
@@ -175,16 +231,16 @@ async fn spawn_process(
     let stdout = child.stdout.take().expect("Failed to get stdout");
     let stderr = child.stderr.take().expect("Failed to get stderr");
     {
-        let details = details.clone();
+        let output = output.clone();
         tokio::spawn(async move {
-            read_output(details.clone(), stdout, true).await;
+            read_unified_output(output.clone(), stdout, OutputStreamType::Stdout).await;
         });
     }
 
     {
-        let details = details.clone();
+        let output = output.clone();
         tokio::spawn(async move {
-            read_output(details.clone(), stderr, false).await;
+            read_unified_output(output.clone(), stderr, OutputStreamType::Stderr).await;
         });
     }
     // Wait for the command to complete
@@ -194,21 +250,24 @@ async fn spawn_process(
     Ok(exit_code)
 }
 
-async fn read_output(
-    details: Arc<RwLock<TaskDetails>>,
-    out: impl AsyncRead + Unpin,
-    is_stdout: bool,
+async fn read_unified_output(
+    output: Arc<RwLock<TaskOutput>>,
+    stream: impl AsyncRead + Unpin,
+    stream_type: OutputStreamType,
 ) {
-    // Wrap stdout in a BufReader
-    let mut reader = BufReader::new(out).lines();
+    let mut reader = BufReader::new(stream).lines();
 
-    while let Some(line) = reader.next_line().await.unwrap() {
-        let mut details = details.write().await;
-        let output = match is_stdout {
-            true => &mut details.stdout,
-            false => &mut details.stderr,
-        };
-        output.push_str(&line);
-        output.push('\n');
+    while let Some(line_result) = reader.next_line().await.transpose() {
+        match line_result {
+            Ok(line) => {
+                let mut output = output.write().await;
+                output.add_line(stream_type, line);
+            }
+            Err(e) => {
+                let mut output = output.write().await;
+                output.add_line(OutputStreamType::Stderr, format!("Error reading output: {}", e));
+                break;
+            }
+        }
     }
 }
