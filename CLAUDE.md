@@ -175,3 +175,37 @@ Scotty generates appropriate configurations for:
 - Container apps directory must have identical paths on host and container for bind mounts
 - Use conventional commit messages
 - Please check your code with `cargo fmt` and `cargo clippy`
+
+## Current Work in Progress
+
+### Unified Output System Implementation (Phase 1 Complete)
+
+**Branch:** `feat/better-logs-and-shell`
+
+**Completed:**
+- ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
+- ✅ Breaking change: removed stdout/stderr from TaskDetails
+- ✅ Updated TaskManager for unified output collection
+- ✅ Added configuration options (OutputSettings, ShellSettings)
+- ✅ Extended WebSocket message types for logs and shell
+- ✅ Fixed client-visible status messages
+
+**Next Phase (Phase 2):**
+- Implement bollard log streaming service
+- Implement bollard shell service
+- Create CLI commands: `app:logs <service>` and `app:shell <service>`
+- Update frontend to use unified log viewer
+- Add API endpoints for logs and shell access
+
+**Key Files Modified:**
+- `scotty-core/src/output/` - New unified output system
+- `scotty-core/src/settings/output.rs` - Output configuration
+- `scotty-core/src/settings/shell.rs` - Shell configuration
+- `scotty-core/src/tasks/task_details.rs` - Removed stdout/stderr fields
+- `scotty/src/tasks/manager.rs` - Unified output collection
+- `scotty/src/api/message.rs` - WebSocket message types
+- `scotty/src/docker/state_machine_handlers/wait_for_all_containers_handler.rs` - Client messages
+
+**Reference Documents:**
+- `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
+- `docs/technical-spike-bollard-findings.md` - Bollard API validation results
