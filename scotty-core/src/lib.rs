@@ -4,6 +4,7 @@ pub mod apps;
 pub mod auth;
 pub mod http;
 pub mod notification_types;
+pub mod output;
 pub mod settings;
 pub mod tasks;
 pub mod utils;
