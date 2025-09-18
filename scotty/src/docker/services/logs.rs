@@ -101,7 +101,7 @@ impl LogOutputConverter {
 
         let (timestamp, clean_content) = extract_docker_timestamp(&content);
         let output_line = OutputLine {
-            timestamp: timestamp.unwrap_or_else(|| Utc::now()),
+            timestamp: timestamp.unwrap_or_else(Utc::now),
             stream: stream_type,
             content: clean_content,
             sequence: self.sequence,
