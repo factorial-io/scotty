@@ -15,6 +15,33 @@ use crate::app_state::SharedAppState;
 use scotty_core::output::{OutputLine, OutputStreamType};
 use scotty_core::apps::app_data::AppData;
 
+use thiserror::Error;
+
+/// Error types for log streaming operations
+#[derive(Error, Debug, Clone, utoipa::ToSchema)]
+pub enum LogStreamError {
+    #[error("Service '{service}' not found in app '{app}'")]
+    ServiceNotFound { service: String, app: String },
+
+    #[error("Service '{service}' has no container ID")]
+    NoContainerId { service: String },
+
+    #[error("Stream '{stream_id}' not found")]
+    StreamNotFound { stream_id: Uuid },
+
+    #[error("Failed to send command to stream: {reason}")]
+    CommandSendFailed { reason: String },
+
+    #[error("Docker operation failed: {operation} - {message}")]
+    DockerOperationFailed {
+        operation: String,
+        message: String,
+    },
+}
+
+/// Result type alias for log streaming operations
+pub type LogStreamResult<T> = Result<T, LogStreamError>;
+
 /// Active log streams tracked by the service
 #[derive(Debug, Clone)]
 pub struct LogStreamSession {
@@ -25,10 +52,100 @@ pub struct LogStreamSession {
     pub sender: mpsc::Sender<LogStreamCommand>,
 }
 
+impl LogStreamSession {
+    /// Convert to LogsStreamInfo for WebSocket messages
+    pub fn to_info(&self, follow: bool) -> LogsStreamInfo {
+        LogsStreamInfo::new(
+            self.stream_id,
+            self.app_name.clone(),
+            self.service_name.clone(),
+            follow,
+        )
+    }
+
+    /// Send a stop command to this session
+    pub async fn stop(&self) -> LogStreamResult<()> {
+        self.sender.send(LogStreamCommand::Stop).await
+            .map_err(|e| LogStreamError::CommandSendFailed {
+                reason: e.to_string()
+            })
+    }
+}
+
 /// Commands that can be sent to a log stream task
 #[derive(Debug)]
 pub enum LogStreamCommand {
     Stop,
+}
+
+/// Helper for converting LogOutput to OutputLine
+struct LogOutputConverter {
+    sequence: u64,
+}
+
+impl LogOutputConverter {
+    fn new() -> Self {
+        Self { sequence: 0 }
+    }
+
+    fn convert(&mut self, log_output: LogOutput) -> Option<OutputLine> {
+        let (stream_type, content) = match log_output {
+            LogOutput::StdOut { message } => {
+                (OutputStreamType::Stdout, String::from_utf8_lossy(&message).to_string())
+            }
+            LogOutput::StdErr { message } => {
+                (OutputStreamType::Stderr, String::from_utf8_lossy(&message).to_string())
+            }
+            LogOutput::StdIn { .. } | LogOutput::Console { .. } => return None,
+        };
+
+        let (timestamp, clean_content) = extract_docker_timestamp(&content);
+        let output_line = OutputLine {
+            timestamp: timestamp.unwrap_or_else(|| Utc::now()),
+            stream: stream_type,
+            content: clean_content,
+            sequence: self.sequence,
+        };
+        self.sequence += 1;
+        Some(output_line)
+    }
+}
+
+/// Buffer for log lines with automatic flushing
+struct LogBuffer {
+    lines: Vec<OutputLine>,
+    last_send: tokio::time::Instant,
+    max_lines: usize,
+    max_delay_ms: u64,
+}
+
+impl LogBuffer {
+    fn new(max_lines: usize, max_delay_ms: u64) -> Self {
+        Self {
+            lines: Vec::new(),
+            last_send: tokio::time::Instant::now(),
+            max_lines,
+            max_delay_ms,
+        }
+    }
+
+    fn push(&mut self, line: OutputLine) {
+        self.lines.push(line);
+    }
+
+    fn should_flush(&self) -> bool {
+        self.lines.len() >= self.max_lines
+            || self.last_send.elapsed() > tokio::time::Duration::from_millis(self.max_delay_ms)
+    }
+
+    fn flush(&mut self) -> Vec<OutputLine> {
+        self.last_send = tokio::time::Instant::now();
+        std::mem::take(&mut self.lines)
+    }
+
+    fn has_data(&self) -> bool {
+        !self.lines.is_empty()
+    }
 }
 
 /// Service for managing container log streams
@@ -54,16 +171,22 @@ impl LogStreamingService {
         service_name: &str,
         follow: bool,
         tail: Option<String>,
-    ) -> Result<Uuid, String> {
+    ) -> LogStreamResult<Uuid> {
         // Find the container for the service
-        let container_state = app_data.services
-            .iter()
-            .find(|s| s.service == service_name)
-            .ok_or_else(|| format!("Service '{}' not found in app '{}'", service_name, app_data.name))?;
-
-        let container_id = container_state.id
-            .as_ref()
-            .ok_or_else(|| format!("Service '{}' has no container ID", service_name))?;
+        let container_id = app_data
+            .get_container_id_for_service(service_name)
+            .ok_or_else(|| {
+                if app_data.find_container_by_service(service_name).is_some() {
+                    LogStreamError::NoContainerId {
+                        service: service_name.to_string()
+                    }
+                } else {
+                    LogStreamError::ServiceNotFound {
+                        service: service_name.to_string(),
+                        app: app_data.name.clone()
+                    }
+                }
+            })?;
 
         // Generate stream ID
         let stream_id = Uuid::new_v4();
@@ -89,12 +212,12 @@ impl LogStreamingService {
         // Send stream started message
         broadcast_message(
             app_state,
-            WebSocketMessage::LogsStreamStarted(LogsStreamInfo {
+            WebSocketMessage::LogsStreamStarted(LogsStreamInfo::new(
                 stream_id,
-                app_name: app_data.name.clone(),
-                service_name: service_name.to_string(),
+                app_data.name.clone(),
+                service_name.to_string(),
                 follow,
-            }),
+            )),
         ).await;
 
         // Start the streaming task
@@ -116,9 +239,8 @@ impl LogStreamingService {
             });
 
             let mut stream = docker.logs(&container_id, options);
-            let mut sequence = 0u64;
-            let mut lines_buffer = Vec::new();
-            let mut last_send = tokio::time::Instant::now();
+            let mut converter = LogOutputConverter::new();
+            let mut buffer = LogBuffer::new(10, 100);
 
             loop {
                 tokio::select! {
@@ -135,42 +257,18 @@ impl LogStreamingService {
                     Some(result) = stream.next() => {
                         match result {
                             Ok(log_output) => {
-                                let (stream_type, content) = match log_output {
-                                    LogOutput::StdOut { message } => {
-                                        (OutputStreamType::Stdout, String::from_utf8_lossy(&message).to_string())
-                                    }
-                                    LogOutput::StdErr { message } => {
-                                        (OutputStreamType::Stderr, String::from_utf8_lossy(&message).to_string())
-                                    }
-                                    LogOutput::StdIn { .. } => continue, // Skip stdin
-                                    LogOutput::Console { .. } => continue, // Skip console
-                                };
+                                if let Some(output_line) = converter.convert(log_output) {
+                                    buffer.push(output_line);
 
-                                // Parse timestamp if present (Docker includes it when timestamps: true)
-                                let (timestamp, clean_content) = extract_docker_timestamp(&content);
-
-                                let output_line = OutputLine {
-                                    timestamp: timestamp.unwrap_or_else(|| Utc::now()),
-                                    stream: stream_type,
-                                    content: clean_content,
-                                    sequence,
-                                };
-                                sequence += 1;
-
-                                lines_buffer.push(output_line);
-
-                                // Send buffered lines if we have enough or enough time has passed
-                                if lines_buffer.len() >= 10 || last_send.elapsed() > tokio::time::Duration::from_millis(100) {
-                                    if !lines_buffer.is_empty() {
+                                    // Send buffered lines if we should flush
+                                    if buffer.should_flush() && buffer.has_data() {
                                         broadcast_message(
                                             &app_state,
                                             WebSocketMessage::LogsStreamData(LogsStreamData {
                                                 stream_id,
-                                                lines: lines_buffer.clone(),
+                                                lines: buffer.flush(),
                                             }),
                                         ).await;
-                                        lines_buffer.clear();
-                                        last_send = tokio::time::Instant::now();
                                     }
                                 }
                             }
@@ -196,12 +294,12 @@ impl LogStreamingService {
             }
 
             // Send any remaining buffered lines
-            if !lines_buffer.is_empty() {
+            if buffer.has_data() {
                 broadcast_message(
                     &app_state,
                     WebSocketMessage::LogsStreamData(LogsStreamData {
                         stream_id,
-                        lines: lines_buffer,
+                        lines: buffer.flush(),
                     }),
                 ).await;
             }
@@ -227,14 +325,12 @@ impl LogStreamingService {
     }
 
     /// Stop a log stream
-    pub async fn stop_stream(&self, stream_id: Uuid) -> Result<(), String> {
+    pub async fn stop_stream(&self, stream_id: Uuid) -> LogStreamResult<()> {
         let streams = self.active_streams.read().await;
         if let Some(session) = streams.get(&stream_id) {
-            session.sender.send(LogStreamCommand::Stop).await
-                .map_err(|_| "Failed to send stop command".to_string())?;
-            Ok(())
+            session.stop().await
         } else {
-            Err(format!("Stream {} not found", stream_id))
+            Err(LogStreamError::StreamNotFound { stream_id })
         }
     }
 

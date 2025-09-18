@@ -14,6 +14,39 @@ use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::settings::shell::ShellSettings;
 
+use thiserror::Error;
+
+/// Error types for shell session operations
+#[derive(Error, Debug, Clone, utoipa::ToSchema)]
+pub enum ShellServiceError {
+    #[error("Service '{service}' not found in app '{app}'")]
+    ServiceNotFound { service: String, app: String },
+
+    #[error("Service '{service}' has no container ID")]
+    NoContainerId { service: String },
+
+    #[error("Session '{session_id}' not found")]
+    SessionNotFound { session_id: Uuid },
+
+    #[error("Maximum sessions per app ({limit}) reached")]
+    MaxSessionsPerApp { limit: usize },
+
+    #[error("Maximum global sessions ({limit}) reached")]
+    MaxSessionsGlobal { limit: usize },
+
+    #[error("Failed to send command to session: {reason}")]
+    CommandSendFailed { reason: String },
+
+    #[error("Docker operation failed: {operation} - {message}")]
+    DockerOperationFailed {
+        operation: String,
+        message: String,
+    },
+}
+
+/// Result type alias for shell service operations
+pub type ShellServiceResult<T> = Result<T, ShellServiceError>;
+
 /// Active shell sessions tracked by the service
 #[derive(Debug, Clone)]
 pub struct ShellSession {
@@ -24,6 +57,33 @@ pub struct ShellSession {
     pub exec_id: String,
     pub sender: mpsc::Sender<ShellCommand>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl ShellSession {
+    /// Check if session has expired based on TTL
+    pub fn is_expired(&self, ttl: std::time::Duration) -> bool {
+        let age = chrono::Utc::now() - self.created_at;
+        age.num_seconds() as u64 > ttl.as_secs()
+    }
+
+    /// Convert to ShellSessionInfo for WebSocket messages
+    pub fn to_info(&self, shell_command: String) -> ShellSessionInfo {
+        ShellSessionInfo::new(
+            self.session_id,
+            self.app_name.clone(),
+            self.service_name.clone(),
+            self.container_id.clone(),
+            shell_command,
+        )
+    }
+
+    /// Send a command to this session
+    pub async fn send_command(&self, cmd: ShellCommand) -> ShellServiceResult<()> {
+        self.sender.send(cmd).await
+            .map_err(|e| ShellServiceError::CommandSendFailed {
+                reason: e.to_string()
+            })
+    }
 }
 
 /// Commands that can be sent to a shell session
@@ -58,7 +118,7 @@ impl ShellService {
         app_data: &AppData,
         service_name: &str,
         shell_command: Option<String>,
-    ) -> Result<Uuid, String> {
+    ) -> ShellServiceResult<Uuid> {
         // Check session limits
         {
             let sessions = self.active_sessions.read().await;
@@ -67,29 +127,33 @@ impl ShellService {
                 .count();
 
             if app_sessions >= self.shell_settings.max_sessions_per_app {
-                return Err(format!(
-                    "Maximum sessions per app ({}) reached",
-                    self.shell_settings.max_sessions_per_app
-                ));
+                return Err(ShellServiceError::MaxSessionsPerApp {
+                    limit: self.shell_settings.max_sessions_per_app
+                });
             }
 
             if sessions.len() >= self.shell_settings.max_sessions_global {
-                return Err(format!(
-                    "Maximum global sessions ({}) reached",
-                    self.shell_settings.max_sessions_global
-                ));
+                return Err(ShellServiceError::MaxSessionsGlobal {
+                    limit: self.shell_settings.max_sessions_global
+                });
             }
         }
 
         // Find the container for the service
-        let container_state = app_data.services
-            .iter()
-            .find(|s| s.service == service_name)
-            .ok_or_else(|| format!("Service '{}' not found in app '{}'", service_name, app_data.name))?;
-
-        let container_id = container_state.id
-            .as_ref()
-            .ok_or_else(|| format!("Service '{}' has no container ID", service_name))?;
+        let container_id = app_data
+            .get_container_id_for_service(service_name)
+            .ok_or_else(|| {
+                if app_data.find_container_by_service(service_name).is_some() {
+                    ShellServiceError::NoContainerId {
+                        service: service_name.to_string()
+                    }
+                } else {
+                    ShellServiceError::ServiceNotFound {
+                        service: service_name.to_string(),
+                        app: app_data.name.clone()
+                    }
+                }
+            })?;
 
         // Generate session ID
         let session_id = Uuid::new_v4();
@@ -119,7 +183,10 @@ impl ShellService {
         let exec_creation = self.docker
             .create_exec(container_id, exec_options)
             .await
-            .map_err(|e| format!("Failed to create exec: {}", e))?;
+            .map_err(|e| ShellServiceError::DockerOperationFailed {
+                operation: "create exec".to_string(),
+                message: e.to_string(),
+            })?;
 
         let exec_id = exec_creation.id;
 
@@ -133,7 +200,10 @@ impl ShellService {
         let exec_stream = self.docker
             .start_exec(&exec_id, Some(start_options))
             .await
-            .map_err(|e| format!("Failed to start exec: {}", e))?;
+            .map_err(|e| ShellServiceError::DockerOperationFailed {
+                operation: "start exec".to_string(),
+                message: e.to_string(),
+            })?;
 
         let (tx, mut rx) = mpsc::channel::<ShellCommand>(100);
 
@@ -163,13 +233,13 @@ impl ShellService {
         // Send session created message
         broadcast_message(
             app_state,
-            WebSocketMessage::ShellSessionCreated(ShellSessionInfo {
+            WebSocketMessage::ShellSessionCreated(ShellSessionInfo::new(
                 session_id,
-                app_name: app_name_clone.clone(),
-                service_name: service_name_clone.clone(),
-                container_id: container_id_clone.clone(),
-                shell_command: shell_cmd_clone.clone(),
-            }),
+                app_name_clone.clone(),
+                service_name_clone.clone(),
+                container_id_clone.clone(),
+                shell_cmd_clone.clone(),
+            )),
         ).await;
 
         // Start the shell session handler
@@ -323,38 +393,32 @@ impl ShellService {
     }
 
     /// Send input to a shell session
-    pub async fn send_input(&self, session_id: Uuid, input: String) -> Result<(), String> {
+    pub async fn send_input(&self, session_id: Uuid, input: String) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
         if let Some(session) = sessions.get(&session_id) {
-            session.sender.send(ShellCommand::Input(input)).await
-                .map_err(|_| "Failed to send input command".to_string())?;
-            Ok(())
+            session.send_command(ShellCommand::Input(input)).await
         } else {
-            Err(format!("Session {} not found", session_id))
+            Err(ShellServiceError::SessionNotFound { session_id })
         }
     }
 
     /// Resize a shell session TTY
-    pub async fn resize_tty(&self, session_id: Uuid, width: u16, height: u16) -> Result<(), String> {
+    pub async fn resize_tty(&self, session_id: Uuid, width: u16, height: u16) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
         if let Some(session) = sessions.get(&session_id) {
-            session.sender.send(ShellCommand::Resize { width, height }).await
-                .map_err(|_| "Failed to send resize command".to_string())?;
-            Ok(())
+            session.send_command(ShellCommand::Resize { width, height }).await
         } else {
-            Err(format!("Session {} not found", session_id))
+            Err(ShellServiceError::SessionNotFound { session_id })
         }
     }
 
     /// Terminate a shell session
-    pub async fn terminate_session(&self, session_id: Uuid) -> Result<(), String> {
+    pub async fn terminate_session(&self, session_id: Uuid) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
         if let Some(session) = sessions.get(&session_id) {
-            session.sender.send(ShellCommand::Terminate).await
-                .map_err(|_| "Failed to send terminate command".to_string())?;
-            Ok(())
+            session.send_command(ShellCommand::Terminate).await
         } else {
-            Err(format!("Session {} not found", session_id))
+            Err(ShellServiceError::SessionNotFound { session_id })
         }
     }
 

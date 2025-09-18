@@ -35,6 +35,12 @@ pub struct LogsStreamInfo {
     pub follow: bool,
 }
 
+impl LogsStreamInfo {
+    pub fn new(stream_id: Uuid, app_name: String, service_name: String, follow: bool) -> Self {
+        Self { stream_id, app_name, service_name, follow }
+    }
+}
+
 /// Log data from a stream
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogsStreamData {
@@ -64,6 +70,24 @@ pub struct ShellSessionInfo {
     pub service_name: String,
     pub container_id: String,
     pub shell_command: String,
+}
+
+impl ShellSessionInfo {
+    pub fn new(
+        session_id: Uuid,
+        app_name: String,
+        service_name: String,
+        container_id: String,
+        shell_command: String,
+    ) -> Self {
+        Self {
+            session_id,
+            app_name,
+            service_name,
+            container_id,
+            shell_command,
+        }
+    }
 }
 
 /// Shell session data (input/output)
