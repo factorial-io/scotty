@@ -178,11 +178,11 @@ Scotty generates appropriate configurations for:
 
 ## Current Work in Progress
 
-### Unified Output System Implementation (Phase 1 Complete)
+### Unified Output System Implementation (Phase 2 In Progress)
 
 **Branch:** `feat/better-logs-and-shell`
 
-**Completed:**
+**Phase 1 Completed:**
 - ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
 - ✅ Breaking change: removed stdout/stderr from TaskDetails
 - ✅ Updated TaskManager for unified output collection
@@ -190,21 +190,47 @@ Scotty generates appropriate configurations for:
 - ✅ Extended WebSocket message types for logs and shell
 - ✅ Fixed client-visible status messages
 
-**Next Phase (Phase 2):**
-- Implement bollard log streaming service
-- Implement bollard shell service
-- Create CLI commands: `app:logs <service>` and `app:shell <service>`
-- Update frontend to use unified log viewer
-- Add API endpoints for logs and shell access
+**Phase 2 Completed (Current Session):**
+- ✅ Implemented bollard log streaming service with LogStreamingService
+- ✅ Implemented bollard shell service with ShellService
+- ✅ Added helper methods to AppData for container discovery
+- ✅ Improved error handling with enum-based errors (LogStreamError, ShellServiceError)
+- ✅ Created API endpoints for logs and shell access:
+  - `POST /api/v1/authenticated/apps/{app_id}/services/{service_name}/logs`
+  - `DELETE /api/v1/authenticated/logs/streams/{stream_id}`
+  - `POST /api/v1/authenticated/apps/{app_id}/services/{service_name}/shell`
+  - `POST /api/v1/authenticated/shell/sessions/{session_id}/input`
+  - `POST /api/v1/authenticated/shell/sessions/{session_id}/resize`
+  - `DELETE /api/v1/authenticated/shell/sessions/{session_id}`
+- ✅ Integrated endpoints into router with appropriate permissions
+- ✅ Added comprehensive tests (16 tests total) with CI-friendly Docker handling
+- ✅ All tests passing, GitHub Actions CI ready
 
-**Key Files Modified:**
-- `scotty-core/src/output/` - New unified output system
-- `scotty-core/src/settings/output.rs` - Output configuration
-- `scotty-core/src/settings/shell.rs` - Shell configuration
-- `scotty-core/src/tasks/task_details.rs` - Removed stdout/stderr fields
-- `scotty/src/tasks/manager.rs` - Unified output collection
-- `scotty/src/api/message.rs` - WebSocket message types
-- `scotty/src/docker/state_machine_handlers/wait_for_all_containers_handler.rs` - Client messages
+**Next Phase (Phase 3 - To Do):**
+- Create CLI commands: `app:logs <service>` and `app:shell <service>` in scottyctl
+- Update frontend to use unified log viewer with WebSocket integration
+- Add WebSocket handlers in message_handler.rs for real-time streaming
+- Test end-to-end integration with running containers
+- Update API documentation
+
+**Key Files Added/Modified (Phase 2):**
+- `scotty/src/docker/services/logs.rs` - Complete log streaming implementation
+- `scotty/src/docker/services/shell.rs` - Complete shell service implementation
+- `scotty/src/api/handlers/apps/logs.rs` - Log API endpoints
+- `scotty/src/api/handlers/apps/shell.rs` - Shell API endpoints
+- `scotty/src/api/router.rs` - Router integration with permissions
+- `scotty/src/api/error.rs` - Error type integration
+- `scotty-core/src/apps/app_data/data.rs` - Helper methods for container lookup
+- Tests: `logs_test.rs`, `shell_test.rs` - Comprehensive test coverage
+
+**Commits Created (Phase 2):**
+- feat(core): add helper methods for container lookup in AppData
+- refactor(services): improve error handling and add helper methods
+- feat(api): integrate service errors with AppError
+- feat(api): implement logs and shell API endpoints
+- feat(router): integrate logs and shell endpoints into API router
+- test: add comprehensive tests for logs and shell services
+- fix(test): update secure_response_test for removed TaskDetails fields
 
 **Reference Documents:**
 - `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
