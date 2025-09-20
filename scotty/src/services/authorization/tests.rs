@@ -520,7 +520,7 @@ async fn test_live_policy_file_app_filtering() {
         let scotty_yml_path = apps_path.join(app_name).join(".scotty.yml");
         if scotty_yml_path.exists() {
             if let Ok(file_content) = std::fs::read_to_string(&scotty_yml_path) {
-                if let Ok(settings) = serde_yml::from_str::<serde_yml::Value>(&file_content) {
+                if let Ok(settings) = serde_norway::from_str::<serde_norway::Value>(&file_content) {
                     if let Some(scopes) = settings.get("scopes").and_then(|g| g.as_sequence()) {
                         let scope_names: Vec<String> = scopes
                             .iter()
