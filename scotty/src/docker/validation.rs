@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// Checks if the Docker Compose file contains environment variables without using external commands
 pub fn check_for_environment_variables(
-    docker_compose_data: &serde_yml::Value,
+    docker_compose_data: &serde_norway::Value,
     env_vars: Option<&HashMap<String, String>>,
 ) -> Result<(), AppError> {
     let missing_vars = find_env_vars_recursively(docker_compose_data, env_vars);
@@ -19,22 +19,22 @@ pub fn check_for_environment_variables(
 
 /// Recursively find environment variables in the YAML structure
 fn find_env_vars_recursively(
-    value: &serde_yml::Value,
+    value: &serde_norway::Value,
     env_vars: Option<&HashMap<String, String>>,
 ) -> Vec<String> {
     match value {
-        serde_yml::Value::String(s) => {
+        serde_norway::Value::String(s) => {
             // Check for environment variables in string values
             env_substitution::extract_env_vars(s)
                 .into_iter()
                 .filter(|var_name| !has_env_var(var_name, env_vars))
                 .collect()
         }
-        serde_yml::Value::Sequence(seq) => seq
+        serde_norway::Value::Sequence(seq) => seq
             .iter()
             .flat_map(|item| find_env_vars_recursively(item, env_vars))
             .collect(),
-        serde_yml::Value::Mapping(map) => map
+        serde_norway::Value::Mapping(map) => map
             .values()
             .flat_map(|v| find_env_vars_recursively(v, env_vars))
             .collect(),
@@ -109,7 +109,7 @@ pub fn validate_docker_compose_content(
     env_vars: Option<&HashMap<String, String>>,
 ) -> Result<Vec<String>, AppError> {
     // Parse the Docker Compose file
-    let docker_compose_data: serde_yml::Value = serde_yml::from_slice(docker_compose_content)
+    let docker_compose_data: serde_norway::Value = serde_norway::from_slice(docker_compose_content)
         .map_err(|_| AppError::InvalidDockerComposeFile)?;
 
     // Get list of available services and perform validations
@@ -122,7 +122,9 @@ pub fn validate_docker_compose_content(
 }
 
 /// Get the list of available services from Docker Compose data
-fn get_available_services(docker_compose_data: &serde_yml::Value) -> Result<Vec<String>, AppError> {
+fn get_available_services(
+    docker_compose_data: &serde_norway::Value,
+) -> Result<Vec<String>, AppError> {
     docker_compose_data
         .get("services")
         .and_then(|services| services.as_mapping())
@@ -149,7 +151,7 @@ fn validate_public_services_exist(
 }
 
 /// Validate that no services expose ports
-fn validate_no_ports_exposed(docker_compose_data: &serde_yml::Value) -> Result<(), AppError> {
+fn validate_no_ports_exposed(docker_compose_data: &serde_norway::Value) -> Result<(), AppError> {
     let services = docker_compose_data
         .get("services")
         .and_then(|s| s.as_mapping())
@@ -401,19 +403,19 @@ services:
         env_vars.insert("EXISTING_VAR".to_string(), "value".to_string());
 
         // Test with no environment variables
-        let data = serde_yml::from_str("key: value").unwrap();
+        let data = serde_norway::from_str("key: value").unwrap();
         assert!(check_for_environment_variables(&data, None).is_ok());
 
         // Test with environment variable that has a default
-        let data = serde_yml::from_str("key: ${MISSING_VAR:-default}").unwrap();
+        let data = serde_norway::from_str("key: ${MISSING_VAR:-default}").unwrap();
         assert!(check_for_environment_variables(&data, None).is_ok());
 
         // Test with environment variable that exists in env_vars
-        let data = serde_yml::from_str("key: ${EXISTING_VAR}").unwrap();
+        let data = serde_norway::from_str("key: ${EXISTING_VAR}").unwrap();
         assert!(check_for_environment_variables(&data, Some(&env_vars)).is_ok());
 
         // Test with missing environment variable
-        let data = serde_yml::from_str("key: ${MISSING_VAR}").unwrap();
+        let data = serde_norway::from_str("key: ${MISSING_VAR}").unwrap();
         let result = check_for_environment_variables(&data, None);
         assert!(result.is_err());
         assert!(
@@ -421,7 +423,7 @@ services:
         );
 
         // Test with multiple environment variables in complex structure
-        let data = serde_yml::from_str(
+        let data = serde_norway::from_str(
             "
             services:
               app:
@@ -439,7 +441,7 @@ services:
         );
 
         // Test with multiple environment variables, all satisfied
-        let data = serde_yml::from_str(
+        let data = serde_norway::from_str(
             "
             services:
               app:

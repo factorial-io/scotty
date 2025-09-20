@@ -66,7 +66,7 @@ clokwerk = { version = "0.4.0", features = ["async"] }
 walkdir = "2.5.0"
 chrono = { version = "0.4.38", features = ["serde"] }
 tokio-stream = "0.1.16"
-serde_yml = "0.0.12"
+serde_norway = "0.9.42"
 regex = "1.11.0"
 tabled = { version = "0.20.0", features = ["ansi"] }
 owo-colors = "4.1.0"

@@ -7,7 +7,7 @@ use std::{
 
 use anyhow;
 use serde::{Deserialize, Serialize};
-use serde_yml::Value;
+use serde_norway::Value;
 use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
@@ -126,14 +126,14 @@ impl AppSettings {
                 )
             })?;
             let reader = BufReader::new(file);
-            let yaml: Value = serde_yml::from_reader(reader).map_err(|e| {
+            let yaml: Value = serde_norway::from_reader(reader).map_err(|e| {
                 anyhow::anyhow!(
                     "Failed to parse YAML from {}: {}",
                     settings_path.display(),
                     e
                 )
             })?;
-            let settings: AppSettings = serde_yml::from_value(yaml).map_err(|e| {
+            let settings: AppSettings = serde_norway::from_value(yaml).map_err(|e| {
                 anyhow::anyhow!(
                     "Failed to deserialize settings from {}: {}",
                     settings_path.display(),
@@ -154,7 +154,7 @@ impl AppSettings {
 
     #[cfg(test)]
     pub fn to_file(&self, settings_path: &Path) -> anyhow::Result<()> {
-        let yaml = serde_yml::to_string(self)
+        let yaml = serde_norway::to_string(self)
             .map_err(|e| anyhow::anyhow!("Failed to serialize settings to YAML: {}", e))?;
 
         std::fs::write(settings_path, yaml).map_err(|e| {
