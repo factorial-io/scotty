@@ -56,7 +56,7 @@ where
         )?;
         let path = root_directory.join("docker-compose.override.yml");
         info!("Saving docker-compose.override.yml to {}", path.display());
-        let yaml = serde_yml::to_string(&docker_compose_override)?;
+        let yaml = serde_norway::to_string(&docker_compose_override)?;
         tokio::fs::write(&path, yaml).await?;
 
         Ok(self.next_state.clone())

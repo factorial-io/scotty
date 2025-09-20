@@ -96,7 +96,7 @@ mod tests {
             service_id: "mattermost".to_string(),
             channel: "test".to_string(),
         });
-        let yaml_string = serde_yml::to_string(&value).expect("Failed to serialize to YAML");
+        let yaml_string = serde_norway::to_string(&value).expect("Failed to serialize to YAML");
 
         assert_eq!(
             yaml_string,

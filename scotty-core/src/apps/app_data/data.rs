@@ -137,7 +137,7 @@ impl AppData {
 
         let settings_path = root_directory.join(".scotty.yml");
         info!("Saving settings to {}", settings_path.display());
-        let settings_yaml = serde_yml::to_string(&self.settings)?;
+        let settings_yaml = serde_norway::to_string(&self.settings)?;
         tokio::fs::write(&settings_path, settings_yaml).await?;
 
         Ok(())

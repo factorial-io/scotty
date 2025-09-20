@@ -7,7 +7,7 @@ use scotty_core::apps::{
     app_data::{AppData, AppSettings, AppStatus, ContainerState},
     shared_app_list::AppDataVec,
 };
-use serde_yml::Value;
+use serde_norway::Value;
 use std::path::Path;
 use tokio::task;
 use tokio_stream::StreamExt;
@@ -67,7 +67,7 @@ pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec>
 
 #[instrument()]
 async fn extract_services_from_docker_compose(content: &str) -> anyhow::Result<Vec<String>> {
-    let yaml: Value = serde_yml::from_str(content)?;
+    let yaml: Value = serde_norway::from_str(content)?;
 
     let services = yaml
         .get("services")
