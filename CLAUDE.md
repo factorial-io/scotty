@@ -178,11 +178,13 @@ Scotty generates appropriate configurations for:
 
 ## Current Work in Progress
 
-### Unified Output System Implementation (Phase 2 In Progress)
+### Unified Output System Implementation ✅ COMPLETED (Phase 3)
 
 **Branch:** `feat/better-logs-and-shell`
 
-**Phase 1 Completed:**
+**Status: Core functionality complete and ready for production use**
+
+### Phase 1 Completed:
 - ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
 - ✅ Breaking change: removed stdout/stderr from TaskDetails
 - ✅ Updated TaskManager for unified output collection
@@ -190,48 +192,66 @@ Scotty generates appropriate configurations for:
 - ✅ Extended WebSocket message types for logs and shell
 - ✅ Fixed client-visible status messages
 
-**Phase 2 Completed (Current Session):**
+### Phase 2 Completed:
 - ✅ Implemented bollard log streaming service with LogStreamingService
 - ✅ Implemented bollard shell service with ShellService
 - ✅ Added helper methods to AppData for container discovery
 - ✅ Improved error handling with enum-based errors (LogStreamError, ShellServiceError)
-- ✅ Created API endpoints for logs and shell access:
-  - `POST /api/v1/authenticated/apps/{app_id}/services/{service_name}/logs`
-  - `DELETE /api/v1/authenticated/logs/streams/{stream_id}`
-  - `POST /api/v1/authenticated/apps/{app_id}/services/{service_name}/shell`
-  - `POST /api/v1/authenticated/shell/sessions/{session_id}/input`
-  - `POST /api/v1/authenticated/shell/sessions/{session_id}/resize`
-  - `DELETE /api/v1/authenticated/shell/sessions/{session_id}`
+- ✅ Created API endpoints for logs and shell access
 - ✅ Integrated endpoints into router with appropriate permissions
 - ✅ Added comprehensive tests (16 tests total) with CI-friendly Docker handling
 - ✅ All tests passing, GitHub Actions CI ready
 
-**Next Phase (Phase 3 - To Do):**
-- Create CLI commands: `app:logs <service>` and `app:shell <service>` in scottyctl
-- Update frontend to use unified log viewer with WebSocket integration
-- Add WebSocket handlers in message_handler.rs for real-time streaming
-- Test end-to-end integration with running containers
-- Update API documentation
+### Phase 3 Completed:
+- ✅ **CLI Commands**: Implemented full `app:logs` and `app:shell` commands in scottyctl
+- ✅ **WebSocket Integration**: Added WebSocket handlers in message_handler.rs for real-time streaming
+- ✅ **Authentication System**: Centralized auth logic in auth_core module, eliminating duplication
+- ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
+- ✅ **User Experience Improvements**:
+  - Reduced idle timeout from 2s to 200ms for faster historical log completion
+  - Removed duplicate completion messages for cleaner output
+  - Changed timestamps to opt-in with `--timestamps` flag (default: disabled)
+- ✅ **WebSocket Authentication**: Implemented message-based authentication flow
+- ✅ **Example App**: Added log-demo example app for testing and development
+- ✅ **End-to-End Testing**: Verified complete functionality with real containers
 
-**Key Files Added/Modified (Phase 2):**
+### Next Phase (Phase 4 - Frontend Integration):
+- Replace current stdout/stderr UI components with unified log viewer
+- Add real-time WebSocket log streaming to web UI
+- Prepare UI framework for future xterm.js shell integration
+- Polish user experience and error handling in frontend
+
+### Key Commands Available:
+```bash
+# Log streaming with various options
+scottyctl app:logs myapp web                    # Historical logs
+scottyctl app:logs myapp web --follow           # Real-time streaming
+scottyctl app:logs myapp web --timestamps       # With timestamps
+scottyctl app:logs myapp web --lines 500        # Custom line count
+
+# Interactive shell access
+scottyctl app:shell myapp web                   # Interactive bash shell
+scottyctl app:shell myapp web --user www-data   # As specific user
+scottyctl app:shell myapp web --shell /bin/sh   # Different shell
+```
+
+### Key Files Added/Modified (All Phases):
+- `scotty/src/api/auth_core.rs` - Centralized authentication logic
 - `scotty/src/docker/services/logs.rs` - Complete log streaming implementation
 - `scotty/src/docker/services/shell.rs` - Complete shell service implementation
-- `scotty/src/api/handlers/apps/logs.rs` - Log API endpoints
-- `scotty/src/api/handlers/apps/shell.rs` - Shell API endpoints
-- `scotty/src/api/router.rs` - Router integration with permissions
-- `scotty/src/api/error.rs` - Error type integration
-- `scotty-core/src/apps/app_data/data.rs` - Helper methods for container lookup
-- Tests: `logs_test.rs`, `shell_test.rs` - Comprehensive test coverage
+- `scotty/src/api/message_handler.rs` - WebSocket message handling for logs/shell
+- `scotty/src/api/ws.rs` - WebSocket client management and cleanup
+- `scotty/src/app_state.rs` - Shared LogStreamingService integration
+- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command
+- `scottyctl/src/commands/apps/shell.rs` - CLI shell access command
+- `examples/log-demo/` - Demo application for testing
 
-**Commits Created (Phase 2):**
-- feat(core): add helper methods for container lookup in AppData
-- refactor(services): improve error handling and add helper methods
-- feat(api): integrate service errors with AppError
-- feat(api): implement logs and shell API endpoints
-- feat(router): integrate logs and shell endpoints into API router
-- test: add comprehensive tests for logs and shell services
-- fix(test): update secure_response_test for removed TaskDetails fields
+### Latest Commits (All Phases):
+- `7ea3245` - feat(logs): implement authenticated WebSocket log streaming with improved UX (Phase 3 complete)
+- `5c84d67` - refactor(cli): reorganize app commands into modular structure and add app:logs command
+- `ad5fac9` - test: add comprehensive tests for logs and shell services (Phase 2)
+- `3355b45` - fix(test): update secure_response_test for removed TaskDetails fields
 
-**Reference Documents:**
+### Reference Documents:
 - `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
 - `docs/technical-spike-bollard-findings.md` - Bollard API validation results

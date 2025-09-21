@@ -218,15 +218,15 @@ scottyctl app:logs <app_name> <service> [OPTIONS]
 
 OPTIONS:
     -f, --follow              Follow log output (default: false)
-    -n, --lines <NUMBER>      Number of lines to show (default: 100)
+    -n, --lines <NUMBER>      Number of lines to show (default: all available)
         --since <TIMESTAMP>   Show logs since timestamp
         --until <TIMESTAMP>   Show logs until timestamp
-        --download            Download full logs to file
-    -t, --timestamps          Show timestamps (default: true for non-follow)
+    -t, --timestamps          Show timestamps in log output
 
 EXAMPLES:
-    scottyctl app:logs my-app web                    # Show last 100 lines
+    scottyctl app:logs my-app web                    # Show all available logs
     scottyctl app:logs my-app web -f                 # Follow logs in real-time
+    scottyctl app:logs my-app web -t                 # Show logs with timestamps
     scottyctl app:logs my-app web -n 500             # Show last 500 lines
     scottyctl app:logs my-app web --since 1h         # Logs from last hour
 ```
@@ -288,25 +288,43 @@ SCOTTY__SHELL__DEFAULT_TTL=60m
 SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 ```
 
+## Implementation Status
+
+**Current Status: Phase 3 Complete - Core Functionality Ready** 🎉
+
+All core log streaming and shell access functionality is complete and working. The system now provides:
+- ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
+- ✅ Interactive shell access with `app:shell` command
+- ✅ Centralized authentication system with proper cleanup
+- ✅ Improved user experience with optimized performance
+- ✅ Comprehensive test coverage and CI integration
+
+**Next Steps**: Phase 4 (Frontend Integration) - Replace current stdout/stderr UI with unified log viewer.
+
+---
+
 ## Implementation Plan
 
-### Phase 1: Core Infrastructure
-1. **Unified Output Data Model**: Implement OutputLine and StreamingTaskOutput structures
-2. **Bollard Integration**: Research and implement bollard container logs and exec APIs
-3. **WebSocket Protocol**: Extend message types for logs and shell data
-4. **Configuration System**: Add new configuration options with validation
+### Phase 1: Core Infrastructure ✅ COMPLETED
+1. ✅ **Unified Output Data Model**: Implement OutputLine and StreamingTaskOutput structures
+2. ✅ **Bollard Integration**: Research and implement bollard container logs and exec APIs
+3. ✅ **WebSocket Protocol**: Extend message types for logs and shell data
+4. ✅ **Configuration System**: Add new configuration options with validation
 
-### Phase 2: Log Streaming
-1. **Backend Log API**: Implement REST endpoints and WebSocket handlers for log streaming
-2. **CLI Logs Command**: Implement `app:logs` with WebSocket integration
-3. **Permission Integration**: Add authorization checks for logs access
-4. **Testing**: Unit and integration tests for log streaming
+### Phase 2: Log Streaming ✅ COMPLETED
+1. ✅ **Backend Log API**: Implement REST endpoints and WebSocket handlers for log streaming
+2. ✅ **CLI Logs Command**: Implement `app:logs` with WebSocket integration
+3. ✅ **Permission Integration**: Add authorization checks for logs access
+4. ✅ **Testing**: Unit and integration tests for log streaming
 
-### Phase 3: Shell Access
-1. **Shell Session Management**: Implement session creation, management, and cleanup
-2. **Backend Shell API**: REST endpoints and WebSocket handlers for shell sessions
-3. **CLI Shell Command**: Implement `app:shell` with terminal integration
-4. **Permission Integration**: Add authorization checks for shell access
+### Phase 3: Shell Access ✅ COMPLETED
+1. ✅ **Shell Session Management**: Implement session creation, management, and cleanup
+2. ✅ **Backend Shell API**: REST endpoints and WebSocket handlers for shell sessions
+3. ✅ **CLI Shell Command**: Implement `app:shell` with terminal integration
+4. ✅ **Permission Integration**: Add authorization checks for shell access
+5. ✅ **Authentication Enhancement**: Implemented centralized auth system for WebSocket connections
+6. ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
+7. ✅ **User Experience**: Improved completion timing and removed duplicate messages
 
 ### Phase 4: Frontend Integration
 1. **Unified Log Viewer**: Replace separate stdout/stderr components
