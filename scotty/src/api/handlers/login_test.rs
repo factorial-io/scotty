@@ -36,15 +36,17 @@ mod tests {
                 .expect("Failed to create auth service"),
         );
 
+        let docker = bollard::Docker::connect_with_local_defaults().unwrap();
         Arc::new(AppState {
             settings,
             stop_flag: crate::stop_flag::StopFlag::new(),
             clients: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-            docker: bollard::Docker::connect_with_local_defaults().unwrap(),
+            docker: docker.clone(),
             task_manager: crate::tasks::manager::TaskManager::new(),
             oauth_state: None,
             auth_service,
+            logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
         })
     }
 

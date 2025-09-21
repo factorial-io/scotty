@@ -7,6 +7,8 @@ use tokio::sync::{broadcast, Mutex};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::api::basic_auth::CurrentUser;
+use crate::docker::services::logs::LogStreamingService;
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{
     self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
@@ -16,7 +18,27 @@ use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
 
-type WebSocketClients = HashMap<Uuid, broadcast::Sender<axum::extract::ws::Message>>;
+#[derive(Debug, Clone)]
+pub struct WebSocketClient {
+    pub sender: broadcast::Sender<axum::extract::ws::Message>,
+    pub user: Option<CurrentUser>,
+}
+
+impl WebSocketClient {
+    pub fn new(sender: broadcast::Sender<axum::extract::ws::Message>) -> Self {
+        Self { sender, user: None }
+    }
+
+    pub fn authenticate(&mut self, user: CurrentUser) {
+        self.user = Some(user);
+    }
+
+    pub fn is_authenticated(&self) -> bool {
+        self.user.is_some()
+    }
+}
+
+type WebSocketClients = HashMap<Uuid, WebSocketClient>;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -28,6 +50,7 @@ pub struct AppState {
     pub task_manager: manager::TaskManager,
     pub oauth_state: Option<OAuthState>,
     pub auth_service: Arc<AuthorizationService>,
+    pub logs_service: LogStreamingService,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -44,6 +67,9 @@ impl AppState {
             DockerConnectOptions::Socket => Docker::connect_with_socket_defaults()?,
             DockerConnectOptions::Http => Docker::connect_with_http_defaults()?,
         };
+
+        // Initialize shared log streaming service
+        let logs_service = LogStreamingService::new(docker.clone());
 
         // Initialize OAuth if configured
         let oauth_state = match oauth::client::create_oauth_client(&settings.api.oauth) {
@@ -90,21 +116,24 @@ impl AppState {
             task_manager: manager::TaskManager::new(),
             oauth_state,
             auth_service,
+            logs_service,
         }))
     }
 
     pub async fn new_for_config_only() -> anyhow::Result<SharedAppState> {
         let settings = Settings::new()?;
+        let docker = Docker::connect_with_local_defaults()?;
 
         Ok(Arc::new(AppState {
             settings,
             stop_flag: stop_flag::StopFlag::new(),
             clients: Arc::new(Mutex::new(HashMap::new())),
             apps: SharedAppList::new(),
-            docker: Docker::connect_with_local_defaults()?,
+            docker: docker.clone(),
             task_manager: manager::TaskManager::new(),
             oauth_state: None,
             auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
+            logs_service: LogStreamingService::new(docker),
         }))
     }
 }

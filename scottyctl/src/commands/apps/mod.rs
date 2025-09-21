@@ -5,12 +5,9 @@ use tabled::{builder::Builder, settings::Style};
 use crate::{
     api::{get, wait_for_task},
     context::{AppContext, ServerSettings},
-    utils::formatting::{colored_by_status, format_since},
+    utils::formatting::format_since,
 };
-use scotty_core::{
-    apps::app_data::AppData,
-    tasks::running_app_context::RunningAppContext,
-};
+use scotty_core::{apps::app_data::AppData, tasks::running_app_context::RunningAppContext};
 
 // Re-export submodules
 pub mod actions;
@@ -101,6 +98,13 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
         }
         let table = builder.build().with(Style::rounded()).to_string();
         result += format!("\n{table}").as_str();
+    }
+
+    // Add scope information if available
+    if let Some(settings) = &app_data.settings {
+        if !settings.scopes.is_empty() {
+            result += &format!("\nScopes: {}", settings.scopes.join(", "));
+        }
     }
 
     Ok(result)

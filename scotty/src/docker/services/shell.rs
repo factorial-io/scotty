@@ -1,14 +1,17 @@
+use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::Docker;
+use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
-use uuid::Uuid;
-use bollard::Docker;
-use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
-use futures_util::StreamExt;
-use tracing::{info, error, warn};
 use tokio::io::AsyncWriteExt;
+use tokio::sync::{mpsc, RwLock};
+use tracing::{error, info, warn};
+use uuid::Uuid;
 
-use crate::api::message::{WebSocketMessage, ShellSessionInfo, ShellSessionData, ShellDataType, ShellSessionEnd, ShellSessionError};
+use crate::api::message::{
+    ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
+    WebSocketMessage,
+};
 use crate::api::ws::broadcast_message;
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
@@ -38,10 +41,7 @@ pub enum ShellServiceError {
     CommandSendFailed { reason: String },
 
     #[error("Docker operation failed: {operation} - {message}")]
-    DockerOperationFailed {
-        operation: String,
-        message: String,
-    },
+    DockerOperationFailed { operation: String, message: String },
 }
 
 /// Result type alias for shell service operations
@@ -79,9 +79,11 @@ impl ShellSession {
 
     /// Send a command to this session
     pub async fn send_command(&self, cmd: ShellCommand) -> ShellServiceResult<()> {
-        self.sender.send(cmd).await
+        self.sender
+            .send(cmd)
+            .await
             .map_err(|e| ShellServiceError::CommandSendFailed {
-                reason: e.to_string()
+                reason: e.to_string(),
             })
     }
 }
@@ -122,19 +124,20 @@ impl ShellService {
         // Check session limits
         {
             let sessions = self.active_sessions.read().await;
-            let app_sessions = sessions.values()
+            let app_sessions = sessions
+                .values()
                 .filter(|s| s.app_name == app_data.name)
                 .count();
 
             if app_sessions >= self.shell_settings.max_sessions_per_app {
                 return Err(ShellServiceError::MaxSessionsPerApp {
-                    limit: self.shell_settings.max_sessions_per_app
+                    limit: self.shell_settings.max_sessions_per_app,
                 });
             }
 
             if sessions.len() >= self.shell_settings.max_sessions_global {
                 return Err(ShellServiceError::MaxSessionsGlobal {
-                    limit: self.shell_settings.max_sessions_global
+                    limit: self.shell_settings.max_sessions_global,
                 });
             }
         }
@@ -145,12 +148,12 @@ impl ShellService {
             .ok_or_else(|| {
                 if app_data.find_container_by_service(service_name).is_some() {
                     ShellServiceError::NoContainerId {
-                        service: service_name.to_string()
+                        service: service_name.to_string(),
                     }
                 } else {
                     ShellServiceError::ServiceNotFound {
                         service: service_name.to_string(),
-                        app: app_data.name.clone()
+                        app: app_data.name.clone(),
                     }
                 }
             })?;
@@ -159,11 +162,12 @@ impl ShellService {
         let session_id = Uuid::new_v4();
 
         // Determine shell command to use
-        let shell_cmd = shell_command
-            .unwrap_or_else(|| self.shell_settings.default_shell.clone());
+        let shell_cmd = shell_command.unwrap_or_else(|| self.shell_settings.default_shell.clone());
 
         // Prepare environment variables
-        let env_vars: Vec<String> = self.shell_settings.default_env
+        let env_vars: Vec<String> = self
+            .shell_settings
+            .default_env
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
@@ -176,11 +180,16 @@ impl ShellService {
             attach_stderr: Some(true),
             tty: Some(true),
             cmd: Some(vec![shell_cmd.as_str()]),
-            env: if env_refs.is_empty() { None } else { Some(env_refs) },
+            env: if env_refs.is_empty() {
+                None
+            } else {
+                Some(env_refs)
+            },
             ..Default::default()
         };
 
-        let exec_creation = self.docker
+        let exec_creation = self
+            .docker
             .create_exec(container_id, exec_options)
             .await
             .map_err(|e| ShellServiceError::DockerOperationFailed {
@@ -197,7 +206,8 @@ impl ShellService {
             ..Default::default()
         };
 
-        let exec_stream = self.docker
+        let exec_stream = self
+            .docker
             .start_exec(&exec_id, Some(start_options))
             .await
             .map_err(|e| ShellServiceError::DockerOperationFailed {
@@ -240,7 +250,8 @@ impl ShellService {
                 container_id_clone.clone(),
                 shell_cmd_clone.clone(),
             )),
-        ).await;
+        )
+        .await;
 
         // Start the shell session handler
         let docker = self.docker.clone();
@@ -249,10 +260,16 @@ impl ShellService {
         let session_ttl = self.shell_settings.session_ttl();
 
         tokio::spawn(async move {
-            info!("Starting shell session {} for container {}", session_id, container_id_clone);
+            info!(
+                "Starting shell session {} for container {}",
+                session_id, container_id_clone
+            );
 
             match exec_stream {
-                StartExecResults::Attached { mut input, mut output } => {
+                StartExecResults::Attached {
+                    mut input,
+                    mut output,
+                } => {
                     let session_start = tokio::time::Instant::now();
 
                     loop {
@@ -369,14 +386,18 @@ impl ShellService {
                     }
                 }
                 StartExecResults::Detached => {
-                    error!("Shell session {} started in detached mode (unexpected)", session_id);
+                    error!(
+                        "Shell session {} started in detached mode (unexpected)",
+                        session_id
+                    );
                     broadcast_message(
                         &app_state,
                         WebSocketMessage::ShellSessionError(ShellSessionError {
                             session_id,
                             error: "Shell started in detached mode".to_string(),
                         }),
-                    ).await;
+                    )
+                    .await;
                 }
             }
 
@@ -403,10 +424,17 @@ impl ShellService {
     }
 
     /// Resize a shell session TTY
-    pub async fn resize_tty(&self, session_id: Uuid, width: u16, height: u16) -> ShellServiceResult<()> {
+    pub async fn resize_tty(
+        &self,
+        session_id: Uuid,
+        width: u16,
+        height: u16,
+    ) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
         if let Some(session) = sessions.get(&session_id) {
-            session.send_command(ShellCommand::Resize { width, height }).await
+            session
+                .send_command(ShellCommand::Resize { width, height })
+                .await
         } else {
             Err(ShellServiceError::SessionNotFound { session_id })
         }
@@ -431,7 +459,8 @@ impl ShellService {
     /// Terminate all sessions for an app
     pub async fn terminate_app_sessions(&self, app_name: &str) {
         let sessions = self.active_sessions.read().await;
-        let app_sessions: Vec<_> = sessions.values()
+        let app_sessions: Vec<_> = sessions
+            .values()
             .filter(|s| s.app_name == app_name)
             .cloned()
             .collect();

@@ -8,7 +8,7 @@ use crate::{
 };
 use scotty_core::{apps::app_data::AppData, tasks::running_app_context::RunningAppContext};
 
-use super::{call_apps_api, format_app_info, get_app_info};
+use super::{call_apps_api, format_app_info};
 
 /// Rebuild an app
 pub async fn rebuild_app(context: &AppContext, cmd: &RebuildCommand) -> anyhow::Result<()> {

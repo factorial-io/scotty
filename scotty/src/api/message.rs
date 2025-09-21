@@ -1,5 +1,5 @@
-use scotty_core::tasks::task_details::TaskDetails;
 use scotty_core::output::OutputLine;
+use scotty_core::tasks::task_details::TaskDetails;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,7 +13,16 @@ pub enum WebSocketMessage {
     TaskInfoUpdated(TaskDetails),
     Error(String),
 
-    // Log streaming messages
+    // Authentication messages
+    Authenticate { token: String },
+    AuthenticationSuccess,
+    AuthenticationFailed { reason: String },
+
+    // Log streaming request messages (client → server)
+    StartLogStream(LogStreamRequest),
+    StopLogStream { stream_id: Uuid },
+
+    // Log streaming response messages (server → client)
     LogsStreamStarted(LogsStreamInfo),
     LogsStreamData(LogsStreamData),
     LogsStreamEnded(LogsStreamEnd),
@@ -24,6 +33,32 @@ pub enum WebSocketMessage {
     ShellSessionData(ShellSessionData),
     ShellSessionEnded(ShellSessionEnd),
     ShellSessionError(ShellSessionError),
+}
+
+/// Request to start a log stream with parameters
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LogStreamRequest {
+    pub app_name: String,
+    pub service_name: String,
+    pub follow: bool,
+    pub lines: Option<u32>, // Number of lines for historical logs (default 100)
+    pub since: Option<String>, // Time filter: "1h", "30m", or ISO timestamp
+    pub until: Option<String>, // End time filter: ISO timestamp
+    pub timestamps: bool,   // Include timestamps in output (default true)
+}
+
+impl LogStreamRequest {
+    pub fn new(app_name: String, service_name: String, follow: bool) -> Self {
+        Self {
+            app_name,
+            service_name,
+            follow,
+            lines: Some(100),
+            since: None,
+            until: None,
+            timestamps: true,
+        }
+    }
 }
 
 /// Information about a started log stream
@@ -37,7 +72,12 @@ pub struct LogsStreamInfo {
 
 impl LogsStreamInfo {
     pub fn new(stream_id: Uuid, app_name: String, service_name: String, follow: bool) -> Self {
-        Self { stream_id, app_name, service_name, follow }
+        Self {
+            stream_id,
+            app_name,
+            service_name,
+            follow,
+        }
     }
 }
 
@@ -101,8 +141,8 @@ pub struct ShellSessionData {
 /// Type of shell session data
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ShellDataType {
-    Input,   // Data from client to shell
-    Output,  // Data from shell to client
+    Input,  // Data from client to shell
+    Output, // Data from shell to client
 }
 
 /// Shell session ended notification

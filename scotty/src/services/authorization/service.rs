@@ -248,6 +248,76 @@ impl AuthorizationService {
         false
     }
 
+    /// Check if a user has permission in any of the specified scopes
+    /// This is used for actions like app creation where the target scope is known
+    pub async fn check_permission_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &Permission,
+    ) -> bool {
+        info!(
+            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+            user,
+            scopes,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+
+        // Get user assignments (both specific and wildcard)
+        let all_assignments = [
+            config
+                .assignments
+                .get(user)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+            config
+                .assignments
+                .get("*")
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+        ]
+        .concat();
+
+        // Check if user has the permission in any of their roles that overlap with target scopes
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    // Check if this assignment has access to any of the target scopes
+                    let has_scope_access = assignment
+                        .scopes
+                        .iter()
+                        .any(|assigned_scope| scopes.contains(assigned_scope));
+
+                    if has_scope_access {
+                        info!(
+                            "Permission granted: {} has {} in scopes {:?} via role {}",
+                            user,
+                            action.as_str(),
+                            scopes,
+                            assignment.role
+                        );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        info!(
+            "Permission denied: {} lacks {} in scopes {:?}",
+            user,
+            action.as_str(),
+            scopes
+        );
+        false
+    }
+
     /// Format user identifier for authorization checks
     pub fn format_user_id(email: &str, token: Option<&str>) -> String {
         if let Some(token) = token {

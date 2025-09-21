@@ -1,3 +1,4 @@
+pub mod auth_core;
 pub mod basic_auth;
 pub mod error;
 pub mod handlers;

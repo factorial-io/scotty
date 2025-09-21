@@ -58,10 +58,17 @@ where
 
         // Add info messages to task output for client visibility
         let task_id = task_clone.read().await.id;
-        app_state.task_manager.add_task_info(
-            &task_id,
-            format!("Waiting for {} containers to be ready: {:?}", container_ids.len(), container_ids)
-        ).await;
+        app_state
+            .task_manager
+            .add_task_info(
+                &task_id,
+                format!(
+                    "Waiting for {} containers to be ready: {:?}",
+                    container_ids.len(),
+                    container_ids
+                ),
+            )
+            .await;
 
         info!("Waiting for containers to be ready: {:?}", container_ids);
 
@@ -78,10 +85,10 @@ where
                 .context("Failed to wait for containers to be ready")?;
 
         // Add completion message to task output for client visibility
-        app_state.task_manager.add_task_info(
-            &task_id,
-            "All containers are ready!".to_string()
-        ).await;
+        app_state
+            .task_manager
+            .add_task_info(&task_id, "All containers are ready!".to_string())
+            .await;
 
         info!("All containers have reached a ready state");
         debug!("Container states: {:?}", container_states);

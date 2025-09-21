@@ -252,15 +252,17 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
             }
         }
 
+        let docker = bollard::Docker::connect_with_local_defaults().unwrap();
         let app_state = Arc::new(AppState {
             settings,
             stop_flag: stop_flag::StopFlag::new(),
             clients: Arc::new(Mutex::new(HashMap::new())),
             apps: shared_app_list,
-            docker: bollard::Docker::connect_with_local_defaults().unwrap(),
+            docker: docker.clone(),
             task_manager: crate::tasks::manager::TaskManager::new(),
             oauth_state: None,
             auth_service,
+            logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
         });
 
         (app_state, temp_dir)

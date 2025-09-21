@@ -37,12 +37,13 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         _ => None,
     };
 
+    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
     let app_state = Arc::new(AppState {
         settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
         clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: bollard::Docker::connect_with_local_defaults().unwrap(),
+        docker: docker.clone(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state,
         auth_service: Arc::new(
@@ -51,6 +52,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
             )
             .await,
         ),
+        logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
     });
 
     ApiRoutes::create(app_state)
@@ -523,12 +525,13 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         _ => None,
     };
 
+    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
     let app_state = Arc::new(AppState {
         settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
         clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: bollard::Docker::connect_with_local_defaults().unwrap(),
+        docker: docker.clone(),
         task_manager: crate::tasks::manager::TaskManager::new(),
         oauth_state: oauth_state.clone(),
         auth_service: Arc::new(
@@ -537,6 +540,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
             )
             .await,
         ),
+        logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
     });
 
     let router = ApiRoutes::create(app_state.clone());

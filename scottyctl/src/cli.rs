@@ -270,6 +270,10 @@ pub struct CreateCommand {
     /// Custom Traefik middlewares to apply to the app, can be specified multiple times
     #[arg(long, value_name = "MIDDLEWARE")]
     pub middleware: Vec<String>,
+
+    /// Scope(s) to create the app in, can be specified multiple times (defaults to 'default')
+    #[arg(long, value_name = "SCOPE")]
+    pub scope: Vec<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -311,7 +315,7 @@ pub struct LogsCommand {
     #[arg(long = "until")]
     pub until: Option<String>,
 
-    /// Show timestamps (default: true for non-follow)
+    /// Show timestamps in log output
     #[arg(short = 't', long = "timestamps")]
     pub timestamps: Option<bool>,
 

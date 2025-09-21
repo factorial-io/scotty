@@ -10,7 +10,7 @@ use crate::{
 };
 use scotty_core::apps::{app_data::AppData, shared_app_list::AppDataVec};
 
-use super::{format_app_info, get_app_info};
+use super::format_app_info;
 
 /// List all installed apps
 pub async fn list_apps(context: &AppContext) -> anyhow::Result<()> {

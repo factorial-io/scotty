@@ -79,7 +79,10 @@ mod tests {
             operation: "logs".to_string(),
             message: "connection refused".to_string(),
         };
-        assert_eq!(err.to_string(), "Docker operation failed: logs - connection refused");
+        assert_eq!(
+            err.to_string(),
+            "Docker operation failed: logs - connection refused"
+        );
     }
 
     #[test]
@@ -177,6 +180,7 @@ mod tests {
             app_name: "test-app".to_string(),
             service_name: "web".to_string(),
             container_id: "container-123".to_string(),
+            client_id: Some(Uuid::new_v4()),
             sender: tokio::sync::mpsc::channel(1).0,
         };
 

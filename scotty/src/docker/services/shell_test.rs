@@ -44,19 +44,17 @@ mod tests {
             status: AppStatus::Running,
             root_directory: "/apps/test-app".to_string(),
             docker_compose_path: "/apps/test-app/docker-compose.yml".to_string(),
-            services: vec![
-                ContainerState {
-                    id: Some("container-123".to_string()),
-                    service: "web".to_string(),
-                    domains: vec![],
-                    use_tls: false,
-                    port: None,
-                    status: ContainerStatus::Running,
-                    started_at: Some(chrono::Local::now()),
-                    used_registry: None,
-                    basic_auth: None,
-                },
-            ],
+            services: vec![ContainerState {
+                id: Some("container-123".to_string()),
+                service: "web".to_string(),
+                domains: vec![],
+                use_tls: false,
+                port: None,
+                status: ContainerStatus::Running,
+                started_at: Some(chrono::Local::now()),
+                used_registry: None,
+                basic_auth: None,
+            }],
             settings: None,
             last_checked: Some(chrono::Local::now()),
         }
@@ -84,7 +82,10 @@ mod tests {
         let err = ShellServiceError::CommandSendFailed {
             reason: "channel closed".to_string(),
         };
-        assert_eq!(err.to_string(), "Failed to send command to session: channel closed");
+        assert_eq!(
+            err.to_string(),
+            "Failed to send command to session: channel closed"
+        );
     }
 
     #[test]
@@ -175,7 +176,9 @@ mod tests {
         let service = ShellService::new(docker, settings);
 
         let random_id = Uuid::new_v4();
-        let result = service.send_input(random_id, "test input".to_string()).await;
+        let result = service
+            .send_input(random_id, "test input".to_string())
+            .await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -224,7 +227,9 @@ mod tests {
         };
 
         // Test that input commands are transmitted correctly
-        let result = session.send_command(ShellCommand::Input("ls -la".to_string())).await;
+        let result = session
+            .send_command(ShellCommand::Input("ls -la".to_string()))
+            .await;
         assert!(result.is_ok());
 
         // Verify the exact command was received on the other end
@@ -236,7 +241,13 @@ mod tests {
         }
 
         // Test resize command transmission
-        session.send_command(ShellCommand::Resize { width: 80, height: 24 }).await.unwrap();
+        session
+            .send_command(ShellCommand::Resize {
+                width: 80,
+                height: 24,
+            })
+            .await
+            .unwrap();
         match rx.try_recv().unwrap() {
             ShellCommand::Resize { width, height } => {
                 assert_eq!(width, 80);

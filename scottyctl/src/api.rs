@@ -16,7 +16,7 @@ use scotty_core::version::VersionManager;
 use std::sync::Arc;
 use std::time::Duration;
 
-async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
+pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
     // 1. Check server auth mode to determine if OAuth tokens should be used
     let server_supports_oauth = match get_server_info(server).await {
         Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
@@ -174,8 +174,8 @@ pub async fn wait_for_task(
                     if let Some(exit_code) = task.last_exit_code {
                         ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
                     }
-                },
-                State::Running => {}, // Should not happen since we check above
+                }
+                State::Running => {} // Should not happen since we check above
             }
         }
 

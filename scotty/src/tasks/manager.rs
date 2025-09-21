@@ -3,10 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, sync::Arc};
 
-use scotty_core::settings::{
-    output::OutputSettings,
-    scheduler_interval::SchedulerInterval,
-};
+use scotty_core::settings::{output::OutputSettings, scheduler_interval::SchedulerInterval};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 use tokio::process::Command;
@@ -14,8 +11,8 @@ use tokio::sync::RwLock;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use scotty_core::output::{OutputStreamType, TaskOutput};
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
-use scotty_core::output::{TaskOutput, OutputStreamType};
 
 #[derive(Clone, Debug)]
 pub struct TaskManager {
@@ -56,7 +53,12 @@ impl TaskManager {
     }
 
     /// Add a message to a task's output stream
-    pub async fn add_task_message(&self, uuid: &Uuid, stream_type: OutputStreamType, message: String) -> bool {
+    pub async fn add_task_message(
+        &self,
+        uuid: &Uuid,
+        stream_type: OutputStreamType,
+        message: String,
+    ) -> bool {
         let processes = self.processes.read().await;
         if let Some(task_state) = processes.get(uuid) {
             let mut output = task_state.output.write().await;
@@ -69,7 +71,8 @@ impl TaskManager {
 
     /// Add an info message to a task's stdout
     pub async fn add_task_info(&self, uuid: &Uuid, message: String) -> bool {
-        self.add_task_message(uuid, OutputStreamType::Stdout, message).await
+        self.add_task_message(uuid, OutputStreamType::Stdout, message)
+            .await
     }
 
     pub async fn get_task_handle(
@@ -91,7 +94,8 @@ impl TaskManager {
         env: &HashMap<String, String>,
         details: Arc<RwLock<TaskDetails>>,
     ) -> Uuid {
-        self.start_process_with_settings(cwd, cmd, args, env, details, &OutputSettings::default()).await
+        self.start_process_with_settings(cwd, cmd, args, env, details, &OutputSettings::default())
+            .await
     }
 
     pub async fn start_process_with_settings(
@@ -110,7 +114,10 @@ impl TaskManager {
         let id = details.read().await.id;
 
         // Create TaskOutput for this task with settings
-        let output = Arc::new(RwLock::new(TaskOutput::new_with_settings(id, output_settings)));
+        let output = Arc::new(RwLock::new(TaskOutput::new_with_settings(
+            id,
+            output_settings,
+        )));
 
         {
             let mut details = details.write().await;
@@ -154,8 +161,13 @@ impl TaskManager {
             })
         };
         {
-            self.add_task_with_output(&id, details.clone(), Some(Arc::new(RwLock::new(handle))), output.clone())
-                .await;
+            self.add_task_with_output(
+                &id,
+                details.clone(),
+                Some(Arc::new(RwLock::new(handle))),
+                output.clone(),
+            )
+            .await;
         }
 
         id
@@ -179,7 +191,11 @@ impl TaskManager {
         output: Arc<RwLock<TaskOutput>>,
     ) {
         let mut processes = self.processes.write().await;
-        let task_state = TaskState { details, handle, output };
+        let task_state = TaskState {
+            details,
+            handle,
+            output,
+        };
         processes.insert(*id, task_state);
     }
 
@@ -265,7 +281,10 @@ async fn read_unified_output(
             }
             Err(e) => {
                 let mut output = output.write().await;
-                output.add_line(OutputStreamType::Stderr, format!("Error reading output: {}", e));
+                output.add_line(
+                    OutputStreamType::Stderr,
+                    format!("Error reading output: {}", e),
+                );
                 break;
             }
         }

@@ -4,13 +4,11 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::{
-    api::error::AppError,
-    app_state::SharedAppState,
-    docker::services::shell::ShellService,
+    api::error::AppError, app_state::SharedAppState, docker::services::shell::ShellService,
 };
 use scotty_core::utils::slugify::slugify;
 
@@ -81,20 +79,17 @@ pub async fn create_shell_handler(
     Json(request): Json<CreateShellRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let app_id = slugify(&app_id);
-    let app_data = state.apps.get_app(&app_id).await
+    let app_data = state
+        .apps
+        .get_app(&app_id)
+        .await
         .ok_or_else(|| AppError::AppNotFound(app_id.clone()))?;
 
-    let shell_service = ShellService::new(
-        state.docker.clone(),
-        state.settings.shell.clone(),
-    );
+    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
 
-    let session_id = shell_service.create_session(
-        &state,
-        &app_data,
-        &service_name,
-        request.shell_command,
-    ).await?;
+    let session_id = shell_service
+        .create_session(&state, &app_data, &service_name, request.shell_command)
+        .await?;
 
     Ok(axum::Json(CreateShellResponse {
         session_id,
@@ -124,10 +119,7 @@ pub async fn shell_input_handler(
     State(state): State<SharedAppState>,
     Json(request): Json<ShellInputRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(
-        state.docker.clone(),
-        state.settings.shell.clone(),
-    );
+    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
 
     shell_service.send_input(session_id, request.input).await?;
 
@@ -158,12 +150,11 @@ pub async fn resize_tty_handler(
     State(state): State<SharedAppState>,
     Json(request): Json<ResizeTtyRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(
-        state.docker.clone(),
-        state.settings.shell.clone(),
-    );
+    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
 
-    shell_service.resize_tty(session_id, request.width, request.height).await?;
+    shell_service
+        .resize_tty(session_id, request.width, request.height)
+        .await?;
 
     Ok(axum::Json(ResizeTtyResponse {
         message: format!("Resized TTY for shell session {}", session_id),
@@ -190,10 +181,7 @@ pub async fn terminate_shell_handler(
     Path(session_id): Path<Uuid>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(
-        state.docker.clone(),
-        state.settings.shell.clone(),
-    );
+    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
 
     shell_service.terminate_session(session_id).await?;
 

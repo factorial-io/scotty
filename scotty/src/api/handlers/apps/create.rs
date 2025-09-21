@@ -1,8 +1,12 @@
 use crate::{
-    api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState,
+    api::error::AppError,
+    api::middleware::authorization::AuthorizationContext,
+    api::secure_response::SecureJson,
+    app_state::SharedAppState,
     docker::create_app::create_app,
+    services::{authorization::Permission, AuthorizationService},
 };
-use axum::{debug_handler, extract::State, response::IntoResponse, Json};
+use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
 use base64::prelude::*;
 use scotty_core::{
     apps::{
@@ -29,8 +33,27 @@ use tracing::error;
 #[debug_handler]
 pub async fn create_app_handler(
     State(state): State<SharedAppState>,
-    Json(payload): Json<CreateAppRequest>,
+    Extension(auth_context): Extension<AuthorizationContext>,
+    Json(mut payload): Json<CreateAppRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Check scope-based permissions before proceeding
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    let auth_service = &state.auth_service;
+
+    let allowed = auth_service
+        .check_permission_in_scopes(&user_id, &payload.requested_scopes, &Permission::Create)
+        .await;
+
+    if !allowed {
+        return Err(AppError::ScopeAccessDenied(format!(
+            "User {} lacks create permission in scopes: {:?}",
+            auth_context.user.email, payload.requested_scopes
+        )));
+    }
+
+    // Copy validated scopes to settings
+    payload.settings.scopes = payload.requested_scopes.clone();
+
     // Check if any file is named .scotty.yml
     if payload
         .files

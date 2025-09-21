@@ -30,8 +30,6 @@ use crate::api::handlers::apps::create::__path_create_app_handler;
 use crate::api::handlers::apps::custom_action::__path_run_custom_action_handler;
 use crate::api::handlers::apps::list::__path_list_apps_handler;
 use crate::api::handlers::apps::list::list_apps_handler;
-use crate::api::handlers::apps::logs::__path_start_logs_handler;
-use crate::api::handlers::apps::logs::__path_stop_logs_handler;
 use crate::api::handlers::apps::notify::__path_add_notification_handler;
 use crate::api::handlers::apps::notify::__path_remove_notification_handler;
 use crate::api::handlers::apps::run::__path_adopt_app_handler;
@@ -42,8 +40,8 @@ use crate::api::handlers::apps::run::__path_rebuild_app_handler;
 use crate::api::handlers::apps::run::__path_run_app_handler;
 use crate::api::handlers::apps::run::__path_stop_app_handler;
 use crate::api::handlers::apps::shell::__path_create_shell_handler;
-use crate::api::handlers::apps::shell::__path_shell_input_handler;
 use crate::api::handlers::apps::shell::__path_resize_tty_handler;
+use crate::api::handlers::apps::shell::__path_shell_input_handler;
 use crate::api::handlers::apps::shell::__path_terminate_shell_handler;
 use crate::api::handlers::health::__path_health_checker_handler;
 use crate::api::handlers::info::__path_info_handler;
@@ -91,12 +89,8 @@ use super::handlers::admin::roles::{create_role_handler, list_roles_handler};
 use super::handlers::admin::scopes::{create_scope_handler, list_scopes_handler};
 use super::handlers::apps::create::create_app_handler;
 use super::handlers::apps::custom_action::run_custom_action_handler;
-use super::handlers::apps::logs::{start_logs_handler, stop_logs_handler};
 use super::handlers::apps::notify::add_notification_handler;
 use super::handlers::apps::notify::remove_notification_handler;
-use super::handlers::apps::shell::{
-    create_shell_handler, shell_input_handler, resize_tty_handler, terminate_shell_handler,
-};
 use super::handlers::apps::run::adopt_app_handler;
 use super::handlers::apps::run::destroy_app_handler;
 use super::handlers::apps::run::info_app_handler;
@@ -104,6 +98,9 @@ use super::handlers::apps::run::purge_app_handler;
 use super::handlers::apps::run::rebuild_app_handler;
 use super::handlers::apps::run::run_app_handler;
 use super::handlers::apps::run::stop_app_handler;
+use super::handlers::apps::shell::{
+    create_shell_handler, resize_tty_handler, shell_input_handler, terminate_shell_handler,
+};
 use super::handlers::blueprints::blueprints_handler;
 use super::handlers::info::info_handler;
 use super::handlers::login::login_handler;
@@ -112,6 +109,11 @@ use super::handlers::scopes::list::{list_user_scopes_handler, ScopeInfo, UserSco
 use super::handlers::tasks::task_detail_handler;
 use super::handlers::tasks::task_list_handler;
 use super::middleware::authorization::{authorization_middleware, require_permission};
+use crate::api::handlers::apps::shell::{
+    CreateShellRequest, CreateShellResponse, ResizeTtyRequest, ResizeTtyResponse,
+    ShellInputRequest, ShellInputResponse, TerminateShellResponse,
+};
+use crate::docker::services::shell::ShellServiceError;
 use crate::services::authorization::types::Assignment;
 use crate::services::authorization::Permission;
 use scotty_core::admin::{
@@ -121,13 +123,6 @@ use scotty_core::admin::{
     RolesListResponse, ScopeInfo as AdminScopeInfo, ScopesListResponse, TestPermissionRequest,
     TestPermissionResponse, UserPermissionsResponse,
 };
-use crate::api::handlers::apps::logs::{LogsQuery, LogsStreamResponse, StopLogsResponse};
-use crate::api::handlers::apps::shell::{
-    CreateShellRequest, CreateShellResponse, ShellInputRequest, ShellInputResponse,
-    ResizeTtyRequest, ResizeTtyResponse, TerminateShellResponse,
-};
-use crate::docker::services::logs::LogStreamError;
-use crate::docker::services::shell::ShellServiceError;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -152,9 +147,7 @@ use crate::docker::services::shell::ShellServiceError;
         remove_notification_handler,
         adopt_app_handler,
         run_custom_action_handler,
-        // Logs and shell endpoints
-        start_logs_handler,
-        stop_logs_handler,
+        // Shell endpoints
         create_shell_handler,
         shell_input_handler,
         resize_tty_handler,
@@ -185,8 +178,7 @@ use crate::docker::services::shell::ShellServiceError;
             AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
             RemoveAssignmentRequest, RemoveAssignmentResponse, Assignment,
             TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse,
-            // Logs and shell API schemas
-            LogsQuery, LogsStreamResponse, StopLogsResponse, LogStreamError,
+            // Shell API schemas
             CreateShellRequest, CreateShellResponse, ShellInputRequest, ShellInputResponse,
             ResizeTtyRequest, ResizeTtyResponse, TerminateShellResponse, ShellServiceError
         )
@@ -277,14 +269,9 @@ impl ApiRoutes {
             )
             .route(
                 "/api/v1/authenticated/apps/create",
-                post(create_app_handler)
-                    .layer(DefaultBodyLimit::max(
-                        state.settings.api.create_app_max_size,
-                    ))
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::Create),
-                    )),
+                post(create_app_handler).layer(DefaultBodyLimit::max(
+                    state.settings.api.create_app_max_size,
+                )),
             )
             .route("/api/v1/authenticated/tasks", get(task_list_handler))
             .route(
@@ -313,21 +300,6 @@ impl ApiRoutes {
                 post(run_custom_action_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::Manage),
-                )),
-            )
-            // Logs API routes
-            .route(
-                "/api/v1/authenticated/apps/{app_id}/services/{service_name}/logs",
-                post(start_logs_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::View),
-                )),
-            )
-            .route(
-                "/api/v1/authenticated/logs/streams/{stream_id}",
-                delete(stop_logs_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::View),
                 )),
             )
             // Shell API routes

@@ -95,7 +95,10 @@ impl TaskOutput {
         Self::with_limits(task_id, OutputLimits::default())
     }
 
-    pub fn new_with_settings(task_id: Uuid, settings: &crate::settings::output::OutputSettings) -> Self {
+    pub fn new_with_settings(
+        task_id: Uuid,
+        settings: &crate::settings::output::OutputSettings,
+    ) -> Self {
         let limits = OutputLimits {
             max_lines: settings.max_lines,
             max_line_length: settings.max_line_length,
@@ -117,7 +120,10 @@ impl TaskOutput {
     pub fn add_line(&mut self, stream: OutputStreamType, content: String) {
         // Truncate content if it exceeds the limit
         let truncated_content = if content.len() > self.limits.max_line_length {
-            format!("{}... [TRUNCATED]", &content[..self.limits.max_line_length - 15])
+            format!(
+                "{}... [TRUNCATED]",
+                &content[..self.limits.max_line_length - 15]
+            )
         } else {
             content
         };
@@ -146,12 +152,7 @@ impl TaskOutput {
 
     /// Get the most recent N lines
     pub fn get_recent_lines(&self, count: usize) -> Vec<&OutputLine> {
-        self.lines
-            .iter()
-            .rev()
-            .take(count)
-            .rev()
-            .collect()
+        self.lines.iter().rev().take(count).rev().collect()
     }
 
     /// Get lines by stream type

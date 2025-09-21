@@ -66,6 +66,13 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             }
         }
 
+        // Use default scope if none specified
+        let requested_scopes = if cmd.scope.is_empty() {
+            vec!["default".to_string()]
+        } else {
+            cmd.scope.clone()
+        };
+
         let payload = CreateAppRequest {
             app_name: cmd.app_name.clone(),
             custom_domains: cmd.custom_domain.clone(),
@@ -82,6 +89,7 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
                 ..Default::default()
             },
             files: file_list,
+            requested_scopes,
         };
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;

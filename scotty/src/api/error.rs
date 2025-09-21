@@ -92,6 +92,9 @@ pub enum AppError {
     #[error("Authorization system is not properly configured - no assignments found")]
     AuthorizationNotConfigured,
 
+    #[error("Access denied: {0}")]
+    ScopeAccessDenied(String),
+
     #[error("Log stream error: {0}")]
     LogStreamError(crate::docker::services::logs::LogStreamError),
 
@@ -115,21 +118,46 @@ impl AppError {
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
             AppError::AuthorizationNotConfigured => StatusCode::SERVICE_UNAVAILABLE,
+            AppError::ScopeAccessDenied(_) => StatusCode::FORBIDDEN,
             AppError::LogStreamError(ref e) => match e {
-                crate::docker::services::logs::LogStreamError::ServiceNotFound { .. } => StatusCode::NOT_FOUND,
-                crate::docker::services::logs::LogStreamError::NoContainerId { .. } => StatusCode::CONFLICT,
-                crate::docker::services::logs::LogStreamError::StreamNotFound { .. } => StatusCode::NOT_FOUND,
-                crate::docker::services::logs::LogStreamError::CommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-                crate::docker::services::logs::LogStreamError::DockerOperationFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                crate::docker::services::logs::LogStreamError::ServiceNotFound { .. } => {
+                    StatusCode::NOT_FOUND
+                }
+                crate::docker::services::logs::LogStreamError::NoContainerId { .. } => {
+                    StatusCode::CONFLICT
+                }
+                crate::docker::services::logs::LogStreamError::StreamNotFound { .. } => {
+                    StatusCode::NOT_FOUND
+                }
+                crate::docker::services::logs::LogStreamError::CommandSendFailed { .. } => {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+                crate::docker::services::logs::LogStreamError::DockerOperationFailed { .. } => {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
             },
             AppError::ShellServiceError(ref e) => match e {
-                crate::docker::services::shell::ShellServiceError::ServiceNotFound { .. } => StatusCode::NOT_FOUND,
-                crate::docker::services::shell::ShellServiceError::NoContainerId { .. } => StatusCode::CONFLICT,
-                crate::docker::services::shell::ShellServiceError::SessionNotFound { .. } => StatusCode::NOT_FOUND,
-                crate::docker::services::shell::ShellServiceError::MaxSessionsPerApp { .. } => StatusCode::TOO_MANY_REQUESTS,
-                crate::docker::services::shell::ShellServiceError::MaxSessionsGlobal { .. } => StatusCode::TOO_MANY_REQUESTS,
-                crate::docker::services::shell::ShellServiceError::CommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-                crate::docker::services::shell::ShellServiceError::DockerOperationFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                crate::docker::services::shell::ShellServiceError::ServiceNotFound { .. } => {
+                    StatusCode::NOT_FOUND
+                }
+                crate::docker::services::shell::ShellServiceError::NoContainerId { .. } => {
+                    StatusCode::CONFLICT
+                }
+                crate::docker::services::shell::ShellServiceError::SessionNotFound { .. } => {
+                    StatusCode::NOT_FOUND
+                }
+                crate::docker::services::shell::ShellServiceError::MaxSessionsPerApp { .. } => {
+                    StatusCode::TOO_MANY_REQUESTS
+                }
+                crate::docker::services::shell::ShellServiceError::MaxSessionsGlobal { .. } => {
+                    StatusCode::TOO_MANY_REQUESTS
+                }
+                crate::docker::services::shell::ShellServiceError::CommandSendFailed { .. } => {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+                crate::docker::services::shell::ShellServiceError::DockerOperationFailed {
+                    ..
+                } => StatusCode::INTERNAL_SERVER_ERROR,
             },
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
