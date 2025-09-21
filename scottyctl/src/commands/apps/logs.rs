@@ -46,7 +46,7 @@ pub struct LogStreamRequest {
     pub app_name: String,
     pub service_name: String,
     pub follow: bool,
-    pub lines: Option<u32>, // Number of lines for historical logs (default 100)
+    pub lines: Option<u32>, // Number of lines for historical logs (None = all available)
     pub since: Option<String>, // Time filter: "1h", "30m", or ISO timestamp
     pub until: Option<String>, // End time filter: ISO timestamp
     pub timestamps: bool,   // Include timestamps in output (flag: present=true, absent=false)
@@ -269,7 +269,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
         app_name: cmd.app_name.clone(),
         service_name: cmd.service_name.clone(),
         follow: cmd.follow,
-        lines: Some(cmd.lines as u32),
+        lines: cmd.lines.map(|n| n as u32),
         since: cmd.since.clone(),
         until: cmd.until.clone(),
         timestamps: cmd.timestamps, // Simple flag: present = true, absent = false
@@ -298,12 +298,19 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
             cmd.app_name.yellow()
         )
     } else {
-        format!(
-            "Fetching {} lines of logs for {} service in {} app...",
-            cmd.lines,
-            cmd.service_name.yellow(),
-            cmd.app_name.yellow()
-        )
+        match cmd.lines {
+            Some(n) => format!(
+                "Fetching {} lines of logs for {} service in {} app...",
+                n,
+                cmd.service_name.yellow(),
+                cmd.app_name.yellow()
+            ),
+            None => format!(
+                "Fetching all available logs for {} service in {} app...",
+                cmd.service_name.yellow(),
+                cmd.app_name.yellow()
+            )
+        }
     };
     ui.println(display_message);
 

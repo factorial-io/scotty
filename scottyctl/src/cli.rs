@@ -303,9 +303,9 @@ pub struct LogsCommand {
     #[arg(short = 'f', long = "follow", default_value = "false")]
     pub follow: bool,
 
-    /// Number of lines to show
-    #[arg(short = 'n', long = "lines", default_value = "100")]
-    pub lines: usize,
+    /// Number of lines to show (if not specified, show all available logs)
+    #[arg(short = 'n', long = "lines")]
+    pub lines: Option<usize>,
 
     /// Show logs since timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
     #[arg(long = "since")]
@@ -318,10 +318,6 @@ pub struct LogsCommand {
     /// Show timestamps in log output
     #[arg(short = 't', long = "timestamps")]
     pub timestamps: bool,
-
-    /// Download full logs to file
-    #[arg(long = "download")]
-    pub download: bool,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

@@ -253,7 +253,7 @@ impl LogStreamingService {
                 stderr: true,
                 follow,
                 timestamps: true,
-                tail: tail.unwrap_or_else(|| "100".to_string()),
+                tail: tail.unwrap_or_else(|| "all".to_string()),
                 ..Default::default()
             });
 
