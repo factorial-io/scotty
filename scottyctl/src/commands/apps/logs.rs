@@ -49,7 +49,7 @@ pub struct LogStreamRequest {
     pub lines: Option<u32>, // Number of lines for historical logs (default 100)
     pub since: Option<String>, // Time filter: "1h", "30m", or ISO timestamp
     pub until: Option<String>, // End time filter: ISO timestamp
-    pub timestamps: bool,   // Include timestamps in output (default false)
+    pub timestamps: bool,   // Include timestamps in output (flag: present=true, absent=false)
 }
 
 /// Information about a started log stream
@@ -272,7 +272,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
         lines: Some(cmd.lines as u32),
         since: cmd.since.clone(),
         until: cmd.until.clone(),
-        timestamps: cmd.timestamps.unwrap_or(false), // Default: no timestamps unless explicitly enabled
+        timestamps: cmd.timestamps, // Simple flag: present = true, absent = false
     };
 
     // Send StartLogStream message
@@ -435,7 +435,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
 
 /// Display a single log line with formatting
 fn display_log_line(line: &OutputLine, cmd: &LogsCommand, ui: &crate::utils::ui::Ui) {
-    let show_timestamps = cmd.timestamps.unwrap_or(false);
+    let show_timestamps = cmd.timestamps;
 
     let timestamp_str = if show_timestamps {
         format!(

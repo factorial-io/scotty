@@ -303,7 +303,7 @@ pub struct LogsCommand {
     #[arg(short = 'f', long = "follow", default_value = "false")]
     pub follow: bool,
 
-    /// Number of lines to show (default: 100)
+    /// Number of lines to show
     #[arg(short = 'n', long = "lines", default_value = "100")]
     pub lines: usize,
 
@@ -317,7 +317,7 @@ pub struct LogsCommand {
 
     /// Show timestamps in log output
     #[arg(short = 't', long = "timestamps")]
-    pub timestamps: Option<bool>,
+    pub timestamps: bool,
 
     /// Download full logs to file
     #[arg(long = "download")]
