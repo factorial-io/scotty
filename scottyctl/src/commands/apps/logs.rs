@@ -2,6 +2,7 @@ use anyhow::Context;
 use futures_util::{SinkExt, StreamExt};
 use owo_colors::OwoColorize;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::{error, warn};
 
 use crate::{
     api::{get, get_auth_token},
@@ -309,10 +310,10 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                 "Fetching all available logs for {} service in {} app...",
                 cmd.service_name.yellow(),
                 cmd.app_name.yellow()
-            )
+            ),
         }
     };
-    ui.println(display_message);
+    ui.set_status(&display_message, Status::Running);
 
     let mut logs_received = false;
     let mut current_stream_id: Option<Uuid> = None;
@@ -325,31 +326,6 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                     match ws_message {
                         WebSocketMessage::LogsStreamStarted(info) => {
                             current_stream_id = Some(info.stream_id);
-
-                            // Update status line to show active streaming
-                            let status_message = if cmd.follow {
-                                format!(
-                                    "Streaming logs from {} service in real-time...",
-                                    info.service_name.yellow()
-                                )
-                            } else {
-                                format!(
-                                    "Fetching logs from {} service...",
-                                    info.service_name.yellow()
-                                )
-                            };
-                            ui.set_status(&status_message, Status::Running);
-
-                            if cmd.follow {
-                                ui.println(
-                                    format!(
-                                        "📡 Started real-time log stream {} for {}:{}",
-                                        info.stream_id, info.app_name, info.service_name
-                                    )
-                                    .green()
-                                    .to_string(),
-                                );
-                            }
                         }
                         WebSocketMessage::LogsStreamData(data) => {
                             logs_received = true;
@@ -360,13 +336,13 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                         WebSocketMessage::LogsStreamEnded(end) => {
                             if !logs_received && !cmd.follow {
                                 ui.println(
-                                    "📄 No logs available for the specified criteria"
+                                    "No logs available for the specified criteria"
                                         .yellow()
                                         .to_string(),
                                 );
                             } else if cmd.follow {
                                 ui.println(
-                                    format!("📄 Log stream ended: {}", end.reason)
+                                    format!("Log stream ended: {}", end.reason)
                                         .yellow()
                                         .to_string(),
                                 );
@@ -377,16 +353,10 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                         }
                         WebSocketMessage::LogsStreamError(error) => {
                             ui.set_status("Log streaming failed", Status::Failed);
-                            ui.eprintln(
-                                format!("❌ Log stream error: {}", error.error)
-                                    .red()
-                                    .to_string(),
-                            );
                             break;
                         }
                         WebSocketMessage::Error(msg) => {
                             ui.set_status("WebSocket error", Status::Failed);
-                            ui.eprintln(format!("❌ WebSocket error: {}", msg).red().to_string());
                             break;
                         }
                         _ => {
@@ -394,20 +364,15 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                         }
                     }
                 } else {
-                    // Log unexpected messages for debugging
-                    ui.println(format!("🔍 Unexpected WebSocket message: {}", text));
+                    warn!("Unexpected WebSocket message: {}", text);
                 }
             }
             Ok(Message::Close(_)) => {
-                ui.println(
-                    "📡 WebSocket connection closed unexpectedly"
-                        .yellow()
-                        .to_string(),
-                );
+                warn!("WebSocket connection closed unexpectedly");
                 break;
             }
             Err(e) => {
-                ui.eprintln(format!("🚫 WebSocket error: {}", e).red().to_string());
+                error!("WebSocket error: {}", e);
                 break;
             }
             _ => {
@@ -445,26 +410,26 @@ fn display_log_line(line: &OutputLine, cmd: &LogsCommand, ui: &crate::utils::ui:
     let show_timestamps = cmd.timestamps;
 
     let timestamp_str = if show_timestamps {
-        format!(
-            "{} ",
-            line.timestamp
-                .format("%Y-%m-%d %H:%M:%S%.3f")
-                .to_string()
-                .dimmed()
-        )
+        line.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
     } else {
         String::new()
-    };
-
-    let stream_prefix = match line.stream {
-        scotty_core::output::unified_output::OutputStreamType::Stdout => String::new(),
-        scotty_core::output::unified_output::OutputStreamType::Stderr => {
-            format!("{} ", "[STDERR]".red())
-        }
     };
 
     // Use UI helper to ensure proper display even with status lines
     // Trim trailing newline from content since ui.println adds one
     let content = line.content.trim_end_matches('\n');
-    ui.println(format!("{}{}{}", timestamp_str, stream_prefix, content));
+    let formatted_line = if ui.is_terminal() {
+        match line.stream {
+            scotty_core::output::unified_output::OutputStreamType::Stdout => {
+                format!("{} {}", timestamp_str.dimmed(), content)
+            }
+            scotty_core::output::unified_output::OutputStreamType::Stderr => {
+                format!("{} {}", timestamp_str.dimmed(), content.red())
+            }
+        }
+    } else {
+        format!("{} {}", timestamp_str, content)
+    };
+
+    ui.println(formatted_line);
 }
