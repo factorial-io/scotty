@@ -290,7 +290,7 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 
 ## Implementation Status
 
-**Current Status: Phase 3 Complete - Core Functionality Ready** 🎉
+**Current Status: Phase 3.5 Complete - WebSocket Message Consolidation** 🎉
 
 All core log streaming and shell access functionality is complete and working. The system now provides:
 - ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
@@ -298,8 +298,11 @@ All core log streaming and shell access functionality is complete and working. T
 - ✅ Centralized authentication system with proper cleanup
 - ✅ Improved user experience with optimized performance
 - ✅ Comprehensive test coverage and CI integration
+- ✅ **NEW: Consolidated WebSocket message types in scotty-core** (eliminates duplication, ensures type consistency)
 
-**Next Steps**: Phase 4 (Frontend Integration) - Replace current stdout/stderr UI with unified log viewer.
+**Next Steps**:
+- Phase 3.6: Implement WebSocket-based task output streaming for `wait_for_task` function
+- Phase 4: Frontend Integration - Replace current stdout/stderr UI with unified log viewer
 
 ---
 
@@ -325,6 +328,21 @@ All core log streaming and shell access functionality is complete and working. T
 5. ✅ **Authentication Enhancement**: Implemented centralized auth system for WebSocket connections
 6. ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
 7. ✅ **User Experience**: Improved completion timing and removed duplicate messages
+
+### Phase 3.5: WebSocket Message Consolidation ✅ COMPLETED
+1. ✅ **Message Type Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
+2. ✅ **Code Deduplication**: Eliminated ~70 lines of duplicate message definitions from scottyctl
+3. ✅ **Type Consistency**: Server and client now guaranteed to use identical message types
+4. ✅ **Import Updates**: Updated 18 files across server and client to use consolidated types
+5. ✅ **Testing**: Verified all tests pass with new consolidated message structure
+6. ✅ **Single Source of Truth**: All WebSocket communication types defined once and shared
+
+### Phase 3.6: Task Output WebSocket Streaming
+1. **Replace Polling with WebSocket**: Update `wait_for_task` function in scottyctl to use real-time WebSocket streaming
+2. **Task Output Display**: Implement unified output display similar to logs command
+3. **Real-time Feedback**: Show task progress with live stdout/stderr output during app operations
+4. **Error Handling**: Graceful fallback to REST polling if WebSocket connection fails
+5. **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
 
 ### Phase 4: Frontend Integration
 1. **Unified Log Viewer**: Replace separate stdout/stderr components

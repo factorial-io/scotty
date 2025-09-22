@@ -178,11 +178,11 @@ Scotty generates appropriate configurations for:
 
 ## Current Work in Progress
 
-### Unified Output System Implementation ✅ COMPLETED (Phase 3)
+### Unified Output System Implementation ✅ COMPLETED (Phase 3.5)
 
 **Branch:** `feat/better-logs-and-shell`
 
-**Status: Core functionality complete and ready for production use**
+**Status: Core functionality complete with consolidated WebSocket messages**
 
 ### Phase 1 Completed:
 - ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
@@ -215,7 +215,19 @@ Scotty generates appropriate configurations for:
 - ✅ **Example App**: Added log-demo example app for testing and development
 - ✅ **End-to-End Testing**: Verified complete functionality with real containers
 
-### Next Phase (Phase 4 - Frontend Integration):
+### Phase 3.5 Completed:
+- ✅ **WebSocket Message Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
+- ✅ **Code Restructuring**: Reorganized API handlers into `api/rest/` and `api/websocket/` directories
+- ✅ **Type Consistency**: Eliminated duplicate message definitions between server and client
+- ✅ **Import Updates**: Updated 18 files to use consolidated message types from scotty-core
+- ✅ **Quality Assurance**: All tests pass, no compilation errors, proper code formatting
+
+### Next Phase (Phase 3.6 - Task Output WebSocket Streaming):
+- Update `wait_for_task` function in scottyctl to use real-time WebSocket streaming
+- Implement unified task output display with live stdout/stderr during app operations
+- Replace polling-based task monitoring with WebSocket-based real-time updates
+
+### Future Phase (Phase 4 - Frontend Integration):
 - Replace current stdout/stderr UI components with unified log viewer
 - Add real-time WebSocket log streaming to web UI
 - Prepare UI framework for future xterm.js shell integration
@@ -236,17 +248,22 @@ scottyctl app:shell myapp web --shell /bin/sh   # Different shell
 ```
 
 ### Key Files Added/Modified (All Phases):
+- `scotty-core/src/websocket/message.rs` - **NEW**: Consolidated WebSocket message types
+- `scotty-core/src/websocket/mod.rs` - **NEW**: WebSocket module exports
 - `scotty/src/api/auth_core.rs` - Centralized authentication logic
+- `scotty/src/api/rest/handlers/` - **RESTRUCTURED**: REST API handlers organized by protocol
+- `scotty/src/api/websocket/handlers/` - **RESTRUCTURED**: WebSocket handlers (auth, logs, tasks)
 - `scotty/src/docker/services/logs.rs` - Complete log streaming implementation
 - `scotty/src/docker/services/shell.rs` - Complete shell service implementation
-- `scotty/src/api/message_handler.rs` - WebSocket message handling for logs/shell
-- `scotty/src/api/ws.rs` - WebSocket client management and cleanup
+- `scotty/src/api/websocket/client.rs` - WebSocket client management and cleanup (formerly ws.rs)
 - `scotty/src/app_state.rs` - Shared LogStreamingService integration
-- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command
+- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command (now uses consolidated types)
 - `scottyctl/src/commands/apps/shell.rs` - CLI shell access command
 - `examples/log-demo/` - Demo application for testing
 
 ### Latest Commits (All Phases):
+- `ee1875d` - refactor(websocket): consolidate message types in scotty-core (Phase 3.5 complete)
+- `997bbfd` - refactor(api): restructure handlers into REST and WebSocket modules
 - `7ea3245` - feat(logs): implement authenticated WebSocket log streaming with improved UX (Phase 3 complete)
 - `5c84d67` - refactor(cli): reorganize app commands into modular structure and add app:logs command
 - `ad5fac9` - test: add comprehensive tests for logs and shell services (Phase 2)
