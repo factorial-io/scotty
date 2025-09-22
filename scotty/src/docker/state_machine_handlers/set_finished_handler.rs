@@ -4,7 +4,7 @@ use scotty_core::{notification_types::Message, tasks::task_details::State};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{api::ws::broadcast_message, state_machine::StateHandler};
+use crate::{api::websocket::client::broadcast_message, state_machine::StateHandler};
 
 use super::context::Context;
 
@@ -31,7 +31,9 @@ where
 
             broadcast_message(
                 &context.app_state,
-                crate::api::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
+                crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(
+                    task_details.clone(),
+                ),
             )
             .await;
         }

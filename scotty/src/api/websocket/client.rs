@@ -11,8 +11,8 @@ use tokio::sync::broadcast;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
-use crate::api::message_handler::handle_websocket_message;
-use crate::{api::message::WebSocketMessage, app_state::SharedAppState};
+use crate::api::websocket::handlers::handle_websocket_message;
+use crate::{api::websocket::message::WebSocketMessage, app_state::SharedAppState};
 
 #[instrument(skip(state, ws))]
 async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid) {

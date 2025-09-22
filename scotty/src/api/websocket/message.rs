@@ -14,13 +14,19 @@ pub enum WebSocketMessage {
     Error(String),
 
     // Authentication messages
-    Authenticate { token: String },
+    Authenticate {
+        token: String,
+    },
     AuthenticationSuccess,
-    AuthenticationFailed { reason: String },
+    AuthenticationFailed {
+        reason: String,
+    },
 
     // Log streaming request messages (client → server)
     StartLogStream(LogStreamRequest),
-    StopLogStream { stream_id: Uuid },
+    StopLogStream {
+        stream_id: Uuid,
+    },
 
     // Log streaming response messages (server → client)
     LogsStreamStarted(LogsStreamInfo),

@@ -409,7 +409,7 @@ impl AuthorizationService {
     pub async fn get_user_scopes_with_permissions(
         &self,
         user: &str,
-    ) -> Vec<crate::api::handlers::scopes::list::ScopeInfo> {
+    ) -> Vec<crate::api::rest::handlers::scopes::list::ScopeInfo> {
         let config = self.config.read().await;
         let mut user_scopes = Vec::new();
 
@@ -444,7 +444,7 @@ impl AuthorizationService {
 
             // Add each group the user has access to
             for scope in &assignment.scopes {
-                let scope_info = crate::api::handlers::scopes::list::ScopeInfo {
+                let scope_info = crate::api::rest::handlers::scopes::list::ScopeInfo {
                     name: scope.clone(),
                     description: config
                         .scopes
@@ -455,17 +455,18 @@ impl AuthorizationService {
                 };
 
                 // Only add if not already in the list (user might have multiple roles for same scope)
-                if !user_scopes
-                    .iter()
-                    .any(|s: &crate::api::handlers::scopes::list::ScopeInfo| {
+                if !user_scopes.iter().any(
+                    |s: &crate::api::rest::handlers::scopes::list::ScopeInfo| {
                         s.name == scope_info.name
-                    })
-                {
+                    },
+                ) {
                     user_scopes.push(scope_info);
                 } else {
                     // If scope already exists, merge permissions
                     if let Some(existing) = user_scopes.iter_mut().find(
-                        |s: &&mut crate::api::handlers::scopes::list::ScopeInfo| s.name == *scope,
+                        |s: &&mut crate::api::rest::handlers::scopes::list::ScopeInfo| {
+                            s.name == *scope
+                        },
                     ) {
                         for perm in &permissions {
                             if !existing.permissions.contains(perm) {

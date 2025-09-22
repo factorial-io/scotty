@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::api::message::{
+use crate::api::websocket::message::{
     LogsStreamData, LogsStreamEnd, LogsStreamError, LogsStreamInfo, WebSocketMessage,
 };
 use crate::app_state::SharedAppState;
@@ -221,7 +221,7 @@ impl LogStreamingService {
 
         // Send stream started message to the specific client
         if let Some(client_id) = client_id {
-            crate::api::ws::send_message(
+            crate::api::websocket::client::send_message(
                 app_state,
                 client_id,
                 WebSocketMessage::LogsStreamStarted(LogsStreamInfo::new(
@@ -315,7 +315,7 @@ impl LogStreamingService {
                                     if follow {
                                         info!("Timer flush: sending {} buffered log lines for follow stream {}", lines_count, stream_id);
                                     }
-                                    crate::api::ws::send_message(
+                                    crate::api::websocket::client::send_message(
                                         &app_state,
                                         client_id,
                                         WebSocketMessage::LogsStreamData(LogsStreamData {
@@ -341,7 +341,7 @@ impl LogStreamingService {
                                         if let Some(client_id) = client_id {
                                             let lines_to_send = buffer.flush();
                                             let _lines_count = lines_to_send.len();
-                                            crate::api::ws::send_message(
+                                            crate::api::websocket::client::send_message(
                                                 &app_state,
                                                 client_id,
                                                 WebSocketMessage::LogsStreamData(LogsStreamData {
@@ -356,7 +356,7 @@ impl LogStreamingService {
                             Err(e) => {
                                 error!("Error reading logs for stream {}: {}", stream_id, e);
                                 if let Some(client_id) = client_id {
-                                    crate::api::ws::send_message(
+                                    crate::api::websocket::client::send_message(
                                         &app_state,
                                         client_id,
                                         WebSocketMessage::LogsStreamError(LogsStreamError {
@@ -380,7 +380,7 @@ impl LogStreamingService {
             // Send any remaining buffered lines
             if buffer.has_data() {
                 if let Some(client_id) = client_id {
-                    crate::api::ws::send_message(
+                    crate::api::websocket::client::send_message(
                         &app_state,
                         client_id,
                         WebSocketMessage::LogsStreamData(LogsStreamData {
@@ -403,7 +403,7 @@ impl LogStreamingService {
                     "Sending LogsStreamEnded message for stream {} to client {}",
                     stream_id, client_id
                 );
-                crate::api::ws::send_message(
+                crate::api::websocket::client::send_message(
                     &app_state,
                     client_id,
                     WebSocketMessage::LogsStreamEnded(LogsStreamEnd {

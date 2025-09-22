@@ -146,7 +146,16 @@ impl TaskManager {
                 );
                 let details = details.clone();
                 let app_state_for_spawn = app_state.clone();
-                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details, &output, app_state_for_spawn).await;
+                let exit_code = spawn_process(
+                    &cwd,
+                    &cmd,
+                    &args,
+                    &env,
+                    &details,
+                    &output,
+                    app_state_for_spawn,
+                )
+                .await;
 
                 match exit_code {
                     Ok(0) => {
@@ -250,7 +259,8 @@ impl TaskManager {
         drop(processes_lock); // Release lock before async operations
         for uuid in &to_remove {
             if let Some(app_state) = &*self.app_state.read().await {
-                crate::api::message_handler::cleanup_task_subscriptions(app_state, uuid).await;
+                crate::api::websocket::handlers::tasks::cleanup_task_subscriptions(app_state, uuid)
+                    .await;
             }
         }
 
@@ -290,7 +300,14 @@ async fn spawn_process(
             output_guard.task_id
         };
         tokio::spawn(async move {
-            read_unified_output(output.clone(), stdout, OutputStreamType::Stdout, app_state_ref, task_id).await;
+            read_unified_output(
+                output.clone(),
+                stdout,
+                OutputStreamType::Stdout,
+                app_state_ref,
+                task_id,
+            )
+            .await;
         });
     }
 
@@ -302,7 +319,14 @@ async fn spawn_process(
             output_guard.task_id
         };
         tokio::spawn(async move {
-            read_unified_output(output.clone(), stderr, OutputStreamType::Stderr, app_state_ref, task_id).await;
+            read_unified_output(
+                output.clone(),
+                stderr,
+                OutputStreamType::Stderr,
+                app_state_ref,
+                task_id,
+            )
+            .await;
         });
     }
     // Wait for the command to complete
@@ -369,8 +393,8 @@ async fn broadcast_task_output_update(
     task_id: uuid::Uuid,
     lines: Vec<scotty_core::output::OutputLine>,
 ) {
-    use crate::api::message::{TaskOutputData, WebSocketMessage};
-    use crate::api::ws::send_message;
+    use crate::api::websocket::client::send_message;
+    use crate::api::websocket::message::{TaskOutputData, WebSocketMessage};
 
     let clients = state.clients.lock().await;
     for (client_id, client) in clients.iter() {
@@ -396,8 +420,8 @@ async fn broadcast_task_completion(
     task_id: uuid::Uuid,
     reason: &str,
 ) {
-    use crate::api::message::WebSocketMessage;
-    use crate::api::ws::send_message;
+    use crate::api::websocket::client::send_message;
+    use crate::api::websocket::message::WebSocketMessage;
 
     let clients = state.clients.lock().await;
     for (client_id, client) in clients.iter() {

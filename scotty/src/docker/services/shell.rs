@@ -8,11 +8,11 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::api::message::{
+use crate::api::websocket::client::broadcast_message;
+use crate::api::websocket::message::{
     ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
     WebSocketMessage,
 };
-use crate::api::ws::broadcast_message;
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::settings::shell::ShellSettings;

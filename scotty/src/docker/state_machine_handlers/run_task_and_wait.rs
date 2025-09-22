@@ -2,7 +2,7 @@ use std::path::Path;
 
 use tracing::debug;
 
-use crate::{api::ws::broadcast_message, docker::docker_compose::run_task};
+use crate::{api::websocket::client::broadcast_message, docker::docker_compose::run_task};
 
 use super::context::Context;
 
@@ -27,7 +27,7 @@ pub async fn run_task_and_wait(
     .await?;
     broadcast_message(
         &context.app_state,
-        crate::api::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
+        crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
     )
     .await;
 
@@ -50,7 +50,7 @@ pub async fn run_task_and_wait(
 
         broadcast_message(
             &context.app_state,
-            crate::api::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+            crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
         )
         .await;
     }
@@ -73,7 +73,7 @@ pub async fn run_task_and_wait(
     debug!("{} finished", msg);
     broadcast_message(
         &context.app_state,
-        crate::api::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+        crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
     )
     .await;
 

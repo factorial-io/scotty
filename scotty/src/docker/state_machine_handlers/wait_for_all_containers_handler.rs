@@ -1,6 +1,6 @@
 use super::context::Context;
-use crate::api::message::WebSocketMessage;
-use crate::api::ws::broadcast_message;
+use crate::api::websocket::client::broadcast_message;
+use crate::api::websocket::message::WebSocketMessage;
 use crate::docker::helper::wait_for_containers_ready;
 use crate::state_machine::StateHandler;
 use anyhow::Context as _;
