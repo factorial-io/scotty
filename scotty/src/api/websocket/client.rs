@@ -8,7 +8,7 @@ use axum::{
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use tokio::sync::broadcast;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::websocket::handlers::handle_websocket_message;

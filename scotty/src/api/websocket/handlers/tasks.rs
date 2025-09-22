@@ -1,7 +1,6 @@
 use tracing::info;
 use uuid::Uuid;
 
-use crate::api::websocket::WebSocketMessenger;
 use crate::app_state::SharedAppState;
 use crate::services::authorization::Permission;
 use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};

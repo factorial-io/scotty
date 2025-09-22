@@ -11,7 +11,7 @@ use owo_colors::OwoColorize;
 use scotty_core::http::{HttpClient, RetryError};
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
-use scotty_core::tasks::task_details::{State, TaskDetails};
+use scotty_core::tasks::task_details::State;
 use scotty_core::version::VersionManager;
 use std::sync::Arc;
 use std::time::Duration;
