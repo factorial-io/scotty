@@ -1,7 +1,6 @@
 use tracing::instrument;
 
 use crate::{
-    api::websocket::client::broadcast_message,
     app_state::SharedAppState,
     docker::{find_apps::find_apps, ttl_checker::check_app_ttl},
 };
@@ -59,11 +58,12 @@ pub async fn setup_docker_integration(
                         .task_manager
                         .run_cleanup_task(app_state.settings.scheduler.task_cleanup.clone())
                         .await;
-                    broadcast_message(
-                        &app_state,
-                        scotty_core::websocket::message::WebSocketMessage::TaskListUpdated,
-                    )
-                    .await;
+                    app_state
+                        .messenger
+                        .broadcast_to_all(
+                            scotty_core::websocket::message::WebSocketMessage::TaskListUpdated,
+                        )
+                        .await;
                 }
             });
     }
@@ -90,11 +90,10 @@ async fn schedule_app_check(app_state: SharedAppState) {
         Ok(apps) => {
             let _ = app_state.apps.set_apps(&apps).await;
             tracing::info!("Found {} apps", app_state.apps.len().await);
-            broadcast_message(
-                &app_state,
-                scotty_core::websocket::message::WebSocketMessage::AppListUpdated,
-            )
-            .await;
+            app_state
+                .messenger
+                .broadcast_to_all(scotty_core::websocket::message::WebSocketMessage::AppListUpdated)
+                .await;
         }
         Err(e) => {
             tracing::error!("Error while checking running apps: {:?}", e);

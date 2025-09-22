@@ -90,10 +90,9 @@ mod tests {
         app_data::{AppData, AppSettings, AppStatus},
         shared_app_list::{AppDataVec as CoreAppDataVec, SharedAppList},
     };
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
     use tempfile::tempdir;
     use tempfile::TempDir;
-    use tokio::sync::Mutex;
 
     /// Helper function to create test WebSocket messenger
     fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {

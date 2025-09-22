@@ -1,5 +1,4 @@
 use super::context::Context;
-use crate::api::websocket::client::broadcast_message;
 use crate::docker::helper::wait_for_containers_ready;
 use crate::state_machine::StateHandler;
 use anyhow::Context as _;
@@ -72,11 +71,12 @@ where
 
         info!("Waiting for containers to be ready: {:?}", container_ids);
 
-        broadcast_message(
-            &app_state,
-            WebSocketMessage::TaskInfoUpdated(task_clone.read().await.clone()),
-        )
-        .await;
+        app_state
+            .messenger
+            .broadcast_to_all(WebSocketMessage::TaskInfoUpdated(
+                task_clone.read().await.clone(),
+            ))
+            .await;
 
         // Wait for all containers to reach a non-starting state
         let container_states =
@@ -93,11 +93,12 @@ where
         info!("All containers have reached a ready state");
         debug!("Container states: {:?}", container_states);
 
-        broadcast_message(
-            &app_state,
-            WebSocketMessage::TaskInfoUpdated(task_clone.read().await.clone()),
-        )
-        .await;
+        app_state
+            .messenger
+            .broadcast_to_all(WebSocketMessage::TaskInfoUpdated(
+                task_clone.read().await.clone(),
+            ))
+            .await;
 
         // Return the next state
         Ok(self.next_state.clone())

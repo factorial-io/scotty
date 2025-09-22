@@ -221,17 +221,18 @@ impl LogStreamingService {
 
         // Send stream started message to the specific client
         if let Some(client_id) = client_id {
-            crate::api::websocket::client::send_message(
-                app_state,
-                client_id,
-                WebSocketMessage::LogsStreamStarted(LogsStreamInfo::new(
-                    stream_id,
-                    app_data.name.clone(),
-                    service_name.to_string(),
-                    follow,
-                )),
-            )
-            .await;
+            let _ = app_state
+                .messenger
+                .send_to_client(
+                    client_id,
+                    WebSocketMessage::LogsStreamStarted(LogsStreamInfo::new(
+                        stream_id,
+                        app_data.name.clone(),
+                        service_name.to_string(),
+                        follow,
+                    )),
+                )
+                .await;
         }
 
         // Start the streaming task
@@ -315,8 +316,7 @@ impl LogStreamingService {
                                     if follow {
                                         info!("Timer flush: sending {} buffered log lines for follow stream {}", lines_count, stream_id);
                                     }
-                                    crate::api::websocket::client::send_message(
-                                        &app_state,
+                                    let _ = app_state.messenger.send_to_client(
                                         client_id,
                                         WebSocketMessage::LogsStreamData(LogsStreamData {
                                             stream_id,
@@ -341,8 +341,7 @@ impl LogStreamingService {
                                         if let Some(client_id) = client_id {
                                             let lines_to_send = buffer.flush();
                                             let _lines_count = lines_to_send.len();
-                                            crate::api::websocket::client::send_message(
-                                                &app_state,
+                                            let _ = app_state.messenger.send_to_client(
                                                 client_id,
                                                 WebSocketMessage::LogsStreamData(LogsStreamData {
                                                     stream_id,
@@ -356,8 +355,7 @@ impl LogStreamingService {
                             Err(e) => {
                                 error!("Error reading logs for stream {}: {}", stream_id, e);
                                 if let Some(client_id) = client_id {
-                                    crate::api::websocket::client::send_message(
-                                        &app_state,
+                                    let _ = app_state.messenger.send_to_client(
                                         client_id,
                                         WebSocketMessage::LogsStreamError(LogsStreamError {
                                             stream_id,
@@ -380,15 +378,16 @@ impl LogStreamingService {
             // Send any remaining buffered lines
             if buffer.has_data() {
                 if let Some(client_id) = client_id {
-                    crate::api::websocket::client::send_message(
-                        &app_state,
-                        client_id,
-                        WebSocketMessage::LogsStreamData(LogsStreamData {
-                            stream_id,
-                            lines: buffer.flush(),
-                        }),
-                    )
-                    .await;
+                    let _ = app_state
+                        .messenger
+                        .send_to_client(
+                            client_id,
+                            WebSocketMessage::LogsStreamData(LogsStreamData {
+                                stream_id,
+                                lines: buffer.flush(),
+                            }),
+                        )
+                        .await;
                 }
             }
 
@@ -403,19 +402,20 @@ impl LogStreamingService {
                     "Sending LogsStreamEnded message for stream {} to client {}",
                     stream_id, client_id
                 );
-                crate::api::websocket::client::send_message(
-                    &app_state,
-                    client_id,
-                    WebSocketMessage::LogsStreamEnded(LogsStreamEnd {
-                        stream_id,
-                        reason: if follow {
-                            "Stream stopped".to_string()
-                        } else {
-                            "All logs delivered".to_string()
-                        },
-                    }),
-                )
-                .await;
+                let _ = app_state
+                    .messenger
+                    .send_to_client(
+                        client_id,
+                        WebSocketMessage::LogsStreamEnded(LogsStreamEnd {
+                            stream_id,
+                            reason: if follow {
+                                "Stream stopped".to_string()
+                            } else {
+                                "All logs delivered".to_string()
+                            },
+                        }),
+                    )
+                    .await;
                 info!("LogsStreamEnded message sent for stream {}", stream_id);
             }
 

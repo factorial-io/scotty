@@ -8,7 +8,6 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::api::websocket::client::broadcast_message;
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::settings::shell::ShellSettings;
@@ -241,17 +240,18 @@ impl ShellService {
         let shell_cmd_clone = shell_cmd.clone();
 
         // Send session created message
-        broadcast_message(
-            app_state,
-            WebSocketMessage::ShellSessionCreated(ShellSessionInfo::new(
-                session_id,
-                app_name_clone.clone(),
-                service_name_clone.clone(),
-                container_id_clone.clone(),
-                shell_cmd_clone.clone(),
-            )),
-        )
-        .await;
+        app_state
+            .messenger
+            .broadcast_to_all(WebSocketMessage::ShellSessionCreated(
+                ShellSessionInfo::new(
+                    session_id,
+                    app_name_clone.clone(),
+                    service_name_clone.clone(),
+                    container_id_clone.clone(),
+                    shell_cmd_clone.clone(),
+                ),
+            ))
+            .await;
 
         // Start the shell session handler
         let docker = self.docker.clone();
@@ -277,8 +277,7 @@ impl ShellService {
                             // Check for TTL timeout
                             _ = tokio::time::sleep_until(session_start + session_ttl) => {
                                 info!("Shell session {} expired after TTL", session_id);
-                                broadcast_message(
-                                    &app_state,
+                                app_state.messenger.broadcast_to_all(
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
                                         exit_code: None,
@@ -294,8 +293,7 @@ impl ShellService {
                                     ShellCommand::Input(data) => {
                                         if let Err(e) = input.write_all(data.as_bytes()).await {
                                             error!("Failed to write to shell {}: {}", session_id, e);
-                                            broadcast_message(
-                                                &app_state,
+                                            app_state.messenger.broadcast_to_all(
                                                 WebSocketMessage::ShellSessionError(ShellSessionError {
                                                     session_id,
                                                     error: format!("Failed to write input: {}", e),
@@ -318,8 +316,7 @@ impl ShellService {
                                     }
                                     ShellCommand::Terminate => {
                                         info!("Terminating shell session {} by request", session_id);
-                                        broadcast_message(
-                                            &app_state,
+                                        app_state.messenger.broadcast_to_all(
                                             WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                                 session_id,
                                                 exit_code: None,
@@ -347,8 +344,7 @@ impl ShellService {
                                             LogOutput::Console { .. } => continue, // Skip console
                                         };
 
-                                        broadcast_message(
-                                            &app_state,
+                                        app_state.messenger.broadcast_to_all(
                                             WebSocketMessage::ShellSessionData(ShellSessionData {
                                                 session_id,
                                                 data_type: ShellDataType::Output,
@@ -358,8 +354,7 @@ impl ShellService {
                                     }
                                     Err(e) => {
                                         error!("Failed to read from shell stream {}: {}", session_id, e);
-                                        broadcast_message(
-                                            &app_state,
+                                        app_state.messenger.broadcast_to_all(
                                             WebSocketMessage::ShellSessionError(ShellSessionError {
                                                 session_id,
                                                 error: format!("Failed to read output: {}", e),
@@ -372,8 +367,7 @@ impl ShellService {
                             // Stream ended
                             else => {
                                 info!("Shell session {} ended (stream closed)", session_id);
-                                broadcast_message(
-                                    &app_state,
+                                app_state.messenger.broadcast_to_all(
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
                                         exit_code: Some(0),
@@ -390,14 +384,13 @@ impl ShellService {
                         "Shell session {} started in detached mode (unexpected)",
                         session_id
                     );
-                    broadcast_message(
-                        &app_state,
-                        WebSocketMessage::ShellSessionError(ShellSessionError {
+                    app_state
+                        .messenger
+                        .broadcast_to_all(WebSocketMessage::ShellSessionError(ShellSessionError {
                             session_id,
                             error: "Shell started in detached mode".to_string(),
-                        }),
-                    )
-                    .await;
+                        }))
+                        .await;
                 }
             }
 

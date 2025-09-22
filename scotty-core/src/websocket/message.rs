@@ -127,6 +127,12 @@ pub struct LogsStreamError {
     pub error: String,
 }
 
+impl fmt::Display for LogsStreamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Stream {}: {}", self.stream_id, self.error)
+    }
+}
+
 /// Information about a created shell session
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ShellSessionInfo {

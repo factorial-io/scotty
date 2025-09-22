@@ -201,11 +201,14 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                             break;
                         }
                         WebSocketMessage::LogsStreamError(error) => {
-                            ui.set_status("Log streaming failed", Status::Failed);
+                            ui.set_status(
+                                &format!("Log streaming failed: {}", error),
+                                Status::Failed,
+                            );
                             break;
                         }
                         WebSocketMessage::Error(msg) => {
-                            ui.set_status("WebSocket error", Status::Failed);
+                            ui.set_status(&format!("WebSocket error: {}", msg), Status::Failed);
                             break;
                         }
                         _ => {

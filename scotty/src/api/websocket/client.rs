@@ -104,18 +104,6 @@ pub async fn ws_handler(
     ws.on_upgrade(move |ws| websocket_handler(ws, state, client_id))
 }
 
-/// Deprecated: Use WebSocketMessenger::broadcast_to_all instead
-#[deprecated(note = "Use WebSocketMessenger::broadcast_to_all instead")]
-pub async fn broadcast_message(state: &SharedAppState, msg: WebSocketMessage) {
-    state.messenger.broadcast_to_all(msg).await;
-}
-
-/// Deprecated: Use WebSocketMessenger::send_to_client instead
-#[deprecated(note = "Use WebSocketMessenger::send_to_client instead")]
-pub async fn send_message(state: &SharedAppState, uuid: Uuid, msg: WebSocketMessage) {
-    let _ = state.messenger.send_to_client(uuid, msg).await;
-}
-
 /// Clean up all streams associated with a disconnected client
 async fn cleanup_client_streams(state: &SharedAppState, client_id: Uuid) {
     info!("Cleaning up streams for disconnected client {}", client_id);

@@ -4,7 +4,7 @@ use scotty_core::{notification_types::Message, tasks::task_details::State};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{api::websocket::client::broadcast_message, state_machine::StateHandler};
+use crate::state_machine::StateHandler;
 
 use super::context::Context;
 
@@ -29,13 +29,15 @@ where
             let mut task_details = context.task.write().await;
             task_details.state = State::Finished;
 
-            broadcast_message(
-                &context.app_state,
-                scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
-                    task_details.clone(),
-                ),
-            )
-            .await;
+            context
+                .app_state
+                .messenger
+                .broadcast_to_all(
+                    scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
+                        task_details.clone(),
+                    ),
+                )
+                .await;
         }
         // Send notifications in a dedicated thread.
         tokio::spawn({

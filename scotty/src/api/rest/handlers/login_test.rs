@@ -6,11 +6,10 @@ mod tests {
     use axum::{extract::State, response::IntoResponse, Json};
     use config::Config;
     use scotty_core::settings::api_server::AuthMode;
-    use std::collections::HashMap;
     use std::sync::Arc;
 
     /// Helper function to create test WebSocket clients
-    fn create_test_websocket_clients() -> crate::api::websocket::WebSocketClients {
+    fn create_test_websocket_clients() -> crate::api::websocket::messaging::WebSocketClients {
         Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()))
     }
 

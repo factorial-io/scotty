@@ -2,7 +2,7 @@ use std::path::Path;
 
 use tracing::debug;
 
-use crate::{api::websocket::client::broadcast_message, docker::docker_compose::run_task};
+use crate::docker::docker_compose::run_task;
 
 use super::context::Context;
 
@@ -25,11 +25,15 @@ pub async fn run_task_and_wait(
         context.task.clone(),
     )
     .await?;
-    broadcast_message(
-        &context.app_state,
-        scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
-    )
-    .await;
+    context
+        .app_state
+        .messenger
+        .broadcast_to_all(
+            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
+                task_details.clone(),
+            ),
+        )
+        .await;
 
     let handle = context
         .app_state
@@ -48,11 +52,13 @@ pub async fn run_task_and_wait(
             .await
             .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
 
-        broadcast_message(
-            &context.app_state,
-            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
-        )
-        .await;
+        context
+            .app_state
+            .messenger
+            .broadcast_to_all(
+                scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+            )
+            .await;
     }
 
     let task = context
@@ -71,11 +77,13 @@ pub async fn run_task_and_wait(
         }
     }
     debug!("{} finished", msg);
-    broadcast_message(
-        &context.app_state,
-        scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
-    )
-    .await;
+    context
+        .app_state
+        .messenger
+        .broadcast_to_all(
+            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+        )
+        .await;
 
     Ok(())
 }
