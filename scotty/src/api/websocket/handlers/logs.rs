@@ -5,9 +5,7 @@ use crate::app_state::SharedAppState;
 use crate::services::authorization::Permission;
 use scotty_core::websocket::message::LogStreamRequest;
 
-use super::{
-    check_websocket_authorization, handle_websocket_auth_failure,
-};
+use super::{check_websocket_authorization, handle_websocket_auth_failure};
 
 /// Handle starting a log stream via WebSocket
 pub async fn handle_start_log_stream(

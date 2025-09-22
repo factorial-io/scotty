@@ -41,8 +41,8 @@ impl WebSocketMessenger {
 
         let clients = self.clients.lock().await;
         if let Some(client) = clients.get(&client_id) {
-            let serialized = serde_json::to_string(&message)
-                .map_err(WebSocketError::SerializationError)?;
+            let serialized =
+                serde_json::to_string(&message).map_err(WebSocketError::SerializationError)?;
 
             client
                 .sender
