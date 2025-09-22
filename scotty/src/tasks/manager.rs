@@ -17,13 +17,20 @@ use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
 #[derive(Clone, Debug)]
 pub struct TaskManager {
     processes: Arc<RwLock<HashMap<Uuid, TaskState>>>,
+    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
 }
 
 impl TaskManager {
     pub fn new() -> Self {
         Self {
             processes: Arc::new(RwLock::new(HashMap::new())),
+            app_state: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub async fn set_app_state(&self, app_state: crate::app_state::SharedAppState) {
+        let mut state = self.app_state.write().await;
+        *state = Some(app_state);
     }
 
     pub async fn get_task_list(&self) -> Vec<TaskDetails> {
@@ -127,6 +134,7 @@ impl TaskManager {
         let handle = {
             let details = details.clone();
             let output = output.clone();
+            let app_state = self.app_state.clone();
 
             tokio::task::spawn(async move {
                 info!(
@@ -137,24 +145,41 @@ impl TaskManager {
                     args.join(" ")
                 );
                 let details = details.clone();
-                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details, &output).await;
+                let app_state_for_spawn = app_state.clone();
+                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details, &output, app_state_for_spawn).await;
 
                 match exit_code {
                     Ok(0) => {
                         let mut details = details.write().await;
                         details.last_exit_code = Some(0);
                         details.finish_time = Some(chrono::Utc::now());
+                        details.state = State::Finished;
+
+                        // Notify WebSocket clients that task completed successfully
+                        if let Some(app_state) = &*app_state.read().await {
+                            broadcast_task_completion(app_state, id, "completed").await;
+                        }
                     }
                     Ok(e) => {
                         let mut details = details.write().await;
                         details.finish_time = Some(chrono::Utc::now());
                         details.last_exit_code = Some(e);
                         details.state = State::Failed;
+
+                        // Notify WebSocket clients that task failed
+                        if let Some(app_state) = &*app_state.read().await {
+                            broadcast_task_completion(app_state, id, "failed").await;
+                        }
                     }
                     Err(_e) => {
                         let mut details = details.write().await;
                         details.finish_time = Some(chrono::Utc::now());
                         details.state = State::Failed;
+
+                        // Notify WebSocket clients that task failed
+                        if let Some(app_state) = &*app_state.read().await {
+                            broadcast_task_completion(app_state, id, "failed").await;
+                        }
                         // Error message will be added to output separately
                     }
                 }
@@ -203,7 +228,7 @@ impl TaskManager {
     pub async fn run_cleanup_task(&self, interval: SchedulerInterval) {
         let ttl = interval.into();
         let processes = self.processes.clone();
-        let mut processes_lock = processes.write().await;
+        let processes_lock = processes.write().await;
 
         let mut to_remove = vec![];
 
@@ -221,6 +246,16 @@ impl TaskManager {
             }
         }
 
+        // Clean up WebSocket subscriptions before removing tasks
+        drop(processes_lock); // Release lock before async operations
+        for uuid in &to_remove {
+            if let Some(app_state) = &*self.app_state.read().await {
+                crate::api::message_handler::cleanup_task_subscriptions(app_state, uuid).await;
+            }
+        }
+
+        // Remove tasks from the list
+        let mut processes_lock = self.processes.write().await;
         for uuid in to_remove {
             processes_lock.remove(&uuid);
         }
@@ -234,6 +269,7 @@ async fn spawn_process(
     env: &HashMap<String, String>,
     _details: &Arc<RwLock<TaskDetails>>,
     output: &Arc<RwLock<TaskOutput>>,
+    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
@@ -248,15 +284,25 @@ async fn spawn_process(
     let stderr = child.stderr.take().expect("Failed to get stderr");
     {
         let output = output.clone();
+        let app_state_ref = app_state.clone();
+        let task_id = {
+            let output_guard = output.read().await;
+            output_guard.task_id
+        };
         tokio::spawn(async move {
-            read_unified_output(output.clone(), stdout, OutputStreamType::Stdout).await;
+            read_unified_output(output.clone(), stdout, OutputStreamType::Stdout, app_state_ref, task_id).await;
         });
     }
 
     {
         let output = output.clone();
+        let app_state_ref = app_state.clone();
+        let task_id = {
+            let output_guard = output.read().await;
+            output_guard.task_id
+        };
         tokio::spawn(async move {
-            read_unified_output(output.clone(), stderr, OutputStreamType::Stderr).await;
+            read_unified_output(output.clone(), stderr, OutputStreamType::Stderr, app_state_ref, task_id).await;
         });
     }
     // Wait for the command to complete
@@ -270,23 +316,101 @@ async fn read_unified_output(
     output: Arc<RwLock<TaskOutput>>,
     stream: impl AsyncRead + Unpin,
     stream_type: OutputStreamType,
+    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
+    task_id: uuid::Uuid,
 ) {
     let mut reader = BufReader::new(stream).lines();
 
     while let Some(line_result) = reader.next_line().await.transpose() {
         match line_result {
             Ok(line) => {
-                let mut output = output.write().await;
-                output.add_line(stream_type, line);
+                let output_line = {
+                    let mut output = output.write().await;
+                    output.add_line(stream_type, line);
+                    // Return the line that was just added for broadcasting
+                    output.lines.back().cloned()
+                };
+
+                // Broadcast to WebSocket clients if app_state is available
+                if let Some(line) = output_line {
+                    let app_state_guard = app_state.read().await;
+                    if let Some(ref state) = *app_state_guard {
+                        broadcast_task_output_update(state, task_id, vec![line]).await;
+                    }
+                }
             }
             Err(e) => {
-                let mut output = output.write().await;
-                output.add_line(
-                    OutputStreamType::Stderr,
-                    format!("Error reading output: {}", e),
-                );
+                let output_line = {
+                    let mut output = output.write().await;
+                    output.add_line(
+                        OutputStreamType::Stderr,
+                        format!("Error reading output: {}", e),
+                    );
+                    // Return the line that was just added for broadcasting
+                    output.lines.back().cloned()
+                };
+
+                // Broadcast error to WebSocket clients if app_state is available
+                if let Some(line) = output_line {
+                    let app_state_guard = app_state.read().await;
+                    if let Some(ref state) = *app_state_guard {
+                        broadcast_task_output_update(state, task_id, vec![line]).await;
+                    }
+                }
                 break;
             }
+        }
+    }
+}
+
+/// Broadcast task output updates to subscribed WebSocket clients
+async fn broadcast_task_output_update(
+    state: &crate::app_state::SharedAppState,
+    task_id: uuid::Uuid,
+    lines: Vec<scotty_core::output::OutputLine>,
+) {
+    use crate::api::message::{TaskOutputData, WebSocketMessage};
+    use crate::api::ws::send_message;
+
+    let clients = state.clients.lock().await;
+    for (client_id, client) in clients.iter() {
+        if client.is_subscribed_to_task(&task_id) {
+            send_message(
+                state,
+                *client_id,
+                WebSocketMessage::TaskOutputData(TaskOutputData {
+                    task_id,
+                    lines: lines.clone(),
+                    is_historical: false, // This is live data
+                    has_more: false,      // Live updates are always single batches
+                }),
+            )
+            .await;
+        }
+    }
+}
+
+/// Broadcast task completion to subscribed WebSocket clients
+async fn broadcast_task_completion(
+    state: &crate::app_state::SharedAppState,
+    task_id: uuid::Uuid,
+    reason: &str,
+) {
+    use crate::api::message::WebSocketMessage;
+    use crate::api::ws::send_message;
+
+    let clients = state.clients.lock().await;
+    for (client_id, client) in clients.iter() {
+        if client.is_subscribed_to_task(&task_id) {
+            send_message(
+                state,
+                *client_id,
+                WebSocketMessage::TaskOutputStreamEnded {
+                    task_id,
+                    reason: reason.to_string(),
+                },
+            )
+            .await;
         }
     }
 }

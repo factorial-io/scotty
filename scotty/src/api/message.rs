@@ -33,6 +33,24 @@ pub enum WebSocketMessage {
     ShellSessionData(ShellSessionData),
     ShellSessionEnded(ShellSessionEnd),
     ShellSessionError(ShellSessionError),
+
+    // Task output streaming messages
+    StartTaskOutputStream {
+        task_id: Uuid,
+        from_beginning: bool, // true = send all history first (default)
+    },
+    StopTaskOutputStream {
+        task_id: Uuid,
+    },
+    TaskOutputStreamStarted {
+        task_id: Uuid,
+        total_lines: u64, // Total lines available at start
+    },
+    TaskOutputData(TaskOutputData),
+    TaskOutputStreamEnded {
+        task_id: Uuid,
+        reason: String, // "completed", "failed", "expired", "deleted"
+    },
 }
 
 /// Request to start a log stream with parameters
@@ -158,4 +176,13 @@ pub struct ShellSessionEnd {
 pub struct ShellSessionError {
     pub session_id: Uuid,
     pub error: String,
+}
+
+/// Task output data from a stream
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TaskOutputData {
+    pub task_id: Uuid,
+    pub lines: Vec<OutputLine>,
+    pub is_historical: bool, // true = catching up, false = live
+    pub has_more: bool,      // true if more historical data coming
 }

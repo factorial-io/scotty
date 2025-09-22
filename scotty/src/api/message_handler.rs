@@ -2,7 +2,7 @@ use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::auth_core::CurrentUser;
-use crate::api::message::{LogStreamRequest, WebSocketMessage};
+use crate::api::message::{LogStreamRequest, TaskOutputData, WebSocketMessage};
 use crate::app_state::SharedAppState;
 use crate::services::{authorization::Permission, AuthorizationService};
 
@@ -98,23 +98,24 @@ async fn handle_websocket_auth_failure(
 
 /// Simple authentication check for operations that don't require specific app permissions
 async fn check_websocket_authentication(
+    state: &SharedAppState,
     client_id: Uuid,
     user: &Option<CurrentUser>,
     operation: &str,
 ) -> Option<CurrentUser> {
     match user {
-        Some(user) => {
-            info!(
-                "WebSocket {} authorized for user {} (client {})",
-                operation, user.email, client_id
-            );
-            Some(user.clone())
-        }
+        Some(user) => Some(user.clone()),
         None => {
             info!(
                 "Unauthenticated WebSocket {} request denied for client {}",
                 operation, client_id
             );
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error(format!("Authentication required for {}", operation)),
+            )
+            .await;
             None
         }
     }
@@ -143,6 +144,17 @@ pub async fn handle_websocket_message(
 
         WebSocketMessage::StopLogStream { stream_id } => {
             handle_stop_log_stream(state, client_id, *stream_id).await;
+        }
+
+        WebSocketMessage::StartTaskOutputStream {
+            task_id,
+            from_beginning,
+        } => {
+            handle_start_task_output_stream(state, client_id, *task_id, *from_beginning).await;
+        }
+
+        WebSocketMessage::StopTaskOutputStream { task_id } => {
+            handle_stop_task_output_stream(state, client_id, *task_id).await;
         }
 
         _ => {
@@ -218,7 +230,7 @@ async fn handle_start_log_stream(
         }
     };
 
-    // Check authorization using helper function
+    // Check authorization
     let auth_result = check_websocket_authorization(
         state,
         client_id,
@@ -229,15 +241,21 @@ async fn handle_start_log_stream(
     )
     .await;
 
-    let _current_user =
-        match handle_websocket_auth_failure(state, client_id, auth_result, "log streaming").await {
-            Some(user) => user,
-            None => return, // Authorization failed, error message already sent
-        };
+    let authorized_user = match handle_websocket_auth_failure(
+        state,
+        client_id,
+        auth_result,
+        "log streaming",
+    )
+    .await
+    {
+        Some(user) => user,
+        None => return,
+    };
 
-    // Get app data to validate app and service exist
-    let app_data = match state.apps.get_app(&request.app_name).await {
-        Some(data) => data,
+    // Look up the app
+    let app = match state.apps.get_app(&request.app_name).await {
+        Some(app) => app,
         None => {
             send_message(
                 state,
@@ -249,50 +267,78 @@ async fn handle_start_log_stream(
         }
     };
 
-    // Validate service exists
-    if app_data
-        .find_container_by_service(&request.service_name)
-        .is_none()
-    {
+    // Find the container for the specified service using the helper method
+    let container = match app.find_container_by_service(&request.service_name) {
+        Some(container) => container,
+        None => {
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error(format!(
+                    "Service '{}' not found in app '{}'",
+                    request.service_name, request.app_name
+                )),
+            )
+            .await;
+            return;
+        }
+    };
+
+    // Check container state
+    if !container.is_running() {
         send_message(
             state,
             client_id,
             WebSocketMessage::Error(format!(
-                "Service '{}' not found in app '{}'",
-                request.service_name, request.app_name
+                "Container for service '{}' is not running (status: {:?})",
+                request.service_name, container.status
             )),
         )
         .await;
         return;
     }
 
-    // TODO: Add authorization check here when WebSocket auth is implemented
-    // For now, we'll proceed without auth (this should be secured later)
+    let container_id = match &container.id {
+        Some(id) => id.clone(),
+        None => {
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error(format!(
+                    "Container for service '{}' has no ID",
+                    request.service_name
+                )),
+            )
+            .await;
+            return;
+        }
+    };
 
-    // Use the shared log streaming service
+    info!(
+        "Starting log stream for container '{}' (app: '{}', service: '{}') requested by user {}",
+        container_id, request.app_name, request.service_name, authorized_user.email
+    );
 
-    // Convert tail parameter from lines count
-    let tail = request.lines.map(|lines| lines.to_string());
-
+    // Start the log streaming
+    let tail = request.lines.map(|n| n.to_string());
     match state
         .logs_service
         .start_stream(
             state,
-            &app_data,
+            &app,
             &request.service_name,
             request.follow,
             tail,
-            Some(client_id), // Associate with this WebSocket client
+            Some(client_id),
         )
         .await
     {
         Ok(stream_id) => {
             info!(
-                "Log stream {} started successfully for client {} (app: '{}', service: '{}')",
-                stream_id, client_id, request.app_name, request.service_name
+                "Successfully started log stream {} for container '{}'",
+                stream_id, container_id
             );
-            // Stream started successfully, LogStreamingService will send updates via WebSocket
-            // No need to send additional response here
+            // The LogStreamingService will send LogsStreamStarted message
         }
         Err(e) => {
             send_message(
@@ -308,42 +354,43 @@ async fn handle_start_log_stream(
 /// Handle stopping a log stream via WebSocket
 async fn handle_stop_log_stream(state: &SharedAppState, client_id: Uuid, stream_id: Uuid) {
     info!(
-        "Log stream stop requested by client {} for stream {}",
-        client_id, stream_id
+        "Stop log stream {} requested by client {}",
+        stream_id, client_id
     );
 
-    // Get user from clients map
-    let user = {
-        let clients = state.clients.lock().await;
-        if let Some(client) = clients.get(&client_id) {
-            client.user.clone()
-        } else {
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::Error("Client not found".to_string()),
-            )
-            .await;
-            return;
-        }
-    };
-
-    // Check authentication using helper function
-    let _current_user =
-        match check_websocket_authentication(client_id, &user, "log stream stop").await {
-            Some(user) => user,
-            None => {
+    // Check authentication (no need for specific app permissions)
+    let user =
+        {
+            let clients = state.clients.lock().await;
+            if let Some(client) = clients.get(&client_id) {
+                client.user.clone()
+            } else {
                 send_message(
                     state,
                     client_id,
-                    WebSocketMessage::Error(
-                        "Authentication required for log stream management".to_string(),
-                    ),
+                    WebSocketMessage::Error("Client not found".to_string()),
                 )
                 .await;
                 return;
             }
         };
+
+    match check_websocket_authentication(state, client_id, &user, "log stream management").await {
+        Some(_) => {
+            // User is authenticated
+        }
+        None => {
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error(
+                    "Authentication required for log stream management".to_string(),
+                ),
+            )
+            .await;
+            return;
+        }
+    };
 
     match state.logs_service.stop_stream(stream_id).await {
         Ok(()) => {
@@ -359,6 +406,218 @@ async fn handle_stop_log_stream(state: &SharedAppState, client_id: Uuid, stream_
                 state,
                 client_id,
                 WebSocketMessage::Error(format!("Failed to stop log stream: {}", e)),
+            )
+            .await;
+        }
+    }
+}
+
+/// Handle starting a task output stream via WebSocket
+async fn handle_start_task_output_stream(
+    state: &SharedAppState,
+    client_id: Uuid,
+    task_id: Uuid,
+    from_beginning: bool,
+) {
+    info!(
+        "Task output stream requested by client {} for task {}, from_beginning: {}",
+        client_id, task_id, from_beginning
+    );
+
+    // Check authentication
+    let user = {
+        let clients = state.clients.lock().await;
+        if let Some(client) = clients.get(&client_id) {
+            client.user.clone()
+        } else {
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error("Client not found".to_string()),
+            )
+            .await;
+            return;
+        }
+    };
+
+    // Verify user is authenticated
+    if user.is_none() {
+        send_message(
+            state,
+            client_id,
+            WebSocketMessage::Error("Authentication required for task output streaming".to_string()),
+        )
+        .await;
+        return;
+    }
+
+    // Check if task exists and get its output
+    let task_output = match state.task_manager.get_task_output(&task_id).await {
+        Some(output) => output,
+        None => {
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::Error(format!("Task {} not found", task_id)),
+            )
+            .await;
+            return;
+        }
+    };
+
+    // Check if task has an app_name for authorization
+    let task_details = state.task_manager.get_task_details(&task_id).await;
+    if let Some(details) = task_details {
+        if let Some(app_name) = &details.app_name {
+            // Check authorization for the app
+            let auth_result = check_websocket_authorization(
+                state,
+                client_id,
+                &user,
+                app_name,
+                Permission::View,
+                "task output stream",
+            )
+            .await;
+
+            if !matches!(auth_result, WebSocketAuthResult::Authorized(_)) {
+                handle_websocket_auth_failure(state, client_id, auth_result, "task output stream")
+                    .await;
+                return;
+            }
+        }
+    }
+
+    // Subscribe the client to this task's output
+    {
+        let mut clients = state.clients.lock().await;
+        if let Some(client) = clients.get_mut(&client_id) {
+            client.subscribe_to_task(task_id);
+            info!(
+                "Client {} subscribed to task {} output",
+                client_id, task_id
+            );
+        }
+    }
+
+    // Send stream started notification
+    send_message(
+        state,
+        client_id,
+        WebSocketMessage::TaskOutputStreamStarted {
+            task_id,
+            total_lines: task_output.total_lines_processed,
+        },
+    )
+    .await;
+
+    // Send existing output if requested
+    if from_beginning && !task_output.lines.is_empty() {
+        // Send all existing lines in batches of 1000 to avoid overwhelming the WebSocket
+        const BATCH_SIZE: usize = 1000;
+        let lines: Vec<_> = task_output.lines.into_iter().collect();
+        let chunks = lines.chunks(BATCH_SIZE);
+        let total_chunks = chunks.len();
+
+        for (i, chunk) in chunks.enumerate() {
+            let is_last_batch = i == total_chunks - 1;
+            send_message(
+                state,
+                client_id,
+                WebSocketMessage::TaskOutputData(TaskOutputData {
+                    task_id,
+                    lines: chunk.to_vec(),
+                    is_historical: true,
+                    has_more: !is_last_batch,
+                }),
+            )
+            .await;
+        }
+    }
+
+    // Check if task is already finished and send end message if so
+    if let Some(details) = state.task_manager.get_task_details(&task_id).await {
+        use scotty_core::tasks::task_details::State;
+        match details.state {
+            State::Finished => {
+                send_message(
+                    state,
+                    client_id,
+                    WebSocketMessage::TaskOutputStreamEnded {
+                        task_id,
+                        reason: "completed".to_string(),
+                    },
+                )
+                .await;
+            }
+            State::Failed => {
+                send_message(
+                    state,
+                    client_id,
+                    WebSocketMessage::TaskOutputStreamEnded {
+                        task_id,
+                        reason: "failed".to_string(),
+                    },
+                )
+                .await;
+            }
+            State::Running => {
+                // Task is still running, client will receive live updates
+            }
+        }
+    }
+}
+
+/// Handle stopping a task output stream via WebSocket
+async fn handle_stop_task_output_stream(state: &SharedAppState, client_id: Uuid, task_id: Uuid) {
+    info!(
+        "Task output stream stop requested by client {} for task {}",
+        client_id, task_id
+    );
+
+    // Unsubscribe the client from this task's output
+    {
+        let mut clients = state.clients.lock().await;
+        if let Some(client) = clients.get_mut(&client_id) {
+            client.unsubscribe_from_task(task_id);
+            info!(
+                "Client {} unsubscribed from task {} output",
+                client_id, task_id
+            );
+        }
+    }
+
+    // Send confirmation
+    send_message(
+        state,
+        client_id,
+        WebSocketMessage::TaskOutputStreamEnded {
+            task_id,
+            reason: "stopped by client".to_string(),
+        },
+    )
+    .await;
+}
+
+/// Clean up task subscriptions for all clients when a task is removed
+pub async fn cleanup_task_subscriptions(state: &SharedAppState, task_id: &Uuid) {
+    let mut clients = state.clients.lock().await;
+    for (client_id, client) in clients.iter_mut() {
+        if client.is_subscribed_to_task(task_id) {
+            client.unsubscribe_from_task(*task_id);
+            info!(
+                "Cleaned up task {} subscription for client {}",
+                task_id, client_id
+            );
+
+            // Notify the client that the stream has ended
+            send_message(
+                state,
+                *client_id,
+                WebSocketMessage::TaskOutputStreamEnded {
+                    task_id: *task_id,
+                    reason: "task expired".to_string(),
+                },
             )
             .await;
         }

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
@@ -22,11 +25,16 @@ use crate::tasks::manager;
 pub struct WebSocketClient {
     pub sender: broadcast::Sender<axum::extract::ws::Message>,
     pub user: Option<CurrentUser>,
+    pub task_output_subscriptions: HashSet<Uuid>,
 }
 
 impl WebSocketClient {
     pub fn new(sender: broadcast::Sender<axum::extract::ws::Message>) -> Self {
-        Self { sender, user: None }
+        Self {
+            sender,
+            user: None,
+            task_output_subscriptions: HashSet::new(),
+        }
     }
 
     pub fn authenticate(&mut self, user: CurrentUser) {
@@ -35,6 +43,18 @@ impl WebSocketClient {
 
     pub fn is_authenticated(&self) -> bool {
         self.user.is_some()
+    }
+
+    pub fn subscribe_to_task(&mut self, task_id: Uuid) {
+        self.task_output_subscriptions.insert(task_id);
+    }
+
+    pub fn unsubscribe_from_task(&mut self, task_id: Uuid) {
+        self.task_output_subscriptions.remove(&task_id);
+    }
+
+    pub fn is_subscribed_to_task(&self, task_id: &Uuid) -> bool {
+        self.task_output_subscriptions.contains(task_id)
     }
 }
 
@@ -107,7 +127,7 @@ impl AppState {
             }
         });
 
-        Ok(Arc::new(AppState {
+        let state = Arc::new(AppState {
             settings,
             stop_flag: stop_flag.clone(),
             clients: Arc::new(Mutex::new(HashMap::new())),
@@ -117,7 +137,12 @@ impl AppState {
             oauth_state,
             auth_service,
             logs_service,
-        }))
+        });
+
+        // Set up the circular reference for task manager to broadcast WebSocket updates
+        state.task_manager.set_app_state(state.clone()).await;
+
+        Ok(state)
     }
 
     pub async fn new_for_config_only() -> anyhow::Result<SharedAppState> {
