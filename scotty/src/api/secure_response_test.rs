@@ -245,8 +245,6 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
         id: Uuid::new_v4(),
         command: "test-command".to_string(),
         state: State::Finished,
-        stdout: "Command output".to_string(),
-        stderr: "".to_string(),
         start_time: DateTime::from(std::time::SystemTime::now()),
         finish_time: Some(DateTime::from(std::time::SystemTime::now())),
         last_exit_code: Some(0),

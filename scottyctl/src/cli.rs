@@ -74,6 +74,9 @@ pub enum Commands {
     /// Run a custom action on an app
     #[command(name = "app:action")]
     Action(ActionCommand),
+    /// View logs for an app service
+    #[command(name = "app:logs")]
+    Logs(LogsCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -267,6 +270,10 @@ pub struct CreateCommand {
     /// Custom Traefik middlewares to apply to the app, can be specified multiple times
     #[arg(long, value_name = "MIDDLEWARE")]
     pub middleware: Vec<String>,
+
+    /// Scope(s) to create the app in, can be specified multiple times (defaults to 'default')
+    #[arg(long, value_name = "SCOPE")]
+    pub scope: Vec<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -282,6 +289,35 @@ pub struct AuthLoginCommand {
     /// Timeout in seconds for device flow
     #[arg(long, default_value = "300")]
     pub timeout: u64,
+}
+
+#[derive(Debug, Parser)]
+pub struct LogsCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the service
+    pub service_name: String,
+
+    /// Follow log output (stream in real-time)
+    #[arg(short = 'f', long = "follow", default_value = "false")]
+    pub follow: bool,
+
+    /// Number of lines to show (if not specified, show all available logs)
+    #[arg(short = 'n', long = "lines")]
+    pub lines: Option<usize>,
+
+    /// Show logs since timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
+    #[arg(long = "since")]
+    pub since: Option<String>,
+
+    /// Show logs until timestamp (e.g., "1h", "2023-01-01T11:00:00Z")
+    #[arg(long = "until")]
+    pub until: Option<String>,
+
+    /// Show timestamps in log output
+    #[arg(short = 't', long = "timestamps")]
+    pub timestamps: bool,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

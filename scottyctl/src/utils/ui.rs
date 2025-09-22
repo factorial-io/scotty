@@ -95,6 +95,11 @@ impl Ui {
         }
     }
 
+    /// Check if output is going to a terminal (as opposed to being piped or redirected)
+    pub fn is_terminal(&self) -> bool {
+        self.status_line.is_some()
+    }
+
     pub async fn run<F>(&self, x: F) -> anyhow::Result<()>
     where
         F: AsyncFn,

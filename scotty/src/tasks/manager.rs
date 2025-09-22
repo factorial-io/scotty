@@ -3,25 +3,91 @@
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, sync::Arc};
 
-use scotty_core::settings::scheduler_interval::SchedulerInterval;
+use scotty_core::settings::{output::OutputSettings, scheduler_interval::SchedulerInterval};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 use tokio::process::Command;
 use tokio::sync::RwLock;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
+
 use uuid::Uuid;
 
+use scotty_core::output::{OutputStreamType, TaskOutput};
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
+
+use crate::api::websocket::WebSocketMessenger;
+
+/// Helper function to add a line to output and broadcast it to subscribers
+async fn add_and_broadcast_line(
+    output: &Arc<RwLock<TaskOutput>>,
+    stream_type: OutputStreamType,
+    line: String,
+    messenger: &WebSocketMessenger,
+    task_id: uuid::Uuid,
+) {
+    let output_line = {
+        let mut output = output.write().await;
+        output.add_line(stream_type, line);
+        output.lines.back().cloned()
+    };
+
+    if let Some(line) = output_line {
+        use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+        debug!("Broadcasting output update for task {}", task_id);
+
+        let message = WebSocketMessage::TaskOutputData(TaskOutputData {
+            task_id,
+            lines: vec![line],
+            is_historical: false,
+            has_more: false,
+        });
+
+        messenger
+            .broadcast_to_task_subscribers(task_id, message)
+            .await;
+    }
+}
+
+/// Helper function to handle task completion consistently
+async fn handle_task_completion(
+    details: &Arc<RwLock<TaskDetails>>,
+    messenger: &WebSocketMessenger,
+    task_id: uuid::Uuid,
+    exit_code: Result<i32, anyhow::Error>,
+) {
+    debug!("Handling task completion for task {}", task_id);
+    let (state, status_code, reason) = match exit_code {
+        Ok(0) => (State::Finished, Some(0), "completed"),
+        Ok(e) => (State::Failed, Some(e), "failed"),
+        Err(_) => (State::Failed, None, "failed"),
+    };
+
+    TaskManager::set_task_finished(details, status_code, state).await;
+
+    use scotty_core::websocket::message::WebSocketMessage;
+    debug!("Broadcasting completion for task {}", task_id);
+
+    let message = WebSocketMessage::TaskOutputStreamEnded {
+        task_id,
+        reason: reason.to_string(),
+    };
+
+    messenger
+        .broadcast_to_task_subscribers(task_id, message)
+        .await;
+}
 
 #[derive(Clone, Debug)]
 pub struct TaskManager {
     processes: Arc<RwLock<HashMap<Uuid, TaskState>>>,
+    messenger: WebSocketMessenger,
 }
 
 impl TaskManager {
-    pub fn new() -> Self {
+    pub fn new(messenger: WebSocketMessenger) -> Self {
         Self {
             processes: Arc::new(RwLock::new(HashMap::new())),
+            messenger,
         }
     }
 
@@ -36,12 +102,43 @@ impl TaskManager {
     }
 
     pub async fn get_task_details(&self, uuid: &Uuid) -> Option<TaskDetails> {
+        debug!("TaskManager: Getting task details for {}", uuid);
         let processes = self.processes.read().await;
-        let task_state = processes.get(uuid);
-        task_state?;
-        let task_state = task_state.unwrap();
+        let task_state = processes.get(uuid)?;
         let details = task_state.details.read().await;
         Some(details.clone())
+    }
+
+    pub async fn get_task_output(&self, uuid: &Uuid) -> Option<TaskOutput> {
+        debug!("TaskManager: Getting task output for {}", uuid);
+        let processes = self.processes.read().await;
+        let task_state = processes.get(uuid)?;
+        let output = task_state.output.read().await;
+        Some(output.clone())
+    }
+
+    /// Add a message to a task's output stream
+    pub async fn add_task_message(
+        &self,
+        uuid: &Uuid,
+        stream_type: OutputStreamType,
+        message: String,
+    ) -> bool {
+        debug!("TaskManager: Adding message to task output for {}", uuid);
+        let processes = self.processes.read().await;
+        if let Some(task_state) = processes.get(uuid) {
+            let mut output = task_state.output.write().await;
+            output.add_line(stream_type, message);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Add an info message to a task's stdout
+    pub async fn add_task_info(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::Stdout, message)
+            .await
     }
 
     pub async fn get_task_handle(
@@ -55,6 +152,22 @@ impl TaskManager {
         task_state.handle.clone()
     }
 
+    /// Set task state to finished with completion details
+    async fn set_task_finished(
+        details: &Arc<RwLock<TaskDetails>>,
+        exit_code: Option<i32>,
+        state: State,
+    ) {
+        debug!(
+            "TaskManager: Setting task finished for {}",
+            details.read().await.id
+        );
+        let mut details = details.write().await;
+        details.last_exit_code = exit_code;
+        details.finish_time = Some(chrono::Utc::now());
+        details.state = state;
+    }
+
     pub async fn start_process(
         &self,
         cwd: &Path,
@@ -63,19 +176,41 @@ impl TaskManager {
         env: &HashMap<String, String>,
         details: Arc<RwLock<TaskDetails>>,
     ) -> Uuid {
+        self.start_process_with_settings(cwd, cmd, args, env, details, &OutputSettings::default())
+            .await
+    }
+
+    pub async fn start_process_with_settings(
+        &self,
+        cwd: &Path,
+        cmd: &str,
+        args: &[&str],
+        env: &HashMap<String, String>,
+        details: Arc<RwLock<TaskDetails>>,
+        output_settings: &OutputSettings,
+    ) -> Uuid {
         let cwd = cwd.to_path_buf();
         let cmd = cmd.to_string();
         let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
         let env = env.clone();
         let id = details.read().await.id;
 
+        // Create TaskOutput for this task with settings
+        let output = Arc::new(RwLock::new(TaskOutput::new_with_settings(
+            id,
+            output_settings,
+        )));
+
         {
+            debug!("details write lock, setting state to running");
             let mut details = details.write().await;
             details.state = State::Running;
         }
 
         let handle = {
             let details = details.clone();
+            let output = output.clone();
+            let messenger = self.messenger.clone();
 
             tokio::task::spawn(async move {
                 info!(
@@ -86,32 +221,29 @@ impl TaskManager {
                     args.join(" ")
                 );
                 let details = details.clone();
-                let exit_code = spawn_process(&cwd, &cmd, &args, &env, &details).await;
+                let messenger_for_spawn = messenger.clone();
+                let exit_result = spawn_process(
+                    &cwd,
+                    &cmd,
+                    &args,
+                    &env,
+                    &details,
+                    &output,
+                    messenger_for_spawn.clone(),
+                )
+                .await;
 
-                match exit_code {
-                    Ok(0) => {
-                        let mut details = details.write().await;
-                        details.last_exit_code = Some(0);
-                        details.finish_time = Some(chrono::Utc::now());
-                    }
-                    Ok(e) => {
-                        let mut details = details.write().await;
-                        details.finish_time = Some(chrono::Utc::now());
-                        details.last_exit_code = Some(e);
-                        details.state = State::Failed;
-                    }
-                    Err(e) => {
-                        let mut details = details.write().await;
-                        details.finish_time = Some(chrono::Utc::now());
-                        details.state = State::Failed;
-                        details.stdout = e.to_string();
-                    }
-                }
+                handle_task_completion(&details, &messenger, id, exit_result).await;
             })
         };
         {
-            self.add_task(&id, details.clone(), Some(Arc::new(RwLock::new(handle))))
-                .await;
+            self.add_task_with_output(
+                &id,
+                details.clone(),
+                Some(Arc::new(RwLock::new(handle))),
+                output.clone(),
+            )
+            .await;
         }
 
         id
@@ -123,8 +255,23 @@ impl TaskManager {
         details: Arc<RwLock<TaskDetails>>,
         handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
     ) {
+        let output = Arc::new(RwLock::new(TaskOutput::new(*id)));
+        self.add_task_with_output(id, details, handle, output).await;
+    }
+
+    pub async fn add_task_with_output(
+        &self,
+        id: &Uuid,
+        details: Arc<RwLock<TaskDetails>>,
+        handle: Option<Arc<RwLock<tokio::task::JoinHandle<()>>>>,
+        output: Arc<RwLock<TaskOutput>>,
+    ) {
         let mut processes = self.processes.write().await;
-        let task_state = TaskState { details, handle };
+        let task_state = TaskState {
+            details,
+            handle,
+            output,
+        };
         processes.insert(*id, task_state);
     }
 
@@ -132,7 +279,7 @@ impl TaskManager {
     pub async fn run_cleanup_task(&self, interval: SchedulerInterval) {
         let ttl = interval.into();
         let processes = self.processes.clone();
-        let mut processes_lock = processes.write().await;
+        let processes_lock = processes.write().await;
 
         let mut to_remove = vec![];
 
@@ -150,6 +297,14 @@ impl TaskManager {
             }
         }
 
+        // Clean up WebSocket subscriptions before removing tasks
+        drop(processes_lock); // Release lock before async operations
+        for uuid in &to_remove {
+            self.messenger.cleanup_task_subscriptions(*uuid).await;
+        }
+
+        // Remove tasks from the list
+        let mut processes_lock = self.processes.write().await;
         for uuid in to_remove {
             processes_lock.remove(&uuid);
         }
@@ -161,7 +316,9 @@ async fn spawn_process(
     cmd: &str,
     args: &Vec<String>,
     env: &HashMap<String, String>,
-    details: &Arc<RwLock<TaskDetails>>,
+    _details: &Arc<RwLock<TaskDetails>>,
+    output: &Arc<RwLock<TaskOutput>>,
+    messenger: WebSocketMessenger,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
@@ -175,16 +332,40 @@ async fn spawn_process(
     let stdout = child.stdout.take().expect("Failed to get stdout");
     let stderr = child.stderr.take().expect("Failed to get stderr");
     {
-        let details = details.clone();
+        let output = output.clone();
+        let messenger_ref = messenger.clone();
+        let task_id = {
+            let output_guard = output.read().await;
+            output_guard.task_id
+        };
         tokio::spawn(async move {
-            read_output(details.clone(), stdout, true).await;
+            read_unified_output(
+                output.clone(),
+                stdout,
+                OutputStreamType::Stdout,
+                messenger_ref,
+                task_id,
+            )
+            .await;
         });
     }
 
     {
-        let details = details.clone();
+        let output = output.clone();
+        let messenger_ref = messenger.clone();
+        let task_id = {
+            let output_guard = output.read().await;
+            output_guard.task_id
+        };
         tokio::spawn(async move {
-            read_output(details.clone(), stderr, false).await;
+            read_unified_output(
+                output.clone(),
+                stderr,
+                OutputStreamType::Stderr,
+                messenger_ref,
+                task_id,
+            )
+            .await;
         });
     }
     // Wait for the command to complete
@@ -194,21 +375,31 @@ async fn spawn_process(
     Ok(exit_code)
 }
 
-async fn read_output(
-    details: Arc<RwLock<TaskDetails>>,
-    out: impl AsyncRead + Unpin,
-    is_stdout: bool,
+async fn read_unified_output(
+    output: Arc<RwLock<TaskOutput>>,
+    stream: impl AsyncRead + Unpin,
+    stream_type: OutputStreamType,
+    messenger: WebSocketMessenger,
+    task_id: uuid::Uuid,
 ) {
-    // Wrap stdout in a BufReader
-    let mut reader = BufReader::new(out).lines();
+    let mut reader = BufReader::new(stream).lines();
 
-    while let Some(line) = reader.next_line().await.unwrap() {
-        let mut details = details.write().await;
-        let output = match is_stdout {
-            true => &mut details.stdout,
-            false => &mut details.stderr,
-        };
-        output.push_str(&line);
-        output.push('\n');
+    while let Some(line_result) = reader.next_line().await.transpose() {
+        match line_result {
+            Ok(line) => {
+                add_and_broadcast_line(&output, stream_type, line, &messenger, task_id).await;
+            }
+            Err(e) => {
+                add_and_broadcast_line(
+                    &output,
+                    OutputStreamType::Stderr,
+                    format!("Error reading output: {}", e),
+                    &messenger,
+                    task_id,
+                )
+                .await;
+                break;
+            }
+        }
     }
 }

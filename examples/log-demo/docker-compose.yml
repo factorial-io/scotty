@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  log-generator:
+    build: .
+    container_name: log-demo-generator
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=INFO
+      - DEMO_MODE=true
+    # Uncomment below to see logs with docker-compose logs
+    # stdin_open: true
+    # tty: true
+
+  web-logger:
+    build: .
+    container_name: log-demo-web
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=DEBUG
+      - SERVICE_NAME=web-logger
+    # This service could expose a port if needed for web access
+    # ports:
+    #   - "8080:80"
+
+networks:
+  default:
+    name: log-demo-network

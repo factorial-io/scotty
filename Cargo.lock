@@ -3238,6 +3238,7 @@ dependencies = [
  "clap_complete",
  "crossterm",
  "dotenvy",
+ "futures-util",
  "open",
  "owo-colors",
  "reqwest 0.12.23",
@@ -3248,8 +3249,11 @@ dependencies = [
  "tabled",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-tungstenite",
  "tracing",
  "tracing-subscriber",
+ "url",
+ "uuid",
  "walkdir",
 ]
 

@@ -174,3 +174,111 @@ Scotty generates appropriate configurations for:
 - Pre-push hooks via cargo-husky perform quality checks
 - Container apps directory must have identical paths on host and container for bind mounts
 - Use conventional commit messages
+- Please check your code with `cargo fmt` and `cargo clippy`
+
+## Current Work in Progress
+
+### Unified Output System Implementation ✅ COMPLETED (Phase 3.5)
+
+**Branch:** `feat/better-logs-and-shell`
+
+**Status: Core functionality complete with consolidated WebSocket messages**
+
+### Phase 1 Completed:
+- ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
+- ✅ Breaking change: removed stdout/stderr from TaskDetails
+- ✅ Updated TaskManager for unified output collection
+- ✅ Added configuration options (OutputSettings, ShellSettings)
+- ✅ Extended WebSocket message types for logs and shell
+- ✅ Fixed client-visible status messages
+
+### Phase 2 Completed:
+- ✅ Implemented bollard log streaming service with LogStreamingService
+- ✅ Implemented bollard shell service with ShellService
+- ✅ Added helper methods to AppData for container discovery
+- ✅ Improved error handling with enum-based errors (LogStreamError, ShellServiceError)
+- ✅ Created API endpoints for logs and shell access
+- ✅ Integrated endpoints into router with appropriate permissions
+- ✅ Added comprehensive tests (16 tests total) with CI-friendly Docker handling
+- ✅ All tests passing, GitHub Actions CI ready
+
+### Phase 3 Completed:
+- ✅ **CLI Commands**: Implemented full `app:logs` and `app:shell` commands in scottyctl
+- ✅ **WebSocket Integration**: Added WebSocket handlers in message_handler.rs for real-time streaming
+- ✅ **Authentication System**: Centralized auth logic in auth_core module, eliminating duplication
+- ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
+- ✅ **User Experience Improvements**:
+  - Reduced idle timeout from 2s to 200ms for faster historical log completion
+  - Removed duplicate completion messages for cleaner output
+  - Changed timestamps to opt-in with `--timestamps` flag (default: disabled)
+- ✅ **WebSocket Authentication**: Implemented message-based authentication flow
+- ✅ **Example App**: Added log-demo example app for testing and development
+- ✅ **End-to-End Testing**: Verified complete functionality with real containers
+
+### Phase 3.5 Completed:
+- ✅ **WebSocket Message Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
+- ✅ **Code Restructuring**: Reorganized API handlers into `api/rest/` and `api/websocket/` directories
+- ✅ **Type Consistency**: Eliminated duplicate message definitions between server and client
+- ✅ **Import Updates**: Updated 18 files to use consolidated message types from scotty-core
+- ✅ **Quality Assurance**: All tests pass, no compilation errors, proper code formatting
+
+### Phase 3.6 Completed:
+- ✅ **Task Output WebSocket Streaming**: Implemented real-time task output streaming via WebSocket
+- ✅ **Unified Output Display**: Live stdout/stderr output during all app operations
+- ✅ **Hybrid Implementation**: Combined REST API polling for task status with WebSocket for real-time output
+- ✅ **WebSocketMessenger Architecture**: Centralized WebSocket client management and message broadcasting
+- ✅ **Stack Overflow Resolution**: Fixed circular reference issues in TaskManager data structures
+- ✅ **Resource Cleanup**: Proper WebSocket subscription cleanup during task completion
+
+### Future Phase (Phase 4 - Frontend Integration):
+- Replace current stdout/stderr UI components with unified log viewer
+- Add real-time WebSocket log streaming to web UI
+- Prepare UI framework for future xterm.js shell integration
+- Polish user experience and error handling in frontend
+
+### Key Commands Available:
+```bash
+# Log streaming with various options
+scottyctl app:logs myapp web                    # Historical logs
+scottyctl app:logs myapp web --follow           # Real-time streaming
+scottyctl app:logs myapp web --timestamps       # With timestamps
+scottyctl app:logs myapp web --lines 500        # Custom line count
+
+# Interactive shell access
+scottyctl app:shell myapp web                   # Interactive bash shell
+scottyctl app:shell myapp web --user www-data   # As specific user
+scottyctl app:shell myapp web --shell /bin/sh   # Different shell
+```
+
+### Key Files Added/Modified (All Phases):
+- `scotty-core/src/websocket/message.rs` - **NEW**: Consolidated WebSocket message types
+- `scotty-core/src/websocket/mod.rs` - **NEW**: WebSocket module exports
+- `scotty/src/api/auth_core.rs` - Centralized authentication logic
+- `scotty/src/api/rest/handlers/` - **RESTRUCTURED**: REST API handlers organized by protocol
+- `scotty/src/api/websocket/handlers/` - **RESTRUCTURED**: WebSocket handlers (auth, logs, tasks)
+- `scotty/src/docker/services/logs.rs` - Complete log streaming implementation
+- `scotty/src/docker/services/shell.rs` - Complete shell service implementation
+- `scotty/src/api/websocket/client.rs` - WebSocket client management and cleanup (formerly ws.rs)
+- `scotty/src/app_state.rs` - Shared LogStreamingService integration
+- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command (now uses consolidated types)
+- `scottyctl/src/commands/apps/shell.rs` - CLI shell access command
+- `examples/log-demo/` - Demo application for testing
+
+### Key Files Modified (Phase 3.6):
+- `scotty/src/api/websocket/messaging.rs` - **NEW**: WebSocketMessenger abstraction for client management
+- `scotty/src/tasks/manager.rs` - Refactored to use WebSocketMessenger for output broadcasting
+- `scotty/src/app_state.rs` - Updated to create and share WebSocketMessenger instance
+- `scottyctl/src/api.rs` - Hybrid approach: REST polling + WebSocket streaming for wait_for_task
+- `scottyctl/src/websocket.rs` - **NEW**: Reusable WebSocket utilities and AuthenticatedWebSocket struct
+
+### Latest Commits (All Phases):
+- `71d155e` - feat(websocket): implement real-time task output streaming for Phase 3.6
+- `b220730` - docs: update PRD and CLAUDE.md for Phase 3.5 completion
+- `ee1875d` - refactor(websocket): consolidate message types in scotty-core (Phase 3.5 complete)
+- `4606adc` - refactor(api): restructure handlers into REST and WebSocket modules
+- `afad796` - feat(websocket): implement unified task output streaming system
+- `b4be84c` - feat(cli): improve log command UX and add terminal detection
+
+### Reference Documents:
+- `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
+- `docs/technical-spike-bollard-findings.md` - Bollard API validation results

@@ -170,6 +170,17 @@ impl AppData {
         self.augment_environment(environment)
     }
 
+    /// Find a container state by service name
+    pub fn find_container_by_service(&self, service_name: &str) -> Option<&ContainerState> {
+        self.services.iter().find(|s| s.service == service_name)
+    }
+
+    /// Get the container ID for a service
+    pub fn get_container_id_for_service(&self, service_name: &str) -> Option<&String> {
+        self.find_container_by_service(service_name)
+            .and_then(|container| container.id.as_ref())
+    }
+
     pub async fn create_settings_from_runtime(
         &self,
         env: &HashMap<String, String>,

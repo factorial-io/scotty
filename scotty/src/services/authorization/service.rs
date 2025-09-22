@@ -248,6 +248,76 @@ impl AuthorizationService {
         false
     }
 
+    /// Check if a user has permission in any of the specified scopes
+    /// This is used for actions like app creation where the target scope is known
+    pub async fn check_permission_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &Permission,
+    ) -> bool {
+        info!(
+            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+            user,
+            scopes,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+
+        // Get user assignments (both specific and wildcard)
+        let all_assignments = [
+            config
+                .assignments
+                .get(user)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+            config
+                .assignments
+                .get("*")
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+        ]
+        .concat();
+
+        // Check if user has the permission in any of their roles that overlap with target scopes
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    // Check if this assignment has access to any of the target scopes
+                    let has_scope_access = assignment
+                        .scopes
+                        .iter()
+                        .any(|assigned_scope| scopes.contains(assigned_scope));
+
+                    if has_scope_access {
+                        info!(
+                            "Permission granted: {} has {} in scopes {:?} via role {}",
+                            user,
+                            action.as_str(),
+                            scopes,
+                            assignment.role
+                        );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        info!(
+            "Permission denied: {} lacks {} in scopes {:?}",
+            user,
+            action.as_str(),
+            scopes
+        );
+        false
+    }
+
     /// Format user identifier for authorization checks
     pub fn format_user_id(email: &str, token: Option<&str>) -> String {
         if let Some(token) = token {
@@ -339,7 +409,7 @@ impl AuthorizationService {
     pub async fn get_user_scopes_with_permissions(
         &self,
         user: &str,
-    ) -> Vec<crate::api::handlers::scopes::list::ScopeInfo> {
+    ) -> Vec<crate::api::rest::handlers::scopes::list::ScopeInfo> {
         let config = self.config.read().await;
         let mut user_scopes = Vec::new();
 
@@ -374,7 +444,7 @@ impl AuthorizationService {
 
             // Add each group the user has access to
             for scope in &assignment.scopes {
-                let scope_info = crate::api::handlers::scopes::list::ScopeInfo {
+                let scope_info = crate::api::rest::handlers::scopes::list::ScopeInfo {
                     name: scope.clone(),
                     description: config
                         .scopes
@@ -385,17 +455,18 @@ impl AuthorizationService {
                 };
 
                 // Only add if not already in the list (user might have multiple roles for same scope)
-                if !user_scopes
-                    .iter()
-                    .any(|s: &crate::api::handlers::scopes::list::ScopeInfo| {
+                if !user_scopes.iter().any(
+                    |s: &crate::api::rest::handlers::scopes::list::ScopeInfo| {
                         s.name == scope_info.name
-                    })
-                {
+                    },
+                ) {
                     user_scopes.push(scope_info);
                 } else {
                     // If scope already exists, merge permissions
                     if let Some(existing) = user_scopes.iter_mut().find(
-                        |s: &&mut crate::api::handlers::scopes::list::ScopeInfo| s.name == *scope,
+                        |s: &&mut crate::api::rest::handlers::scopes::list::ScopeInfo| {
+                            s.name == *scope
+                        },
                     ) {
                         for perm in &permissions {
                             if !existing.permissions.contains(perm) {

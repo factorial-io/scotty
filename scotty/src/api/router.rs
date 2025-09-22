@@ -1,7 +1,6 @@
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::get;
-use axum::routing::post;
+use axum::routing::{delete, get, post};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
@@ -27,23 +26,27 @@ use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::api::handlers::apps::create::__path_create_app_handler;
-use crate::api::handlers::apps::custom_action::__path_run_custom_action_handler;
-use crate::api::handlers::apps::list::__path_list_apps_handler;
-use crate::api::handlers::apps::list::list_apps_handler;
-use crate::api::handlers::apps::notify::__path_add_notification_handler;
-use crate::api::handlers::apps::notify::__path_remove_notification_handler;
-use crate::api::handlers::apps::run::__path_adopt_app_handler;
-use crate::api::handlers::apps::run::__path_destroy_app_handler;
-use crate::api::handlers::apps::run::__path_info_app_handler;
-use crate::api::handlers::apps::run::__path_purge_app_handler;
-use crate::api::handlers::apps::run::__path_rebuild_app_handler;
-use crate::api::handlers::apps::run::__path_run_app_handler;
-use crate::api::handlers::apps::run::__path_stop_app_handler;
-use crate::api::handlers::health::__path_health_checker_handler;
-use crate::api::handlers::info::__path_info_handler;
-use crate::api::handlers::login::__path_login_handler;
-use crate::api::handlers::login::__path_validate_token_handler;
+use crate::api::rest::handlers::apps::create::__path_create_app_handler;
+use crate::api::rest::handlers::apps::custom_action::__path_run_custom_action_handler;
+use crate::api::rest::handlers::apps::list::__path_list_apps_handler;
+use crate::api::rest::handlers::apps::list::list_apps_handler;
+use crate::api::rest::handlers::apps::notify::__path_add_notification_handler;
+use crate::api::rest::handlers::apps::notify::__path_remove_notification_handler;
+use crate::api::rest::handlers::apps::run::__path_adopt_app_handler;
+use crate::api::rest::handlers::apps::run::__path_destroy_app_handler;
+use crate::api::rest::handlers::apps::run::__path_info_app_handler;
+use crate::api::rest::handlers::apps::run::__path_purge_app_handler;
+use crate::api::rest::handlers::apps::run::__path_rebuild_app_handler;
+use crate::api::rest::handlers::apps::run::__path_run_app_handler;
+use crate::api::rest::handlers::apps::run::__path_stop_app_handler;
+use crate::api::rest::handlers::apps::shell::__path_create_shell_handler;
+use crate::api::rest::handlers::apps::shell::__path_resize_tty_handler;
+use crate::api::rest::handlers::apps::shell::__path_shell_input_handler;
+use crate::api::rest::handlers::apps::shell::__path_terminate_shell_handler;
+use crate::api::rest::handlers::health::__path_health_checker_handler;
+use crate::api::rest::handlers::info::__path_info_handler;
+use crate::api::rest::handlers::login::__path_login_handler;
+use crate::api::rest::handlers::login::__path_validate_token_handler;
 use crate::oauth::handlers::{
     exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow,
     start_device_flow,
@@ -52,57 +55,69 @@ use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, 
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
-use crate::api::handlers::admin::assignments::{
+use crate::api::rest::handlers::admin::assignments::{
     __path_create_assignment_handler, __path_list_assignments_handler,
     __path_remove_assignment_handler,
 };
-use crate::api::handlers::admin::permissions::{
+use crate::api::rest::handlers::admin::permissions::{
     __path_get_user_permissions_handler, __path_list_available_permissions_handler,
     __path_test_permission_handler,
 };
-use crate::api::handlers::admin::roles::{__path_create_role_handler, __path_list_roles_handler};
-use crate::api::handlers::admin::scopes::{
+use crate::api::rest::handlers::admin::roles::{
+    __path_create_role_handler, __path_list_roles_handler,
+};
+use crate::api::rest::handlers::admin::scopes::{
     __path_create_scope_handler, __path_list_scopes_handler,
 };
-use crate::api::handlers::blueprints::__path_blueprints_handler;
-use crate::api::handlers::health::health_checker_handler;
-use crate::api::handlers::scopes::list::__path_list_user_scopes_handler;
-use crate::api::handlers::tasks::TaskList;
-use crate::api::handlers::tasks::__path_task_detail_handler;
-use crate::api::handlers::tasks::__path_task_list_handler;
-use crate::api::ws::ws_handler;
+use crate::api::rest::handlers::blueprints::__path_blueprints_handler;
+use crate::api::rest::handlers::health::health_checker_handler;
+use crate::api::rest::handlers::scopes::list::__path_list_user_scopes_handler;
+use crate::api::rest::handlers::tasks::TaskList;
+use crate::api::rest::handlers::tasks::__path_task_detail_handler;
+use crate::api::rest::handlers::tasks::__path_task_list_handler;
+use crate::api::websocket::client::ws_handler;
 use crate::app_state::SharedAppState;
 use crate::static_files::serve_embedded_file;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
-use super::handlers::admin::assignments::{
+use super::middleware::authorization::{authorization_middleware, require_permission};
+use super::rest::handlers::admin::assignments::{
     create_assignment_handler, list_assignments_handler, remove_assignment_handler,
 };
-use super::handlers::admin::permissions::{
+use super::rest::handlers::admin::permissions::{
     get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
 };
-use super::handlers::admin::roles::{create_role_handler, list_roles_handler};
-use super::handlers::admin::scopes::{create_scope_handler, list_scopes_handler};
-use super::handlers::apps::create::create_app_handler;
-use super::handlers::apps::custom_action::run_custom_action_handler;
-use super::handlers::apps::notify::add_notification_handler;
-use super::handlers::apps::notify::remove_notification_handler;
-use super::handlers::apps::run::adopt_app_handler;
-use super::handlers::apps::run::destroy_app_handler;
-use super::handlers::apps::run::info_app_handler;
-use super::handlers::apps::run::purge_app_handler;
-use super::handlers::apps::run::rebuild_app_handler;
-use super::handlers::apps::run::run_app_handler;
-use super::handlers::apps::run::stop_app_handler;
-use super::handlers::blueprints::blueprints_handler;
-use super::handlers::info::info_handler;
-use super::handlers::login::login_handler;
-use super::handlers::login::validate_token_handler;
-use super::handlers::scopes::list::{list_user_scopes_handler, ScopeInfo, UserScopesResponse};
-use super::handlers::tasks::task_detail_handler;
-use super::handlers::tasks::task_list_handler;
-use super::middleware::authorization::{authorization_middleware, require_permission};
+use super::rest::handlers::admin::roles::{create_role_handler, list_roles_handler};
+use super::rest::handlers::admin::scopes::{create_scope_handler, list_scopes_handler};
+use super::rest::handlers::apps::create::create_app_handler;
+use super::rest::handlers::apps::custom_action::run_custom_action_handler;
+use super::rest::handlers::apps::notify::add_notification_handler;
+use super::rest::handlers::apps::notify::remove_notification_handler;
+use super::rest::handlers::apps::run::adopt_app_handler;
+use super::rest::handlers::apps::run::destroy_app_handler;
+use super::rest::handlers::apps::run::info_app_handler;
+use super::rest::handlers::apps::run::purge_app_handler;
+use super::rest::handlers::apps::run::rebuild_app_handler;
+use super::rest::handlers::apps::run::run_app_handler;
+use super::rest::handlers::apps::run::stop_app_handler;
+use super::rest::handlers::apps::shell::{
+    create_shell_handler, resize_tty_handler, shell_input_handler, terminate_shell_handler,
+};
+use super::rest::handlers::blueprints::blueprints_handler;
+use super::rest::handlers::info::info_handler;
+use super::rest::handlers::login::login_handler;
+use super::rest::handlers::login::validate_token_handler;
+use super::rest::handlers::scopes::list::{
+    list_user_scopes_handler, ScopeInfo, UserScopesResponse,
+};
+use super::rest::handlers::tasks::task_detail_handler;
+use super::rest::handlers::tasks::task_list_handler;
+use crate::api::rest::handlers::apps::shell::{
+    CreateShellRequest, CreateShellResponse, ResizeTtyRequest, ResizeTtyResponse,
+    ShellInputRequest, ShellInputResponse, TerminateShellResponse,
+};
+use crate::docker::services::shell::ShellServiceError;
 use crate::services::authorization::types::Assignment;
 use crate::services::authorization::Permission;
 use scotty_core::admin::{
@@ -136,6 +151,11 @@ use scotty_core::admin::{
         remove_notification_handler,
         adopt_app_handler,
         run_custom_action_handler,
+        // Shell endpoints
+        create_shell_handler,
+        shell_input_handler,
+        resize_tty_handler,
+        terminate_shell_handler,
         // Admin endpoints
         list_scopes_handler,
         create_scope_handler,
@@ -161,7 +181,10 @@ use scotty_core::admin::{
             RoleInfo, RolesListResponse, CreateRoleRequest, CreateRoleResponse,
             AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
             RemoveAssignmentRequest, RemoveAssignmentResponse, Assignment,
-            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse
+            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse,
+            // Shell API schemas
+            CreateShellRequest, CreateShellResponse, ShellInputRequest, ShellInputResponse,
+            ResizeTtyRequest, ResizeTtyResponse, TerminateShellResponse, ShellServiceError
         )
     ),
     tags(
@@ -250,14 +273,9 @@ impl ApiRoutes {
             )
             .route(
                 "/api/v1/authenticated/apps/create",
-                post(create_app_handler)
-                    .layer(DefaultBodyLimit::max(
-                        state.settings.api.create_app_max_size,
-                    ))
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::Create),
-                    )),
+                post(create_app_handler).layer(DefaultBodyLimit::max(
+                    state.settings.api.create_app_max_size,
+                )),
             )
             .route("/api/v1/authenticated/tasks", get(task_list_handler))
             .route(
@@ -284,6 +302,35 @@ impl ApiRoutes {
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
                 post(run_custom_action_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::Manage),
+                )),
+            )
+            // Shell API routes
+            .route(
+                "/api/v1/authenticated/apps/{app_id}/services/{service_name}/shell",
+                post(create_shell_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::Manage),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/shell/sessions/{session_id}/input",
+                post(shell_input_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::Manage),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/shell/sessions/{session_id}/resize",
+                post(resize_tty_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::Manage),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/shell/sessions/{session_id}",
+                delete(terminate_shell_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::Manage),
                 )),

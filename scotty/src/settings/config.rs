@@ -7,7 +7,9 @@ use scotty_core::settings::{
     docker::{DockerConnectOptions, DockerSettings},
     loadbalancer::{HaproxyConfigSettings, LoadBalancerType, TraefikSettings},
     notification_services::NotificationServiceSettings,
+    output::OutputSettings,
     scheduler_interval::SchedulerInterval,
+    shell::ShellSettings,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, env};
@@ -44,6 +46,10 @@ pub struct Settings {
     pub onepassword: HashMap<String, OnePasswordSettings>,
     #[serde(default)]
     pub notification_services: NotificationServiceSettings,
+    #[serde(default)]
+    pub output: OutputSettings,
+    #[serde(default)]
+    pub shell: ShellSettings,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -69,6 +75,8 @@ impl Default for Settings {
             haproxy: HaproxyConfigSettings { use_tls: false },
             onepassword: HashMap::new(),
             notification_services: NotificationServiceSettings::default(),
+            output: OutputSettings::default(),
+            shell: ShellSettings::default(),
         }
     }
 }
