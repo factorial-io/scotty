@@ -1,6 +1,7 @@
 use crate::output::OutputLine;
 use crate::tasks::task_details::TaskDetails;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -191,4 +192,126 @@ pub struct TaskOutputData {
     pub lines: Vec<OutputLine>,
     pub is_historical: bool, // true = catching up, false = live
     pub has_more: bool,      // true if more historical data coming
+}
+
+impl fmt::Display for WebSocketMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WebSocketMessage::Ping => write!(f, "Ping"),
+            WebSocketMessage::Pong => write!(f, "Pong"),
+            WebSocketMessage::AppListUpdated => write!(f, "App list updated"),
+            WebSocketMessage::AppInfoUpdated(app_name) => {
+                write!(f, "App '{}' info updated", app_name)
+            }
+            WebSocketMessage::TaskListUpdated => write!(f, "Task list updated"),
+            WebSocketMessage::TaskInfoUpdated(task) => {
+                write!(f, "Task '{}' info updated", task.id)
+            }
+            WebSocketMessage::Error(error) => write!(f, "Error: {}", error),
+            WebSocketMessage::Authenticate { token: _ } => {
+                write!(f, "Authentication request")
+            }
+            WebSocketMessage::AuthenticationSuccess => {
+                write!(f, "Authentication successful")
+            }
+            WebSocketMessage::AuthenticationFailed { reason } => {
+                write!(f, "Authentication failed: {}", reason)
+            }
+            WebSocketMessage::StartLogStream(request) => {
+                write!(
+                    f,
+                    "Start log stream for {}/{}",
+                    request.app_name, request.service_name
+                )
+            }
+            WebSocketMessage::StopLogStream { stream_id } => {
+                write!(f, "Stop log stream {}", stream_id)
+            }
+            WebSocketMessage::LogsStreamStarted(info) => {
+                write!(
+                    f,
+                    "Log stream started for {}/{} ({})",
+                    info.app_name, info.service_name, info.stream_id
+                )
+            }
+            WebSocketMessage::LogsStreamData(data) => {
+                write!(
+                    f,
+                    "Log data for stream {} ({} lines)",
+                    data.stream_id,
+                    data.lines.len()
+                )
+            }
+            WebSocketMessage::LogsStreamEnded(end) => {
+                write!(f, "Log stream {} ended: {}", end.stream_id, end.reason)
+            }
+            WebSocketMessage::LogsStreamError(error) => {
+                write!(f, "Log stream {} error: {}", error.stream_id, error.error)
+            }
+            WebSocketMessage::ShellSessionCreated(info) => {
+                write!(
+                    f,
+                    "Shell session created for {}/{} ({})",
+                    info.app_name, info.service_name, info.session_id
+                )
+            }
+            WebSocketMessage::ShellSessionData(data) => {
+                write!(
+                    f,
+                    "Shell session {} data ({:?})",
+                    data.session_id, data.data_type
+                )
+            }
+            WebSocketMessage::ShellSessionEnded(end) => {
+                write!(f, "Shell session {} ended: {}", end.session_id, end.reason)
+            }
+            WebSocketMessage::ShellSessionError(error) => {
+                write!(
+                    f,
+                    "Shell session {} error: {}",
+                    error.session_id, error.error
+                )
+            }
+            WebSocketMessage::StartTaskOutputStream {
+                task_id,
+                from_beginning,
+            } => {
+                write!(
+                    f,
+                    "Start task output stream for {} (from_beginning: {})",
+                    task_id, from_beginning
+                )
+            }
+            WebSocketMessage::StopTaskOutputStream { task_id } => {
+                write!(f, "Stop task output stream for {}", task_id)
+            }
+            WebSocketMessage::TaskOutputStreamStarted {
+                task_id,
+                total_lines,
+            } => {
+                write!(
+                    f,
+                    "Task output stream started for {} ({} total lines)",
+                    task_id, total_lines
+                )
+            }
+            WebSocketMessage::TaskOutputData(data) => {
+                let status = if data.is_historical {
+                    "historical"
+                } else {
+                    "live"
+                };
+                write!(
+                    f,
+                    "Task {} output data ({} lines, {})",
+                    data.task_id,
+                    data.lines.len(),
+                    status
+                )
+            }
+            WebSocketMessage::TaskOutputStreamEnded { task_id, reason } => {
+                write!(f, "Task {} output stream ended: {}", task_id, reason)
+            }
+        }
+    }
 }

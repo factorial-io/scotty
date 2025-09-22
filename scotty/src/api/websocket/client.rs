@@ -8,7 +8,7 @@ use axum::{
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use tokio::sync::broadcast;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::websocket::handlers::handle_websocket_message;
@@ -22,12 +22,8 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
 
     {
         info!("New WebSocket connection");
-        let state = state.clone();
-        let mut clients = state.clients.lock().await;
-        clients.insert(
-            client_id,
-            crate::app_state::WebSocketClient::new(tx.clone()),
-        );
+        let client = crate::app_state::WebSocketClient::new(tx.clone());
+        state.messenger.add_client(client_id, client).await;
     }
 
     // Don't send initial ping - wait for authentication first
@@ -68,11 +64,12 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
                 if let Ok(parsed_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
                     handle_websocket_message(&state, client_id, &parsed_msg).await;
                 } else {
-                    broadcast_message(
-                        &state,
-                        WebSocketMessage::Error("Could not parse message".to_string()),
-                    )
-                    .await;
+                    state
+                        .messenger
+                        .broadcast_to_all(WebSocketMessage::Error(
+                            "Could not parse message".to_string(),
+                        ))
+                        .await;
                 }
             }
             Message::Binary(_bin) => {
@@ -90,8 +87,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
         cleanup_client_streams(&state, client_id).await;
 
         // Remove client from the list
-        let mut clients = state.clients.lock().await;
-        clients.remove(&client_id);
+        state.messenger.remove_client(client_id).await;
 
         info!("WebSocket client {} cleanup completed", client_id);
     }
@@ -108,32 +104,16 @@ pub async fn ws_handler(
     ws.on_upgrade(move |ws| websocket_handler(ws, state, client_id))
 }
 
+/// Deprecated: Use WebSocketMessenger::broadcast_to_all instead
+#[deprecated(note = "Use WebSocketMessenger::broadcast_to_all instead")]
 pub async fn broadcast_message(state: &SharedAppState, msg: WebSocketMessage) {
-    let state = state.clone();
-    let clients = state.clients.lock().await;
-    let serialized_msg = serde_json::to_string(&msg).expect("Failed to serialize message");
-    for client in clients.values() {
-        let _ = client
-            .sender
-            .send(Message::Text(serialized_msg.clone().into()));
-    }
+    state.messenger.broadcast_to_all(msg).await;
 }
 
+/// Deprecated: Use WebSocketMessenger::send_to_client instead
+#[deprecated(note = "Use WebSocketMessenger::send_to_client instead")]
 pub async fn send_message(state: &SharedAppState, uuid: Uuid, msg: WebSocketMessage) {
-    let state_clone = state.clone();
-    let clients = state_clone.clients.lock().await;
-    let serialized_msg = serde_json::to_string(&msg).expect("Failed to serialize message");
-    if let Some(client) = clients.get(&uuid) {
-        if let Err(e) = client.sender.send(Message::Text(serialized_msg.into())) {
-            warn!("Failed to queue message for client {}: {:?}", uuid, e);
-        }
-    } else {
-        // Client not found - stream cleanup is handled proactively during disconnect
-        warn!(
-            "Failed to send message to client {}: client not found",
-            uuid
-        );
-    }
+    let _ = state.messenger.send_to_client(uuid, msg).await;
 }
 
 /// Clean up all streams associated with a disconnected client

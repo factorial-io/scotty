@@ -2,15 +2,13 @@ pub mod auth;
 pub mod logs;
 pub mod tasks;
 
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::auth_core::CurrentUser;
 use crate::app_state::SharedAppState;
 use crate::services::{authorization::Permission, AuthorizationService};
 use scotty_core::websocket::message::WebSocketMessage;
-
-use super::client::send_message;
 
 /// Result of WebSocket authorization check
 #[derive(Debug)]
@@ -85,16 +83,17 @@ pub async fn handle_websocket_auth_failure(
     match auth_result {
         WebSocketAuthResult::Authorized(user) => Some(user),
         WebSocketAuthResult::Unauthenticated => {
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::Error(format!("Authentication required for {}", operation)),
-            )
-            .await;
+            state
+                .messenger
+                .send_error(
+                    client_id,
+                    format!("Authentication required for {}", operation),
+                )
+                .await;
             None
         }
         WebSocketAuthResult::Unauthorized(error_msg) => {
-            send_message(state, client_id, WebSocketMessage::Error(error_msg)).await;
+            state.messenger.send_error(client_id, error_msg).await;
             None
         }
     }
@@ -114,12 +113,13 @@ pub async fn check_websocket_authentication(
                 "Unauthenticated WebSocket {} request denied for client {}",
                 operation, client_id
             );
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::Error(format!("Authentication required for {}", operation)),
-            )
-            .await;
+            state
+                .messenger
+                .send_error(
+                    client_id,
+                    format!("Authentication required for {}", operation),
+                )
+                .await;
             None
         }
     }
@@ -132,9 +132,10 @@ pub async fn handle_websocket_message(
     client_id: Uuid,
     msg: &WebSocketMessage,
 ) {
+    debug!("Received WebSocket message: {msg}");
     match msg {
         WebSocketMessage::Ping => {
-            send_message(state, client_id, WebSocketMessage::Pong).await;
+            state.messenger.send_pong(client_id).await;
         }
         WebSocketMessage::Pong => {}
         WebSocketMessage::Error(_) => {}

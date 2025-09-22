@@ -4,6 +4,13 @@ use axum_test::TestServer;
 use config::Config;
 use std::sync::Arc;
 
+/// Helper function to create test WebSocket messenger
+fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
+    use crate::api::websocket::WebSocketMessenger;
+    let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    WebSocketMessenger::new(clients)
+}
+
 /// Create actual Scotty router for testing with bearer auth configuration
 async fn create_scotty_app_with_bearer_auth() -> axum::Router {
     // Load test configuration from file
@@ -17,10 +24,10 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
     let app_state = Arc::new(AppState {
         settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
-        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        messenger: create_test_websocket_messenger(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(),
+        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state: None,
         auth_service: Arc::new(
             crate::services::AuthorizationService::new("../config/casbin")
@@ -87,10 +94,10 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
     let app_state = Arc::new(AppState {
         settings: settings.clone(),
         stop_flag: crate::stop_flag::StopFlag::new(),
-        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        messenger: create_test_websocket_messenger(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(),
+        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state: None,
         auth_service: Arc::new(
             crate::services::AuthorizationService::new("../config/casbin")
@@ -234,10 +241,10 @@ async fn create_scotty_app_with_oauth() -> axum::Router {
     let app_state = Arc::new(AppState {
         settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
-        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        messenger: create_test_websocket_messenger(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(),
+        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state: None, // OAuth client creation may fail in tests, that's OK
         auth_service: Arc::new(
             crate::services::AuthorizationService::new("../config/casbin")
@@ -325,10 +332,10 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
     let app_state = Arc::new(AppState {
         settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
-        clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        messenger: create_test_websocket_messenger(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(),
+        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state,
         auth_service: Arc::new(
             crate::services::AuthorizationService::new("../config/casbin")

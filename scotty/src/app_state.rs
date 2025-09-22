@@ -11,6 +11,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::api::basic_auth::CurrentUser;
+use crate::api::websocket::WebSocketMessenger;
 use crate::docker::services::logs::LogStreamingService;
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{
@@ -58,19 +59,17 @@ impl WebSocketClient {
     }
 }
 
-type WebSocketClients = HashMap<Uuid, WebSocketClient>;
-
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub settings: Settings,
     pub stop_flag: stop_flag::StopFlag,
-    pub clients: Arc<Mutex<WebSocketClients>>,
     pub apps: SharedAppList,
     pub docker: Docker,
     pub task_manager: manager::TaskManager,
     pub oauth_state: Option<OAuthState>,
     pub auth_service: Arc<AuthorizationService>,
     pub logs_service: LogStreamingService,
+    pub messenger: WebSocketMessenger,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -127,20 +126,21 @@ impl AppState {
             }
         });
 
+        // Create WebSocket clients and messenger
+        let clients = Arc::new(Mutex::new(HashMap::new()));
+        let messenger = WebSocketMessenger::new(clients.clone());
+
         let state = Arc::new(AppState {
             settings,
             stop_flag: stop_flag.clone(),
-            clients: Arc::new(Mutex::new(HashMap::new())),
             apps: SharedAppList::new(),
             docker,
-            task_manager: manager::TaskManager::new(),
+            task_manager: manager::TaskManager::new(messenger.clone()),
             oauth_state,
             auth_service,
             logs_service,
+            messenger,
         });
-
-        // Set up the circular reference for task manager to broadcast WebSocket updates
-        state.task_manager.set_app_state(state.clone()).await;
 
         Ok(state)
     }
@@ -149,16 +149,19 @@ impl AppState {
         let settings = Settings::new()?;
         let docker = Docker::connect_with_local_defaults()?;
 
+        let clients = Arc::new(Mutex::new(HashMap::new()));
+        let messenger = WebSocketMessenger::new(clients.clone());
+
         Ok(Arc::new(AppState {
             settings,
             stop_flag: stop_flag::StopFlag::new(),
-            clients: Arc::new(Mutex::new(HashMap::new())),
             apps: SharedAppList::new(),
             docker: docker.clone(),
-            task_manager: manager::TaskManager::new(),
+            task_manager: manager::TaskManager::new(messenger.clone()),
             oauth_state: None,
             auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
             logs_service: LogStreamingService::new(docker),
+            messenger,
         }))
     }
 }

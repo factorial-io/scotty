@@ -290,18 +290,19 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 
 ## Implementation Status
 
-**Current Status: Phase 3.5 Complete - WebSocket Message Consolidation** 🎉
+**Current Status: Phase 3.6 Complete - Task Output WebSocket Streaming** 🎉
 
-All core log streaming and shell access functionality is complete and working. The system now provides:
+All unified output system functionality is complete and working. The system now provides:
 - ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
 - ✅ Interactive shell access with `app:shell` command
+- ✅ Real-time task output streaming with WebSocket-based `wait_for_task`
 - ✅ Centralized authentication system with proper cleanup
 - ✅ Improved user experience with optimized performance
 - ✅ Comprehensive test coverage and CI integration
-- ✅ **NEW: Consolidated WebSocket message types in scotty-core** (eliminates duplication, ensures type consistency)
+- ✅ Consolidated WebSocket message types in scotty-core (eliminates duplication, ensures type consistency)
+- ✅ **NEW: Live task output during all app operations** (no more silent waits!)
 
 **Next Steps**:
-- Phase 3.6: Implement WebSocket-based task output streaming for `wait_for_task` function
 - Phase 4: Frontend Integration - Replace current stdout/stderr UI with unified log viewer
 
 ---
@@ -337,12 +338,13 @@ All core log streaming and shell access functionality is complete and working. T
 5. ✅ **Testing**: Verified all tests pass with new consolidated message structure
 6. ✅ **Single Source of Truth**: All WebSocket communication types defined once and shared
 
-### Phase 3.6: Task Output WebSocket Streaming
-1. **Replace Polling with WebSocket**: Update `wait_for_task` function in scottyctl to use real-time WebSocket streaming
-2. **Task Output Display**: Implement unified output display similar to logs command
-3. **Real-time Feedback**: Show task progress with live stdout/stderr output during app operations
-4. **Error Handling**: Graceful fallback to REST polling if WebSocket connection fails
-5. **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
+### Phase 3.6: Task Output WebSocket Streaming ✅ COMPLETED
+1. ✅ **Replace Polling with WebSocket**: Updated `wait_for_task` function in scottyctl to use real-time WebSocket streaming
+2. ✅ **Task Output Display**: Implemented unified output display with colored stderr output
+3. ✅ **Real-time Feedback**: Shows task progress with live stdout/stderr output during app operations
+4. ✅ **WebSocket-Only Implementation**: No fallback to polling - pure WebSocket implementation
+5. ✅ **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
+6. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
 
 ### Phase 4: Frontend Integration
 1. **Unified Log Viewer**: Replace separate stdout/stderr components

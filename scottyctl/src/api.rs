@@ -152,45 +152,167 @@ pub async fn wait_for_task(
     context: &RunningAppContext,
     ui: &Arc<Ui>,
 ) -> anyhow::Result<()> {
-    let mut done = false;
-    // TODO: Remove these when unified output streaming is implemented
-    let _last_position = 0;
-    let _last_err_position = 0;
+    use crate::utils::status_line::Status;
+    use crate::websocket::AuthenticatedWebSocket;
+    use futures_util::{SinkExt, StreamExt};
+    use scotty_core::tasks::task_details::TaskDetails;
+    use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+    use tokio_tungstenite::tungstenite::Message;
 
-    while !done {
-        let result = get(server, &format!("task/{}", &context.task.id)).await?;
+    // Try to connect to WebSocket for output streaming (optional enhancement)
+    let ws_connection = AuthenticatedWebSocket::connect(server).await.ok();
 
-        let task: TaskDetails = serde_json::from_value(result).context("Failed to parse task")?;
+    // If WebSocket connected, request task output stream
+    if let Some(mut ws) = ws_connection {
+        let start_message = WebSocketMessage::StartTaskOutputStream {
+            task_id: context.task.id,
+            from_beginning: true, // Get all output from the beginning
+        };
 
-        // TODO: Implement unified output streaming for CLI
-        // This functionality needs to be updated to use the new unified output system
-        // Will be implemented as part of Phase 2 CLI commands
-        // For now, just show task status updates
-        if task.state != State::Running {
-            match task.state {
-                State::Finished => ui.println("Task completed successfully".green().to_string()),
-                State::Failed => {
-                    ui.eprintln("Task failed".red().to_string());
-                    if let Some(exit_code) = task.last_exit_code {
-                        ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+        // Send the request but don't fail if it doesn't work
+        let _ = ws.send(start_message).await;
+
+        // Split WebSocket into sender and receiver
+        let (mut ws_sender, mut ws_receiver) = ws.split();
+
+        // Spawn a task to handle WebSocket messages
+        let ui_clone = ui.clone();
+        let ws_handle = tokio::spawn(async move {
+            while let Some(message) = ws_receiver.next().await {
+                match message {
+                    Ok(Message::Text(text)) => {
+                        if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
+                            match ws_message {
+                                WebSocketMessage::TaskOutputData(TaskOutputData {
+                                    lines, ..
+                                }) => {
+                                    for line in lines {
+                                        display_task_output_line(&line, &ui_clone);
+                                    }
+                                }
+                                WebSocketMessage::TaskOutputStreamEnded { .. } => {
+                                    break; // Stop listening when stream ends
+                                }
+                                _ => {} // Ignore other message types
+                            }
+                        }
+                    }
+                    Ok(Message::Close(_)) | Err(_) => break,
+                    _ => {}
+                }
+            }
+            // ws_receiver is dropped here which is fine
+        });
+
+        // Poll for task completion status
+        let mut done = false;
+        while !done {
+            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let task: TaskDetails =
+                serde_json::from_value(result).context("Failed to parse task")?;
+
+            // Check if task is done
+            done = task.state != State::Running;
+
+            if done {
+                // Abort the WebSocket handler since task is done
+                ws_handle.abort();
+
+                match task.state {
+                    State::Finished => {
+                        if task.last_exit_code.is_none() || task.last_exit_code == Some(0) {
+                            ui.set_status("Task completed successfully", Status::Succeeded);
+                        } else {
+                            ui.set_status("Task failed", Status::Failed);
+                            if let Some(exit_code) = task.last_exit_code {
+                                ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                            }
+                        }
+                    }
+                    State::Failed => {
+                        ui.set_status("Task failed", Status::Failed);
+                        if let Some(exit_code) = task.last_exit_code {
+                            ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                        }
+                    }
+                    State::Running => {} // Should not happen since we check above
+                }
+
+                // Return error if task failed
+                if let Some(exit_code) = task.last_exit_code {
+                    if exit_code != 0 {
+                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
                     }
                 }
-                State::Running => {} // Should not happen since we check above
+            } else {
+                // Poll every 500ms
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
         }
 
-        // Check if task is done
-        done = task.state != State::Running;
-        if !done {
-            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-        }
+        // Clean up WebSocket connection
+        let _ = ws_sender.close().await;
+    } else {
+        // Fallback to simple polling without WebSocket output
+        tracing::debug!("WebSocket connection failed, using polling only");
 
-        if let Some(exit_code) = task.last_exit_code {
-            if done && exit_code != 0 {
-                return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+        let mut done = false;
+        while !done {
+            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let task: TaskDetails =
+                serde_json::from_value(result).context("Failed to parse task")?;
+
+            done = task.state != State::Running;
+
+            if done {
+                match task.state {
+                    State::Finished => {
+                        if task.last_exit_code.is_none() || task.last_exit_code == Some(0) {
+                            ui.set_status("Task completed successfully", Status::Succeeded);
+                        } else {
+                            ui.set_status("Task failed", Status::Failed);
+                            if let Some(exit_code) = task.last_exit_code {
+                                ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                            }
+                        }
+                    }
+                    State::Failed => {
+                        ui.set_status("Task failed", Status::Failed);
+                        if let Some(exit_code) = task.last_exit_code {
+                            ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                        }
+                    }
+                    State::Running => {} // Should not happen
+                }
+
+                if let Some(exit_code) = task.last_exit_code {
+                    if exit_code != 0 {
+                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+                    }
+                }
+            } else {
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
         }
     }
 
     Ok(())
+}
+
+fn display_task_output_line(line: &scotty_core::output::OutputLine, ui: &Arc<Ui>) {
+    use scotty_core::output::OutputStreamType;
+
+    // Trim trailing newline since ui.println adds one
+    let content = line.content.trim_end_matches('\n');
+
+    let formatted_line = if ui.is_terminal() {
+        match line.stream {
+            OutputStreamType::Stdout => content.to_string(),
+            OutputStreamType::Stderr => content.red().to_string(),
+        }
+    } else {
+        content.to_string()
+    };
+
+    ui.println(formatted_line);
 }

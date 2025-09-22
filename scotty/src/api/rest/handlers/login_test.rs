@@ -9,6 +9,18 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
+    /// Helper function to create test WebSocket clients
+    fn create_test_websocket_clients() -> crate::api::websocket::WebSocketClients {
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()))
+    }
+
+    /// Helper function to create test WebSocket messenger
+    fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
+        use crate::api::websocket::WebSocketMessenger;
+        let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+        WebSocketMessenger::new(clients)
+    }
+
     /// Create a test AppState with mock settings for different auth modes
     async fn create_test_app_state(auth_mode: AuthMode) -> Arc<AppState> {
         // Use the test bearer auth config as base and override the auth mode
@@ -40,10 +52,10 @@ mod tests {
         Arc::new(AppState {
             settings,
             stop_flag: crate::stop_flag::StopFlag::new(),
-            clients: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            messenger: create_test_websocket_messenger(),
             apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
             docker: docker.clone(),
-            task_manager: crate::tasks::manager::TaskManager::new(),
+            task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker),

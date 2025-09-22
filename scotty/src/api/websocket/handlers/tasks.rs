@@ -1,7 +1,7 @@
 use tracing::info;
 use uuid::Uuid;
 
-use crate::api::websocket::client::send_message;
+use crate::api::websocket::WebSocketMessenger;
 use crate::app_state::SharedAppState;
 use crate::services::authorization::Permission;
 use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
@@ -20,45 +20,29 @@ pub async fn handle_start_task_output_stream(
         client_id, task_id, from_beginning
     );
 
-    // Check authentication
-    let user = {
-        let clients = state.clients.lock().await;
-        if let Some(client) = clients.get(&client_id) {
-            client.user.clone()
-        } else {
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::Error("Client not found".to_string()),
-            )
-            .await;
+    // Get user information from client
+    let user = match state.messenger.get_user_for_client(client_id).await {
+        Some(user) => user,
+        None => {
+            state
+                .messenger
+                .send_error(
+                    client_id,
+                    "Authentication required for task output streaming".to_string(),
+                )
+                .await;
             return;
         }
     };
-
-    // Verify user is authenticated
-    if user.is_none() {
-        send_message(
-            state,
-            client_id,
-            WebSocketMessage::Error(
-                "Authentication required for task output streaming".to_string(),
-            ),
-        )
-        .await;
-        return;
-    }
 
     // Check if task exists and get its output
     let task_output = match state.task_manager.get_task_output(&task_id).await {
         Some(output) => output,
         None => {
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::Error(format!("Task {} not found", task_id)),
-            )
-            .await;
+            state
+                .messenger
+                .send_error(client_id, format!("Task {} not found", task_id))
+                .await;
             return;
         }
     };
@@ -71,7 +55,7 @@ pub async fn handle_start_task_output_stream(
             let auth_result = check_websocket_authorization(
                 state,
                 client_id,
-                &user,
+                &Some(user),
                 app_name,
                 Permission::View,
                 "task output stream",
@@ -87,24 +71,20 @@ pub async fn handle_start_task_output_stream(
     }
 
     // Subscribe the client to this task's output
-    {
-        let mut clients = state.clients.lock().await;
-        if let Some(client) = clients.get_mut(&client_id) {
-            client.subscribe_to_task(task_id);
-            info!("Client {} subscribed to task {} output", client_id, task_id);
-        }
-    }
+    // Subscribe client to task updates
+    let _ = state.messenger.subscribe_to_task(client_id, task_id).await;
 
     // Send stream started notification
-    send_message(
-        state,
-        client_id,
-        WebSocketMessage::TaskOutputStreamStarted {
-            task_id,
-            total_lines: task_output.total_lines_processed,
-        },
-    )
-    .await;
+    let _ = state
+        .messenger
+        .send_to_client(
+            client_id,
+            WebSocketMessage::TaskOutputStreamStarted {
+                task_id,
+                total_lines: task_output.total_lines_processed,
+            },
+        )
+        .await;
 
     // Send existing output if requested
     if from_beginning && !task_output.lines.is_empty() {
@@ -116,17 +96,18 @@ pub async fn handle_start_task_output_stream(
 
         for (i, chunk) in chunks.enumerate() {
             let is_last_batch = i == total_chunks - 1;
-            send_message(
-                state,
-                client_id,
-                WebSocketMessage::TaskOutputData(TaskOutputData {
-                    task_id,
-                    lines: chunk.to_vec(),
-                    is_historical: true,
-                    has_more: !is_last_batch,
-                }),
-            )
-            .await;
+            let _ = state
+                .messenger
+                .send_to_client(
+                    client_id,
+                    WebSocketMessage::TaskOutputData(TaskOutputData {
+                        task_id,
+                        lines: chunk.to_vec(),
+                        is_historical: true,
+                        has_more: !is_last_batch,
+                    }),
+                )
+                .await;
         }
     }
 
@@ -135,26 +116,28 @@ pub async fn handle_start_task_output_stream(
         use scotty_core::tasks::task_details::State;
         match details.state {
             State::Finished => {
-                send_message(
-                    state,
-                    client_id,
-                    WebSocketMessage::TaskOutputStreamEnded {
-                        task_id,
-                        reason: "completed".to_string(),
-                    },
-                )
-                .await;
+                let _ = state
+                    .messenger
+                    .send_to_client(
+                        client_id,
+                        WebSocketMessage::TaskOutputStreamEnded {
+                            task_id,
+                            reason: "completed".to_string(),
+                        },
+                    )
+                    .await;
             }
             State::Failed => {
-                send_message(
-                    state,
-                    client_id,
-                    WebSocketMessage::TaskOutputStreamEnded {
-                        task_id,
-                        reason: "failed".to_string(),
-                    },
-                )
-                .await;
+                let _ = state
+                    .messenger
+                    .send_to_client(
+                        client_id,
+                        WebSocketMessage::TaskOutputStreamEnded {
+                            task_id,
+                            reason: "failed".to_string(),
+                        },
+                    )
+                    .await;
             }
             State::Running => {
                 // Task is still running, client will receive live updates
@@ -175,50 +158,30 @@ pub async fn handle_stop_task_output_stream(
     );
 
     // Unsubscribe the client from this task's output
-    {
-        let mut clients = state.clients.lock().await;
-        if let Some(client) = clients.get_mut(&client_id) {
-            client.unsubscribe_from_task(task_id);
-            info!(
-                "Client {} unsubscribed from task {} output",
-                client_id, task_id
-            );
-        }
-    }
+    let _ = state
+        .messenger
+        .unsubscribe_from_task(client_id, task_id)
+        .await;
+    info!(
+        "Client {} unsubscribed from task {} output",
+        client_id, task_id
+    );
 
     // Send confirmation
-    send_message(
-        state,
-        client_id,
-        WebSocketMessage::TaskOutputStreamEnded {
-            task_id,
-            reason: "stopped by client".to_string(),
-        },
-    )
-    .await;
+    let _ = state
+        .messenger
+        .send_to_client(
+            client_id,
+            WebSocketMessage::TaskOutputStreamEnded {
+                task_id,
+                reason: "stopped by client".to_string(),
+            },
+        )
+        .await;
 }
 
 /// Clean up task subscriptions for all clients when a task is removed
 pub async fn cleanup_task_subscriptions(state: &SharedAppState, task_id: &Uuid) {
-    let mut clients = state.clients.lock().await;
-    for (client_id, client) in clients.iter_mut() {
-        if client.is_subscribed_to_task(task_id) {
-            client.unsubscribe_from_task(*task_id);
-            info!(
-                "Cleaned up task {} subscription for client {}",
-                task_id, client_id
-            );
-
-            // Notify the client that the stream has ended
-            send_message(
-                state,
-                *client_id,
-                WebSocketMessage::TaskOutputStreamEnded {
-                    task_id: *task_id,
-                    reason: "task expired".to_string(),
-                },
-            )
-            .await;
-        }
-    }
+    // This is now handled by the messenger's cleanup_task_subscriptions method
+    state.messenger.cleanup_task_subscriptions(*task_id).await;
 }

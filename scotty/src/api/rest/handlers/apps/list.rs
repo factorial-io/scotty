@@ -95,6 +95,13 @@ mod tests {
     use tempfile::TempDir;
     use tokio::sync::Mutex;
 
+    /// Helper function to create test WebSocket messenger
+    fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
+        use crate::api::websocket::WebSocketMessenger;
+        let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+        WebSocketMessenger::new(clients)
+    }
+
     async fn create_test_auth_service() -> (Arc<AuthorizationService>, TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
@@ -103,7 +110,7 @@ mod tests {
         let model_content = r#"[request_definition]
 r = sub, app, act
 
-[policy_definition]  
+[policy_definition]
 p = sub, group, act
 
 [role_definition]
@@ -256,10 +263,10 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
         let app_state = Arc::new(AppState {
             settings,
             stop_flag: stop_flag::StopFlag::new(),
-            clients: Arc::new(Mutex::new(HashMap::new())),
+            messenger: create_test_websocket_messenger(),
             apps: shared_app_list,
             docker: docker.clone(),
-            task_manager: crate::tasks::manager::TaskManager::new(),
+            task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker),

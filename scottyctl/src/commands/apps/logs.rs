@@ -1,15 +1,10 @@
 use anyhow::Context;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use owo_colors::OwoColorize;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 
-use crate::{
-    api::{get, get_auth_token},
-    cli::LogsCommand,
-    context::AppContext,
-    utils::status_line::Status,
-};
+use crate::{api::get, cli::LogsCommand, context::AppContext, utils::status_line::Status};
 use scotty_core::websocket::message::*;
 use scotty_core::{apps::app_data::AppData, output::OutputLine};
 use uuid::Uuid;
@@ -104,6 +99,8 @@ async fn get_app_data(context: &AppContext, app_name: &str) -> anyhow::Result<Ap
 
 /// Stream logs using WebSocket-only approach for both historical and real-time logs
 async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyhow::Result<()> {
+    use crate::websocket::AuthenticatedWebSocket;
+
     let ui = context.ui();
 
     let stream_type = if cmd.follow {
@@ -113,88 +110,13 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
     };
     ui.new_status_line(format!("Starting {} log stream...", stream_type));
 
-    // Connect to WebSocket first (unauthenticated)
-    let ws_url = context
-        .server()
-        .server
-        .replace("http://", "ws://")
-        .replace("https://", "wss://");
-    let ws_url = format!("{}/ws", ws_url);
-
+    // Connect and authenticate to WebSocket
     ui.new_status_line("Connecting to WebSocket...");
-    let (ws_stream, _) = connect_async(&ws_url)
+    let mut ws = AuthenticatedWebSocket::connect(context.server())
         .await
         .context("Failed to connect to WebSocket")?;
-    let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
-    ui.success("Connected to WebSocket");
-
-    // Get authentication token and send authentication message
-    let token = get_auth_token(context.server())
-        .await
-        .context("Failed to get authentication token")?;
-
-    ui.new_status_line("Authenticating WebSocket connection...");
-
-    let auth_message = WebSocketMessage::Authenticate { token };
-    let auth_json = serde_json::to_string(&auth_message)
-        .context("Failed to serialize authentication message")?;
-
-    ws_sender
-        .send(Message::Text(auth_json.into()))
-        .await
-        .context("Failed to send authentication message")?;
-
-    // Wait for authentication response
-    let mut authenticated = false;
-    while let Some(message) = ws_receiver.next().await {
-        match message {
-            Ok(Message::Text(text)) => {
-                if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
-                    match ws_message {
-                        WebSocketMessage::AuthenticationSuccess => {
-                            ui.success("🔐 WebSocket authentication successful");
-                            authenticated = true;
-                            break;
-                        }
-                        WebSocketMessage::AuthenticationFailed { reason } => {
-                            return Err(anyhow::anyhow!(
-                                "WebSocket authentication failed: {}",
-                                reason
-                            ));
-                        }
-                        WebSocketMessage::Error(msg) => {
-                            return Err(anyhow::anyhow!(
-                                "WebSocket error during authentication: {}",
-                                msg
-                            ));
-                        }
-                        _ => {
-                            // Ignore other messages during authentication
-                        }
-                    }
-                }
-            }
-            Ok(Message::Close(_)) => {
-                return Err(anyhow::anyhow!(
-                    "WebSocket connection closed during authentication"
-                ));
-            }
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-                    "WebSocket error during authentication: {}",
-                    e
-                ));
-            }
-            _ => {
-                // Ignore other message types
-            }
-        }
-    }
-
-    if !authenticated {
-        return Err(anyhow::anyhow!("WebSocket authentication timed out"));
-    }
+    ui.success("🔐 WebSocket authenticated");
 
     // Create the log stream request
     let log_request = LogStreamRequest {
@@ -209,11 +131,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
 
     // Send StartLogStream message
     let start_message = WebSocketMessage::StartLogStream(log_request);
-    let message_json =
-        serde_json::to_string(&start_message).context("Failed to serialize log stream request")?;
-
-    ws_sender
-        .send(Message::Text(message_json.into()))
+    ws.send(start_message)
         .await
         .context("Failed to send log stream request")?;
 
@@ -250,7 +168,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
     let mut current_stream_id: Option<Uuid> = None;
 
     // Listen for WebSocket messages
-    while let Some(message) = ws_receiver.next().await {
+    while let Some(message) = ws.receiver.next().await {
         match message {
             Ok(Message::Text(text)) => {
                 if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
@@ -316,9 +234,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
     if let Some(stream_id) = current_stream_id {
         if cmd.follow {
             let stop_message = WebSocketMessage::StopLogStream { stream_id };
-            if let Ok(message_json) = serde_json::to_string(&stop_message) {
-                let _ = ws_sender.send(Message::Text(message_json.into())).await;
-            }
+            let _ = ws.send(stop_message).await;
         }
     }
 
@@ -331,7 +247,7 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
     }
 
     // Close the WebSocket connection properly
-    let _ = ws_sender.close().await;
+    let _ = ws.close().await;
 
     Ok(())
 }

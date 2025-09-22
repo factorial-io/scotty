@@ -8,29 +8,87 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 use tokio::process::Command;
 use tokio::sync::RwLock;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
+
 use uuid::Uuid;
 
 use scotty_core::output::{OutputStreamType, TaskOutput};
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
 
+use crate::api::websocket::WebSocketMessenger;
+
+/// Helper function to add a line to output and broadcast it to subscribers
+async fn add_and_broadcast_line(
+    output: &Arc<RwLock<TaskOutput>>,
+    stream_type: OutputStreamType,
+    line: String,
+    messenger: &WebSocketMessenger,
+    task_id: uuid::Uuid,
+) {
+    let output_line = {
+        let mut output = output.write().await;
+        output.add_line(stream_type, line);
+        output.lines.back().cloned()
+    };
+
+    if let Some(line) = output_line {
+        use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+        debug!("Broadcasting output update for task {}", task_id);
+
+        let message = WebSocketMessage::TaskOutputData(TaskOutputData {
+            task_id,
+            lines: vec![line],
+            is_historical: false,
+            has_more: false,
+        });
+
+        messenger
+            .broadcast_to_task_subscribers(task_id, message)
+            .await;
+    }
+}
+
+/// Helper function to handle task completion consistently
+async fn handle_task_completion(
+    details: &Arc<RwLock<TaskDetails>>,
+    messenger: &WebSocketMessenger,
+    task_id: uuid::Uuid,
+    exit_code: Result<i32, anyhow::Error>,
+) {
+    debug!("Handling task completion for task {}", task_id);
+    let (state, status_code, reason) = match exit_code {
+        Ok(0) => (State::Finished, Some(0), "completed"),
+        Ok(e) => (State::Failed, Some(e), "failed"),
+        Err(_) => (State::Failed, None, "failed"),
+    };
+
+    TaskManager::set_task_finished(details, status_code, state).await;
+
+    use scotty_core::websocket::message::WebSocketMessage;
+    debug!("Broadcasting completion for task {}", task_id);
+
+    let message = WebSocketMessage::TaskOutputStreamEnded {
+        task_id,
+        reason: reason.to_string(),
+    };
+
+    messenger
+        .broadcast_to_task_subscribers(task_id, message)
+        .await;
+}
+
 #[derive(Clone, Debug)]
 pub struct TaskManager {
     processes: Arc<RwLock<HashMap<Uuid, TaskState>>>,
-    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
+    messenger: WebSocketMessenger,
 }
 
 impl TaskManager {
-    pub fn new() -> Self {
+    pub fn new(messenger: WebSocketMessenger) -> Self {
         Self {
             processes: Arc::new(RwLock::new(HashMap::new())),
-            app_state: Arc::new(RwLock::new(None)),
+            messenger,
         }
-    }
-
-    pub async fn set_app_state(&self, app_state: crate::app_state::SharedAppState) {
-        let mut state = self.app_state.write().await;
-        *state = Some(app_state);
     }
 
     pub async fn get_task_list(&self) -> Vec<TaskDetails> {
@@ -44,15 +102,15 @@ impl TaskManager {
     }
 
     pub async fn get_task_details(&self, uuid: &Uuid) -> Option<TaskDetails> {
+        debug!("TaskManager: Getting task details for {}", uuid);
         let processes = self.processes.read().await;
-        let task_state = processes.get(uuid);
-        task_state?;
-        let task_state = task_state.unwrap();
+        let task_state = processes.get(uuid)?;
         let details = task_state.details.read().await;
         Some(details.clone())
     }
 
     pub async fn get_task_output(&self, uuid: &Uuid) -> Option<TaskOutput> {
+        debug!("TaskManager: Getting task output for {}", uuid);
         let processes = self.processes.read().await;
         let task_state = processes.get(uuid)?;
         let output = task_state.output.read().await;
@@ -66,6 +124,7 @@ impl TaskManager {
         stream_type: OutputStreamType,
         message: String,
     ) -> bool {
+        debug!("TaskManager: Adding message to task output for {}", uuid);
         let processes = self.processes.read().await;
         if let Some(task_state) = processes.get(uuid) {
             let mut output = task_state.output.write().await;
@@ -91,6 +150,22 @@ impl TaskManager {
         task_state?;
         let task_state = task_state.unwrap();
         task_state.handle.clone()
+    }
+
+    /// Set task state to finished with completion details
+    async fn set_task_finished(
+        details: &Arc<RwLock<TaskDetails>>,
+        exit_code: Option<i32>,
+        state: State,
+    ) {
+        debug!(
+            "TaskManager: Setting task finished for {}",
+            details.read().await.id
+        );
+        let mut details = details.write().await;
+        details.last_exit_code = exit_code;
+        details.finish_time = Some(chrono::Utc::now());
+        details.state = state;
     }
 
     pub async fn start_process(
@@ -127,6 +202,7 @@ impl TaskManager {
         )));
 
         {
+            debug!("details write lock, setting state to running");
             let mut details = details.write().await;
             details.state = State::Running;
         }
@@ -134,7 +210,7 @@ impl TaskManager {
         let handle = {
             let details = details.clone();
             let output = output.clone();
-            let app_state = self.app_state.clone();
+            let messenger = self.messenger.clone();
 
             tokio::task::spawn(async move {
                 info!(
@@ -145,53 +221,19 @@ impl TaskManager {
                     args.join(" ")
                 );
                 let details = details.clone();
-                let app_state_for_spawn = app_state.clone();
-                let exit_code = spawn_process(
+                let messenger_for_spawn = messenger.clone();
+                let exit_result = spawn_process(
                     &cwd,
                     &cmd,
                     &args,
                     &env,
                     &details,
                     &output,
-                    app_state_for_spawn,
+                    messenger_for_spawn.clone(),
                 )
                 .await;
 
-                match exit_code {
-                    Ok(0) => {
-                        let mut details = details.write().await;
-                        details.last_exit_code = Some(0);
-                        details.finish_time = Some(chrono::Utc::now());
-                        details.state = State::Finished;
-
-                        // Notify WebSocket clients that task completed successfully
-                        if let Some(app_state) = &*app_state.read().await {
-                            broadcast_task_completion(app_state, id, "completed").await;
-                        }
-                    }
-                    Ok(e) => {
-                        let mut details = details.write().await;
-                        details.finish_time = Some(chrono::Utc::now());
-                        details.last_exit_code = Some(e);
-                        details.state = State::Failed;
-
-                        // Notify WebSocket clients that task failed
-                        if let Some(app_state) = &*app_state.read().await {
-                            broadcast_task_completion(app_state, id, "failed").await;
-                        }
-                    }
-                    Err(_e) => {
-                        let mut details = details.write().await;
-                        details.finish_time = Some(chrono::Utc::now());
-                        details.state = State::Failed;
-
-                        // Notify WebSocket clients that task failed
-                        if let Some(app_state) = &*app_state.read().await {
-                            broadcast_task_completion(app_state, id, "failed").await;
-                        }
-                        // Error message will be added to output separately
-                    }
-                }
+                handle_task_completion(&details, &messenger, id, exit_result).await;
             })
         };
         {
@@ -258,10 +300,7 @@ impl TaskManager {
         // Clean up WebSocket subscriptions before removing tasks
         drop(processes_lock); // Release lock before async operations
         for uuid in &to_remove {
-            if let Some(app_state) = &*self.app_state.read().await {
-                crate::api::websocket::handlers::tasks::cleanup_task_subscriptions(app_state, uuid)
-                    .await;
-            }
+            self.messenger.cleanup_task_subscriptions(*uuid).await;
         }
 
         // Remove tasks from the list
@@ -279,7 +318,7 @@ async fn spawn_process(
     env: &HashMap<String, String>,
     _details: &Arc<RwLock<TaskDetails>>,
     output: &Arc<RwLock<TaskOutput>>,
-    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
+    messenger: WebSocketMessenger,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
@@ -294,7 +333,7 @@ async fn spawn_process(
     let stderr = child.stderr.take().expect("Failed to get stderr");
     {
         let output = output.clone();
-        let app_state_ref = app_state.clone();
+        let messenger_ref = messenger.clone();
         let task_id = {
             let output_guard = output.read().await;
             output_guard.task_id
@@ -304,7 +343,7 @@ async fn spawn_process(
                 output.clone(),
                 stdout,
                 OutputStreamType::Stdout,
-                app_state_ref,
+                messenger_ref,
                 task_id,
             )
             .await;
@@ -313,7 +352,7 @@ async fn spawn_process(
 
     {
         let output = output.clone();
-        let app_state_ref = app_state.clone();
+        let messenger_ref = messenger.clone();
         let task_id = {
             let output_guard = output.read().await;
             output_guard.task_id
@@ -323,7 +362,7 @@ async fn spawn_process(
                 output.clone(),
                 stderr,
                 OutputStreamType::Stderr,
-                app_state_ref,
+                messenger_ref,
                 task_id,
             )
             .await;
@@ -340,7 +379,7 @@ async fn read_unified_output(
     output: Arc<RwLock<TaskOutput>>,
     stream: impl AsyncRead + Unpin,
     stream_type: OutputStreamType,
-    app_state: Arc<RwLock<Option<crate::app_state::SharedAppState>>>,
+    messenger: WebSocketMessenger,
     task_id: uuid::Uuid,
 ) {
     let mut reader = BufReader::new(stream).lines();
@@ -348,93 +387,19 @@ async fn read_unified_output(
     while let Some(line_result) = reader.next_line().await.transpose() {
         match line_result {
             Ok(line) => {
-                let output_line = {
-                    let mut output = output.write().await;
-                    output.add_line(stream_type, line);
-                    // Return the line that was just added for broadcasting
-                    output.lines.back().cloned()
-                };
-
-                // Broadcast to WebSocket clients if app_state is available
-                if let Some(line) = output_line {
-                    let app_state_guard = app_state.read().await;
-                    if let Some(ref state) = *app_state_guard {
-                        broadcast_task_output_update(state, task_id, vec![line]).await;
-                    }
-                }
+                add_and_broadcast_line(&output, stream_type, line, &messenger, task_id).await;
             }
             Err(e) => {
-                let output_line = {
-                    let mut output = output.write().await;
-                    output.add_line(
-                        OutputStreamType::Stderr,
-                        format!("Error reading output: {}", e),
-                    );
-                    // Return the line that was just added for broadcasting
-                    output.lines.back().cloned()
-                };
-
-                // Broadcast error to WebSocket clients if app_state is available
-                if let Some(line) = output_line {
-                    let app_state_guard = app_state.read().await;
-                    if let Some(ref state) = *app_state_guard {
-                        broadcast_task_output_update(state, task_id, vec![line]).await;
-                    }
-                }
+                add_and_broadcast_line(
+                    &output,
+                    OutputStreamType::Stderr,
+                    format!("Error reading output: {}", e),
+                    &messenger,
+                    task_id,
+                )
+                .await;
                 break;
             }
-        }
-    }
-}
-
-/// Broadcast task output updates to subscribed WebSocket clients
-async fn broadcast_task_output_update(
-    state: &crate::app_state::SharedAppState,
-    task_id: uuid::Uuid,
-    lines: Vec<scotty_core::output::OutputLine>,
-) {
-    use crate::api::websocket::client::send_message;
-    use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
-
-    let clients = state.clients.lock().await;
-    for (client_id, client) in clients.iter() {
-        if client.is_subscribed_to_task(&task_id) {
-            send_message(
-                state,
-                *client_id,
-                WebSocketMessage::TaskOutputData(TaskOutputData {
-                    task_id,
-                    lines: lines.clone(),
-                    is_historical: false, // This is live data
-                    has_more: false,      // Live updates are always single batches
-                }),
-            )
-            .await;
-        }
-    }
-}
-
-/// Broadcast task completion to subscribed WebSocket clients
-async fn broadcast_task_completion(
-    state: &crate::app_state::SharedAppState,
-    task_id: uuid::Uuid,
-    reason: &str,
-) {
-    use crate::api::websocket::client::send_message;
-    use scotty_core::websocket::message::WebSocketMessage;
-
-    let clients = state.clients.lock().await;
-    for (client_id, client) in clients.iter() {
-        if client.is_subscribed_to_task(&task_id) {
-            send_message(
-                state,
-                *client_id,
-                WebSocketMessage::TaskOutputStreamEnded {
-                    task_id,
-                    reason: reason.to_string(),
-                },
-            )
-            .await;
         }
     }
 }

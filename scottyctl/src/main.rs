@@ -5,6 +5,7 @@ mod commands;
 mod context;
 mod preflight;
 mod utils;
+mod websocket;
 
 use clap::{CommandFactory, Parser};
 use cli::print_completions;
