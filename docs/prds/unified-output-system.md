@@ -295,9 +295,10 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 All unified output system functionality is complete and working. The system now provides:
 - ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
 - ✅ Interactive shell access with `app:shell` command
-- ✅ Real-time task output streaming with WebSocket-based `wait_for_task`
-- ✅ Centralized authentication system with proper cleanup
-- ✅ Improved user experience with optimized performance
+- ✅ Real-time task output streaming with hybrid REST + WebSocket approach
+- ✅ WebSocketMessenger architecture for centralized client management
+- ✅ Resolved stack overflow issues through architectural improvements
+- ✅ Proper resource cleanup and subscription management
 - ✅ Comprehensive test coverage and CI integration
 - ✅ Consolidated WebSocket message types in scotty-core (eliminates duplication, ensures type consistency)
 - ✅ **NEW: Live task output during all app operations** (no more silent waits!)
@@ -339,12 +340,14 @@ All unified output system functionality is complete and working. The system now 
 6. ✅ **Single Source of Truth**: All WebSocket communication types defined once and shared
 
 ### Phase 3.6: Task Output WebSocket Streaming ✅ COMPLETED
-1. ✅ **Replace Polling with WebSocket**: Updated `wait_for_task` function in scottyctl to use real-time WebSocket streaming
-2. ✅ **Task Output Display**: Implemented unified output display with colored stderr output
-3. ✅ **Real-time Feedback**: Shows task progress with live stdout/stderr output during app operations
-4. ✅ **WebSocket-Only Implementation**: No fallback to polling - pure WebSocket implementation
-5. ✅ **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
-6. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
+1. ✅ **Hybrid WebSocket Implementation**: Updated `wait_for_task` function to use REST polling for task status + WebSocket for real-time output
+2. ✅ **WebSocketMessenger Architecture**: Created centralized abstraction for WebSocket client management and message broadcasting
+3. ✅ **Task Output Display**: Implemented unified output display with colored stderr output during task execution
+4. ✅ **Real-time Feedback**: Shows task progress with live stdout/stderr output during app operations
+5. ✅ **Stack Overflow Resolution**: Fixed circular reference issues in TaskManager data structures
+6. ✅ **Resource Management**: Proper WebSocket subscription cleanup and client management
+7. ✅ **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
+8. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
 
 ### Phase 4: Frontend Integration
 1. **Unified Log Viewer**: Replace separate stdout/stderr components

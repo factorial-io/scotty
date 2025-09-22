@@ -222,10 +222,13 @@ Scotty generates appropriate configurations for:
 - ✅ **Import Updates**: Updated 18 files to use consolidated message types from scotty-core
 - ✅ **Quality Assurance**: All tests pass, no compilation errors, proper code formatting
 
-### Next Phase (Phase 3.6 - Task Output WebSocket Streaming):
-- Update `wait_for_task` function in scottyctl to use real-time WebSocket streaming
-- Implement unified task output display with live stdout/stderr during app operations
-- Replace polling-based task monitoring with WebSocket-based real-time updates
+### Phase 3.6 Completed:
+- ✅ **Task Output WebSocket Streaming**: Implemented real-time task output streaming via WebSocket
+- ✅ **Unified Output Display**: Live stdout/stderr output during all app operations
+- ✅ **Hybrid Implementation**: Combined REST API polling for task status with WebSocket for real-time output
+- ✅ **WebSocketMessenger Architecture**: Centralized WebSocket client management and message broadcasting
+- ✅ **Stack Overflow Resolution**: Fixed circular reference issues in TaskManager data structures
+- ✅ **Resource Cleanup**: Proper WebSocket subscription cleanup during task completion
 
 ### Future Phase (Phase 4 - Frontend Integration):
 - Replace current stdout/stderr UI components with unified log viewer
@@ -261,13 +264,20 @@ scottyctl app:shell myapp web --shell /bin/sh   # Different shell
 - `scottyctl/src/commands/apps/shell.rs` - CLI shell access command
 - `examples/log-demo/` - Demo application for testing
 
+### Key Files Modified (Phase 3.6):
+- `scotty/src/api/websocket/messaging.rs` - **NEW**: WebSocketMessenger abstraction for client management
+- `scotty/src/tasks/manager.rs` - Refactored to use WebSocketMessenger for output broadcasting
+- `scotty/src/app_state.rs` - Updated to create and share WebSocketMessenger instance
+- `scottyctl/src/api.rs` - Hybrid approach: REST polling + WebSocket streaming for wait_for_task
+- `scottyctl/src/websocket.rs` - **NEW**: Reusable WebSocket utilities and AuthenticatedWebSocket struct
+
 ### Latest Commits (All Phases):
+- `71d155e` - feat(websocket): implement real-time task output streaming for Phase 3.6
+- `b220730` - docs: update PRD and CLAUDE.md for Phase 3.5 completion
 - `ee1875d` - refactor(websocket): consolidate message types in scotty-core (Phase 3.5 complete)
-- `997bbfd` - refactor(api): restructure handlers into REST and WebSocket modules
-- `7ea3245` - feat(logs): implement authenticated WebSocket log streaming with improved UX (Phase 3 complete)
-- `5c84d67` - refactor(cli): reorganize app commands into modular structure and add app:logs command
-- `ad5fac9` - test: add comprehensive tests for logs and shell services (Phase 2)
-- `3355b45` - fix(test): update secure_response_test for removed TaskDetails fields
+- `4606adc` - refactor(api): restructure handlers into REST and WebSocket modules
+- `afad796` - feat(websocket): implement unified task output streaming system
+- `b4be84c` - feat(cli): improve log command UX and add terminal detection
 
 ### Reference Documents:
 - `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
