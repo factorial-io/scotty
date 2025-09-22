@@ -9,12 +9,12 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::api::websocket::message::{
-    LogsStreamData, LogsStreamEnd, LogsStreamError, LogsStreamInfo, WebSocketMessage,
-};
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::output::{OutputLine, OutputStreamType};
+use scotty_core::websocket::message::{
+    LogsStreamData, LogsStreamEnd, LogsStreamError, LogsStreamInfo, WebSocketMessage,
+};
 
 use thiserror::Error;
 

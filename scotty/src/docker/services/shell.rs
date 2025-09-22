@@ -9,13 +9,13 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::api::websocket::client::broadcast_message;
-use crate::api::websocket::message::{
-    ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
-    WebSocketMessage,
-};
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::settings::shell::ShellSettings;
+use scotty_core::websocket::message::{
+    ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
+    WebSocketMessage,
+};
 
 use thiserror::Error;
 

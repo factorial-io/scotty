@@ -12,7 +12,8 @@ use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::websocket::handlers::handle_websocket_message;
-use crate::{api::websocket::message::WebSocketMessage, app_state::SharedAppState};
+use crate::app_state::SharedAppState;
+use scotty_core::websocket::message::WebSocketMessage;
 
 #[instrument(skip(state, ws))]
 async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid) {

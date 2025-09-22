@@ -10,78 +10,9 @@ use crate::{
     context::AppContext,
     utils::status_line::Status,
 };
-use scotty_core::{apps::app_data::AppData, output::unified_output::OutputLine};
-use serde::{Deserialize, Serialize};
+use scotty_core::websocket::message::*;
+use scotty_core::{apps::app_data::AppData, output::OutputLine};
 use uuid::Uuid;
-
-/// WebSocket message types for client communication - matches server definitions
-#[derive(Serialize, Deserialize, Debug)]
-pub enum WebSocketMessage {
-    // Authentication messages
-    Authenticate { token: String },
-    AuthenticationSuccess,
-    AuthenticationFailed { reason: String },
-
-    // Client → Server messages (require authentication)
-    StartLogStream(LogStreamRequest),
-    StopLogStream { stream_id: Uuid },
-
-    // Server → Client messages
-    LogsStreamStarted(LogsStreamInfo),
-    LogsStreamData(LogsStreamData),
-    LogsStreamEnded(LogsStreamEnd),
-    LogsStreamError(LogsStreamError),
-    Error(String),
-
-    // Other message types we might receive
-    AppListUpdated,
-    AppInfoUpdated(String),
-    TaskListUpdated,
-    Ping,
-    Pong,
-}
-
-/// Request to start a log stream with parameters
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogStreamRequest {
-    pub app_name: String,
-    pub service_name: String,
-    pub follow: bool,
-    pub lines: Option<u32>, // Number of lines for historical logs (None = all available)
-    pub since: Option<String>, // Time filter: "1h", "30m", or ISO timestamp
-    pub until: Option<String>, // End time filter: ISO timestamp
-    pub timestamps: bool,   // Include timestamps in output (flag: present=true, absent=false)
-}
-
-/// Information about a started log stream
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogsStreamInfo {
-    pub stream_id: Uuid,
-    pub app_name: String,
-    pub service_name: String,
-    pub follow: bool,
-}
-
-/// Log data from a stream
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogsStreamData {
-    pub stream_id: Uuid,
-    pub lines: Vec<OutputLine>,
-}
-
-/// Log stream ended notification
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogsStreamEnd {
-    pub stream_id: Uuid,
-    pub reason: String,
-}
-
-/// Log stream error notification
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LogsStreamError {
-    pub stream_id: Uuid,
-    pub error: String,
-}
 
 /// View logs for an app service
 pub async fn logs_app(context: &AppContext, cmd: &LogsCommand) -> anyhow::Result<()> {

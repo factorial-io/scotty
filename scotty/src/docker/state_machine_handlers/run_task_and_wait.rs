@@ -27,7 +27,7 @@ pub async fn run_task_and_wait(
     .await?;
     broadcast_message(
         &context.app_state,
-        crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
+        scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
     )
     .await;
 
@@ -50,7 +50,7 @@ pub async fn run_task_and_wait(
 
         broadcast_message(
             &context.app_state,
-            crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
         )
         .await;
     }
@@ -73,7 +73,7 @@ pub async fn run_task_and_wait(
     debug!("{} finished", msg);
     broadcast_message(
         &context.app_state,
-        crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+        scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
     )
     .await;
 

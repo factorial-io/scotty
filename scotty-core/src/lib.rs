@@ -9,3 +9,4 @@ pub mod settings;
 pub mod tasks;
 pub mod utils;
 pub mod version;
+pub mod websocket;

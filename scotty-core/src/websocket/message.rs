@@ -1,5 +1,5 @@
-use scotty_core::output::OutputLine;
-use scotty_core::tasks::task_details::TaskDetails;
+use crate::output::OutputLine;
+use crate::tasks::task_details::TaskDetails;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

@@ -1,9 +1,9 @@
 use super::context::Context;
 use crate::api::websocket::client::broadcast_message;
-use crate::api::websocket::message::WebSocketMessage;
 use crate::docker::helper::wait_for_containers_ready;
 use crate::state_machine::StateHandler;
 use anyhow::Context as _;
+use scotty_core::websocket::message::WebSocketMessage;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, instrument, warn};

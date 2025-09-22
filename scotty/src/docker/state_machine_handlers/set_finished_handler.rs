@@ -31,7 +31,7 @@ where
 
             broadcast_message(
                 &context.app_state,
-                crate::api::websocket::message::WebSocketMessage::TaskInfoUpdated(
+                scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
                     task_details.clone(),
                 ),
             )

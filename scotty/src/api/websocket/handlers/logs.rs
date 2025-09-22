@@ -2,9 +2,9 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::api::websocket::client::send_message;
-use crate::api::websocket::message::{LogStreamRequest, WebSocketMessage};
 use crate::app_state::SharedAppState;
 use crate::services::authorization::Permission;
+use scotty_core::websocket::message::{LogStreamRequest, WebSocketMessage};
 
 use super::{
     check_websocket_authentication, check_websocket_authorization, handle_websocket_auth_failure,

@@ -6,9 +6,9 @@ use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::api::auth_core::CurrentUser;
-use crate::api::websocket::message::WebSocketMessage;
 use crate::app_state::SharedAppState;
 use crate::services::{authorization::Permission, AuthorizationService};
+use scotty_core::websocket::message::WebSocketMessage;
 
 use super::client::send_message;
 

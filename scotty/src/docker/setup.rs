@@ -61,7 +61,7 @@ pub async fn setup_docker_integration(
                         .await;
                     broadcast_message(
                         &app_state,
-                        crate::api::websocket::message::WebSocketMessage::TaskListUpdated,
+                        scotty_core::websocket::message::WebSocketMessage::TaskListUpdated,
                     )
                     .await;
                 }
@@ -92,7 +92,7 @@ async fn schedule_app_check(app_state: SharedAppState) {
             tracing::info!("Found {} apps", app_state.apps.len().await);
             broadcast_message(
                 &app_state,
-                crate::api::websocket::message::WebSocketMessage::AppListUpdated,
+                scotty_core::websocket::message::WebSocketMessage::AppListUpdated,
             )
             .await;
         }

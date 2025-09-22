@@ -2,8 +2,8 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::api::websocket::client::send_message;
-use crate::api::websocket::message::WebSocketMessage;
 use crate::app_state::SharedAppState;
+use scotty_core::websocket::message::WebSocketMessage;
 
 /// Handle WebSocket authentication
 pub async fn handle_authentication(state: &SharedAppState, client_id: Uuid, token: &str) {

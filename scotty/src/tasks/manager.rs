@@ -394,7 +394,7 @@ async fn broadcast_task_output_update(
     lines: Vec<scotty_core::output::OutputLine>,
 ) {
     use crate::api::websocket::client::send_message;
-    use crate::api::websocket::message::{TaskOutputData, WebSocketMessage};
+    use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
 
     let clients = state.clients.lock().await;
     for (client_id, client) in clients.iter() {
@@ -421,7 +421,7 @@ async fn broadcast_task_completion(
     reason: &str,
 ) {
     use crate::api::websocket::client::send_message;
-    use crate::api::websocket::message::WebSocketMessage;
+    use scotty_core::websocket::message::WebSocketMessage;
 
     let clients = state.clients.lock().await;
     for (client_id, client) in clients.iter() {
