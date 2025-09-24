@@ -16,6 +16,16 @@ const MAX_RETRIES: usize = 5;
 const INITIAL_RETRY_DELAY_MS: u64 = 500;
 const MAX_RETRY_DELAY_MS: u64 = 8000; // 8 seconds
 
+/// Helper function to normalize URLs by handling trailing slashes
+fn normalize_url(base_url: &str, path: &str) -> String {
+    let mut normalized_base = base_url.trim_end_matches('/').to_string();
+    let normalized_path = path.trim_start_matches('/');
+
+    normalized_base.push('/');
+    normalized_base.push_str(normalized_path);
+    normalized_base
+}
+
 /// Helper function to determine if an error is retriable
 fn is_retriable_error(err: &reqwest::Error) -> bool {
     err.is_timeout()
@@ -77,7 +87,7 @@ pub async fn get_or_post(
     method: &str,
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
-    let url = format!("{}/api/v1/{}", server.server, action);
+    let url = normalize_url(&server.server, &format!("api/v1/{}", action));
     info!("Calling scotty API at {}", &url);
 
     with_retry(|| async {
@@ -207,4 +217,56 @@ pub async fn wait_for_task(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_normalization_with_trailing_slash() {
+        // Test case for issue #470: Trailing slash in Scotty URL
+        assert_eq!(
+            normalize_url("https://scottyurl/", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: multiple trailing slashes
+        assert_eq!(
+            normalize_url("https://scottyurl///", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "///api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: URL with extra slash causing double slash issue (like in the bug report)
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // This would have produced "https://scottyurl//api/v1/apps/list" before the fix
+        assert_ne!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl//api/v1/apps/list"
+        );
+    }
 }
