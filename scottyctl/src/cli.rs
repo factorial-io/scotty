@@ -5,6 +5,10 @@ use crate::utils::parsers::{
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use scotty_core::{
+    admin::{
+        CreateAssignmentRequest, CreateRoleRequest, CreateScopeRequest, GetUserPermissionsRequest,
+        RemoveAssignmentRequest, TestPermissionRequest,
+    },
     apps::app_data::{AppTtl, ServicePortMapping},
     apps::create_app_request::CustomDomainMapping,
     notification_types::NotificationReceiver,
@@ -23,6 +27,13 @@ pub struct Cli {
 
     #[arg(long, default_value = "false")]
     pub debug: bool,
+
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Bypass version compatibility check (not recommended)"
+    )]
+    pub bypass_version_check: bool,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -83,6 +94,62 @@ pub enum Commands {
     /// Show shell completion script.
     #[command(name = "completion")]
     Completion(CompletionCommand),
+
+    /// Authenticate with the Scotty server
+    #[command(name = "auth:login")]
+    AuthLogin(AuthLoginCommand),
+
+    /// Logout and clear stored authentication
+    #[command(name = "auth:logout")]
+    AuthLogout,
+
+    /// Show authentication status
+    #[command(name = "auth:status")]
+    AuthStatus,
+
+    /// Refresh authentication token
+    #[command(name = "auth:refresh")]
+    AuthRefresh,
+
+    /// List all authorization scopes
+    #[command(name = "admin:scopes:list")]
+    AdminScopesList,
+
+    /// Create a new authorization scope
+    #[command(name = "admin:scopes:create")]
+    AdminScopesCreate(CreateScopeRequest),
+
+    /// List all authorization roles
+    #[command(name = "admin:roles:list")]
+    AdminRolesList,
+
+    /// Create a new authorization role
+    #[command(name = "admin:roles:create")]
+    AdminRolesCreate(CreateRoleRequest),
+
+    /// List all user assignments
+    #[command(name = "admin:assignments:list")]
+    AdminAssignmentsList,
+
+    /// Create a new user assignment
+    #[command(name = "admin:assignments:create")]
+    AdminAssignmentsCreate(CreateAssignmentRequest),
+
+    /// Remove a user assignment
+    #[command(name = "admin:assignments:remove")]
+    AdminAssignmentsRemove(RemoveAssignmentRequest),
+
+    /// List all available permissions
+    #[command(name = "admin:permissions:list")]
+    AdminPermissionsList,
+
+    /// Test permission for a user on an app
+    #[command(name = "admin:permissions:test")]
+    AdminPermissionsTest(TestPermissionRequest),
+
+    /// Get permissions for a specific user
+    #[command(name = "admin:permissions:user")]
+    AdminPermissionsUser(GetUserPermissionsRequest),
 
     #[command(name = "test")]
     Test,
@@ -200,6 +267,21 @@ pub struct CreateCommand {
     /// Custom Traefik middlewares to apply to the app, can be specified multiple times
     #[arg(long, value_name = "MIDDLEWARE")]
     pub middleware: Vec<String>,
+}
+
+#[derive(Debug, Parser)]
+pub struct AuthLoginCommand {
+    /// Use a specific OAuth provider URL
+    #[arg(long)]
+    pub provider_url: Option<String>,
+
+    /// Skip browser opening (just show URL)
+    #[arg(long, default_value = "false")]
+    pub no_browser: bool,
+
+    /// Timeout in seconds for device flow
+    #[arg(long, default_value = "300")]
+    pub timeout: u64,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

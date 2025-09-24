@@ -144,6 +144,60 @@ pub async fn inspect_app(
     {
         app_data.status = AppStatus::Unsupported;
     }
+
+    // Sync app scopes to authorization service
+    if let Some(app_settings) = &app_data.settings {
+        // Validate groups exist before syncing
+        if let Err(missing_scopes) = app_state
+            .auth_service
+            .validate_scopes(&app_settings.scopes)
+            .await
+        {
+            error!(
+                "App '{}' references non-existent groups: {:?}. Assigning to 'default' scope instead.",
+                name, missing_scopes
+            );
+            // Fallback to default scope if specified groups don't exist
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_scopes(&app_data.name, vec!["default".to_string()])
+                .await
+            {
+                debug!("Failed to set default scope for {}: {}", app_data.name, e);
+            } else {
+                debug!(
+                    "Assigned app '{}' to default scope due to invalid scopes",
+                    app_data.name
+                );
+            }
+        } else {
+            // Groups are valid, proceed with sync
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_scopes(&app_data.name, app_settings.scopes.clone())
+                .await
+            {
+                debug!("Failed to sync app scopes for {}: {}", app_data.name, e);
+            } else {
+                debug!(
+                    "Synced app '{}' to scopes: {:?}",
+                    app_data.name, app_settings.scopes
+                );
+            }
+        }
+    } else {
+        // No settings file, assign to default scope
+        if let Err(e) = app_state
+            .auth_service
+            .set_app_scopes(&app_data.name, vec!["default".to_string()])
+            .await
+        {
+            debug!("Failed to set default scope for {}: {}", name, e);
+        } else {
+            debug!("Assigned app '{}' to default scope", app_data.name);
+        }
+    }
+
     Ok(app_data)
 }
 

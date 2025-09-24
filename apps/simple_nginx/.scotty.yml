@@ -1,4 +1,6 @@
 needs_setup: true
+groups:
+  - client-a
 public_services:
   - service: nginx
     port: 80

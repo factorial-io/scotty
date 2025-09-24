@@ -1,5 +1,10 @@
+pub mod admin;
+pub mod api;
 pub mod apps;
+pub mod auth;
+pub mod http;
 pub mod notification_types;
 pub mod settings;
 pub mod tasks;
 pub mod utils;
+pub mod version;

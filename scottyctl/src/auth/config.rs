@@ -1,0 +1,48 @@
+use super::{AuthError, OAuthConfig};
+use crate::context::ServerSettings;
+use scotty_core::api::ServerInfo;
+use scotty_core::http::HttpClient;
+use std::time::Duration;
+
+pub async fn get_server_info(server: &ServerSettings) -> Result<ServerInfo, AuthError> {
+    let url = format!("{}/api/v1/info", server.server);
+
+    let client =
+        HttpClient::with_timeout(Duration::from_secs(10)).map_err(|_| AuthError::ServerError)?;
+
+    let server_info = client
+        .get_json::<ServerInfo>(&url)
+        .await
+        .map_err(|_| AuthError::ServerError)?;
+
+    Ok(server_info)
+}
+
+pub fn server_info_to_oauth_config(server_info: ServerInfo) -> Result<OAuthConfig, AuthError> {
+    match server_info.oauth_config {
+        Some(oauth_config) if oauth_config.enabled => {
+            if !oauth_config.device_flow_enabled {
+                return Err(AuthError::DeviceFlowNotEnabled);
+            }
+
+            let scotty_server_url = oauth_config
+                .oauth2_proxy_base_url
+                .ok_or(AuthError::InvalidResponse)?;
+            let oidc_issuer_url = oauth_config
+                .oidc_issuer_url
+                .ok_or(AuthError::InvalidResponse)?;
+            let client_id = oauth_config.client_id.ok_or(AuthError::InvalidResponse)?;
+
+            Ok(OAuthConfig {
+                enabled: true,
+                provider: oauth_config.provider,
+                scotty_server_url,
+                oidc_issuer_url,
+                client_id,
+                device_flow_enabled: oauth_config.device_flow_enabled,
+            })
+        }
+        Some(_) => Err(AuthError::DeviceFlowNotEnabled),
+        None => Err(AuthError::OAuthNotConfigured),
+    }
+}

@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { apiCall } from '$lib';
+	import { authenticatedApiCall } from '$lib';
 	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
 	import { goto } from '$app/navigation';
 
 	export let app: App;
+	export let canManage: boolean = false;
 
 	let customActions: CustomAction[] = [];
 	let isLoading = true;
+
+	// Export a reactive value that indicates if actions are available
+	export let hasActions: boolean = false;
 	let currentTaskId: string | null = null;
 	let currentAction: string | null = null;
 
@@ -15,7 +19,7 @@
 		if (app.settings?.app_blueprint) {
 			try {
 				// Fetch all blueprints and filter for the one we need
-				const result = (await apiCall('blueprints')) as BlueprintsResponse;
+				const result = (await authenticatedApiCall('blueprints')) as BlueprintsResponse;
 				if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
 					const blueprint = result.blueprints[app.settings.app_blueprint];
 					// Filter for custom actions only
@@ -43,11 +47,11 @@
 	});
 
 	async function triggerCustomAction(actionName: string) {
-		if (currentTaskId !== null || !isSupported()) return;
+		if (currentTaskId !== null || !isSupported() || !canManage) return;
 
 		try {
 			currentAction = actionName;
-			const result = await apiCall(`apps/${app.name}/actions`, {
+			const result = await authenticatedApiCall(`apps/${app.name}/actions`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -74,16 +78,22 @@
 	function isSupported() {
 		return app.status === 'Running' && app.settings?.app_blueprint;
 	}
+
+	// Check if custom actions should be available
+	function hasAvailableActions() {
+		return !isLoading && customActions.length > 0 && canManage && isSupported();
+	}
+
+	// Update the exported hasActions variable reactively
+	$: hasActions = !isLoading && customActions.length > 0 && canManage && isSupported();
 </script>
 
-{#if isLoading}
-	<div class="btn btn-sm join-item loading">Loading actions...</div>
-{:else if customActions.length > 0}
+{#if hasAvailableActions()}
 	<div class="dropdown">
 		<div
 			tabindex="0"
 			role="button"
-			class="btn btn-sm join-item {currentTaskId !== null || !isSupported()
+			class="btn btn-sm join-item {currentTaskId !== null || !canManage || !isSupported()
 				? 'btn-disabled'
 				: ''}"
 		>
@@ -101,19 +111,12 @@
 						on:click={() => triggerCustomAction(action.name)}
 						data-tip={action.description}
 						class="tooltip tooltip-right"
-						disabled={currentTaskId !== null || !isSupported()}
+						disabled={currentTaskId !== null || !canManage || !isSupported()}
 					>
 						{action.name}
 					</button>
 				</li>
 			{/each}
 		</ul>
-	</div>
-{:else if !isLoading && app.settings?.app_blueprint && isSupported()}
-	<div
-		class="btn btn-sm join-item btn-disabled tooltip tooltip-bottom"
-		data-tip="No custom actions defined in blueprint"
-	>
-		Custom Actions
 	</div>
 {/if}
