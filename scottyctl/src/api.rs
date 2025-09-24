@@ -1,7 +1,8 @@
 use anyhow::Context;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
 use serde_json::Value;
-use tracing::info;
+use tokio::time::sleep;
+use tracing::{error, info};
 
 use crate::auth::config::get_server_info;
 use crate::auth::storage::TokenStorage;
@@ -15,6 +16,10 @@ use scotty_core::tasks::task_details::{State, TaskDetails};
 use scotty_core::version::VersionManager;
 use std::sync::Arc;
 use std::time::Duration;
+
+const MAX_RETRIES: u8 = 3;
+const INITIAL_RETRY_DELAY_MS: u64 = 100;
+const MAX_RETRY_DELAY_MS: u64 = 2000;
 
 async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
     // 1. Check server auth mode to determine if OAuth tokens should be used
@@ -65,6 +70,71 @@ fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
         .build()
 }
 
+/// Helper function to normalize URLs by handling trailing slashes
+fn normalize_url(base_url: &str, path: &str) -> String {
+    let mut normalized_base = base_url.trim_end_matches('/').to_string();
+    let normalized_path = path.trim_start_matches('/');
+
+    normalized_base.push('/');
+    normalized_base.push_str(normalized_path);
+    normalized_base
+}
+
+/// Helper function to determine if an error is retriable
+fn is_retriable_error(err: &reqwest::Error) -> bool {
+    err.is_timeout()
+        || err.is_connect()
+        || err.is_request()
+        || err.status().is_some_and(|s| s.is_server_error())
+}
+
+/// Helper function to execute a future with retry logic
+async fn with_retry<F, Fut, T>(f: F) -> anyhow::Result<T>
+where
+    F: Fn() -> Fut + Clone,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    let mut retry_count = 0;
+    let mut delay = INITIAL_RETRY_DELAY_MS;
+
+    loop {
+        match f().await {
+            Ok(value) => return Ok(value),
+            Err(err) => {
+                // Check if we've reached the max retries
+                if retry_count >= MAX_RETRIES - 1 {
+                    return Err(err.context("Exhausted all retry attempts"));
+                }
+
+                // Check if it's a reqwest error that we should retry
+                let should_retry = if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
+                    is_retriable_error(reqwest_err)
+                } else {
+                    // Also retry on JSON parsing errors which might be due to partial responses
+                    err.to_string().contains("Failed to parse")
+                };
+
+                if !should_retry {
+                    return Err(err);
+                }
+
+                retry_count += 1;
+                error!(
+                    "API call failed (attempt {}/{}), retrying in {}ms: {}",
+                    retry_count, MAX_RETRIES, delay, err
+                );
+
+                // Sleep with exponential backoff
+                sleep(Duration::from_millis(delay)).await;
+
+                // Increase delay for next retry with exponential backoff (2x)
+                // but cap it at MAX_RETRY_DELAY_MS
+                delay = (delay * 2).min(MAX_RETRY_DELAY_MS);
+            }
+        }
+    }
+}
+
 pub async fn get_or_post(
     server: &ServerSettings,
     action: &str,
@@ -72,63 +142,66 @@ pub async fn get_or_post(
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
     let token = get_auth_token(server).await?;
-    let url = format!("{}/api/v1/authenticated/{}", server.server, action);
+    let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", action));
     info!("Calling scotty API at {}", &url);
 
-    let client = create_authenticated_client(&token)?;
+    with_retry(|| async {
+        let client = create_authenticated_client(&token)?;
 
-    let result = match method.to_lowercase().as_str() {
-        "post" => {
-            if let Some(body) = body {
-                client.post_json::<Value, Value>(&url, &body).await
-            } else {
-                client.post(&url, &serde_json::json!({})).await?;
-                // For POST without body, we still need to get the response as JSON
-                client.get_json::<Value>(&url).await
-            }
-        }
-        "delete" => {
-            if let Some(body) = body {
-                let response = client
-                    .request_with_body(reqwest::Method::DELETE, &url, &body)
-                    .await?;
-                response
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| RetryError::NonRetriable(e.into()))
-            } else {
-                let response = client.request(reqwest::Method::DELETE, &url).await?;
-                response
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| RetryError::NonRetriable(e.into()))
-            }
-        }
-        _ => client.get_json::<Value>(&url).await,
-    };
-
-    match result {
-        Ok(value) => Ok(value),
-        Err(RetryError::NonRetriable(err)) => {
-            // Check if this is an HTTP error we can extract more info from
-            if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
-                if let Some(status) = reqwest_err.status() {
-                    if status.is_client_error() {
-                        return Err(anyhow::anyhow!(
-                            "Client error calling scotty API at {}: {}",
-                            &url,
-                            status
-                        ));
-                    }
+        let result = match method.to_lowercase().as_str() {
+            "post" => {
+                if let Some(body) = body.clone() {
+                    client.post_json::<Value, Value>(&url, &body).await
+                } else {
+                    client.post(&url, &serde_json::json!({})).await?;
+                    // For POST without body, we still need to get the response as JSON
+                    client.get_json::<Value>(&url).await
                 }
             }
-            Err(err.context(format!("Failed to call scotty API at {}", &url)))
+            "delete" => {
+                if let Some(body) = body.clone() {
+                    let response = client
+                        .request_with_body(reqwest::Method::DELETE, &url, &body)
+                        .await?;
+                    response
+                        .json::<Value>()
+                        .await
+                        .map_err(|e| RetryError::NonRetriable(e.into()))
+                } else {
+                    let response = client.request(reqwest::Method::DELETE, &url).await?;
+                    response
+                        .json::<Value>()
+                        .await
+                        .map_err(|e| RetryError::NonRetriable(e.into()))
+                }
+            }
+            _ => client.get_json::<Value>(&url).await,
+        };
+
+        match result {
+            Ok(value) => Ok(value),
+            Err(RetryError::NonRetriable(err)) => {
+                // Check if this is an HTTP error we can extract more info from
+                if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
+                    if let Some(status) = reqwest_err.status() {
+                        if status.is_client_error() {
+                            return Err(anyhow::anyhow!(
+                                "Client error calling scotty API at {}: {}",
+                                &url,
+                                status
+                            ));
+                        }
+                    }
+                }
+                Err(err.context(format!("Failed to call scotty API at {}", &url)))
+            }
+            Err(RetryError::ExhaustedRetries(err)) => Err(err.context(format!(
+                "Failed to call scotty API at {} after retries",
+                &url
+            ))),
         }
-        Err(RetryError::ExhaustedRetries(err)) => Err(err.context(format!(
-            "Failed to call scotty API at {} after retries",
-            &url
-        ))),
-    }
+    })
+    .await
 }
 
 pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value> {
@@ -200,4 +273,56 @@ pub async fn wait_for_task(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_normalization_with_trailing_slash() {
+        // Test case for issue #470: Trailing slash in Scotty URL
+        assert_eq!(
+            normalize_url("https://scottyurl/", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: multiple trailing slashes
+        assert_eq!(
+            normalize_url("https://scottyurl///", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "///api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: URL with extra slash causing double slash issue (like in the bug report)
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // This would have produced "https://scottyurl//api/v1/apps/list" before the fix
+        assert_ne!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl//api/v1/apps/list"
+        );
+    }
 }
