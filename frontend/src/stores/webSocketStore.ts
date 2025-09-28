@@ -1,11 +1,18 @@
+/**
+ * WebSocketStore - Simplified with SessionStore integration
+ *
+ * This store manages WebSocket connections and authentication using the
+ * centralized SessionStore, eliminating token storage duplication.
+ */
+
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
-import { authStore } from './userStore';
+import { sessionStore, isAuthenticated } from './sessionStore';
 import { loadApps, updateAppInfo } from './appsStore';
 import { updateTask, requestAllTasks } from './tasksStore';
 import { handleTaskOutputMessage } from './taskOutputStore';
 import type { WebSocketMessage } from '../types';
-import { isTaskInfoUpdated } from '../generated';
+// Removed unused import: isTaskInfoUpdated
 
 export type WebSocketConnectionState = 'disconnected' | 'connecting' | 'connected' | 'authenticated' | 'error';
 
@@ -49,42 +56,22 @@ function getWebSocketUrl(): string {
 }
 
 /**
- * Send a type-safe WebSocket message
+ * Authenticate WebSocket connection using SessionStore
  */
-function sendMessage(message: WebSocketMessage): boolean {
-	const state = get(webSocketStore);
-	if (state.socket && state.socket.readyState === WebSocket.OPEN) {
-		state.socket.send(JSON.stringify(message));
-		console.log('WebSocket message sent:', message.type);
-		return true;
-	} else {
-		console.warn('WebSocket is not open, cannot send message:', message.type);
-		return false;
-	}
-}
+function authenticateWebSocket() {
+	const authState = get(isAuthenticated);
 
-/**
- * Authenticate WebSocket connection using current auth store
- */
-function authenticateConnection() {
-	const authState = get(authStore);
-
-	if (!authState.isLoggedIn) {
+	if (!authState) {
 		console.log('User not logged in, skipping WebSocket authentication');
 		return;
 	}
 
-	// Get token from localStorage based on auth mode
-	const oauthToken = browser ? localStorage.getItem('oauth_token') : null;
-	const bearerToken = browser ? localStorage.getItem('token') : null;
-	const token = oauthToken || bearerToken;
+	const token = sessionStore.getAuthToken();
 
 	console.log('WebSocket authentication debug:', {
-		authMode: authState.authMode,
-		isLoggedIn: authState.isLoggedIn,
-		oauthToken: oauthToken ? 'present' : 'none',
-		bearerToken: bearerToken ? 'present' : 'none',
-		selectedToken: token ? 'present' : 'none'
+		authMode: sessionStore.getAuthMode(),
+		isAuthenticated: authState,
+		hasToken: !!token
 	});
 
 	if (token) {
@@ -96,8 +83,21 @@ function authenticateConnection() {
 	} else {
 		console.warn('No authentication token found for WebSocket authentication');
 		if (browser) {
-			console.warn('Available localStorage keys:', Object.keys(localStorage));
+			const debugInfo = sessionStore.getDebugInfo();
+			console.warn('Session debug info:', debugInfo);
 		}
+	}
+}
+
+/**
+ * Send message through WebSocket
+ */
+function sendMessage(message: WebSocketMessage) {
+	const state = get({ subscribe });
+	if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+		state.socket.send(JSON.stringify(message));
+	} else {
+		console.warn('WebSocket not connected, cannot send message:', message);
 	}
 }
 
@@ -109,77 +109,19 @@ function handleMessage(event: MessageEvent) {
 		const message: WebSocketMessage = JSON.parse(event.data);
 		console.log('WebSocket message received:', message.type);
 
-		// Handle messages with type-safe pattern matching
 		switch (message.type) {
-			case 'Ping':
-				// Respond to ping with pong
-				sendMessage({ type: 'Pong' });
-				break;
-
-			case 'Pong':
-				// Handle pong response
-				break;
-
-			case 'AppListUpdated':
-				loadApps();
-				break;
-
-			case 'AppInfoUpdated':
-				// Update specific app info when it changes
-				if (message.data && typeof message.data === 'string') {
-					updateAppInfo(message.data);
-				} else {
-					console.warn('AppInfoUpdated message received without valid app name:', message);
-					// Fallback to full reload if app name is invalid
-					loadApps();
-				}
-				break;
-
-			case 'TaskListUpdated':
-				requestAllTasks();
-				break;
-
-			case 'TaskInfoUpdated':
-				if (isTaskInfoUpdated(message)) {
-					updateTask(message.data.id, message.data);
-				}
-				break;
-
-			// Task output streaming messages
-			case 'TaskOutputStreamStarted':
-			case 'TaskOutputData':
-			case 'TaskOutputStreamEnded':
-				handleTaskOutputMessage(message);
-				break;
-
-			// Log streaming messages (for future use)
-			case 'LogsStreamStarted':
-			case 'LogsStreamData':
-			case 'LogsStreamEnded':
-			case 'LogsStreamError':
-				console.log('Log stream message:', message);
-				break;
-
-			// Shell session messages (for future use)
-			case 'ShellSessionCreated':
-			case 'ShellSessionData':
-			case 'ShellSessionEnded':
-			case 'ShellSessionError':
-				console.log('Shell session message:', message);
-				break;
-
-			// Authentication messages
 			case 'AuthenticationSuccess':
 				console.log('WebSocket authentication successful');
 				update(state => ({ ...state, connectionState: 'authenticated' }));
+				startPing();
 				break;
 
 			case 'AuthenticationFailed':
-				console.error('WebSocket authentication failed:', message.data);
+				console.error('WebSocket authentication failed:', message.data.reason);
 				update(state => ({
 					...state,
-					connectionState: 'connected',
-					lastError: `Authentication failed: ${message.data}`
+					connectionState: 'error',
+					lastError: `Authentication failed: ${message.data.reason}`
 				}));
 				break;
 
@@ -187,27 +129,55 @@ function handleMessage(event: MessageEvent) {
 				console.error('WebSocket error:', message.data);
 				update(state => ({
 					...state,
-					lastError: `Server error: ${message.data}`
+					lastError: message.data
 				}));
 				break;
 
-			default:
-				console.warn('Unhandled WebSocket message type:', message);
+			case 'Pong':
+				console.debug('WebSocket pong received');
 				break;
+
+			case 'TaskInfoUpdated':
+				updateTask(message.data.id, message.data);
+				break;
+
+			case 'TaskOutputData':
+				handleTaskOutputMessage(message);
+				break;
+
+			case 'AppListUpdated':
+				console.log('App list changed, reloading apps');
+				loadApps();
+				break;
+
+			case 'AppInfoUpdated':
+				// Handle app info updates if needed
+				console.log('App info updated:', message.data);
+				break;
+
+			case 'TaskListUpdated':
+				console.log('Task list updated, requesting all tasks');
+				requestAllTasks();
+				break;
+
+			// Task output streaming events - delegate to unified output system
+			case 'TaskOutputStreamStarted':
+			case 'TaskOutputStreamEnded':
+				handleTaskOutputMessage(message);
+				break;
+
+			default:
+				console.log('Unhandled WebSocket message type:', message.type);
 		}
 	} catch (error) {
-		console.error('Error parsing WebSocket message:', error, event.data);
-		update(state => ({
-			...state,
-			lastError: `Message parsing error: ${error}`
-		}));
+		console.error('Failed to parse WebSocket message:', error);
 	}
 }
 
 /**
- * Start ping interval to keep connection alive
+ * Start ping/pong to keep connection alive
  */
-function startPingInterval() {
+function startPing() {
 	if (pingInterval) {
 		clearInterval(pingInterval);
 	}
@@ -218,9 +188,9 @@ function startPingInterval() {
 }
 
 /**
- * Stop ping interval
+ * Stop ping/pong
  */
-function stopPingInterval() {
+function stopPing() {
 	if (pingInterval) {
 		clearInterval(pingInterval);
 		pingInterval = null;
@@ -231,176 +201,141 @@ function stopPingInterval() {
  * Calculate reconnect delay with exponential backoff
  */
 function getReconnectDelay(attempts: number): number {
-	return Math.min(RECONNECT_DELAY_BASE * Math.pow(2, attempts), 30000); // Max 30 seconds
+	return Math.min(RECONNECT_DELAY_BASE * Math.pow(2, attempts), 30000);
 }
 
 /**
- * Attempt to reconnect with exponential backoff
- */
-function scheduleReconnect() {
-	const state = get(webSocketStore);
-
-	if (state.reconnectAttempts >= state.maxReconnectAttempts) {
-		console.error('Max reconnection attempts reached, giving up');
-		update(s => ({
-			...s,
-			connectionState: 'error',
-			lastError: 'Max reconnection attempts reached'
-		}));
-		return;
-	}
-
-	const delay = getReconnectDelay(state.reconnectAttempts);
-	console.log(`Scheduling reconnect attempt ${state.reconnectAttempts + 1} in ${delay}ms`);
-
-	reconnectTimeout = setTimeout(() => {
-		connect();
-	}, delay);
-}
-
-/**
- * Connect to WebSocket server
+ * Connect to WebSocket
  */
 function connect() {
 	if (!browser) return;
 
-	const state = get(webSocketStore);
-
-	// Don't connect if already connected/connecting
-	if (state.connectionState === 'connected' || state.connectionState === 'connecting' || state.connectionState === 'authenticated') {
-		return;
+	const state = get({ subscribe });
+	if (state.connectionState === 'connecting' || state.connectionState === 'connected') {
+		return; // Already connecting or connected
 	}
 
-	console.log('Connecting to WebSocket...');
+	const url = getWebSocketUrl();
+	console.log('Connecting to WebSocket:', url);
 
-	update(s => ({
-		...s,
-		connectionState: 'connecting',
-		lastError: null
-	}));
+	update(state => ({ ...state, connectionState: 'connecting', lastError: null }));
 
 	try {
-		const url = getWebSocketUrl();
 		const socket = new WebSocket(url);
 
-		socket.addEventListener('open', () => {
-			console.log('WebSocket connection established');
-			update(s => ({
-				...s,
-				socket,
+		socket.onopen = () => {
+			console.log('WebSocket connected');
+			update(state => ({
+				...state,
 				connectionState: 'connected',
+				socket,
 				reconnectAttempts: 0,
 				lastError: null
 			}));
 
-			startPingInterval();
+			// Authenticate after connection
+			authenticateWebSocket();
+		};
 
-			// Automatically authenticate after connection is established
-			authenticateConnection();
-		});
+		socket.onmessage = handleMessage;
 
-		socket.addEventListener('message', handleMessage);
+		socket.onclose = (event) => {
+			console.log('WebSocket closed:', event.code, event.reason);
+			stopPing();
 
-		socket.addEventListener('close', (event) => {
-			console.log('WebSocket connection closed:', event.code, event.reason);
-			stopPingInterval();
+			update(state => {
+				const newState = {
+					...state,
+					connectionState: 'disconnected' as WebSocketConnectionState,
+					socket: null
+				};
 
-			update(s => ({
-				...s,
-				socket: null,
-				connectionState: 'disconnected',
-				reconnectAttempts: s.reconnectAttempts + 1
-			}));
+				// Only attempt reconnect if it wasn't a normal closure and we haven't exceeded max attempts
+				if (event.code !== 1000 && state.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+					const delay = getReconnectDelay(state.reconnectAttempts);
+					console.log(`Reconnecting in ${delay}ms (attempt ${state.reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
 
-			// Attempt to reconnect unless it was a clean close
-			if (event.code !== 1000) {
-				scheduleReconnect();
-			}
-		});
+					reconnectTimeout = setTimeout(() => {
+						update(s => ({ ...s, reconnectAttempts: s.reconnectAttempts + 1 }));
+						connect();
+					}, delay);
+				} else if (state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+					newState.lastError = 'Max reconnect attempts exceeded';
+					newState.connectionState = 'error';
+				}
 
-		socket.addEventListener('error', (error) => {
+				return newState;
+			});
+		};
+
+		socket.onerror = (error) => {
 			console.error('WebSocket error:', error);
-			update(s => ({
-				...s,
+			update(state => ({
+				...state,
 				connectionState: 'error',
 				lastError: 'Connection error occurred'
 			}));
-		});
+		};
 
 	} catch (error) {
-		console.error('Failed to create WebSocket connection:', error);
-		update(s => ({
-			...s,
+		console.error('Failed to create WebSocket:', error);
+		update(state => ({
+			...state,
 			connectionState: 'error',
-			lastError: `Failed to connect: ${error}`
+			lastError: 'Failed to create WebSocket connection'
 		}));
 	}
 }
 
 /**
- * Disconnect from WebSocket server
+ * Disconnect from WebSocket
  */
 function disconnect() {
-	const state = get(webSocketStore);
-
-	stopPingInterval();
+	const state = get({ subscribe });
 
 	if (reconnectTimeout) {
 		clearTimeout(reconnectTimeout);
 		reconnectTimeout = null;
 	}
 
+	stopPing();
+
 	if (state.socket) {
-		state.socket.close(1000, 'User initiated disconnect');
+		state.socket.close(1000, 'User requested disconnect');
 	}
 
-	update(s => ({
-		...s,
-		socket: null,
+	update(state => ({
+		...state,
 		connectionState: 'disconnected',
+		socket: null,
 		reconnectAttempts: 0,
 		lastError: null
 	}));
 }
 
 /**
- * Manually trigger reconnection
+ * Initialize WebSocket connection if user is authenticated
  */
-function reconnect() {
-	disconnect();
-	setTimeout(() => connect(), 100);
-}
-
-/**
- * Initialize WebSocket connection when auth state changes
- */
-function initializeWebSocket() {
+function initialize() {
 	if (!browser) return;
 
-	// Subscribe to auth store changes
-	authStore.subscribe((authState) => {
-		const wsState = get(webSocketStore);
-
-		if (authState.isLoggedIn) {
-			// User logged in - connect if not already connected
-			if (wsState.connectionState === 'disconnected' || wsState.connectionState === 'error') {
-				connect();
-			} else if (wsState.connectionState === 'connected') {
-				// Already connected but not authenticated - try to authenticate
-				authenticateConnection();
-			}
+	// Subscribe to authentication changes
+	isAuthenticated.subscribe(authenticated => {
+		if (authenticated) {
+			// User is authenticated, connect to WebSocket
+			connect();
 		} else {
-			// User logged out - disconnect
+			// User is not authenticated, disconnect
 			disconnect();
 		}
 	});
 }
 
 /**
- * Request task output stream for a specific task
+ * Request task output streaming for a specific task
  */
-function requestTaskOutputStream(taskId: string, fromBeginning: boolean = true): boolean {
-	return sendMessage({
+function requestTaskOutputStream(taskId: string, fromBeginning: boolean = false) {
+	sendMessage({
 		type: 'StartTaskOutputStream',
 		data: {
 			task_id: taskId,
@@ -410,10 +345,10 @@ function requestTaskOutputStream(taskId: string, fromBeginning: boolean = true):
 }
 
 /**
- * Stop task output stream for a specific task
+ * Stop task output streaming for a specific task
  */
-function stopTaskOutputStream(taskId: string): boolean {
-	return sendMessage({
+function stopTaskOutputStream(taskId: string) {
+	sendMessage({
 		type: 'StopTaskOutputStream',
 		data: {
 			task_id: taskId
@@ -421,24 +356,23 @@ function stopTaskOutputStream(taskId: string): boolean {
 	});
 }
 
-// Export the store and actions
+// Export the store and functions
 export const webSocketStore = {
 	subscribe,
 	connect,
 	disconnect,
-	reconnect,
 	sendMessage,
+	initialize,
 	requestTaskOutputStream,
-	stopTaskOutputStream,
-	initialize: initializeWebSocket
+	stopTaskOutputStream
 };
 
-// Derived stores for easy access to specific state
-export const connectionState = derived(webSocketStore, (state) => state.connectionState);
-export const isConnected = derived(webSocketStore, (state) =>
-	state.connectionState === 'connected' || state.connectionState === 'authenticated'
-);
-export const isAuthenticated = derived(webSocketStore, (state) =>
-	state.connectionState === 'authenticated'
-);
-export const lastError = derived(webSocketStore, (state) => state.lastError);
+// Derived stores for convenient access
+export const connectionState = derived(webSocketStore, $ws => $ws.connectionState);
+export const isConnected = derived(webSocketStore, $ws => $ws.connectionState === 'authenticated');
+export const lastError = derived(webSocketStore, $ws => $ws.lastError);
+
+// Auto-initialize when module loads
+if (browser) {
+	initialize();
+}
