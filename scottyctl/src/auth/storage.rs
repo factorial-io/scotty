@@ -8,6 +8,7 @@ pub struct TokenStore {
     pub tokens: HashMap<String, StoredToken>,
 }
 
+#[derive(Debug)]
 pub struct TokenStorage {
     config_dir: PathBuf,
 }
