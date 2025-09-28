@@ -294,19 +294,20 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 **Current Status: Infrastructure Optimization Complete** 🎉
 
 All unified output system functionality is complete and working, with significant infrastructure improvements added. The system now provides:
+- ✅ **BREAKING CHANGE IMPLEMENTED**: Removed stdout/stderr from TaskDetails, now uses WebSocket-only task output streaming
 - ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
 - ✅ Interactive shell access with `app:shell` command
-- ✅ Real-time task output streaming with hybrid REST + WebSocket approach
+- ✅ Real-time task output streaming with hybrid REST + WebSocket approach via TaskOutputData messages
 - ✅ WebSocketMessenger architecture for centralized client management
 - ✅ Resolved stack overflow issues through architectural improvements
 - ✅ Proper resource cleanup and subscription management
 - ✅ Comprehensive test coverage and CI integration
-- ✅ Consolidated WebSocket message types in scotty-core (eliminates duplication, ensures type consistency)
-- ✅ **NEW: Live task output during all app operations** (no more silent waits!)
-- ✅ **NEW: Build System Optimization** - TypeScript generation optimized from 27s to 6s
-- ✅ **NEW: Type System Consolidation** - Eliminated all type duplication with scotty-types crate
-- ✅ **NEW: Frontend Build Optimization** - Migrated to bun for 62% faster builds
-- ✅ **NEW: Platform-Agnostic Docker Builds** - Multi-platform support with consolidated Rollup binaries
+- ✅ Consolidated WebSocket message types in scotty-types (eliminates duplication, ensures type consistency)
+- ✅ **Live task output during all app operations** - unified OutputLine format with timestamps and sequence numbers
+- ✅ **Build System Optimization** - TypeScript generation optimized from 27s to 6s
+- ✅ **Type System Consolidation** - Eliminated all type duplication with scotty-types crate
+- ✅ **Frontend Build Optimization** - Migrated to bun for 62% faster builds
+- ✅ **Platform-Agnostic Docker Builds** - Multi-platform support with consolidated Rollup binaries
 
 **Next Steps**:
 - Phase 4: Frontend Integration - Replace current stdout/stderr UI with unified log viewer

@@ -188,11 +188,11 @@ Scotty generates appropriate configurations for:
 **Status: Core functionality complete with infrastructure optimization**
 
 ### Phase 1 Completed:
-- ✅ Unified output data model (OutputLine, TaskOutput, OutputStreamType)
-- ✅ Breaking change: removed stdout/stderr from TaskDetails
-- ✅ Updated TaskManager for unified output collection
+- ✅ Unified output data model (OutputLine, TaskOutputData, OutputStreamType)
+- ✅ **BREAKING CHANGE IMPLEMENTED**: Removed stdout/stderr from TaskDetails struct
+- ✅ Updated TaskManager for unified output collection via WebSocket streaming
 - ✅ Added configuration options (OutputSettings, ShellSettings)
-- ✅ Extended WebSocket message types for logs and shell
+- ✅ Extended WebSocket message types for logs, shell, and task output
 - ✅ Fixed client-visible status messages
 
 ### Phase 2 Completed:
@@ -226,12 +226,13 @@ Scotty generates appropriate configurations for:
 - ✅ **Quality Assurance**: All tests pass, no compilation errors, proper code formatting
 
 ### Phase 3.6 Completed:
-- ✅ **Task Output WebSocket Streaming**: Implemented real-time task output streaming via WebSocket
-- ✅ **Unified Output Display**: Live stdout/stderr output during all app operations
+- ✅ **Task Output WebSocket Streaming**: Implemented real-time task output streaming via TaskOutputData messages
+- ✅ **Unified Output Display**: Live stdout/stderr output during all app operations using OutputLine format
 - ✅ **Hybrid Implementation**: Combined REST API polling for task status with WebSocket for real-time output
 - ✅ **WebSocketMessenger Architecture**: Centralized WebSocket client management and message broadcasting
 - ✅ **Stack Overflow Resolution**: Fixed circular reference issues in TaskManager data structures
 - ✅ **Resource Cleanup**: Proper WebSocket subscription cleanup during task completion
+- ✅ **Breaking Change Complete**: TaskDetails no longer contains stdout/stderr fields
 
 ### Phase 3.7 Completed:
 - ✅ **Build System Optimization**: Created standalone `ts-generator` crate reducing TypeScript generation from 27s to 6s
