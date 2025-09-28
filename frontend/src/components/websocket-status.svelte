@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { connectionState, isAuthenticated, lastError, webSocketStore } from '../stores/webSocketStore';
+	import { connectionState, lastError, webSocketStore } from '../stores/webSocketStore';
+	import { isAuthenticated } from '../stores/sessionStore';
 	import Icon from '@iconify/svelte';
 	import cloudCheck from '@iconify-icons/ph/cloud-check';
 	import cloudWarning from '@iconify-icons/ph/cloud-warning';
@@ -45,7 +46,7 @@
 
 	function handleClick() {
 		if ($connectionState === 'disconnected' || $connectionState === 'error') {
-			webSocketStore.reconnect();
+			webSocketStore.connect();
 		}
 	}
 </script>

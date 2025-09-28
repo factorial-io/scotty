@@ -5,7 +5,8 @@
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { tasks } from '../../../stores/tasksStore';
 	import { getTaskOutput, initializeTaskOutput, setTaskOutputSubscribed } from '../../../stores/taskOutputStore';
-	import { webSocketStore, isAuthenticated, isConnected } from '../../../stores/webSocketStore';
+	import { webSocketStore, isConnected } from '../../../stores/webSocketStore';
+	import { isAuthenticated } from '../../../stores/sessionStore';
 	import type { TaskDetail } from '../../../types';
 	import { onMount, onDestroy } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';

@@ -1,195 +1,174 @@
-// place files you want to import through the `$lib` alias in this folder.
+/**
+ * API Utilities - Simplified authentication with SessionStore integration
+ *
+ * This module provides a unified API interface that integrates with the new
+ * SessionStore for authentication. It simplifies the previous complex logic
+ * by delegating authentication concerns to the centralized session management.
+ */
 
-type AuthMode = 'dev' | 'oauth' | 'bearer';
+import { sessionStore } from '../stores/sessionStore';
+import { authService } from './authService';
 
-// Cache auth mode to avoid repeated requests
-let authMode: AuthMode | null = null;
+export type AuthMode = 'dev' | 'oauth' | 'bearer';
 
-// Get auth mode from server (cached after first call)
-async function getAuthMode(): Promise<AuthMode> {
-	if (authMode) {
-		return authMode;
+/**
+ * Make authenticated API calls using SessionStore
+ */
+export async function authenticatedApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+	// Ensure session is initialized
+	if (!sessionStore.isAuthenticated()) {
+		await sessionStore.init();
 	}
+
+	// Prepare request options
+	const requestOptions: RequestInit = {
+		...options,
+		credentials: 'include', // Always include cookies for OAuth mode
+		headers: {
+			...options.headers,
+			...sessionStore.getAuthHeader() // Get auth header from session store
+		}
+	};
 
 	try {
-		const result = (await publicApiCall('info')) as { auth_mode?: AuthMode };
-		authMode = result.auth_mode || 'bearer';
-	} catch (error) {
-		console.warn('Failed to detect auth mode, defaulting to bearer:', error);
-		authMode = 'bearer';
-	}
+		const response = await fetch(`/api/v1/authenticated/${url}`, requestOptions);
 
-	return authMode;
-}
-
-// Public API calls (health, info, login) - no authentication required
-export async function publicApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
-	if (typeof window !== 'undefined') {
-		options.credentials = 'include'; // Always include cookies
-		const response = await fetch(`/api/v1/${url}`, options);
-		const result = await response.json();
-		return result;
-	}
-}
-
-// Authenticated API calls (apps, tasks, etc.) - requires authentication
-export async function authenticatedApiCall(
-	url: string,
-	options: RequestInit = {}
-): Promise<unknown> {
-	if (typeof window !== 'undefined') {
-		const mode = await getAuthMode();
-
-		// Always include cookies for OAuth mode
-		options.credentials = 'include';
-
-		// Add bearer token based on auth mode
-		if (mode === 'bearer') {
-			const currentToken = localStorage.getItem('token');
-			if (currentToken) {
-				options.headers = {
-					...options.headers,
-					Authorization: `Bearer ${currentToken}`
-				};
-			}
-		} else if (mode === 'oauth') {
-			const oauthToken = localStorage.getItem('oauth_token');
-			if (oauthToken) {
-				options.headers = {
-					...options.headers,
-					Authorization: `Bearer ${oauthToken}`
-				};
-			}
-		}
-
-		const response = await fetch(`/api/v1/authenticated/${url}`, options);
-
-		// Handle 401 Unauthorized based on auth mode
+		// Handle 401 Unauthorized
 		if (response.status === 401) {
-			handleUnauthorized(mode);
-			return Promise.reject(new Error('Unauthorized'));
+			await handleUnauthorized();
+			throw new Error('Unauthorized');
 		}
 
-		const result = await response.json();
-		return result;
+		if (!response.ok) {
+			throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+		}
+
+		return await response.json();
+
+	} catch (error) {
+		console.error('API call failed:', error);
+		throw error;
 	}
 }
 
-// Legacy function for backward compatibility - will be deprecated
+/**
+ * Make public API calls (no authentication required)
+ */
+export async function publicApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+	try {
+		const response = await fetch(`/api/v1/${url}`, options);
+
+		if (!response.ok) {
+			throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+		}
+
+		return await response.json();
+
+	} catch (error) {
+		console.error('Public API call failed:', error);
+		throw error;
+	}
+}
+
+/**
+ * Legacy function for backward compatibility - will be deprecated
+ */
 export async function apiCall(url: string, options: RequestInit = {}): Promise<unknown> {
 	console.warn('apiCall is deprecated. Use authenticatedApiCall or publicApiCall instead.');
 	return authenticatedApiCall(url, options);
 }
 
-function handleUnauthorized(mode: AuthMode) {
-	if (window.location.pathname === '/login' || window.location.pathname.startsWith('/oauth/')) {
-		return; // Already on login page or OAuth flow
-	}
+/**
+ * Handle unauthorized responses by clearing session and redirecting
+ */
+async function handleUnauthorized(): Promise<void> {
+	console.warn('Unauthorized response received, clearing session and redirecting to login');
 
-	switch (mode) {
-		case 'oauth':
-			// Clear OAuth tokens and redirect to login
-			localStorage.removeItem('oauth_token');
-			localStorage.removeItem('user_info');
-			window.location.href = '/login';
-			break;
-		case 'bearer':
-			window.location.href = '/login';
-			break;
-		case 'dev':
-			// In dev mode, 401 shouldn't happen, but refresh the page
-			console.warn('Unexpected 401 in development mode');
-			window.location.reload();
-			break;
-	}
-}
+	// Clear invalid session
+	await sessionStore.clearInvalidSession();
 
-export async function validateToken(token: string): Promise<void> {
-	const response = await fetch('/api/v1/authenticated/validate-token', {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${token}`
-		},
-		credentials: 'include'
-	});
-
-	if (!response.ok) {
-		if (
-			window.location.pathname !== '/login' &&
-			!window.location.pathname.startsWith('/oauth/')
-		) {
-			const mode = await getAuthMode();
-			handleUnauthorized(mode);
-		}
-		throw new Error('Token validation failed');
-	}
-}
-
-export async function checkIfLoggedIn() {
-	const mode = await getAuthMode();
-
-	// Skip auth check in development mode
-	if (mode === 'dev') {
-		return;
-	}
-
-	// For OAuth mode, check for stored OAuth token
-	if (mode === 'oauth') {
-		const oauthToken = localStorage.getItem('oauth_token');
-		if (
-			!oauthToken &&
-			window.location.pathname !== '/login' &&
-			!window.location.pathname.startsWith('/oauth/')
-		) {
-			window.location.href = '/login';
+	// Don't redirect if already on login or OAuth pages
+	if (typeof window !== 'undefined') {
+		const currentPath = window.location.pathname;
+		if (currentPath === '/login' || currentPath.startsWith('/oauth/')) {
 			return;
 		}
 
-		if (oauthToken) {
-			// Validate OAuth token
-			try {
-				await fetch('/api/v1/authenticated/validate-token', {
-					method: 'POST',
-					headers: {
-						Authorization: `Bearer ${oauthToken}`
-					},
-					credentials: 'include'
-				});
-			} catch (error) {
-				// If validate-token fails, clear token and redirect
-				console.warn('OAuth token validation failed:', error);
-				localStorage.removeItem('oauth_token');
-				localStorage.removeItem('user_info');
-				if (
-					window.location.pathname !== '/login' &&
-					!window.location.pathname.startsWith('/oauth/')
-				) {
-					window.location.href = '/login';
-				}
-			}
-		}
-		return;
-	}
-
-	// Bearer mode - check for token in localStorage
-	if (mode === 'bearer') {
-		const token = localStorage.getItem('token');
-		if (!token && window.location.pathname !== '/login') {
-			window.location.href = '/login';
-		} else if (token) {
-			// Validate bearer token
-			try {
-				await validateToken(token);
-			} catch (error) {
-				console.warn('Bearer token validation failed:', error);
-				localStorage.removeItem('token');
-				if (window.location.pathname !== '/login') {
-					window.location.href = '/login';
-				}
-			}
-		}
+		// Redirect to login
+		await authService.logout('/login');
 	}
 }
 
-// Export getAuthMode for components that need to know the auth mode
-export { getAuthMode };
+/**
+ * Get current auth mode
+ */
+export async function getAuthMode(): Promise<AuthMode> {
+	try {
+		const info = await publicApiCall('info');
+		return (info as any).auth_mode || 'bearer';
+	} catch (error) {
+		console.warn('Failed to get auth mode, defaulting to bearer:', error);
+		return 'bearer';
+	}
+}
+
+/**
+ * Validate current token
+ */
+export async function validateToken(token?: string): Promise<boolean> {
+	if (token) {
+		// Validate specific token
+		try {
+			const response = await fetch('/api/v1/authenticated/validate-token', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`
+				},
+				credentials: 'include'
+			});
+			return response.ok;
+		} catch (error) {
+			console.warn('Token validation failed:', error);
+			return false;
+		}
+	} else {
+		// Validate current session token
+		return await sessionStore.validateCurrentToken();
+	}
+}
+
+/**
+ * Initialize authentication and redirect if needed
+ */
+export async function initializeAuth(): Promise<void> {
+	await authService.initialize();
+
+	// Check if current page requires authentication
+	if (typeof window !== 'undefined') {
+		const currentPath = window.location.pathname;
+		await authService.requireAuth(currentPath);
+	}
+}
+
+/**
+ * Check if user is authenticated
+ */
+export function isAuthenticated(): boolean {
+	return sessionStore.isAuthenticated();
+}
+
+/**
+ * Get current user info
+ */
+export function getCurrentUser() {
+	return sessionStore.getUserInfo();
+}
+
+/**
+ * Get authorization header for manual requests
+ */
+export function getAuthHeader(): Record<string, string> {
+	return sessionStore.getAuthHeader();
+}
+
+// getAuthMode is already exported above

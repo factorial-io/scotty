@@ -1,12 +1,12 @@
 <script lang="ts">
 	import '../app.css';
 	import logo from '$lib/assets/scotty.svg';
-	import { publicApiCall, checkIfLoggedIn } from '$lib';
+	import { publicApiCall, initializeAuth } from '$lib';
 	import { onMount } from 'svelte';
 	import title from '../stores/titleStore';
 	import UserInfo from '../components/user-info.svelte';
 	import WebSocketStatus from '../components/websocket-status.svelte';
-	import { authStore } from '../stores/userStore';
+	import { sessionStore } from '../stores/sessionStore';
 	import { webSocketStore } from '../stores/webSocketStore';
 
 	type SiteInfo = {
@@ -20,13 +20,13 @@
 	};
 
 	onMount(async () => {
-		// Initialize the auth store first
-		await authStore.init();
+		// Initialize authentication system
+		await initializeAuth();
 
 		// Initialize WebSocket store (will connect when user logs in)
 		webSocketStore.initialize();
 
-		checkIfLoggedIn();
+		// Load site info
 		site_info = (await publicApiCall('info')) as SiteInfo;
 	});
 </script>

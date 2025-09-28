@@ -1,20 +1,85 @@
-import { loadApps } from '../stores/appsStore';
-import { updateTask, requestAllTasks } from '../stores/tasksStore';
-import { handleTaskOutputMessage } from '../stores/taskOutputStore';
-import type { WebSocketMessage } from '../types';
-import { isTaskInfoUpdated } from '../generated';
+/**
+ * WebSocket Utilities - Simplified with SessionStore integration
+ *
+ * This module provides WebSocket authentication and management using the
+ * centralized SessionStore, eliminating the previous duplication of token logic.
+ */
 
-export function getWsurl(relativeUrl: string) {
-	const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-	const host = window.location.host;
+import { sessionStore } from '../stores/sessionStore';
 
-	return `${protocol}://${host}${relativeUrl}`;
+/**
+ * WebSocket message types for authentication and communication
+ */
+export interface WebSocketAuthMessage {
+	type: 'Authenticate';
+	data: { token: string };
+}
+
+export interface WebSocketMessage {
+	type: string;
+	data?: any;
 }
 
 /**
- * Send a type-safe WebSocket message
+ * Authenticate WebSocket connection using SessionStore
  */
-export function sendWebSocketMessage(socket: WebSocket, message: WebSocketMessage) {
+export function authenticateWebSocket(socket: WebSocket): void {
+	const token = sessionStore.getAuthToken();
+
+	if (token) {
+		console.log('Authenticating WebSocket with token (first 8 chars):', token.substring(0, 8) + '...');
+
+		const authMessage: WebSocketAuthMessage = {
+			type: 'Authenticate',
+			data: { token: token }
+		};
+
+		socket.send(JSON.stringify(authMessage));
+	} else {
+		console.warn('No authentication token found for WebSocket authentication');
+
+		if (typeof window !== 'undefined') {
+			const debugInfo = sessionStore.getDebugInfo();
+			console.warn('Session debug info:', debugInfo);
+		}
+	}
+}
+
+/**
+ * Create authenticated WebSocket connection
+ */
+export function createAuthenticatedWebSocket(url: string): WebSocket {
+	const socket = new WebSocket(url);
+
+	// Authenticate once connection is open
+	socket.addEventListener('open', () => {
+		authenticateWebSocket(socket);
+	});
+
+	// Handle authentication response
+	socket.addEventListener('message', (event) => {
+		try {
+			const message = JSON.parse(event.data);
+
+			if (message.type === 'AuthenticationResult') {
+				if (message.data.success) {
+					console.log('WebSocket authentication successful');
+				} else {
+					console.error('WebSocket authentication failed:', message.data.error);
+				}
+			}
+		} catch (error) {
+			// Not a JSON message, ignore
+		}
+	});
+
+	return socket;
+}
+
+/**
+ * Send message through WebSocket with proper formatting
+ */
+export function sendWebSocketMessage(socket: WebSocket, message: WebSocketMessage): void {
 	if (socket.readyState === WebSocket.OPEN) {
 		socket.send(JSON.stringify(message));
 	} else {
@@ -23,152 +88,41 @@ export function sendWebSocketMessage(socket: WebSocket, message: WebSocketMessag
 }
 
 /**
- * Authenticate WebSocket connection using stored token
+ * Create WebSocket URL with proper protocol
  */
-export function authenticateWebSocket(socket: WebSocket) {
-	// Get token from localStorage based on auth mode
-	const oauthToken = localStorage.getItem('oauth_token');
-	const bearerToken = localStorage.getItem('token');
-
-	// Use whichever token is available (OAuth takes precedence)
-	const token = oauthToken || bearerToken;
-
-	console.log('WebSocket authentication debug:', {
-		oauthToken: oauthToken ? 'present' : 'none',
-		bearerToken: bearerToken ? 'present' : 'none',
-		selectedToken: token ? 'present' : 'none'
-	});
-
-	if (token) {
-		console.log('Authenticating WebSocket with token (first 8 chars):', token.substring(0, 8) + '...');
-		sendWebSocketMessage(socket, {
-			type: 'Authenticate',
-			data: { token: token }
-		});
-	} else {
-		console.warn('No authentication token found for WebSocket authentication');
-		console.warn('Available localStorage keys:', Object.keys(localStorage));
+export function createWebSocketUrl(path: string): string {
+	if (typeof window === 'undefined') {
+		return '';
 	}
+
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	const host = window.location.host;
+
+	return `${protocol}//${host}${path}`;
 }
 
 /**
- * Request task output stream for a specific task
+ * WebSocket connection states
  */
-export function requestTaskOutputStream(socket: WebSocket, taskId: string, fromBeginning: boolean = true) {
-	sendWebSocketMessage(socket, {
-		type: 'StartTaskOutputStream',
-		data: {
-			task_id: taskId,
-			from_beginning: fromBeginning
-		}
-	});
+export enum WebSocketState {
+	CONNECTING = 0,
+	OPEN = 1,
+	CLOSING = 2,
+	CLOSED = 3
 }
 
 /**
- * Stop task output stream for a specific task
+ * Check if WebSocket is connected and authenticated
  */
-export function stopTaskOutputStream(socket: WebSocket, taskId: string) {
-	sendWebSocketMessage(socket, {
-		type: 'StopTaskOutputStream',
-		data: {
-			task_id: taskId
-		}
-	});
+export function isWebSocketReady(socket: WebSocket): boolean {
+	return socket.readyState === WebSocket.OPEN;
 }
 
-export function setupWsListener(relativeUrl: string) {
-	// Connect to WebSocket
-	const url = getWsurl(relativeUrl);
-	console.log('Connecting to ws at ', url);
-	const socket = new WebSocket(url);
-
-	socket.addEventListener('message', async (event) => {
-		try {
-			const message: WebSocketMessage = JSON.parse(event.data);
-			console.log('WebSocket message:', message);
-
-			// Handle messages with type-safe pattern matching
-			switch (message.type) {
-				case 'Ping':
-					// Respond to ping with pong
-					socket.send(JSON.stringify({ type: 'Pong' }));
-					break;
-
-				case 'AppListUpdated':
-					await loadApps();
-					break;
-
-				case 'TaskListUpdated':
-					await requestAllTasks();
-					break;
-
-				case 'TaskInfoUpdated':
-					if (isTaskInfoUpdated(message)) {
-						updateTask(message.data.id, message.data);
-					}
-					break;
-
-				// Task output streaming messages
-				case 'TaskOutputStreamStarted':
-				case 'TaskOutputData':
-				case 'TaskOutputStreamEnded':
-					handleTaskOutputMessage(message);
-					break;
-
-				// Log streaming messages (for future use)
-				case 'LogsStreamStarted':
-				case 'LogsStreamData':
-				case 'LogsStreamEnded':
-				case 'LogsStreamError':
-					console.log('Log stream message:', message);
-					break;
-
-				// Shell session messages (for future use)
-				case 'ShellSessionCreated':
-				case 'ShellSessionData':
-				case 'ShellSessionEnded':
-				case 'ShellSessionError':
-					console.log('Shell session message:', message);
-					break;
-
-				// Authentication messages
-				case 'AuthenticationSuccess':
-					console.log('WebSocket authentication successful');
-					break;
-
-				case 'AuthenticationFailed':
-					console.error('WebSocket authentication failed:', message.data);
-					break;
-
-				case 'Error':
-					console.error('WebSocket error:', message.data);
-					break;
-
-				case 'Pong':
-					// Handle pong response
-					break;
-
-				default:
-					console.warn('Unhandled WebSocket message type:', message);
-					break;
-			}
-		} catch (error) {
-			console.error('Error parsing WebSocket message:', error, event.data);
-		}
-	});
-
-	socket.addEventListener('open', () => {
-		console.log('WebSocket connection established');
-		// Automatically authenticate after connection is established
-		authenticateWebSocket(socket);
-	});
-
-	socket.addEventListener('close', () => {
-		console.log('WebSocket connection closed');
-	});
-
-	socket.addEventListener('error', (error) => {
-		console.error('WebSocket error', error);
-	});
-	return socket;
+/**
+ * Close WebSocket connection gracefully
+ */
+export function closeWebSocket(socket: WebSocket): void {
+	if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+		socket.close(1000, 'Normal closure');
+	}
 }
