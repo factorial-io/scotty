@@ -3,7 +3,8 @@ use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
 use crate::services::authorization::Permission;
-use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::TaskOutputData;
 
 use super::{check_websocket_authorization, handle_websocket_auth_failure, WebSocketAuthResult};
 

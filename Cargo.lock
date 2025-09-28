@@ -3186,6 +3186,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.23",
  "scotty-core",
+ "scotty-types",
  "serde",
  "serde_json",
  "serde_yml",
@@ -3224,6 +3225,7 @@ dependencies = [
  "deunicode",
  "readonly",
  "reqwest 0.12.23",
+ "scotty-types",
  "semver",
  "serde",
  "serde_json",
@@ -3232,8 +3234,25 @@ dependencies = [
  "thiserror 2.0.16",
  "tokio",
  "tracing",
- "ts-rs",
  "url",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "scotty-ts-generator"
+version = "0.2.0-alpha.1"
+dependencies = [
+ "scotty-types",
+]
+
+[[package]]
+name = "scotty-types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "ts-rs",
  "utoipa",
  "uuid",
 ]
@@ -3254,6 +3273,7 @@ dependencies = [
  "owo-colors",
  "reqwest 0.12.23",
  "scotty-core",
+ "scotty-types",
  "semver",
  "serde",
  "serde_json",
@@ -4242,9 +4262,11 @@ version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e640d9b0964e9d39df633548591090ab92f7a4567bc31d3891af23471a3365c6"
 dependencies = [
+ "chrono",
  "lazy_static",
  "thiserror 2.0.16",
  "ts-rs-macros",
+ "uuid",
 ]
 
 [[package]]

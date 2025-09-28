@@ -5,8 +5,9 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 
 use crate::{api::get, cli::LogsCommand, context::AppContext, utils::status_line::Status};
-use scotty_core::websocket::message::*;
-use scotty_core::{apps::app_data::AppData, output::OutputLine};
+use scotty_core::apps::app_data::AppData;
+use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{LogStreamRequest, OutputLine};
 use uuid::Uuid;
 
 /// View logs for an app service

@@ -30,6 +30,7 @@ regex.workspace = true
 reqwest.workspace = true
 tempfile = "3.10.1"
 scotty-core = { path = "../scotty-core", features = ["utoipa"] }
+scotty-types = { path = "../scotty-types" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yml.workspace = true

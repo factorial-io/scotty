@@ -290,7 +290,8 @@ impl AuthorizationService {
 
                 if has_permission {
                     // Expand wildcard scopes and check access
-                    let expanded_scopes = self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+                    let expanded_scopes =
+                        self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
                     let has_scope_access = expanded_scopes
                         .iter()
                         .any(|assigned_scope| scopes.contains(assigned_scope));
@@ -341,7 +342,11 @@ impl AuthorizationService {
 
     /// Helper method to expand wildcard scopes to actual scope names
     /// Returns the original scopes if no wildcard, or all available scopes if wildcard is present
-    fn expand_wildcard_scopes(&self, scopes: &[String], available_scopes: &std::collections::HashMap<String, super::types::ScopeConfig>) -> Vec<String> {
+    fn expand_wildcard_scopes(
+        &self,
+        scopes: &[String],
+        available_scopes: &std::collections::HashMap<String, super::types::ScopeConfig>,
+    ) -> Vec<String> {
         if scopes.contains(&"*".to_string()) {
             available_scopes.keys().cloned().collect()
         } else {
@@ -699,7 +704,8 @@ impl AuthorizationService {
                     .collect();
 
                 // Expand wildcard scopes and add permissions for each scope
-                let expanded_scopes = self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+                let expanded_scopes =
+                    self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
 
                 for scope in &expanded_scopes {
                     let scope_perms = all_permissions.entry(scope.clone()).or_default();

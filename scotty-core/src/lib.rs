@@ -10,3 +10,6 @@ pub mod tasks;
 pub mod utils;
 pub mod version;
 pub mod websocket;
+
+// Note: Types previously re-exported here are now imported directly from scotty-types
+// This reduces coupling and makes dependencies more explicit

@@ -11,9 +11,9 @@ use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
-use scotty_core::output::{OutputLine, OutputStreamType};
-use scotty_core::websocket::message::{
-    LogsStreamData, LogsStreamEnd, LogsStreamError, LogsStreamInfo, WebSocketMessage,
+use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{
+    LogsStreamData, LogsStreamEnd, LogsStreamError, LogsStreamInfo, OutputLine, OutputStreamType,
 };
 
 use thiserror::Error;

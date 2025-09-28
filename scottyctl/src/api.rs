@@ -156,7 +156,8 @@ pub async fn wait_for_task(
     use crate::websocket::AuthenticatedWebSocket;
     use futures_util::{SinkExt, StreamExt};
     use scotty_core::tasks::task_details::TaskDetails;
-    use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+    use scotty_core::websocket::message::WebSocketMessage;
+    use scotty_types::TaskOutputData;
     use tokio_tungstenite::tungstenite::Message;
 
     // Try to connect to WebSocket for output streaming (optional enhancement)
@@ -299,8 +300,8 @@ pub async fn wait_for_task(
     Ok(())
 }
 
-fn display_task_output_line(line: &scotty_core::output::OutputLine, ui: &Arc<Ui>) {
-    use scotty_core::output::OutputStreamType;
+fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
+    use scotty_types::OutputStreamType;
 
     // Trim trailing newline since ui.println adds one
     let content = line.content.trim_end_matches('\n');

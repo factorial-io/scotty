@@ -3,7 +3,7 @@ mod tests {
     use super::super::logs::*;
     use bollard::Docker;
     use scotty_core::apps::app_data::{AppData, AppStatus, ContainerState, ContainerStatus};
-    use scotty_core::output::{OutputLine, OutputStreamType};
+    use scotty_types::{OutputLine, OutputStreamType};
     use uuid::Uuid;
 
     /// Helper function to get Docker client for tests

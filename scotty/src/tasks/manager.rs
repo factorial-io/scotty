@@ -32,7 +32,8 @@ async fn add_and_broadcast_line(
     };
 
     if let Some(line) = output_line {
-        use scotty_core::websocket::message::{TaskOutputData, WebSocketMessage};
+        use scotty_core::websocket::message::WebSocketMessage;
+        use scotty_types::TaskOutputData;
         debug!("Broadcasting output update for task {}", task_id);
 
         let message = WebSocketMessage::TaskOutputData(TaskOutputData {

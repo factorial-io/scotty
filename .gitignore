@@ -1,5 +1,7 @@
 /target
+/ts-generator/target
 frontend/node_modules
+frontend/src/generated/
 docs/node_modules
 docs/_site
 apps/test-nginx-creation

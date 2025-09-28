@@ -11,9 +11,9 @@ use uuid::Uuid;
 use crate::app_state::SharedAppState;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::settings::shell::ShellSettings;
-use scotty_core::websocket::message::{
+use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{
     ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
-    WebSocketMessage,
 };
 
 use thiserror::Error;

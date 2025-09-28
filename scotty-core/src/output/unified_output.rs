@@ -1,70 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-#[cfg(feature = "ts-rs")]
-use ts_rs::TS;
 use uuid::Uuid;
 
-/// Represents the type of output stream
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "ts-rs", derive(TS))]
-#[cfg_attr(
-    feature = "ts-rs",
-    ts(export, export_to = "../frontend/src/generated/")
-)]
-pub enum OutputStreamType {
-    Stdout,
-    Stderr,
-}
-
-impl std::fmt::Display for OutputStreamType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputStreamType::Stdout => write!(f, "stdout"),
-            OutputStreamType::Stderr => write!(f, "stderr"),
-        }
-    }
-}
-
-/// A single line of output with metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "ts-rs", derive(TS))]
-#[cfg_attr(
-    feature = "ts-rs",
-    ts(export, export_to = "../frontend/src/generated/")
-)]
-pub struct OutputLine {
-    /// Timestamp when the line was received
-    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
-    pub timestamp: DateTime<Utc>,
-    /// Type of stream (stdout or stderr)
-    pub stream: OutputStreamType,
-    /// The actual content of the line
-    pub content: String,
-    /// Sequence number for ordering guarantee
-    pub sequence: u64,
-}
-
-impl OutputLine {
-    pub fn new(stream: OutputStreamType, content: String, sequence: u64) -> Self {
-        Self {
-            timestamp: Utc::now(),
-            stream,
-            content,
-            sequence,
-        }
-    }
-
-    pub fn stdout(content: String, sequence: u64) -> Self {
-        Self::new(OutputStreamType::Stdout, content, sequence)
-    }
-
-    pub fn stderr(content: String, sequence: u64) -> Self {
-        Self::new(OutputStreamType::Stderr, content, sequence)
-    }
-}
+// Import the types from scotty-types
+pub use scotty_types::{OutputLine, OutputStreamType};
 
 /// Configuration for output collection limits
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,10 +72,16 @@ impl TaskOutput {
     /// Add a new output line, maintaining size limits
     pub fn add_line(&mut self, stream: OutputStreamType, content: String) {
         // Truncate content if it exceeds the limit
-        let truncated_content = if content.len() > self.limits.max_line_length {
+        let truncated_content = if content.chars().count() > self.limits.max_line_length {
+            let truncation_marker = "... [TRUNCATED]";
+            let available_chars = self
+                .limits
+                .max_line_length
+                .saturating_sub(truncation_marker.chars().count());
             format!(
-                "{}... [TRUNCATED]",
-                &content[..self.limits.max_line_length - 15]
+                "{}{}",
+                content.chars().take(available_chars).collect::<String>(),
+                truncation_marker
             )
         } else {
             content
