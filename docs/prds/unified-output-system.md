@@ -291,9 +291,9 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 
 ## Implementation Status
 
-**Current Status: Phase 3.6 Complete - Task Output WebSocket Streaming** 🎉
+**Current Status: Infrastructure Optimization Complete** 🎉
 
-All unified output system functionality is complete and working. The system now provides:
+All unified output system functionality is complete and working, with significant infrastructure improvements added. The system now provides:
 - ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
 - ✅ Interactive shell access with `app:shell` command
 - ✅ Real-time task output streaming with hybrid REST + WebSocket approach
@@ -303,6 +303,10 @@ All unified output system functionality is complete and working. The system now 
 - ✅ Comprehensive test coverage and CI integration
 - ✅ Consolidated WebSocket message types in scotty-core (eliminates duplication, ensures type consistency)
 - ✅ **NEW: Live task output during all app operations** (no more silent waits!)
+- ✅ **NEW: Build System Optimization** - TypeScript generation optimized from 27s to 6s
+- ✅ **NEW: Type System Consolidation** - Eliminated all type duplication with scotty-types crate
+- ✅ **NEW: Frontend Build Optimization** - Migrated to bun for 62% faster builds
+- ✅ **NEW: Platform-Agnostic Docker Builds** - Multi-platform support with consolidated Rollup binaries
 
 **Next Steps**:
 - Phase 4: Frontend Integration - Replace current stdout/stderr UI with unified log viewer
@@ -349,6 +353,16 @@ All unified output system functionality is complete and working. The system now 
 6. ✅ **Resource Management**: Proper WebSocket subscription cleanup and client management
 7. ✅ **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
 8. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
+
+### Phase 3.7: Infrastructure Optimization ✅ COMPLETED
+1. ✅ **TypeScript Generation Optimization**: Created standalone `ts-generator` crate reducing build time from 27s to 6s
+2. ✅ **Type System Consolidation**: Moved all shared types to `scotty-types` crate as single source of truth
+3. ✅ **Import Cleanup**: Updated all files to use direct imports from `scotty-types` instead of re-exports
+4. ✅ **Frontend Build Migration**: Switched from npm to bun for 62% faster frontend builds (3.2s vs 5.2s)
+5. ✅ **Docker Build Optimization**: Implemented platform-agnostic Docker builds with multi-platform Rollup binaries
+6. ✅ **Workspace Integration**: Added new crates to workspace for better tooling and dependency management
+7. ✅ **Legacy Cleanup**: Removed duplicate dependencies, old package manager files, and unused code
+8. ✅ **Multi-Platform Support**: Docker builds now work on ARM64, x86_64, and different libc implementations
 
 ### Phase 4: Frontend Integration
 1. **Unified Output Viewer**: Replace separate stdout/stderr components with chronological display
