@@ -4260,17 +4260,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ts-rs-spike"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "ts-rs",
- "uuid",
-]
-
-[[package]]
 name = "tungstenite"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

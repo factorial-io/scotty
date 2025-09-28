@@ -1,5 +1,5 @@
 [workspace]
-members = ["scotty-core", "scotty", "scottyctl", "examples/ts-rs-spike"]
+members = ["scotty-core", "scotty", "scottyctl"]
 resolver = "2"
 
 [workspace.package]
