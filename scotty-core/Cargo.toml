@@ -11,10 +11,16 @@ license-file.workspace = true
 name = "scotty_core"
 path = "src/lib.rs"
 
+[[bin]]
+name = "generate-types"
+path = "src/bin/generate-types.rs"
+required-features = ["ts-rs"]
+
 [features]
 default = []
 clap = ["dep:clap"]
 utoipa = ["dep:utoipa"]
+ts-rs = ["dep:ts-rs"]
 
 [dependencies]
 async-trait.workspace = true
@@ -35,6 +41,7 @@ url.workspace = true
 reqwest.workspace = true
 semver.workspace = true
 thiserror.workspace = true
+ts-rs = { workspace = true, optional = true }
 
 axum = { workspace = true }
 clap = { workspace = true, optional = true }
