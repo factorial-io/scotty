@@ -3,10 +3,11 @@
 	import logo from '$lib/assets/scotty.svg';
 	import { publicApiCall, checkIfLoggedIn } from '$lib';
 	import { onMount } from 'svelte';
-	import { setupWsListener } from '$lib/ws';
 	import title from '../stores/titleStore';
 	import UserInfo from '../components/user-info.svelte';
+	import WebSocketStatus from '../components/websocket-status.svelte';
 	import { authStore } from '../stores/userStore';
+	import { webSocketStore } from '../stores/webSocketStore';
 
 	type SiteInfo = {
 		domain: string;
@@ -19,10 +20,11 @@
 	};
 
 	onMount(async () => {
-		setupWsListener('/ws');
-
 		// Initialize the auth store first
 		await authStore.init();
+
+		// Initialize WebSocket store (will connect when user logs in)
+		webSocketStore.initialize();
 
 		checkIfLoggedIn();
 		site_info = (await publicApiCall('info')) as SiteInfo;
@@ -66,7 +68,7 @@
 			<slot />
 		</div>
 	</div>
-	<footer class="px-4 pb-4 flex justify-between">
+	<footer class="px-4 pb-4 flex justify-between items-center">
 		<p class="text-sm text-gray-500">
 			Scotty <a
 				class="link link-secondary"
@@ -74,10 +76,13 @@
 				>v{site_info.version}</a
 			>
 		</p>
-		<p class="text-sm text-gray-500">
-			Brought to you by <a class="link link-secondary" href="https://factorial.io/"
-				>Factorial.io</a
-			>
-		</p>
+		<div class="flex items-center space-x-4">
+			<WebSocketStatus />
+			<p class="text-sm text-gray-500">
+				Brought to you by <a class="link link-secondary" href="https://factorial.io/"
+					>Factorial.io</a
+				>
+			</p>
+		</div>
 	</footer>
 </div>

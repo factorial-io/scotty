@@ -42,15 +42,15 @@ export interface App {
 	settings: AppSettings | null;
 	last_checked: string | null;
 }
-export interface TaskDetail {
-	state: string;
-	id: string;
-	start_time: string;
-	finish_time: string;
-	stderr: string;
-	stdout: string;
-	app_name: null | string;
-}
+// TaskDetail is now imported from generated types (TaskDetails)
+// The old interface with stdout/stderr is deprecated
+export type {
+	TaskDetails as TaskDetail,
+	WebSocketMessage,
+	TaskOutputData,
+	OutputLine,
+	OutputStreamType
+} from './generated';
 
 export interface ApiError {
 	message: string;
