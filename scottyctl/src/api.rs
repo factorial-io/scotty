@@ -3,8 +3,8 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
 use serde_json::Value;
 use tracing::info;
 
+use crate::auth::cache::CachedTokenManager;
 use crate::auth::config::get_server_info;
-use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
@@ -13,8 +13,18 @@ use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::State;
 use scotty_core::version::VersionManager;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+
+// Global cached token manager
+static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
+
+fn get_cached_token_manager() -> &'static CachedTokenManager {
+    CACHED_TOKEN_MANAGER.get_or_init(|| {
+        CachedTokenManager::new()
+            .expect("Failed to initialize cached token manager")
+    })
+}
 
 pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
     // 1. Check server auth mode to determine if OAuth tokens should be used
@@ -25,7 +35,7 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
 
     // 2. Try stored OAuth token only if server supports OAuth
     if server_supports_oauth {
-        if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
+        if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(&server.server) {
             // TODO: Check if token is expired and refresh if needed
             return Ok(stored_token.access_token);
         }
@@ -310,6 +320,10 @@ fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
         match line.stream {
             OutputStreamType::Stdout => content.to_string(),
             OutputStreamType::Stderr => content.red().to_string(),
+            OutputStreamType::Status => format!("[STATUS] {}", content.green()),
+            OutputStreamType::StatusError => format!("[ERROR] {}", content.red().bold()),
+            OutputStreamType::Progress => format!("[PROGRESS] {}", content.blue()),
+            OutputStreamType::Info => format!("[INFO] {}", content.cyan()),
         }
     } else {
         content.to_string()

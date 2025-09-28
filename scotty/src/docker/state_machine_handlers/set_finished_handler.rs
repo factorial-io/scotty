@@ -27,7 +27,16 @@ where
         {
             let context = context.read().await;
             let mut task_details = context.task.write().await;
+            let app_name = context.app_data.name.clone();
+            let task_id = task_details.id;
             task_details.state = State::Finished;
+
+            // Add final status message
+            context
+                .app_state
+                .task_manager
+                .add_task_status(&task_id, format!("Successfully completed operation for app '{}'", app_name))
+                .await;
 
             context
                 .app_state

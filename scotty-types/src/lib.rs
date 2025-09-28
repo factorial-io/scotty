@@ -25,6 +25,14 @@ pub use uuid;
 pub enum OutputStreamType {
     Stdout,
     Stderr,
+    /// Status messages (e.g., "Starting...", "Running...", "Completed")
+    Status,
+    /// Error status messages (e.g., "Failed", "Error occurred")
+    StatusError,
+    /// Progress updates (e.g., "Step 2/5: Installing dependencies...")
+    Progress,
+    /// Information/debug messages from the system
+    Info,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -66,6 +74,10 @@ impl std::fmt::Display for OutputStreamType {
         match self {
             OutputStreamType::Stdout => write!(f, "stdout"),
             OutputStreamType::Stderr => write!(f, "stderr"),
+            OutputStreamType::Status => write!(f, "status"),
+            OutputStreamType::StatusError => write!(f, "status-error"),
+            OutputStreamType::Progress => write!(f, "progress"),
+            OutputStreamType::Info => write!(f, "info"),
         }
     }
 }

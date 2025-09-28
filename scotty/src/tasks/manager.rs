@@ -142,6 +142,36 @@ impl TaskManager {
             .await
     }
 
+    /// Add a status message to task output
+    pub async fn add_task_status(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::Status, message)
+            .await
+    }
+
+    /// Add an error status message to task output
+    pub async fn add_task_status_error(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::StatusError, message)
+            .await
+    }
+
+    /// Add a progress message to task output
+    pub async fn add_task_progress(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::Progress, message)
+            .await
+    }
+
+    /// Add a formatted progress message with step counter
+    pub async fn add_task_step_progress(&self, uuid: &Uuid, current: u32, total: u32, message: String) -> bool {
+        let progress_msg = format!("Step {}/{}: {}", current, total, message);
+        self.add_task_progress(uuid, progress_msg).await
+    }
+
+    /// Add an informational message to task output
+    pub async fn add_task_info_message(&self, uuid: &Uuid, message: String) -> bool {
+        self.add_task_message(uuid, OutputStreamType::Info, message)
+            .await
+    }
+
     pub async fn get_task_handle(
         &self,
         uuid: &Uuid,

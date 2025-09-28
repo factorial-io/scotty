@@ -16,6 +16,12 @@ pub async fn run_task_and_wait(
 ) -> anyhow::Result<()> {
     debug!("Running {} ", msg);
 
+    // Add initial status message
+    let task_id = context.task.read().await.id;
+    context.app_state.task_manager
+        .add_task_status(&task_id, format!("Running {}", msg))
+        .await;
+
     let task_details = run_task(
         &context.app_state,
         docker_compose_path,
@@ -67,8 +73,13 @@ pub async fn run_task_and_wait(
         .get_task_details(&task_details.id)
         .await
         .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
+
+    // Add completion status based on exit code
     if let Some(last_exit_code) = task.last_exit_code {
         if last_exit_code != 0 {
+            context.app_state.task_manager
+                .add_task_status_error(&task_id, format!("Failed: {} (exit code {})", msg, last_exit_code))
+                .await;
             return Err(anyhow::anyhow!(
                 "{} failed with exit code {}",
                 msg,
@@ -76,6 +87,11 @@ pub async fn run_task_and_wait(
             ));
         }
     }
+
+    context.app_state.task_manager
+        .add_task_status(&task_id, format!("Completed: {}", msg))
+        .await;
+
     debug!("{} finished", msg);
     context
         .app_state

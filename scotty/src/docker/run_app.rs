@@ -95,5 +95,16 @@ pub async fn run_app(
     }
 
     let sm = run_app_prepare(app).await?;
-    run_sm(app_state, app, sm).await
+    let result = run_sm(app_state.clone(), app, sm).await;
+
+    match &result {
+        Ok(_) => {
+            info!("Successfully started app '{}'", app.name);
+        }
+        Err(e) => {
+            info!("Failed to start app '{}': {}", app.name, e);
+        }
+    }
+
+    result
 }
