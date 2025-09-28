@@ -231,10 +231,11 @@ Scotty generates appropriate configurations for:
 - ✅ **Resource Cleanup**: Proper WebSocket subscription cleanup during task completion
 
 ### Future Phase (Phase 4 - Frontend Integration):
-- Replace current stdout/stderr UI components with unified log viewer
-- Add real-time WebSocket log streaming to web UI
-- Prepare UI framework for future xterm.js shell integration
-- Polish user experience and error handling in frontend
+- Replace current stdout/stderr UI components with unified output viewer
+- Use WebSocket-only approach for task output (no REST endpoints)
+- Add real-time WebSocket task output streaming to web UI
+- Display output in chronological order with stream type indicators
+- Polish user experience, loading states, and error handling in frontend
 
 ### Key Commands Available:
 ```bash
@@ -282,3 +283,4 @@ scottyctl app:shell myapp web --shell /bin/sh   # Different shell
 ### Reference Documents:
 - `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
 - `docs/technical-spike-bollard-findings.md` - Bollard API validation results
+- the build files of scotty_frontend will be embedded into scotty, so restart scotty after the frontend files got rebuilt

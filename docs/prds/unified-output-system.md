@@ -155,8 +155,9 @@ POST /apps/{app_name}/shell/{service}  // Create shell session
 DELETE /apps/{app_name}/shell/{session_id}  // Terminate session
 GET /apps/{app_name}/shell/sessions  // List active sessions
 
-// Output API (for completed tasks)
-GET /tasks/{task_id}/output?lines=100&offset=0
+// Task Output API - NOT IMPLEMENTED
+// Decision: Use WebSocket-only approach for unified experience
+// Task output is streamed via WebSocket messages (TaskOutputData)
 ```
 
 ### WebSocket Protocol Extensions
@@ -350,10 +351,10 @@ All unified output system functionality is complete and working. The system now 
 8. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
 
 ### Phase 4: Frontend Integration
-1. **Unified Log Viewer**: Replace separate stdout/stderr components
-2. **Real-time Log Updates**: WebSocket integration for live log streaming
-3. **Shell Terminal Preparation**: UI framework for future xterm.js integration
-4. **User Experience**: Polish and error handling
+1. **Unified Output Viewer**: Replace separate stdout/stderr components with chronological display
+2. **WebSocket-Only Streaming**: Use WebSocket for all task output (no REST endpoints for output)
+3. **Real-time Updates**: Live task output streaming during execution via WebSocket
+4. **User Experience**: Polish, error handling, and loading states
 
 ### Phase 5: Performance and Reliability
 1. **Memory Management**: Implement proper output limits and cleanup
