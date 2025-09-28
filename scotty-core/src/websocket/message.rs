@@ -2,9 +2,17 @@ use crate::output::OutputLine;
 use crate::tasks::task_details::TaskDetails;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+#[cfg(feature = "ts-rs")]
+use ts_rs::TS;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
+#[serde(tag = "type", content = "data")]
 pub enum WebSocketMessage {
     Ping,
     Pong,
@@ -26,6 +34,7 @@ pub enum WebSocketMessage {
     // Log streaming request messages (client → server)
     StartLogStream(LogStreamRequest),
     StopLogStream {
+        #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
         stream_id: Uuid,
     },
 
@@ -43,18 +52,22 @@ pub enum WebSocketMessage {
 
     // Task output streaming messages
     StartTaskOutputStream {
+        #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
         task_id: Uuid,
         from_beginning: bool, // true = send all history first (default)
     },
     StopTaskOutputStream {
+        #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
         task_id: Uuid,
     },
     TaskOutputStreamStarted {
+        #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
         task_id: Uuid,
         total_lines: u64, // Total lines available at start
     },
     TaskOutputData(TaskOutputData),
     TaskOutputStreamEnded {
+        #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
         task_id: Uuid,
         reason: String, // "completed", "failed", "expired", "deleted"
     },
@@ -62,6 +75,11 @@ pub enum WebSocketMessage {
 
 /// Request to start a log stream with parameters
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct LogStreamRequest {
     pub app_name: String,
     pub service_name: String,
@@ -88,7 +106,13 @@ impl LogStreamRequest {
 
 /// Information about a started log stream
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct LogsStreamInfo {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub stream_id: Uuid,
     pub app_name: String,
     pub service_name: String,
@@ -108,21 +132,39 @@ impl LogsStreamInfo {
 
 /// Log data from a stream
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct LogsStreamData {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub stream_id: Uuid,
     pub lines: Vec<OutputLine>,
 }
 
 /// Log stream ended notification
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct LogsStreamEnd {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub stream_id: Uuid,
     pub reason: String,
 }
 
 /// Log stream error notification
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct LogsStreamError {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub stream_id: Uuid,
     pub error: String,
 }
@@ -135,7 +177,13 @@ impl fmt::Display for LogsStreamError {
 
 /// Information about a created shell session
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct ShellSessionInfo {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub session_id: Uuid,
     pub app_name: String,
     pub service_name: String,
@@ -163,7 +211,13 @@ impl ShellSessionInfo {
 
 /// Shell session data (input/output)
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct ShellSessionData {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub session_id: Uuid,
     pub data_type: ShellDataType,
     pub data: String,
@@ -171,6 +225,11 @@ pub struct ShellSessionData {
 
 /// Type of shell session data
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub enum ShellDataType {
     Input,  // Data from client to shell
     Output, // Data from shell to client
@@ -178,7 +237,13 @@ pub enum ShellDataType {
 
 /// Shell session ended notification
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct ShellSessionEnd {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub session_id: Uuid,
     pub exit_code: Option<i32>,
     pub reason: String,
@@ -186,14 +251,26 @@ pub struct ShellSessionEnd {
 
 /// Shell session error notification
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct ShellSessionError {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub session_id: Uuid,
     pub error: String,
 }
 
 /// Task output data from a stream
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct TaskOutputData {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub task_id: Uuid,
     pub lines: Vec<OutputLine>,
     pub is_historical: bool, // true = catching up, false = live

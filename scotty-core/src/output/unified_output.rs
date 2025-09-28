@@ -1,11 +1,18 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+#[cfg(feature = "ts-rs")]
+use ts_rs::TS;
 use uuid::Uuid;
 
 /// Represents the type of output stream
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub enum OutputStreamType {
     Stdout,
     Stderr,
@@ -23,8 +30,14 @@ impl std::fmt::Display for OutputStreamType {
 /// A single line of output with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
+#[cfg_attr(
+    feature = "ts-rs",
+    ts(export, export_to = "../frontend/src/generated/")
+)]
 pub struct OutputLine {
     /// Timestamp when the line was received
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     pub timestamp: DateTime<Utc>,
     /// Type of stream (stdout or stderr)
     pub stream: OutputStreamType,
