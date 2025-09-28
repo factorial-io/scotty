@@ -722,3 +722,51 @@ async fn test_live_policy_file_app_filtering() {
     assert!(hello_simple_nginx, "hello-world should see simple_nginx (client-a scope)");
     */
 }
+
+#[tokio::test]
+async fn test_wildcard_scope_permissions() {
+    let (service, _temp_dir) = create_test_service().await;
+
+    // Create scopes
+    service.create_scope("test-scope", "Test scope").await.unwrap();
+
+    // Create app in scope
+    service.set_app_scopes("test-app", vec!["test-scope".to_string()]).await.unwrap();
+
+    // First test: regular scope assignment should work
+    service.assign_user_role("regular-user", "admin", vec!["test-scope".to_string()]).await.unwrap();
+    assert!(service.check_permission("regular-user", "test-app", &Permission::View).await, "Regular user should see test-app");
+
+    // Now test wildcard scope assignment
+    service.assign_user_role("wildcard-user", "admin", vec!["*".to_string()]).await.unwrap();
+
+
+    assert!(service.check_permission("wildcard-user", "test-app", &Permission::View).await, "Wildcard user should see test-app");
+}
+
+#[tokio::test]
+async fn test_wildcard_vs_specific_scopes() {
+    let (service, _temp_dir) = create_test_service().await;
+
+    // Create scopes
+    service.create_scope("client-a", "Client A").await.unwrap();
+    service.create_scope("client-b", "Client B").await.unwrap();
+
+    // Create apps
+    service.set_app_scopes("app-a", vec!["client-a".to_string()]).await.unwrap();
+    service.set_app_scopes("app-b", vec!["client-b".to_string()]).await.unwrap();
+
+    // User with wildcard scope
+    service.assign_user_role("wildcard-user", "admin", vec!["*".to_string()]).await.unwrap();
+
+    // User with specific scope
+    service.assign_user_role("specific-user", "developer", vec!["client-a".to_string()]).await.unwrap();
+
+    // Wildcard user sees both apps
+    assert!(service.check_permission("wildcard-user", "app-a", &Permission::View).await);
+    assert!(service.check_permission("wildcard-user", "app-b", &Permission::View).await);
+
+    // Specific user only sees their scope
+    assert!(service.check_permission("specific-user", "app-a", &Permission::View).await);
+    assert!(!service.check_permission("specific-user", "app-b", &Permission::View).await);
+}
