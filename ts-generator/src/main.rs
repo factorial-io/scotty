@@ -11,6 +11,9 @@
 use scotty_types::{ts_rs::TS, *};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Set the export directory to the frontend generated types folder
+    std::env::set_var("TS_RS_EXPORT_DIR", "../frontend/src/generated");
+
     println!("🔧 Generating TypeScript bindings for WebSocket messages...");
 
     // Core output types

@@ -1,7 +1,11 @@
 [package]
 name = "scotty-types"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Minimal types-only crate for TypeScript generation"
 
 # Note: This crate is part of the parent workspace
 
