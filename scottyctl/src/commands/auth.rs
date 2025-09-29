@@ -15,8 +15,7 @@ static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
 
 fn get_cached_token_manager() -> &'static CachedTokenManager {
     CACHED_TOKEN_MANAGER.get_or_init(|| {
-        CachedTokenManager::new()
-            .expect("Failed to initialize cached token manager")
+        CachedTokenManager::new().expect("Failed to initialize cached token manager")
     })
 }
 

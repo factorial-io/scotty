@@ -30,12 +30,16 @@ where
             let app_name = context.app_data.name.clone();
             let task_id = task_details.id;
             task_details.state = State::Finished;
+            task_details.output_collection_active = false;
 
             // Add final status message
             context
                 .app_state
                 .task_manager
-                .add_task_status(&task_id, format!("Successfully completed operation for app '{}'", app_name))
+                .add_task_status(
+                    &task_id,
+                    format!("Successfully completed operation for app '{}'", app_name),
+                )
                 .await;
 
             context

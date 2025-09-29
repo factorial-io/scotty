@@ -61,10 +61,7 @@ where
             .task_manager
             .add_task_progress(
                 &task_id,
-                format!(
-                    "Waiting for {} containers to be ready",
-                    container_ids.len()
-                ),
+                format!("Waiting for {} containers to be ready", container_ids.len()),
             )
             .await;
 

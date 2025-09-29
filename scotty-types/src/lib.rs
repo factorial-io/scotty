@@ -82,6 +82,136 @@ impl std::fmt::Display for OutputStreamType {
     }
 }
 
+// Output collection configuration
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[ts(export)]
+pub struct OutputLimits {
+    /// Maximum number of lines to keep in memory
+    pub max_lines: usize,
+    /// Maximum length of a single line (characters)
+    pub max_line_length: usize,
+}
+
+impl Default for OutputLimits {
+    fn default() -> Self {
+        Self {
+            max_lines: 10000,
+            max_line_length: 4096,
+        }
+    }
+}
+
+// Unified output collection for tasks
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[ts(export)]
+pub struct TaskOutput {
+    /// Collected output lines in chronological order
+    pub lines: Vec<OutputLine>,
+    /// Configuration limits (skipped in serialization but exported to TS)
+    pub limits: OutputLimits,
+    /// Total number of lines that have been processed (including evicted ones)
+    pub total_lines_processed: u64,
+    /// Current sequence number for new lines (skipped in serialization but exported to TS)
+    pub current_sequence: u64,
+}
+
+impl Default for TaskOutput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TaskOutput {
+    pub fn new() -> Self {
+        Self::with_limits(OutputLimits::default())
+    }
+
+    pub fn with_limits(limits: OutputLimits) -> Self {
+        Self {
+            lines: Vec::new(),
+            limits,
+            total_lines_processed: 0,
+            current_sequence: 0,
+        }
+    }
+
+    /// Create TaskOutput with custom limits
+    pub fn new_with_limits(max_lines: usize, max_line_length: usize) -> Self {
+        let limits = OutputLimits {
+            max_lines,
+            max_line_length,
+        };
+        Self::with_limits(limits)
+    }
+
+    /// Add stdout line
+    pub fn add_stdout(&mut self, content: String) {
+        self.add_line(OutputStreamType::Stdout, content);
+    }
+
+    /// Add stderr line
+    pub fn add_stderr(&mut self, content: String) {
+        self.add_line(OutputStreamType::Stderr, content);
+    }
+
+    /// Get total number of lines currently in memory
+    pub fn line_count(&self) -> usize {
+        self.lines.len()
+    }
+
+    /// Check if any lines have been evicted due to limits
+    pub fn has_truncated_history(&self) -> bool {
+        self.total_lines_processed > self.lines.len() as u64
+    }
+
+    /// Clear all output lines
+    pub fn clear(&mut self) {
+        self.lines.clear();
+    }
+
+    /// Add a new output line
+    pub fn add_line(&mut self, stream: OutputStreamType, content: String) {
+        let line = OutputLine::new(stream, content, self.current_sequence);
+        self.current_sequence += 1;
+        self.total_lines_processed += 1;
+
+        // Truncate line if too long
+        let mut line = line;
+        if line.content.len() > self.limits.max_line_length {
+            let truncation_marker = "...[truncated]";
+            let available_chars = self.limits.max_line_length.saturating_sub(truncation_marker.len());
+            line.content.truncate(available_chars);
+            line.content.push_str(truncation_marker);
+        }
+
+        self.lines.push(line);
+
+        // Remove oldest lines if we exceed the limit
+        while self.lines.len() > self.limits.max_lines {
+            self.lines.remove(0);
+        }
+    }
+
+    /// Get recent lines with optional limit
+    pub fn get_recent_lines(&self, limit: Option<usize>) -> Vec<OutputLine> {
+        match limit {
+            Some(n) => self.lines.iter().rev().take(n).rev().cloned().collect(),
+            None => self.lines.to_vec(),
+        }
+    }
+
+    /// Get lines filtered by stream type
+    pub fn get_lines_by_stream(&self, stream_type: OutputStreamType) -> Vec<OutputLine> {
+        self.lines
+            .iter()
+            .filter(|line| line.stream == stream_type)
+            .cloned()
+            .collect()
+    }
+}
+
 // Task types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema, utoipa::ToResponse))]
@@ -106,6 +236,11 @@ pub struct TaskDetails {
     pub finish_time: Option<DateTime<Utc>>,
     pub last_exit_code: Option<i32>,
     pub app_name: Option<String>,
+    pub output_collection_active: bool,
+    /// Embedded task output (not serialized by default)
+    #[serde(skip)]
+    #[ts(skip)]
+    pub output: TaskOutput,
 }
 
 impl Default for TaskDetails {
@@ -118,20 +253,46 @@ impl Default for TaskDetails {
             finish_time: None,
             last_exit_code: None,
             app_name: None,
+            output_collection_active: true,
+            output: TaskOutput::default(),
         }
     }
 }
 
 impl TaskDetails {
     pub fn new(command: String, app_name: Option<String>) -> Self {
+        let id = uuid::Uuid::new_v4();
         Self {
-            id: uuid::Uuid::new_v4(),
+            id,
             command,
             state: State::Running,
             start_time: chrono::Utc::now(),
             finish_time: None,
             last_exit_code: None,
             app_name,
+            output_collection_active: true,
+            output: TaskOutput::default(),
+        }
+    }
+
+    /// Create TaskDetails with custom output limits
+    pub fn new_with_output_limits(
+        command: String,
+        app_name: Option<String>,
+        max_lines: usize,
+        max_line_length: usize,
+    ) -> Self {
+        let id = uuid::Uuid::new_v4();
+        Self {
+            id,
+            command,
+            state: State::Running,
+            start_time: chrono::Utc::now(),
+            finish_time: None,
+            last_exit_code: None,
+            app_name,
+            output_collection_active: true,
+            output: TaskOutput::new_with_limits(max_lines, max_line_length),
         }
     }
 }
@@ -470,5 +631,26 @@ impl fmt::Display for WebSocketMessage {
                 write!(f, "Task {} output stream ended: {}", task_id, reason)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_output_line_length_limits() {
+        let mut output = TaskOutput::with_limits(OutputLimits {
+            max_lines: 10,
+            max_line_length: 20,
+        });
+
+        let long_line = "a".repeat(50);
+        output.add_stdout(long_line);
+
+        let stored_line = output.lines.last().unwrap();
+        assert!(stored_line.content.len() <= 20);
+        assert!(stored_line.content.ends_with("...[truncated]"));
+        println!("Stored line: '{}' (length: {})", stored_line.content, stored_line.content.len());
     }
 }

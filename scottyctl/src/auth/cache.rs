@@ -43,7 +43,10 @@ impl CachedTokenManager {
         }
 
         // Cache miss - load from storage and cache result
-        tracing::debug!("Token cache miss for server: {}, loading from storage", server_key);
+        tracing::debug!(
+            "Token cache miss for server: {}, loading from storage",
+            server_key
+        );
         let token = {
             let inner = self.inner.read().unwrap();
             inner.storage.load_for_server(server_url)?
@@ -141,9 +144,21 @@ mod tests {
 
     #[test]
     fn test_normalize_server_url() {
-        assert_eq!(normalize_server_url("http://localhost:3000"), "http://localhost:3000");
-        assert_eq!(normalize_server_url("http://localhost:3000/"), "http://localhost:3000");
-        assert_eq!(normalize_server_url("https://api.example.com"), "https://api.example.com");
-        assert_eq!(normalize_server_url("https://api.example.com/"), "https://api.example.com");
+        assert_eq!(
+            normalize_server_url("http://localhost:3000"),
+            "http://localhost:3000"
+        );
+        assert_eq!(
+            normalize_server_url("http://localhost:3000/"),
+            "http://localhost:3000"
+        );
+        assert_eq!(
+            normalize_server_url("https://api.example.com"),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            normalize_server_url("https://api.example.com/"),
+            "https://api.example.com"
+        );
     }
 }

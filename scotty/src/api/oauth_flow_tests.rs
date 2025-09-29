@@ -60,6 +60,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
             .await,
         ),
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+        task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
     });
 
@@ -549,6 +550,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
             .await,
         ),
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+        task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
     });
 

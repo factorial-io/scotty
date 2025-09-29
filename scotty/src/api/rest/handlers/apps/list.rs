@@ -269,6 +269,7 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+            task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         });
 
         (app_state, temp_dir)

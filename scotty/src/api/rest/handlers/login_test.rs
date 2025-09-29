@@ -58,6 +58,7 @@ mod tests {
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+            task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         })
     }
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { OutputLine, OutputStreamType } from '../types';
 	import { onMount } from 'svelte';
+	import Icon from '@iconify/svelte';
 
 	export let lines: OutputLine[] = [];
 	export let heading: string = 'Output';
@@ -45,6 +46,15 @@
 			case 'Stderr':
 				return 'text-red-400';
 			case 'Stdout':
+				return 'text-gray-100';
+			case 'Status':
+				return 'text-blue-400';
+			case 'StatusError':
+				return 'text-red-500';
+			case 'Progress':
+				return 'text-yellow-400';
+			case 'Info':
+				return 'text-cyan-400';
 			default:
 				return 'text-gray-100';
 		}
@@ -56,8 +66,34 @@
 				return '[stderr]';
 			case 'Stdout':
 				return '[stdout]';
+			case 'Status':
+				return '[status]';
+			case 'StatusError':
+				return '[error]';
+			case 'Progress':
+				return '[progress]';
+			case 'Info':
+				return '[info]';
 			default:
 				return '';
+		}
+	}
+
+	function getStreamTypeIcon(stream: OutputStreamType): string | null {
+		switch (stream) {
+			case 'Stderr':
+			case 'Stdout':
+				return null; // No icons for basic stdout/stderr
+			case 'Status':
+				return 'ph:info';
+			case 'StatusError':
+				return 'ph:x-circle';
+			case 'Progress':
+				return 'ph:spinner';
+			case 'Info':
+				return 'ph:lightbulb';
+			default:
+				return null;
 		}
 	}
 
@@ -103,7 +139,7 @@
 					<pre
 						data-prefix={index + 1}
 						class={getStreamTypeClass(line.stream)}
-					><code>{#if showTimestamps}<span class="text-gray-500 mr-2">{formatTimestamp(line.timestamp)}</span>{/if}{#if showTimestamps}<span class="text-blue-400 mr-2">{getStreamTypePrefix(line.stream)}</span>{/if}{line.content}</code></pre>
+					><code>{#if showTimestamps}<span class="text-gray-500 mr-2">{formatTimestamp(line.timestamp)}</span>{/if}<span class="inline-flex items-center mr-2">{#if getStreamTypeIcon(line.stream)}<Icon icon={getStreamTypeIcon(line.stream)} class="w-3 h-3 mr-1" />{:else}<span class="w-3 h-3 mr-1 inline-block"></span>{/if}{#if showTimestamps}<span class={getStreamTypeClass(line.stream)}>{getStreamTypePrefix(line.stream)}</span>{/if}</span>{line.content}</code></pre>
 				{/each}
 
 				{#if lines.length === 0 && !loading}

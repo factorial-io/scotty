@@ -249,6 +249,8 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
         finish_time: Some(DateTime::from(std::time::SystemTime::now())),
         last_exit_code: Some(0),
         app_name: Some("test-app".to_string()),
+        output_collection_active: false,
+        output: Default::default(),
     };
 
     // Create RunningAppContext

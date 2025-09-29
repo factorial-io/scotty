@@ -1,14 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::docker::DockerConnectOptions;
 use tokio::sync::{broadcast, Mutex};
 use tracing::{info, warn};
-use uuid::Uuid;
 
 use crate::api::basic_auth::CurrentUser;
 use crate::api::websocket::WebSocketMessenger;
@@ -21,21 +17,17 @@ use crate::services::{authorization::fallback::FallbackService, AuthorizationSer
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
+use crate::tasks::output_streaming::TaskOutputStreamingService;
 
 #[derive(Debug, Clone)]
 pub struct WebSocketClient {
     pub sender: broadcast::Sender<axum::extract::ws::Message>,
     pub user: Option<CurrentUser>,
-    pub task_output_subscriptions: HashSet<Uuid>,
 }
 
 impl WebSocketClient {
     pub fn new(sender: broadcast::Sender<axum::extract::ws::Message>) -> Self {
-        Self {
-            sender,
-            user: None,
-            task_output_subscriptions: HashSet::new(),
-        }
+        Self { sender, user: None }
     }
 
     pub fn authenticate(&mut self, user: CurrentUser) {
@@ -44,18 +36,6 @@ impl WebSocketClient {
 
     pub fn is_authenticated(&self) -> bool {
         self.user.is_some()
-    }
-
-    pub fn subscribe_to_task(&mut self, task_id: Uuid) {
-        self.task_output_subscriptions.insert(task_id);
-    }
-
-    pub fn unsubscribe_from_task(&mut self, task_id: Uuid) {
-        self.task_output_subscriptions.remove(&task_id);
-    }
-
-    pub fn is_subscribed_to_task(&self, task_id: &Uuid) -> bool {
-        self.task_output_subscriptions.contains(task_id)
     }
 }
 
@@ -69,6 +49,7 @@ pub struct AppState {
     pub oauth_state: Option<OAuthState>,
     pub auth_service: Arc<AuthorizationService>,
     pub logs_service: LogStreamingService,
+    pub task_output_service: TaskOutputStreamingService,
     pub messenger: WebSocketMessenger,
 }
 
@@ -139,6 +120,7 @@ impl AppState {
             oauth_state,
             auth_service,
             logs_service,
+            task_output_service: TaskOutputStreamingService::new(),
             messenger,
         });
 
@@ -161,6 +143,7 @@ impl AppState {
             oauth_state: None,
             auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
             logs_service: LogStreamingService::new(docker),
+            task_output_service: TaskOutputStreamingService::new(),
             messenger,
         }))
     }

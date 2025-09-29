@@ -281,7 +281,11 @@ fn display_log_line(line: &OutputLine, cmd: &LogsCommand, ui: &crate::utils::ui:
                 format!("{} [STATUS] {}", timestamp_str.dimmed(), content.green())
             }
             scotty_core::output::unified_output::OutputStreamType::StatusError => {
-                format!("{} [ERROR] {}", timestamp_str.dimmed(), content.red().bold())
+                format!(
+                    "{} [ERROR] {}",
+                    timestamp_str.dimmed(),
+                    content.red().bold()
+                )
             }
             scotty_core::output::unified_output::OutputStreamType::Progress => {
                 format!("{} [PROGRESS] {}", timestamp_str.dimmed(), content.blue())

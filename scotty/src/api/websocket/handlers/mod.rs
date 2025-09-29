@@ -99,32 +99,6 @@ pub async fn handle_websocket_auth_failure(
     }
 }
 
-/// Simple authentication check for operations that don't require specific app permissions
-pub async fn check_websocket_authentication(
-    state: &SharedAppState,
-    client_id: Uuid,
-    user: &Option<CurrentUser>,
-    operation: &str,
-) -> Option<CurrentUser> {
-    match user {
-        Some(user) => Some(user.clone()),
-        None => {
-            info!(
-                "Unauthenticated WebSocket {} request denied for client {}",
-                operation, client_id
-            );
-            state
-                .messenger
-                .send_error(
-                    client_id,
-                    format!("Authentication required for {}", operation),
-                )
-                .await;
-            None
-        }
-    }
-}
-
 /// Main WebSocket message dispatcher
 #[instrument(skip(state))]
 pub async fn handle_websocket_message(
