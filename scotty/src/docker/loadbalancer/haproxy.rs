@@ -61,18 +61,45 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
         _app_name: &str,
         settings: &AppSettings,
         resolved_environment: &HashMap<String, String>,
+        all_services: &[String],
     ) -> anyhow::Result<DockerComposeConfig> {
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
             networks: None,
         };
 
+        // First, apply environment variables to all services
+        if !resolved_environment.is_empty() {
+            for service_name in all_services {
+                let mut service_config = DockerComposeServiceConfig {
+                    labels: None,
+                    environment: Some(HashMap::new()),
+                    networks: None,
+                };
+                let environment = service_config.environment.as_mut().unwrap();
+                for (key, value) in resolved_environment {
+                    environment.insert(key.clone(), value.clone());
+                }
+                config.services.insert(service_name.clone(), service_config);
+            }
+        }
+
+        // Then, add load balancer configuration for public services
         for service in &settings.public_services {
-            let mut service_config = DockerComposeServiceConfig {
-                labels: None,
-                environment: Some(HashMap::new()),
-                networks: None,
-            };
+            // Get or create the service config (it may already exist from the all_services loop)
+            let service_config = config
+                .services
+                .entry(service.service.clone())
+                .or_insert_with(|| DockerComposeServiceConfig {
+                    labels: None,
+                    environment: None,
+                    networks: None,
+                });
+
+            // Initialize environment if not present
+            if service_config.environment.is_none() {
+                service_config.environment = Some(HashMap::new());
+            }
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
@@ -92,16 +119,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                 environment.insert("HTTPS_ONLY".into(), "1".into());
             }
 
-            // Handle environment variables
-            if !resolved_environment.is_empty() {
-                for (key, value) in resolved_environment {
-                    environment.insert(key.clone(), value.clone());
-                }
-            }
-
-            config
-                .services
-                .insert(service.service.clone(), service_config);
+            // Environment variables are already added in the all_services loop above
         }
 
         Ok(config)
@@ -140,12 +158,14 @@ mod tests {
         };
 
         let load_balancer = HaproxyLoadBalancer;
+        let all_services = vec!["web".to_string(), "api".to_string()];
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
                 &app_settings.environment,
+                &all_services,
             )
             .unwrap();
 
@@ -196,12 +216,14 @@ mod tests {
         };
 
         let load_balancer = HaproxyLoadBalancer;
+        let all_services = vec!["web".to_string()];
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
                 &app_settings.environment,
+                &all_services,
             )
             .unwrap();
 

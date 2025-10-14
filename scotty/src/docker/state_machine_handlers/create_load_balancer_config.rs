@@ -13,6 +13,27 @@ use crate::{
 
 use super::context::Context;
 
+/// Reads service names from a docker-compose.yml file
+async fn get_service_names_from_compose(
+    compose_path: &std::path::Path,
+) -> anyhow::Result<Vec<String>> {
+    let content = tokio::fs::read_to_string(compose_path).await?;
+    let yaml: serde_norway::Value = serde_norway::from_str(&content)?;
+
+    let mut service_names = Vec::new();
+    if let Some(services) = yaml.get("services") {
+        if let Some(services_map) = services.as_mapping() {
+            for (key, _) in services_map {
+                if let Some(service_name) = key.as_str() {
+                    service_names.push(service_name.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(service_names)
+}
+
 #[derive(Debug)]
 pub struct CreateLoadBalancerConfig<S>
 where
@@ -29,10 +50,16 @@ fn get_docker_compose_override(
     app_name: &str,
     settings: &AppSettings,
     resolved_environment: &std::collections::HashMap<String, String>,
+    all_services: &[String],
 ) -> anyhow::Result<DockerComposeConfig> {
     let lb = LoadBalancerFactory::create(load_balancer_type);
-    let docker_compose_override =
-        lb.get_docker_compose_override(global_settings, app_name, settings, resolved_environment)?;
+    let docker_compose_override = lb.get_docker_compose_override(
+        global_settings,
+        app_name,
+        settings,
+        resolved_environment,
+        all_services,
+    )?;
     Ok(docker_compose_override)
 }
 
@@ -47,12 +74,18 @@ where
         let resolved_environment =
             resolve_environment_variables(&context.app_state.settings, &self.settings.environment)
                 .await;
+
+        // Read all service names from docker-compose.yml
+        let compose_path = root_directory.join("docker-compose.yml");
+        let all_services = get_service_names_from_compose(&compose_path).await?;
+
         let docker_compose_override = get_docker_compose_override(
             &self.load_balancer_type,
             &context.app_state.settings,
             &context.app_data.name,
             &self.settings,
             &resolved_environment,
+            &all_services,
         )?;
         let path = root_directory.join("docker-compose.override.yml");
         info!("Saving docker-compose.override.yml to {}", path.display());
