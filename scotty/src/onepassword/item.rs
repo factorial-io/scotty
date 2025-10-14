@@ -80,7 +80,7 @@ impl Item {
             None => self
                 .fields
                 .iter()
-                .find(|field| (field.id == field_id || field.label == field_id)),
+                .find(|field| field.id == field_id || field.label == field_id),
         }
     }
 
