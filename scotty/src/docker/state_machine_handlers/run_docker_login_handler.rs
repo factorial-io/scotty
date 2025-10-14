@@ -45,7 +45,7 @@ where
             "-u",
             &registry.username,
             "-p",
-            &registry.password,
+            registry.password.expose_secret(),
         ];
 
         run_task_and_wait(

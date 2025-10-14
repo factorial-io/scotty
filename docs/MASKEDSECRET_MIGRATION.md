@@ -89,6 +89,43 @@ async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<Ma
 - Returns `MaskedSecret` instead of `String`
 - Callers must use `.expose_secret()` explicitly
 
+### 1.3 Migrate Notification Service Credentials
+
+**Current**:
+```rust
+pub struct GitlabSettings {
+    pub host: String,
+    pub token: String,  // ❌ Plain String
+}
+
+pub struct MattermostSettings {
+    pub host: String,
+    pub hook_id: String,  // ❌ Plain String
+}
+```
+
+**After**:
+```rust
+use crate::utils::secret::MaskedSecret;
+
+pub struct GitlabSettings {
+    pub host: String,
+    pub token: MaskedSecret,  // ✅ Protected
+}
+
+pub struct MattermostSettings {
+    pub host: String,
+    pub hook_id: MaskedSecret,  // ✅ Protected
+}
+```
+
+**Impact**:
+- File: `scotty-core/src/settings/notification_services.rs`
+- Usage: `scotty/src/notification/gitlab.rs:92`
+- Usage: `scotty/src/notification/mattermost.rs:38`
+- Changes: `settings.token` → `settings.token.expose_secret()`
+- Changes: `settings.hook_id` → `settings.hook_id.expose_secret()`
+
 ## Phase 2: Environment Variables (2-3 weeks)
 
 ### 2.1 Migrate AppSettings.environment
@@ -238,10 +275,14 @@ impl<S> Layer<S> for SecretSanitizerLayer {
 ## Testing Strategy
 
 ### Phase 1 Tests
-- [ ] DockerRegistrySettings with MaskedSecret
-- [ ] Docker login with `.expose_secret()`
-- [ ] OnePassword lookup returns MaskedSecret
-- [ ] Existing docker registry tests still pass
+- [x] DockerRegistrySettings with MaskedSecret
+- [x] Docker login with `.expose_secret()`
+- [x] OnePassword lookup returns MaskedSecret
+- [x] GitlabSettings.token with MaskedSecret
+- [x] MattermostSettings.hook_id with MaskedSecret
+- [x] Notification handlers with `.expose_secret()`
+- [x] Existing docker registry tests still pass
+- [x] Existing notification service tests still pass
 
 ### Phase 2 Tests
 - [ ] AppSettings serialization/deserialization
@@ -267,11 +308,14 @@ impl<S> Layer<S> for SecretSanitizerLayer {
 - [ ] Get team review/approval
 
 ### Phase 1 (Week 1)
-- [ ] Migrate DockerRegistrySettings.password
-- [ ] Update docker login handler
-- [ ] Migrate OnePassword::lookup_password
-- [ ] Update OnePassword callers
-- [ ] Run full test suite
+- [x] Migrate DockerRegistrySettings.password
+- [x] Update docker login handler
+- [x] Migrate OnePassword::lookup_password
+- [x] Update OnePassword callers
+- [x] Migrate GitlabSettings.token
+- [x] Migrate MattermostSettings.hook_id
+- [x] Update notification handlers
+- [x] Run full test suite (31 passed)
 - [ ] Manual testing with real apps
 
 ### Phase 2 (Weeks 2-3)

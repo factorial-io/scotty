@@ -21,8 +21,8 @@ use super::sensitive_data::{is_sensitive, mask_sensitive_value};
 ///
 /// let password = MaskedSecret::new("super-secret-password-123".to_string());
 ///
-/// // Debug shows masked value
-/// assert_eq!(format!("{:?}", password), "\"***************123\"");
+/// // Debug shows masked value (preserves dashes)
+/// assert_eq!(format!("{:?}", password), "\"*****-******-********-123\"");
 ///
 /// // Explicit access required
 /// assert_eq!(password.expose_secret(), "super-secret-password-123");

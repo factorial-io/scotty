@@ -35,7 +35,11 @@ impl NotificationImpl for NotifyMattermost {
         );
 
         let client = reqwest::Client::new();
-        let url = format!("{}/hooks/{}", self.settings.host, self.settings.hook_id);
+        let url = format!(
+            "{}/hooks/{}",
+            self.settings.host,
+            self.settings.hook_id.expose_secret()
+        );
 
         let payload = MattermostMessage {
             channel: self.context.channel.clone(),

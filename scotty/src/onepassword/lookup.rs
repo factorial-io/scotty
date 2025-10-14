@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use scotty_core::utils::secret::MaskedSecret;
 use tracing::{debug, error};
 
 use crate::settings::config::Settings;
@@ -18,7 +19,7 @@ pub async fn resolve_environment_variables(
     for (key, value) in env {
         let resolved_value = if value.starts_with("op://") {
             match lookup_password(settings, value).await {
-                Ok(resolved_value) => resolved_value,
+                Ok(masked_secret) => masked_secret.expose_secret().to_string(),
                 Err(e) => {
                     error!("Failed to resolve password for {}: {}", key, e);
                     value.clone()
@@ -49,7 +50,7 @@ pub async fn resolve_environment_variables(
     resolved
 }
 
-async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<String> {
+async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<MaskedSecret> {
     // Remove "op://" prefix
     let parts: Vec<&str> = op_uri
         .strip_prefix("op://")
@@ -91,7 +92,7 @@ async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<St
     };
 
     match result {
-        Some(v) => Ok(v.to_string()),
+        Some(v) => Ok(MaskedSecret::new(v.to_string())),
         None => Err(anyhow::anyhow!(
             "Failed to get field value for field_id : {:?}",
             field_id
