@@ -74,7 +74,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                     networks: None,
                 };
                 let environment = service_config.environment.as_mut().unwrap();
-                for (key, value) in &settings.environment {
+                for (key, value) in resolved_environment {
                     environment.insert(key.clone(), value.clone());
                 }
                 config.services.insert(service_name.clone(), service_config);
