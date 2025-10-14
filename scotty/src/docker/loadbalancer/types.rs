@@ -56,5 +56,6 @@ pub trait LoadBalancerImpl {
         app_name: &str,
         settings: &AppSettings,
         resolved_environment: &HashMap<String, String>,
+        all_services: &[String],
     ) -> anyhow::Result<DockerComposeConfig>;
 }

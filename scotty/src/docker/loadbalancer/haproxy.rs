@@ -40,7 +40,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                                 result.tls_enabled = true;
                             }
                         }
-                        "HTTTP_AUTH_USER" => {
+                        "HTTP_AUTH_USER" => {
                             result.basic_auth_user = Some(value.to_string());
                         }
                         "HTTP_AUTH_PASS" => {
@@ -61,18 +61,45 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
         _app_name: &str,
         settings: &AppSettings,
         resolved_environment: &HashMap<String, String>,
+        all_services: &[String],
     ) -> anyhow::Result<DockerComposeConfig> {
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
             networks: None,
         };
 
+        // First, apply environment variables to all services
+        if !resolved_environment.is_empty() {
+            for service_name in all_services {
+                let mut service_config = DockerComposeServiceConfig {
+                    labels: None,
+                    environment: Some(HashMap::new()),
+                    networks: None,
+                };
+                let environment = service_config.environment.as_mut().unwrap();
+                for (key, value) in resolved_environment {
+                    environment.insert(key.clone(), value.clone());
+                }
+                config.services.insert(service_name.clone(), service_config);
+            }
+        }
+
+        // Then, add load balancer configuration for public services
         for service in &settings.public_services {
-            let mut service_config = DockerComposeServiceConfig {
-                labels: None,
-                environment: Some(HashMap::new()),
-                networks: None,
-            };
+            // Get or create the service config (it may already exist from the all_services loop)
+            let service_config = config
+                .services
+                .entry(service.service.clone())
+                .or_insert_with(|| DockerComposeServiceConfig {
+                    labels: None,
+                    environment: None,
+                    networks: None,
+                });
+
+            // Initialize environment if not present
+            if service_config.environment.is_none() {
+                service_config.environment = Some(HashMap::new());
+            }
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
@@ -92,16 +119,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                 environment.insert("HTTPS_ONLY".into(), "1".into());
             }
 
-            // Handle environment variables
-            if !resolved_environment.is_empty() {
-                for (key, value) in resolved_environment {
-                    environment.insert(key.clone(), value.clone());
-                }
-            }
-
-            config
-                .services
-                .insert(service.service.clone(), service_config);
+            // Environment variables are already added in the all_services loop above
         }
 
         Ok(config)
@@ -140,12 +158,14 @@ mod tests {
         };
 
         let load_balancer = HaproxyLoadBalancer;
+        let all_services = vec!["web".to_string(), "api".to_string()];
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
                 &app_settings.environment,
+                &all_services,
             )
             .unwrap();
 
@@ -196,12 +216,14 @@ mod tests {
         };
 
         let load_balancer = HaproxyLoadBalancer;
+        let all_services = vec!["web".to_string()];
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
                 &app_settings.environment,
+                &all_services,
             )
             .unwrap();
 
@@ -215,5 +237,75 @@ mod tests {
         assert_eq!(environment.get("HTTPS_ONLY").unwrap(), "1");
         assert_eq!(environment.get("FOO").unwrap(), "BAR");
         assert_eq!(environment.get("API_KEY").unwrap(), "1234");
+    }
+
+    #[test]
+    fn test_haproxy_env_vars_applied_to_all_containers() {
+        let global_settings = Settings {
+            haproxy: HaproxyConfigSettings::new(false),
+            ..Default::default()
+        };
+
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+                domains: vec![],
+            }],
+            basic_auth: None,
+            disallow_robots: false,
+            environment: hashmap! {
+                "FOO".to_string() => "BAR".to_string(),
+                "DATABASE_URL".to_string() => "postgres://localhost/db".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let load_balancer = HaproxyLoadBalancer;
+        // Simulate having multiple services: web (public) and db (not public)
+        let all_services = vec!["web".to_string(), "db".to_string(), "redis".to_string()];
+        let result = load_balancer
+            .get_docker_compose_override(
+                &global_settings,
+                "myapp",
+                &app_settings,
+                &app_settings.environment,
+                &all_services,
+            )
+            .unwrap();
+
+        // Check that web service has both environment variables and load balancer config
+        let web_config = result.services.get("web").unwrap();
+        let web_env = web_config.environment.as_ref().unwrap();
+        assert_eq!(web_env.get("FOO").unwrap(), "BAR");
+        assert_eq!(
+            web_env.get("DATABASE_URL").unwrap(),
+            "postgres://localhost/db"
+        );
+        assert_eq!(web_env.get("VHOST").unwrap(), "web.example.com"); // Has load balancer config
+        assert_eq!(web_env.get("VPORT").unwrap(), "8080");
+
+        // Check that db service has environment variables but no load balancer config
+        let db_config = result.services.get("db").unwrap();
+        let db_env = db_config.environment.as_ref().unwrap();
+        assert_eq!(db_env.get("FOO").unwrap(), "BAR");
+        assert_eq!(
+            db_env.get("DATABASE_URL").unwrap(),
+            "postgres://localhost/db"
+        );
+        assert!(db_env.get("VHOST").is_none()); // No load balancer config
+        assert!(db_env.get("VPORT").is_none());
+
+        // Check that redis service has environment variables but no load balancer config
+        let redis_config = result.services.get("redis").unwrap();
+        let redis_env = redis_config.environment.as_ref().unwrap();
+        assert_eq!(redis_env.get("FOO").unwrap(), "BAR");
+        assert_eq!(
+            redis_env.get("DATABASE_URL").unwrap(),
+            "postgres://localhost/db"
+        );
+        assert!(redis_env.get("VHOST").is_none()); // No load balancer config
+        assert!(redis_env.get("VPORT").is_none());
     }
 }
