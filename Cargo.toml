@@ -81,6 +81,8 @@ dotenvy = "0.15.7"
 url = "2.5"
 include_dir = "0.7.3"
 mime_guess = "2.0.4"
+secrecy = { version = "0.10", features = ["serde"] }
+zeroize = "1.8"
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]
