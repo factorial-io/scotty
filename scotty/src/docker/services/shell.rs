@@ -48,6 +48,7 @@ pub type ShellServiceResult<T> = Result<T, ShellServiceError>;
 
 /// Active shell sessions tracked by the service
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ShellSession {
     pub session_id: Uuid,
     pub app_name: String,
@@ -60,12 +61,14 @@ pub struct ShellSession {
 
 impl ShellSession {
     /// Check if session has expired based on TTL
+    #[allow(dead_code)]
     pub fn is_expired(&self, ttl: std::time::Duration) -> bool {
         let age = chrono::Utc::now() - self.created_at;
         age.num_seconds() as u64 > ttl.as_secs()
     }
 
     /// Convert to ShellSessionInfo for WebSocket messages
+    #[allow(dead_code)]
     pub fn to_info(&self, shell_command: String) -> ShellSessionInfo {
         ShellSessionInfo::new(
             self.session_id,
@@ -444,12 +447,14 @@ impl ShellService {
     }
 
     /// Get active sessions
+    #[allow(dead_code)]
     pub async fn get_active_sessions(&self) -> Vec<ShellSession> {
         let sessions = self.active_sessions.read().await;
         sessions.values().cloned().collect()
     }
 
     /// Terminate all sessions for an app
+    #[allow(dead_code)]
     pub async fn terminate_app_sessions(&self, app_name: &str) {
         let sessions = self.active_sessions.read().await;
         let app_sessions: Vec<_> = sessions

@@ -34,6 +34,7 @@ impl WebSocketClient {
         self.user = Some(user);
     }
 
+    #[allow(dead_code)]
     pub fn is_authenticated(&self) -> bool {
         self.user.is_some()
     }

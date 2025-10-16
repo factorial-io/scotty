@@ -42,6 +42,7 @@ pub type LogStreamResult<T> = Result<T, LogStreamError>;
 
 /// Active log streams tracked by the service
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LogStreamSession {
     pub stream_id: Uuid,
     pub app_name: String,
@@ -53,6 +54,7 @@ pub struct LogStreamSession {
 
 impl LogStreamSession {
     /// Convert to LogsStreamInfo for WebSocket messages
+    #[allow(dead_code)]
     pub fn to_info(&self, follow: bool) -> LogsStreamInfo {
         LogsStreamInfo::new(
             self.stream_id,
@@ -439,6 +441,7 @@ impl LogStreamingService {
     }
 
     /// Stop all streams for an app
+    #[allow(dead_code)]
     pub async fn stop_app_streams(&self, app_name: &str) {
         let streams = self.active_streams.read().await;
         let app_streams: Vec<_> = streams
@@ -474,6 +477,7 @@ impl LogStreamingService {
     }
 
     /// Get active streams
+    #[allow(dead_code)]
     pub async fn get_active_streams(&self) -> Vec<LogStreamSession> {
         let streams = self.active_streams.read().await;
         streams.values().cloned().collect()

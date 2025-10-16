@@ -10,6 +10,7 @@ use thiserror::Error;
 
 /// Error types for task output streaming operations
 #[derive(Error, Debug, Clone)]
+#[allow(dead_code)]
 pub enum TaskOutputStreamError {
     #[error("Task '{task_id}' not found")]
     TaskNotFound { task_id: Uuid },
@@ -26,6 +27,7 @@ pub type TaskOutputStreamResult<T> = Result<T, TaskOutputStreamError>;
 
 /// Commands that can be sent to a task output stream
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum TaskOutputStreamCommand {
     Stop,
 }

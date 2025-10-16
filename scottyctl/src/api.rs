@@ -36,6 +36,7 @@ fn normalize_url(base_url: &str, path: &str) -> String {
 }
 
 /// Helper function to determine if an error is retriable
+#[allow(dead_code)]
 fn is_retriable_error(err: &reqwest::Error) -> bool {
     err.is_timeout()
         || err.is_connect()

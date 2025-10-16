@@ -103,6 +103,7 @@ impl CachedTokenManager {
     }
 
     /// Clear all cached tokens (forces reload from storage on next access)
+    #[allow(dead_code)]
     pub fn clear_cache(&self) {
         let mut inner = self.inner.write().unwrap();
         inner.token_cache.clear();
@@ -110,6 +111,7 @@ impl CachedTokenManager {
     }
 
     /// Get number of cached tokens (for debugging)
+    #[allow(dead_code)]
     pub fn cache_size(&self) -> usize {
         let inner = self.inner.read().unwrap();
         inner.token_cache.len()
