@@ -14,7 +14,7 @@ use utoipa::{ToResponse, ToSchema};
 use crate::{
     notification_types::NotificationReceiver,
     settings::{app_blueprint::AppBlueprintMap, apps::Apps},
-    utils::domain_hash,
+    utils::{domain_hash, secret::SecretHashMap},
 };
 
 use super::super::create_app_request::CustomDomainMapping;
@@ -29,7 +29,8 @@ pub struct AppSettings {
     pub destroy_on_ttl: bool,
     pub basic_auth: Option<(String, String)>,
     pub disallow_robots: bool,
-    pub environment: HashMap<String, String>,
+    #[schema(value_type = HashMap<String, String>)]
+    pub environment: SecretHashMap,
     pub registry: Option<String>,
     pub app_blueprint: Option<String>,
     #[serde(default)]
@@ -47,7 +48,7 @@ impl Default for AppSettings {
             destroy_on_ttl: false,
             basic_auth: None,
             disallow_robots: true,
-            environment: HashMap::new(),
+            environment: SecretHashMap::new(),
             registry: None,
             app_blueprint: None,
             notify: HashSet::new(),
@@ -178,7 +179,7 @@ mod tests {
     #[test]
     fn test_environment_vars_not_masked_in_yaml_file() {
         // Create AppSettings with sensitive environment variables
-        let mut env_vars = HashMap::new();
+        let mut env_vars = SecretHashMap::new();
         env_vars.insert("API_KEY".to_string(), "secret-api-key-12345".to_string());
         env_vars.insert(
             "DATABASE_URL".to_string(),
@@ -211,20 +212,32 @@ mod tests {
 
         // Verify sensitive environment variables are not masked
         assert_eq!(
-            loaded_settings.environment.get("API_KEY").unwrap(),
+            loaded_settings
+                .environment
+                .get("API_KEY")
+                .unwrap()
+                .expose_secret(),
             "secret-api-key-12345"
         );
         assert_eq!(
-            loaded_settings.environment.get("DATABASE_URL").unwrap(),
+            loaded_settings
+                .environment
+                .get("DATABASE_URL")
+                .unwrap()
+                .expose_secret(),
             "postgres://user:password@localhost/db"
         );
         assert_eq!(
-            loaded_settings.environment.get("NORMAL_VAR").unwrap(),
+            loaded_settings
+                .environment
+                .get("NORMAL_VAR")
+                .unwrap()
+                .expose_secret(),
             "not-sensitive"
         );
 
         // Verify that if we were to mask them, they would be different
-        let masked_env = mask_sensitive_env_map(&settings.environment);
+        let masked_env = settings.environment.to_masked_hashmap();
         assert_ne!(masked_env.get("API_KEY").unwrap(), "secret-api-key-12345");
         assert_ne!(
             masked_env.get("DATABASE_URL").unwrap(),

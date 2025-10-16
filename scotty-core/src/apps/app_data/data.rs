@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
 use crate::notification_types::NotificationReceiver;
-use crate::utils::slugify::slugify;
+use crate::utils::{secret::SecretHashMap, slugify::slugify};
 
 use super::container::ContainerState;
 use super::settings::AppSettings;
@@ -145,8 +143,8 @@ impl AppData {
 
     pub fn augment_environment(
         &self,
-        environment: HashMap<String, String>,
-    ) -> HashMap<String, String> {
+        environment: SecretHashMap,
+    ) -> SecretHashMap {
         let mut environment = environment;
         environment.insert("SCOTTY__APP_NAME".to_string(), self.name.to_string());
 
@@ -160,7 +158,7 @@ impl AppData {
         environment
     }
 
-    pub fn get_environment(&self) -> HashMap<String, String> {
+    pub fn get_environment(&self) -> SecretHashMap {
         let environment = self
             .settings
             .as_ref()
@@ -172,7 +170,7 @@ impl AppData {
 
     pub async fn create_settings_from_runtime(
         &self,
-        env: &HashMap<String, String>,
+        env: &SecretHashMap,
     ) -> anyhow::Result<AppData> {
         let mut new_settings = AppSettings {
             environment: env.clone(),

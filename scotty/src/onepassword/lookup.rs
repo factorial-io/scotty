@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use scotty_core::utils::secret::MaskedSecret;
+use scotty_core::utils::secret::{MaskedSecret, SecretHashMap};
 use tracing::{debug, error};
 
 use crate::settings::config::Settings;
@@ -10,23 +10,24 @@ use super::env_substitution::process_env_vars;
 
 pub async fn resolve_environment_variables(
     settings: &Settings,
-    env: &HashMap<String, String>,
-) -> HashMap<String, String> {
-    let mut resolved = HashMap::new();
+    env: &SecretHashMap,
+) -> SecretHashMap {
+    let mut resolved = SecretHashMap::new();
 
     // First pass - resolve 1Password references
     let mut onepassword_resolved = HashMap::new();
-    for (key, value) in env {
-        let resolved_value = if value.starts_with("op://") {
-            match lookup_password(settings, value).await {
+    for (key, value) in env.iter() {
+        let value_str = value.expose_secret();
+        let resolved_value = if value_str.starts_with("op://") {
+            match lookup_password(settings, value_str).await {
                 Ok(masked_secret) => masked_secret.expose_secret().to_string(),
                 Err(e) => {
                     error!("Failed to resolve password for {}: {}", key, e);
-                    value.clone()
+                    value_str.to_string()
                 }
             }
         } else {
-            value.clone()
+            value_str.to_string()
         };
         onepassword_resolved.insert(key.clone(), resolved_value);
     }
