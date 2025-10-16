@@ -25,6 +25,24 @@ fn get_cached_token_manager() -> &'static CachedTokenManager {
     })
 }
 
+/// Helper function to normalize URLs by handling trailing slashes
+fn normalize_url(base_url: &str, path: &str) -> String {
+    let mut normalized_base = base_url.trim_end_matches('/').to_string();
+    let normalized_path = path.trim_start_matches('/');
+
+    normalized_base.push('/');
+    normalized_base.push_str(normalized_path);
+    normalized_base
+}
+
+/// Helper function to determine if an error is retriable
+fn is_retriable_error(err: &reqwest::Error) -> bool {
+    err.is_timeout()
+        || err.is_connect()
+        || err.is_request()
+        || err.status().is_some_and(|s| s.is_server_error())
+}
+
 pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
     // 1. Check server auth mode to determine if OAuth tokens should be used
     let server_supports_oauth = match get_server_info(server).await {
@@ -81,7 +99,7 @@ pub async fn get_or_post(
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
     let token = get_auth_token(server).await?;
-    let url = format!("{}/api/v1/authenticated/{}", server.server, action);
+    let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", action));
     info!("Calling scotty API at {}", &url);
 
     let client = create_authenticated_client(&token)?;
@@ -329,4 +347,56 @@ fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
     };
 
     ui.println(formatted_line);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_normalization_with_trailing_slash() {
+        // Test case for issue #470: Trailing slash in Scotty URL
+        assert_eq!(
+            normalize_url("https://scottyurl/", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: multiple trailing slashes
+        assert_eq!(
+            normalize_url("https://scottyurl///", "api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        assert_eq!(
+            normalize_url("https://scottyurl", "///api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // Edge case: URL with extra slash causing double slash issue (like in the bug report)
+        assert_eq!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl/api/v1/apps/list"
+        );
+
+        // This would have produced "https://scottyurl//api/v1/apps/list" before the fix
+        assert_ne!(
+            normalize_url("https://scottyurl/", "/api/v1/apps/list"),
+            "https://scottyurl//api/v1/apps/list"
+        );
+    }
 }

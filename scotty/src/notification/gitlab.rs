@@ -89,7 +89,7 @@ impl NotificationImpl for NotifyGitlab {
             &self.context.project_id,
             self.context.mr_id,
             comment,
-            &self.settings.token,
+            self.settings.token.expose_secret(),
         )
         .await
     }

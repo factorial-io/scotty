@@ -12,6 +12,7 @@ use scotty_core::{
         running_app_context::RunningAppContext,
         task_details::{State, TaskDetails},
     },
+    utils::secret::SecretHashMap,
 };
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -27,7 +28,7 @@ fn create_app_settings_with_env_vars(env_vars: HashMap<String, String>) -> AppSe
         destroy_on_ttl: false,
         basic_auth: None,
         disallow_robots: true,
-        environment: env_vars,
+        environment: SecretHashMap::from_hashmap(env_vars),
         ..Default::default()
     }
 }

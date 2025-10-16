@@ -4,7 +4,9 @@ use axum::{
     response::IntoResponse,
 };
 use scotty_core::{
-    apps::app_data::AppData, tasks::running_app_context::RunningAppContext, utils::slugify::slugify,
+    apps::app_data::AppData,
+    tasks::running_app_context::RunningAppContext,
+    utils::{secret::SecretHashMap, slugify::slugify},
 };
 
 use crate::{
@@ -202,7 +204,10 @@ pub async fn adopt_app_handler(
         return Err(AppError::CantAdoptAppWithExistingSettings(app_id.clone()));
     }
     let environment = collect_environment_from_app(&state, &app_data).await?;
-    let app_data = app_data.create_settings_from_runtime(&environment).await?;
+    let environment_secret = SecretHashMap::from_hashmap(environment);
+    let app_data = app_data
+        .create_settings_from_runtime(&environment_secret)
+        .await?;
 
     // Validate that all specified scopes exist in the authorization system
     if let Some(settings) = &app_data.settings {

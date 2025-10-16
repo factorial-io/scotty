@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
+use crate::utils::secret::MaskedSecret;
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum DockerConnectOptions {
@@ -15,7 +17,7 @@ pub enum DockerConnectOptions {
 pub struct DockerRegistrySettings {
     pub registry: String,
     pub username: String,
-    pub password: String,
+    pub password: MaskedSecret,
 }
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]

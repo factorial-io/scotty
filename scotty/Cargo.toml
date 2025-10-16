@@ -33,7 +33,7 @@ scotty-core = { path = "../scotty-core", features = ["utoipa"] }
 scotty-types = { path = "../scotty-types" }
 serde.workspace = true
 serde_json.workspace = true
-serde_yml.workspace = true
+serde_norway.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tower-http.workspace = true

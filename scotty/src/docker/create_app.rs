@@ -154,6 +154,7 @@ async fn validate_app(
         .map(|service| service.service.clone())
         .collect();
 
+    // Validation only checks if keys exist, not values - pass SecretHashMap directly
     let available_services = validate_docker_compose_content(
         &docker_compose_content,
         &public_service_names,

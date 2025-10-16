@@ -5,7 +5,7 @@ use scotty_core::{
         shared_app_list::AppDataVec,
     },
     tasks::running_app_context::RunningAppContext,
-    utils::sensitive_data::mask_sensitive_env_map,
+    utils::secret::SecretHashMap,
 };
 
 /// A wrapper around Axum's Json response type that masks sensitive environment variables
@@ -26,8 +26,8 @@ impl IntoResponse for SecureJson<AppData> {
 
         // Mask sensitive environment variables if settings exist
         if let Some(settings) = app_data.settings.as_mut() {
-            let masked_env = mask_sensitive_env_map(&settings.environment);
-            settings.environment = masked_env;
+            let masked_env = settings.environment.to_masked_hashmap();
+            settings.environment = SecretHashMap::from_hashmap(masked_env);
         }
 
         Json(app_data).into_response()
@@ -42,8 +42,8 @@ impl IntoResponse for SecureJson<AppDataVec> {
         // Process each app in the vector
         for app in &mut apps_vec.apps {
             if let Some(settings) = app.settings.as_mut() {
-                let masked_env = mask_sensitive_env_map(&settings.environment);
-                settings.environment = masked_env;
+                let masked_env = settings.environment.to_masked_hashmap();
+                settings.environment = SecretHashMap::from_hashmap(masked_env);
             }
         }
 
@@ -55,8 +55,8 @@ impl IntoResponse for SecureJson<AppDataVec> {
 impl IntoResponse for SecureJson<AppSettings> {
     fn into_response(self) -> axum::response::Response {
         let mut settings = self.0;
-        let masked_env = mask_sensitive_env_map(&settings.environment);
-        settings.environment = masked_env;
+        let masked_env = settings.environment.to_masked_hashmap();
+        settings.environment = SecretHashMap::from_hashmap(masked_env);
 
         Json(settings).into_response()
     }
@@ -69,8 +69,8 @@ impl IntoResponse for SecureJson<RunningAppContext> {
 
         // Mask sensitive environment variables if settings exist
         if let Some(settings) = running_context.app_data.settings.as_mut() {
-            let masked_env = mask_sensitive_env_map(&settings.environment);
-            settings.environment = masked_env;
+            let masked_env = settings.environment.to_masked_hashmap();
+            settings.environment = SecretHashMap::from_hashmap(masked_env);
         }
 
         Json(running_context).into_response()

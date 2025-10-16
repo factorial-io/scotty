@@ -25,7 +25,7 @@ anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
-serde_yml.workspace = true
+serde_norway.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 utoipa = { workspace = true, optional = true }
@@ -38,6 +38,8 @@ url.workspace = true
 reqwest.workspace = true
 semver.workspace = true
 thiserror.workspace = true
+secrecy.workspace = true
+zeroize.workspace = true
 
 axum = { workspace = true }
 clap = { workspace = true, optional = true }
