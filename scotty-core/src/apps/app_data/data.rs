@@ -141,10 +141,7 @@ impl AppData {
         Ok(())
     }
 
-    pub fn augment_environment(
-        &self,
-        environment: SecretHashMap,
-    ) -> SecretHashMap {
+    pub fn augment_environment(&self, environment: SecretHashMap) -> SecretHashMap {
         let mut environment = environment;
         environment.insert("SCOTTY__APP_NAME".to_string(), self.name.to_string());
 

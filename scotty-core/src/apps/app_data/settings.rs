@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::BufReader,
-    path::Path,
-};
+use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
 
 use anyhow;
 use serde::{Deserialize, Serialize};
@@ -173,7 +168,7 @@ impl AppSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::sensitive_data::{is_sensitive, mask_sensitive_env_map};
+    use crate::utils::sensitive_data::is_sensitive;
     use tempfile::tempdir;
 
     #[test]

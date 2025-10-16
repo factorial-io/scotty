@@ -219,6 +219,7 @@ mod tests {
     use maplit::hashmap;
     use scotty_core::apps::app_data::{AppSettings, ServicePortMapping};
     use scotty_core::settings::loadbalancer::TraefikSettings;
+    use scotty_core::utils::secret::SecretHashMap;
 
     #[test]
     fn test_traefik_get_docker_compose_override() {
@@ -236,10 +237,10 @@ mod tests {
             }],
             basic_auth: Some(("user".to_string(), "pass".to_string())),
             disallow_robots: true,
-            environment: hashmap! {
+            environment: SecretHashMap::from_hashmap(hashmap! {
                 "FOO".to_string() => "BAR".to_string(),
                 "API_KEY".to_string() => "1234".to_string(),
-            },
+            }),
             middlewares: vec![
                 "custom-middleware-1".to_string(),
                 "custom-middleware-2".to_string(),
@@ -249,12 +250,13 @@ mod tests {
 
         let load_balancer = TraefikLoadBalancer;
         let all_services = vec!["web".to_string()];
+        let exposed_env = app_settings.environment.expose_all();
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
-                &app_settings.environment,
+                &exposed_env,
                 &all_services,
             )
             .unwrap();
@@ -327,10 +329,10 @@ mod tests {
             }],
             basic_auth: None,
             disallow_robots: false,
-            environment: hashmap! {
+            environment: SecretHashMap::from_hashmap(hashmap! {
                 "FOO".to_string() => "BAR".to_string(),
                 "DATABASE_URL".to_string() => "postgres://localhost/db".to_string(),
-            },
+            }),
             middlewares: vec![],
             ..Default::default()
         };
@@ -338,12 +340,13 @@ mod tests {
         let load_balancer = TraefikLoadBalancer;
         // Simulate having multiple services: web (public) and db (not public)
         let all_services = vec!["web".to_string(), "db".to_string(), "redis".to_string()];
+        let exposed_env = app_settings.environment.expose_all();
         let result = load_balancer
             .get_docker_compose_override(
                 &global_settings,
                 "myapp",
                 &app_settings,
-                &app_settings.environment,
+                &exposed_env,
                 &all_services,
             )
             .unwrap();

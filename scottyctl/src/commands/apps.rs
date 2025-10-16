@@ -291,7 +291,9 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             settings: AppSettings {
                 public_services: cmd.service.clone(),
                 basic_auth: cmd.basic_auth.clone(),
-                environment: environment.iter().cloned().collect(),
+                environment: scotty_core::utils::secret::SecretHashMap::from_hashmap(
+                    environment.iter().cloned().collect(),
+                ),
                 registry: cmd.registry.clone(),
                 app_blueprint: cmd.app_blueprint.clone(),
                 time_to_live: cmd.ttl.clone(),

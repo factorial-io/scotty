@@ -132,6 +132,7 @@ mod tests {
             "SECTION_A_PASSWORD".to_string(),
             "op://factorial/n33i6edy47edsntxuj3a7lgiz4/ida4izoksx4mwdpvt7wbbq6d7y/Section A/password".to_string(),
         );
+        let env = SecretHashMap::from_hashmap(env);
 
         let onepassword_settings = OnePasswordSettings {
             jwt_token: std::env::var("SCOTTY_OP_JWT_TEST_TOKEN")
@@ -146,14 +147,23 @@ mod tests {
 
         let resolved = resolve_environment_variables(&settings, &env).await;
 
-        assert_eq!(resolved.get("KEY1").unwrap(), "value1");
-        assert_eq!(resolved.get("USERNAME").unwrap(), "scotty@factorial.io");
-        assert_eq!(resolved.get("PASSWORD").unwrap(), "my-little-secret");
+        assert_eq!(resolved.get("KEY1").unwrap().expose_secret(), "value1");
         assert_eq!(
-            resolved.get("SECTION_A_SERVER").unwrap(),
+            resolved.get("USERNAME").unwrap().expose_secret(),
+            "scotty@factorial.io"
+        );
+        assert_eq!(
+            resolved.get("PASSWORD").unwrap().expose_secret(),
+            "my-little-secret"
+        );
+        assert_eq!(
+            resolved.get("SECTION_A_SERVER").unwrap().expose_secret(),
             "https://scotty.test.url"
         );
-        assert_eq!(resolved.get("SECTION_A_PASSWORD").unwrap(), "second-secret");
+        assert_eq!(
+            resolved.get("SECTION_A_PASSWORD").unwrap().expose_secret(),
+            "second-secret"
+        );
     }
 
     #[tokio::test]
@@ -166,7 +176,7 @@ mod tests {
         env.insert("EMPTY".to_string(), "".to_string());
 
         // Test various substitution patterns
-        env.insert("CONNECTION_STRING".to_string(), 
+        env.insert("CONNECTION_STRING".to_string(),
             "postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/mydb".to_string());
         env.insert(
             "BACKUP_HOST".to_string(),
@@ -180,23 +190,31 @@ mod tests {
             "REQUIRED_VAR".to_string(),
             "${CRITICAL_CONFIG?Missing critical configuration}".to_string(),
         );
+        let env = SecretHashMap::from_hashmap(env);
 
         let settings = Settings::default();
         let resolved = resolve_environment_variables(&settings, &env).await;
 
         // Check the connection string with multiple variable substitutions
         assert_eq!(
-            resolved.get("CONNECTION_STRING").unwrap(),
+            resolved.get("CONNECTION_STRING").unwrap().expose_secret(),
             "postgresql://db_user:password123@localhost:5432/mydb"
         );
 
         // Check nested variable substitution with default
-        assert_eq!(resolved.get("BACKUP_HOST").unwrap(), "localhost");
+        assert_eq!(
+            resolved.get("BACKUP_HOST").unwrap().expose_secret(),
+            "localhost"
+        );
 
         // Check conditional with default
-        assert_eq!(resolved.get("LOG_LEVEL").unwrap(), "info");
+        assert_eq!(resolved.get("LOG_LEVEL").unwrap().expose_secret(), "info");
 
         // The error message should be part of the value rather than causing a hard error
-        assert!(resolved.get("REQUIRED_VAR").unwrap().contains("ERROR"));
+        assert!(resolved
+            .get("REQUIRED_VAR")
+            .unwrap()
+            .expose_secret()
+            .contains("ERROR"));
     }
 }

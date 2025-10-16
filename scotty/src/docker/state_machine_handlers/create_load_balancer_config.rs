@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use scotty_core::{apps::app_data::AppSettings, settings::loadbalancer::LoadBalancerType};
+use scotty_core::{
+    apps::app_data::AppSettings, settings::loadbalancer::LoadBalancerType,
+    utils::secret::SecretHashMap,
+};
 use tokio::sync::RwLock;
 use tracing::info;
 
@@ -49,15 +52,17 @@ fn get_docker_compose_override(
     global_settings: &Settings,
     app_name: &str,
     settings: &AppSettings,
-    resolved_environment: &std::collections::HashMap<String, String>,
+    resolved_environment: &SecretHashMap,
     all_services: &[String],
 ) -> anyhow::Result<DockerComposeConfig> {
     let lb = LoadBalancerFactory::create(load_balancer_type);
+    // Expose secrets only here, at the point where we need plain values for YAML generation
+    let exposed_environment = resolved_environment.expose_all();
     let docker_compose_override = lb.get_docker_compose_override(
         global_settings,
         app_name,
         settings,
-        resolved_environment,
+        &exposed_environment,
         all_services,
     )?;
     Ok(docker_compose_override)
@@ -79,6 +84,7 @@ where
         let compose_path = root_directory.join("docker-compose.yml");
         let all_services = get_service_names_from_compose(&compose_path).await?;
 
+        // Pass SecretHashMap - secrets will be exposed inside get_docker_compose_override
         let docker_compose_override = get_docker_compose_override(
             &self.load_balancer_type,
             &context.app_state.settings,
@@ -107,10 +113,14 @@ mod tests {
     fn test_docker_compose_override_contains_unmasked_secrets() {
         // Create settings with environment variables containing secrets
         let mut environment = HashMap::new();
-        environment.insert("DATABASE_PASSWORD".to_string(), "super-secret-password-123".to_string());
+        environment.insert(
+            "DATABASE_PASSWORD".to_string(),
+            "super-secret-password-123".to_string(),
+        );
         environment.insert("API_KEY".to_string(), "sk-1234567890abcdef".to_string());
         environment.insert("SECRET_TOKEN".to_string(), "jwt-token-xyz-789".to_string());
         environment.insert("NORMAL_VAR".to_string(), "not-a-secret".to_string());
+        let environment = SecretHashMap::from_hashmap(environment);
 
         let app_settings = AppSettings {
             domain: "example.com".to_string(),
@@ -179,13 +189,19 @@ mod tests {
         // Both web and db services should have the unmasked environment variables
         let web_service = override_config.services.get("web").unwrap();
         let web_env = web_service.environment.as_ref().unwrap();
-        assert_eq!(web_env.get("DATABASE_PASSWORD").unwrap(), "super-secret-password-123");
+        assert_eq!(
+            web_env.get("DATABASE_PASSWORD").unwrap(),
+            "super-secret-password-123"
+        );
         assert_eq!(web_env.get("API_KEY").unwrap(), "sk-1234567890abcdef");
         assert_eq!(web_env.get("SECRET_TOKEN").unwrap(), "jwt-token-xyz-789");
 
         let db_service = override_config.services.get("db").unwrap();
         let db_env = db_service.environment.as_ref().unwrap();
-        assert_eq!(db_env.get("DATABASE_PASSWORD").unwrap(), "super-secret-password-123");
+        assert_eq!(
+            db_env.get("DATABASE_PASSWORD").unwrap(),
+            "super-secret-password-123"
+        );
         assert_eq!(db_env.get("API_KEY").unwrap(), "sk-1234567890abcdef");
         assert_eq!(db_env.get("SECRET_TOKEN").unwrap(), "jwt-token-xyz-789");
     }

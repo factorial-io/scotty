@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use scotty_core::tasks::task_details::TaskDetails;
+use scotty_core::{tasks::task_details::TaskDetails, utils::secret::SecretHashMap};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
@@ -14,7 +14,7 @@ use crate::{app_state::SharedAppState, onepassword::lookup::resolve_environment_
 /// * `docker_compose_path` - Path to the docker-compose file
 /// * `command` - The main command to run
 /// * `args` - Additional arguments for the command
-/// * `env` - Environment variables to pass to the command
+/// * `env` - Environment variables (SecretHashMap) to pass to the command
 /// * `task` - Task details for tracking
 ///
 /// # Returns
@@ -25,25 +25,22 @@ pub async fn run_task(
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
-    env: &std::collections::HashMap<String, String>,
+    env: &SecretHashMap,
     task: Arc<RwLock<TaskDetails>>,
 ) -> anyhow::Result<TaskDetails> {
     let manager = shared_app.task_manager.clone();
 
+    // Resolve environment variables (1Password, substitutions, etc.)
     let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
 
     let parent_dir = docker_compose_path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Docker compose path has no parent directory"))?;
 
+    // Expose secrets for process execution
+    let exposed_env = resolved_environment.expose_all();
     let task_id = manager
-        .start_process(
-            parent_dir,
-            command,
-            args,
-            &resolved_environment,
-            task.clone(),
-        )
+        .start_process(parent_dir, command, args, &exposed_env, task.clone())
         .await;
 
     manager

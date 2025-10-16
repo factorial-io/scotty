@@ -10,7 +10,9 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-use super::sensitive_data::{is_sensitive, mask_sensitive_value};
+use super::sensitive_data::{
+    is_sensitive, is_uri_with_possible_credentials, mask_sensitive_value, mask_uri_credentials,
+};
 
 /// A secret string that provides memory protection via the secrecy crate
 /// while showing partial masking in Debug output for usability.
@@ -34,11 +36,6 @@ impl MaskedSecret {
     /// Create a new masked secret from a String
     pub fn new(value: String) -> Self {
         Self(SecretString::new(value.into_boxed_str()))
-    }
-
-    /// Create a new masked secret from a string slice
-    pub fn from_str(s: &str) -> Self {
-        Self::new(s.to_string())
     }
 
     /// Expose the secret value - this should only be called where absolutely necessary
@@ -165,10 +162,15 @@ impl SecretHashMap {
         self.map
             .iter()
             .map(|(k, v)| {
+                let exposed_value = v.expose_secret();
                 if is_sensitive(k) {
-                    (k.clone(), mask_sensitive_value(v.expose_secret()))
+                    // If key is sensitive, mask the entire value
+                    (k.clone(), mask_sensitive_value(exposed_value))
+                } else if is_uri_with_possible_credentials(exposed_value) {
+                    // If value is a URI with credentials, mask only the credentials
+                    (k.clone(), mask_uri_credentials(exposed_value))
                 } else {
-                    (k.clone(), v.expose_secret().to_string())
+                    (k.clone(), exposed_value.to_string())
                 }
             })
             .collect()
