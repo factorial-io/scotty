@@ -56,7 +56,6 @@ fn has_env_var(var_name: &str, env_vars: Option<&SecretHashMap>) -> bool {
     // Check if the variable is provided in env_vars
     if let Some(vars) = env_vars {
         let actual_name = extract_var_name(clean_name);
-        println!("{actual_name:?}");
         if vars.get(actual_name).is_some() {
             return true;
         }
