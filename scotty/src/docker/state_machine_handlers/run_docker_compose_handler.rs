@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use scotty_core::utils::secret::SecretHashMap;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
@@ -14,7 +15,7 @@ where
 {
     pub next_state: S,
     pub command: Vec<String>,
-    pub env: std::collections::HashMap<String, String>,
+    pub env: SecretHashMap,
 }
 
 #[async_trait::async_trait]

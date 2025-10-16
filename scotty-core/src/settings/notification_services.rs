@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::notification_types::NotificationReceiver;
+use crate::utils::secret::MaskedSecret;
 
 #[derive(Debug, Clone, Default)]
 pub struct NotificationServiceSettings {
@@ -84,14 +85,14 @@ impl NotificationServiceSettings {
 #[readonly::make]
 pub struct MattermostSettings {
     pub host: String,
-    pub hook_id: String,
+    pub hook_id: MaskedSecret,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[readonly::make]
 pub struct GitlabSettings {
     pub host: String,
-    pub token: String,
+    pub token: MaskedSecret,
 }
 
 #[derive(Debug, Deserialize, Clone)]

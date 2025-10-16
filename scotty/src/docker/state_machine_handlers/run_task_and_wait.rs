@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use scotty_core::utils::secret::SecretHashMap;
 use tracing::debug;
 
 use crate::{api::ws::broadcast_message, docker::docker_compose::run_task};
@@ -11,7 +12,7 @@ pub async fn run_task_and_wait(
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
-    env: &std::collections::HashMap<String, String>,
+    env: &SecretHashMap,
     msg: &str,
 ) -> anyhow::Result<()> {
     debug!("Running {} ", msg);

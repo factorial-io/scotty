@@ -1,5 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
+use scotty_core::utils::secret::SecretHashMap;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
@@ -45,7 +46,7 @@ where
             "-u",
             &registry.username,
             "-p",
-            &registry.password,
+            registry.password.expose_secret(),
         ];
 
         run_task_and_wait(
@@ -53,7 +54,7 @@ where
             &docker_compose_path,
             "docker",
             &args,
-            &HashMap::new(),
+            &SecretHashMap::new(),
             &format!("Log into registry {}", &registry.registry),
         )
         .await?;

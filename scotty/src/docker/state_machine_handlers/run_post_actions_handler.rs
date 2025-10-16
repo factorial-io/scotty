@@ -1,8 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use scotty_core::{
     apps::app_data::AppSettings,
     settings::app_blueprint::{ActionName, AppBlueprint},
+    utils::secret::SecretHashMap,
 };
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -66,7 +67,7 @@ where
         let selected_action = blueprint_actions.get(&self.action);
 
         let environment = context.app_data.get_environment();
-        let augmented_env = context.app_data.augment_environment(HashMap::new());
+        let augmented_env = context.app_data.augment_environment(SecretHashMap::new());
 
         if let Some(action) = selected_action {
             for (service, script) in &action.commands {
