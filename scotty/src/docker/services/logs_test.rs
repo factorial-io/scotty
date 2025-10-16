@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(test_buffer.len(), max_lines);
 
         // Simulate flush
-        let flushed = test_buffer.drain(..).collect::<Vec<_>>();
+        let flushed = std::mem::take(&mut test_buffer);
         assert_eq!(flushed.len(), 5);
         assert!(test_buffer.is_empty());
     }

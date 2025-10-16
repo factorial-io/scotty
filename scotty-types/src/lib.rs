@@ -181,7 +181,10 @@ impl TaskOutput {
         let mut line = line;
         if line.content.len() > self.limits.max_line_length {
             let truncation_marker = "...[truncated]";
-            let available_chars = self.limits.max_line_length.saturating_sub(truncation_marker.len());
+            let available_chars = self
+                .limits
+                .max_line_length
+                .saturating_sub(truncation_marker.len());
             line.content.truncate(available_chars);
             line.content.push_str(truncation_marker);
         }
@@ -651,6 +654,10 @@ mod tests {
         let stored_line = output.lines.last().unwrap();
         assert!(stored_line.content.len() <= 20);
         assert!(stored_line.content.ends_with("...[truncated]"));
-        println!("Stored line: '{}' (length: {})", stored_line.content, stored_line.content.len());
+        println!(
+            "Stored line: '{}' (length: {})",
+            stored_line.content,
+            stored_line.content.len()
+        );
     }
 }

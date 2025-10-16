@@ -15,6 +15,7 @@ use scotty_core::{
         file_list::{File, FileList},
     },
     tasks::running_app_context::RunningAppContext,
+    utils::secret::SecretHashMap,
 };
 
 use super::{format_app_info, get_app_info};
@@ -79,7 +80,7 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             settings: AppSettings {
                 public_services: cmd.service.clone(),
                 basic_auth: cmd.basic_auth.clone(),
-                environment: environment.iter().cloned().collect(),
+                environment: SecretHashMap::from_hashmap(environment.iter().cloned().collect()),
                 registry: cmd.registry.clone(),
                 app_blueprint: cmd.app_blueprint.clone(),
                 time_to_live: cmd.ttl.clone(),

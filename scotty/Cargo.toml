@@ -34,6 +34,7 @@ scotty-types = { path = "../scotty-types" }
 serde.workspace = true
 serde_json.workspace = true
 serde_norway.workspace = true
+serde_yml = "0.0.12"
 thiserror.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
