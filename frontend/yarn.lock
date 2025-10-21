@@ -621,7 +621,7 @@
     "@tailwindcss/oxide-win32-arm64-msvc" "4.1.15"
     "@tailwindcss/oxide-win32-x64-msvc" "4.1.15"
 
-"@tailwindcss/postcss@^4.1.15":
+"@tailwindcss/postcss@^4.0.0":
   version "4.1.15"
   resolved "https://registry.yarnpkg.com/@tailwindcss/postcss/-/postcss-4.1.15.tgz#c39c6de085cfc26c2dc82868734bd63ed5875ec9"
   integrity sha512-IZh8IT76KujRz6d15wZw4eoeViT4TqmzVWNNfpuNCTKiaZUwgr5vtPqO4HjuYDyx3MgGR5qgPt1HMzTeLJyA3g==
@@ -991,7 +991,7 @@ eslint-config-prettier@^10.0.0:
   resolved "https://registry.npmjs.org/eslint-config-prettier/-/eslint-config-prettier-10.1.8.tgz"
   integrity sha512-82GZUjRS0p/jganf6q1rEO25VSoHH0hKPCTrgillPjdI/3bgBhAE1QzHrHTizjpRvy6pGAvKjDJtk2pF9NDq8w==
 
-eslint-plugin-svelte@^3.12.5:
+eslint-plugin-svelte@^3:
   version "3.12.5"
   resolved "https://registry.yarnpkg.com/eslint-plugin-svelte/-/eslint-plugin-svelte-3.12.5.tgz#74eb3b87c4de23a3914f0d624e68b54935c28ee0"
   integrity sha512-4KRG84eAHQfYd9OjZ1K7sCHy0nox+9KwT+s5WCCku3jTim5RV4tVENob274nCwIaApXsYPKAUAZFBxKZ3Wyfjw==
@@ -1764,7 +1764,7 @@ svelte@^5.38.1:
     magic-string "^0.30.11"
     zimmerframe "^1.1.2"
 
-tailwindcss@4.1.15, tailwindcss@^4.1.15:
+tailwindcss@4.1.15, tailwindcss@^4.0.0:
   version "4.1.15"
   resolved "https://registry.yarnpkg.com/tailwindcss/-/tailwindcss-4.1.15.tgz#1437ee75ed8f66d8d866da5e25daa38d06ce5cea"
   integrity sha512-k2WLnWkYFkdpRv+Oby3EBXIyQC8/s1HOFMBUViwtAh6Z5uAozeUSMQlIsn/c6Q2iJzqG6aJT3wdPaRNj70iYxQ==
@@ -1811,7 +1811,7 @@ type-check@^0.4.0, type-check@~0.4.0:
   dependencies:
     prelude-ls "^1.2.1"
 
-typescript-eslint@^8.46.2:
+typescript-eslint@^8.23.0:
   version "8.46.2"
   resolved "https://registry.yarnpkg.com/typescript-eslint/-/typescript-eslint-8.46.2.tgz#da1adec683ba93a1b6c3850a4efb0922ffbc627d"
   integrity sha512-vbw8bOmiuYNdzzV3lsiWv6sRwjyuKJMQqWulBOU7M0RrxedXledX8G8kBbQeiOYDnTfiXz0Y4081E1QMNB6iQg==
@@ -1838,10 +1838,10 @@ util-deprecate@^1.0.2:
   resolved "https://registry.yarnpkg.com/util-deprecate/-/util-deprecate-1.0.2.tgz#450d4dc9fa70de732762fbd2d4a28981419a0ccf"
   integrity sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==
 
-vite@^6.3.5:
-  version "6.3.7"
-  resolved "https://registry.npmjs.org/vite/-/vite-6.3.7.tgz"
-  integrity sha512-mQYaKepA0NGMBsz8Xktt3tJUG5ELE2iT7IJ+ssXI6nxVdE2sFc/d/6w/JByqMLvWg8hNKHpPgzjgOkrhpKFnrA==
+vite@^6.4.1:
+  version "6.4.1"
+  resolved "https://registry.yarnpkg.com/vite/-/vite-6.4.1.tgz#afbe14518cdd6887e240a4b0221ab6d0ce733f96"
+  integrity sha512-+Oxm7q9hDoLMyJOYfUYBuHQo+dkAloi33apOPP56pzj+vsdJDzr+j1NISE5pyaAuKL4A3UD34qd0lx5+kfKp2g==
   dependencies:
     esbuild "^0.25.0"
     fdir "^6.4.4"
