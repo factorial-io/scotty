@@ -4,7 +4,7 @@ use tracing::info;
 use utoipa::{ToResponse, ToSchema};
 
 use crate::notification_types::NotificationReceiver;
-use crate::utils::{secret::SecretHashMap, slugify::slugify};
+use crate::utils::{format::sanitize_env_var_name, secret::SecretHashMap, slugify::slugify};
 
 use super::container::ContainerState;
 use super::settings::AppSettings;
@@ -148,7 +148,10 @@ impl AppData {
         for service in &self.services {
             let urls = service.get_urls();
             if !urls.is_empty() {
-                let name = format!("SCOTTY__PUBLIC_URL__{}", service.service.to_uppercase());
+                let name = format!(
+                    "SCOTTY__PUBLIC_URL__{}",
+                    sanitize_env_var_name(&service.service)
+                );
                 environment.insert(name, urls[0].to_string());
             }
         }
