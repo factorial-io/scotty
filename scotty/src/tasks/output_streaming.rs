@@ -3,6 +3,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
+use crate::tasks::timed_buffer::TimedBuffer;
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{OutputLine, TaskOutputData};
 
@@ -32,42 +33,6 @@ pub enum TaskOutputStreamCommand {
     Stop,
 }
 
-/// Buffer for task output lines with automatic flushing
-struct TaskOutputBuffer {
-    lines: Vec<OutputLine>,
-    last_send: tokio::time::Instant,
-    max_lines: usize,
-    max_delay_ms: u64,
-}
-
-impl TaskOutputBuffer {
-    fn new(max_lines: usize, max_delay_ms: u64) -> Self {
-        Self {
-            lines: Vec::new(),
-            last_send: tokio::time::Instant::now(),
-            max_lines,
-            max_delay_ms,
-        }
-    }
-
-    fn push(&mut self, line: OutputLine) {
-        self.lines.push(line);
-    }
-
-    fn should_flush(&self) -> bool {
-        self.lines.len() >= self.max_lines
-            || self.last_send.elapsed() > tokio::time::Duration::from_millis(self.max_delay_ms)
-    }
-
-    fn flush(&mut self) -> Vec<OutputLine> {
-        self.last_send = tokio::time::Instant::now();
-        std::mem::take(&mut self.lines)
-    }
-
-    fn has_data(&self) -> bool {
-        !self.lines.is_empty()
-    }
-}
 
 /// Service for managing task output streams
 #[derive(Debug, Clone)]
@@ -134,7 +99,7 @@ impl TaskOutputStreamingService {
             );
 
             let mut last_sent_sequence = 0u64;
-            let mut buffer = TaskOutputBuffer::new(10, 100); // 10 lines or 100ms
+            let mut buffer = TimedBuffer::new(10, 100); // 10 lines or 100ms
 
             // Send historical data if requested
             if from_beginning {

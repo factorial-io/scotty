@@ -24,16 +24,30 @@ where
 {
     #[instrument(skip(self, _from, context))]
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        {
+        // Clone data needed for messages and updates
+        let (app_name, task_id, updated_task_details) = {
             let context = context.read().await;
-            let mut task_details = context.task.write().await;
             let app_name = context.app_data.name.clone();
-            let task_id = task_details.id;
-            task_details.state = State::Finished;
-            task_details.output_collection_active = false;
 
-            // Add final status message
-            context
+            // Update task state and release write lock immediately
+            let task_id = {
+                let mut task_details = context.task.write().await;
+                let task_id = task_details.id;
+                task_details.state = State::Finished;
+                task_details.output_collection_active = false;
+                task_id
+            };
+            // Write lock released here
+
+            // Now get updated details for broadcast (with separate read lock)
+            let task_details = context.task.read().await;
+            (app_name, task_id, task_details.clone())
+        };
+
+        // Now we can safely call add_task_status without holding any locks
+        {
+            let context_read = context.read().await;
+            context_read
                 .app_state
                 .task_manager
                 .add_task_status(
@@ -42,16 +56,17 @@ where
                 )
                 .await;
 
-            context
+            context_read
                 .app_state
                 .messenger
                 .broadcast_to_all(
                     scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
-                        task_details.clone(),
+                        updated_task_details,
                     ),
                 )
                 .await;
         }
+        // Read lock released here before spawning
         // Send notifications in a dedicated thread.
         tokio::spawn({
             let notification = self.notification.clone();

@@ -16,17 +16,33 @@ use scotty_core::output::{OutputStreamType, TaskOutput};
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
 
 use crate::api::websocket::WebSocketMessenger;
+use crate::tasks::timed_buffer::TimedBuffer;
 
-/// Helper function to add a line to task output
+/// Helper function to add multiple lines to task output with a single write lock
+async fn add_output_lines(
+    details: &Arc<RwLock<TaskDetails>>,
+    lines: Vec<(OutputStreamType, String)>,
+    task_id: uuid::Uuid,
+) {
+    if lines.is_empty() {
+        return;
+    }
+
+    let mut details = details.write().await;
+    for (stream_type, line) in lines {
+        details.output.add_line(stream_type, line);
+    }
+    debug!("Added {} output lines to task {}", details.output.lines.len(), task_id);
+}
+
+/// Helper function to add a single line to task output
 async fn add_output_line(
     details: &Arc<RwLock<TaskDetails>>,
     stream_type: OutputStreamType,
     line: String,
     task_id: uuid::Uuid,
 ) {
-    let mut details = details.write().await;
-    details.output.add_line(stream_type, line);
-    debug!("Added output line to task {}", task_id);
+    add_output_lines(details, vec![(stream_type, line)], task_id).await;
 }
 
 /// Helper function to handle task completion consistently
@@ -65,11 +81,37 @@ impl TaskManager {
         }
     }
 
-    pub async fn get_task_list(&self) -> Vec<TaskDetails> {
+    /// Helper: Get a task's details Arc with minimal lock time
+    async fn get_details_arc(&self, uuid: &Uuid) -> Option<Arc<RwLock<TaskDetails>>> {
         let processes = self.processes.read().await;
+        processes.get(uuid).map(|task_state| task_state.details.clone())
+    }
+
+    /// Helper: Get all task details Arcs with minimal lock time
+    async fn get_all_details_arcs(&self) -> Vec<Arc<RwLock<TaskDetails>>> {
+        let processes = self.processes.read().await;
+        processes.values().map(|task_state| task_state.details.clone()).collect()
+    }
+
+    /// Helper: Modify a task's details with minimal lock time
+    async fn modify_task_details<F>(&self, uuid: &Uuid, f: F) -> bool
+    where
+        F: FnOnce(&mut TaskDetails),
+    {
+        let Some(details_arc) = self.get_details_arc(uuid).await else {
+            return false;
+        };
+        let mut details = details_arc.write().await;
+        f(&mut details);
+        true
+    }
+
+    pub async fn get_task_list(&self) -> Vec<TaskDetails> {
+        let detail_arcs = self.get_all_details_arcs().await;
+
         let mut task_list = Vec::new();
-        for task_state in processes.values() {
-            let details = task_state.details.read().await;
+        for details_arc in detail_arcs {
+            let details = details_arc.read().await;
             task_list.push(details.clone());
         }
         task_list
@@ -77,18 +119,15 @@ impl TaskManager {
 
     pub async fn get_task_details(&self, uuid: &Uuid) -> Option<TaskDetails> {
         debug!("TaskManager: Getting task details for {}", uuid);
-        let processes = self.processes.read().await;
-        let task_state = processes.get(uuid)?;
-        let details = task_state.details.read().await;
+
+        let details_arc = self.get_details_arc(uuid).await?;
+        let details = details_arc.read().await;
         Some(details.clone())
     }
 
     pub async fn get_task_output(&self, uuid: &Uuid) -> Option<TaskOutput> {
         debug!("TaskManager: Getting task output for {}", uuid);
-        let processes = self.processes.read().await;
-        let task_state = processes.get(uuid)?;
-        let details = task_state.details.read().await;
-        Some(details.output.clone())
+        Some(self.get_task_details(uuid).await?.output)
     }
 
     /// Add a message to a task's output stream
@@ -99,14 +138,10 @@ impl TaskManager {
         message: String,
     ) -> bool {
         debug!("TaskManager: Adding message to task output for {}", uuid);
-        let processes = self.processes.read().await;
-        if let Some(task_state) = processes.get(uuid) {
-            let mut details = task_state.details.write().await;
+        self.modify_task_details(uuid, |details| {
             details.output.add_line(stream_type, message);
-            true
-        } else {
-            false
-        }
+        })
+        .await
     }
 
     /// Add an info message to a task's stdout
@@ -272,33 +307,45 @@ impl TaskManager {
     #[instrument]
     pub async fn run_cleanup_task(&self, interval: SchedulerInterval) {
         let ttl = interval.into();
-        let processes = self.processes.clone();
-        let processes_lock = processes.write().await;
 
+        // Step 1: Collect task states with minimal locking (read lock only)
+        let task_states: Vec<(Uuid, TaskState)> = {
+            let processes = self.processes.read().await;
+            processes.iter().map(|(uuid, state)| (*uuid, state.clone())).collect()
+        };
+        // Lock released immediately after collecting
+
+        // Step 2: Check each task without holding any locks
         let mut to_remove = vec![];
-
-        for (uuid, state) in processes_lock.iter() {
+        for (uuid, state) in task_states {
             if let Some(handle) = &state.handle {
-                let details = state.details.read().await;
-                if handle.read().await.is_finished()
-                    && details.finish_time.is_some_and(|finish_time| {
+                // Check if handle is finished (async operation without locks)
+                let is_finished = handle.read().await.is_finished();
+
+                if is_finished {
+                    // Check finish time (async operation without locks)
+                    let details = state.details.read().await;
+                    let should_remove = details.finish_time.is_some_and(|finish_time| {
                         chrono::Utc::now().signed_duration_since(finish_time) > ttl
-                    })
-                {
-                    handle.write().await.abort();
-                    to_remove.push(*uuid);
+                    });
+
+                    if should_remove {
+                        // Abort the handle (async operation without locks)
+                        handle.write().await.abort();
+                        to_remove.push(uuid);
+                    }
                 }
             }
         }
 
-        // With the new self-contained streaming approach, no cleanup is needed
-        drop(processes_lock); // Release lock before async operations
-
-        // Remove tasks from the list
-        let mut processes_lock = self.processes.write().await;
-        for uuid in to_remove {
-            processes_lock.remove(&uuid);
+        // Step 3: Remove tasks with a write lock (minimal time)
+        if !to_remove.is_empty() {
+            let mut processes = self.processes.write().await;
+            for uuid in to_remove {
+                processes.remove(&uuid);
+            }
         }
+        // Write lock released immediately
     }
 }
 
@@ -355,14 +402,26 @@ async fn read_unified_output(
     stream_type: OutputStreamType,
     task_id: uuid::Uuid,
 ) {
+    const BATCH_SIZE: usize = 20;
+    const FLUSH_INTERVAL_MS: u64 = 100;
+
     let mut reader = BufReader::new(stream).lines();
+    let mut buffer = TimedBuffer::new(BATCH_SIZE, FLUSH_INTERVAL_MS);
 
     while let Some(line_result) = reader.next_line().await.transpose() {
         match line_result {
             Ok(line) => {
-                add_output_line(&details, stream_type, line, task_id).await;
+                buffer.push((stream_type, line));
+
+                if buffer.should_flush() {
+                    add_output_lines(&details, buffer.flush(), task_id).await;
+                }
             }
             Err(e) => {
+                // Flush remaining buffer before error message
+                if buffer.has_data() {
+                    add_output_lines(&details, buffer.flush(), task_id).await;
+                }
                 add_output_line(
                     &details,
                     OutputStreamType::Stderr,
@@ -373,5 +432,10 @@ async fn read_unified_output(
                 break;
             }
         }
+    }
+
+    // Flush any remaining buffered lines when stream ends
+    if buffer.has_data() {
+        add_output_lines(&details, buffer.flush(), task_id).await;
     }
 }
