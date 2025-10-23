@@ -42,3 +42,54 @@ pub fn format_bytes(bytes: usize) -> String {
         format!("{bytes} B")
     }
 }
+
+/// Sanitizes a string to be used as an environment variable name.
+/// Replaces hyphens and periods with underscores and converts to uppercase.
+///
+/// Docker Compose service names can contain [a-zA-Z0-9\._\-] characters,
+/// but environment variable names can only contain [a-zA-Z0-9_].
+///
+/// # Examples
+///
+/// ```
+/// use scotty_core::utils::format::sanitize_env_var_name;
+///
+/// assert_eq!(sanitize_env_var_name("my-service"), "MY_SERVICE");
+/// assert_eq!(sanitize_env_var_name("my.service"), "MY_SERVICE");
+/// assert_eq!(sanitize_env_var_name("my-service.v2"), "MY_SERVICE_V2");
+/// assert_eq!(sanitize_env_var_name("simple_service"), "SIMPLE_SERVICE");
+/// assert_eq!(sanitize_env_var_name("web"), "WEB");
+/// ```
+pub fn sanitize_env_var_name(name: &str) -> String {
+    name.replace(['-', '.'], "_").to_uppercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_env_var_name() {
+        assert_eq!(sanitize_env_var_name("my-service"), "MY_SERVICE");
+        assert_eq!(sanitize_env_var_name("my.service"), "MY_SERVICE");
+        assert_eq!(sanitize_env_var_name("my-service.v2"), "MY_SERVICE_V2");
+        assert_eq!(sanitize_env_var_name("simple_service"), "SIMPLE_SERVICE");
+        assert_eq!(sanitize_env_var_name("web"), "WEB");
+        assert_eq!(
+            sanitize_env_var_name("multi-word-service"),
+            "MULTI_WORD_SERVICE"
+        );
+        assert_eq!(
+            sanitize_env_var_name("service-with-many-hyphens"),
+            "SERVICE_WITH_MANY_HYPHENS"
+        );
+        assert_eq!(
+            sanitize_env_var_name("service.with.dots"),
+            "SERVICE_WITH_DOTS"
+        );
+        assert_eq!(
+            sanitize_env_var_name("mixed-service.v1_test"),
+            "MIXED_SERVICE_V1_TEST"
+        );
+    }
+}
