@@ -32,7 +32,11 @@ async fn add_output_lines(
     for (stream_type, line) in lines {
         details.output.add_line(stream_type, line);
     }
-    debug!("Added {} output lines to task {}", details.output.lines.len(), task_id);
+    debug!(
+        "Added {} output lines to task {}",
+        details.output.lines.len(),
+        task_id
+    );
 }
 
 /// Helper function to add a single line to task output
@@ -84,13 +88,18 @@ impl TaskManager {
     /// Helper: Get a task's details Arc with minimal lock time
     async fn get_details_arc(&self, uuid: &Uuid) -> Option<Arc<RwLock<TaskDetails>>> {
         let processes = self.processes.read().await;
-        processes.get(uuid).map(|task_state| task_state.details.clone())
+        processes
+            .get(uuid)
+            .map(|task_state| task_state.details.clone())
     }
 
     /// Helper: Get all task details Arcs with minimal lock time
     async fn get_all_details_arcs(&self) -> Vec<Arc<RwLock<TaskDetails>>> {
         let processes = self.processes.read().await;
-        processes.values().map(|task_state| task_state.details.clone()).collect()
+        processes
+            .values()
+            .map(|task_state| task_state.details.clone())
+            .collect()
     }
 
     /// Helper: Modify a task's details with minimal lock time
@@ -311,7 +320,10 @@ impl TaskManager {
         // Step 1: Collect task states with minimal locking (read lock only)
         let task_states: Vec<(Uuid, TaskState)> = {
             let processes = self.processes.read().await;
-            processes.iter().map(|(uuid, state)| (*uuid, state.clone())).collect()
+            processes
+                .iter()
+                .map(|(uuid, state)| (*uuid, state.clone()))
+                .collect()
         };
         // Lock released immediately after collecting
 

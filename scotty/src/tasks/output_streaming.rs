@@ -33,7 +33,6 @@ pub enum TaskOutputStreamCommand {
     Stop,
 }
 
-
 /// Service for managing task output streams
 #[derive(Debug, Clone)]
 pub struct TaskOutputStreamingService {
