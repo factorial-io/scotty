@@ -29,6 +29,7 @@
 	}
 	let current_task: string | null = null;
 	let current_action: string | null = null;
+	let hasCustomActions = false;
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
@@ -105,10 +106,10 @@
 			>
 		{/each}
 	</div>
-	{#if isSupported()}
+	{#if isSupported() && hasCustomActions}
 		<div class="divider divider-horizontal mx-0"></div>
-		<CustomActionsDropdown app={data} />
 	{/if}
+	<CustomActionsDropdown app={data} bind:hasActions={hasCustomActions} />
 </div>
 <h3 class="text-xl mt-16 mb-4">Available Services</h3>
 <table class="table">

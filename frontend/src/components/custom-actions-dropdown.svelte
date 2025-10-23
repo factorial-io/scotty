@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 
 	export let app: App;
+	export let hasActions = false;
 
 	let customActions: CustomAction[] = [];
 	let isLoading = true;
@@ -74,6 +75,9 @@
 	function isSupported() {
 		return app.status === 'Running' && app.settings?.app_blueprint;
 	}
+
+	// Update hasActions reactively based on whether custom actions are available
+	$: hasActions = !isLoading && customActions.length > 0 && isSupported();
 </script>
 
 {#if isLoading}
@@ -94,7 +98,10 @@
 				Custom Actions
 			{/if}
 		</div>
-		<ul class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm">
+		<ul
+			tabindex="0"
+			class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm"
+		>
 			{#each customActions as action (action)}
 				<li>
 					<button
