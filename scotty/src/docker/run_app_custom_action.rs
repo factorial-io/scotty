@@ -74,7 +74,12 @@ pub async fn run_app_custom_action_prepare(
         );
     }
 
-    info!("Running custom action {:?} on app {}", action, app.name);
+    info!(
+        app_name = %app.name,
+        action = ?action,
+        blueprint = ?blueprint_name.as_ref().unwrap(),
+        "Starting custom action execution"
+    );
 
     let mut sm = StateMachine::new(
         RunAppCustomActionStates::RunDockerLogin,

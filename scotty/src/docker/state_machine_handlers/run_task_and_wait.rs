@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use scotty_core::utils::secret::SecretHashMap;
-use tracing::debug;
+use tracing::{debug, error, info};
 
 use crate::docker::docker_compose::run_task;
 
@@ -15,7 +15,12 @@ pub async fn run_task_and_wait(
     env: &SecretHashMap,
     msg: &str,
 ) -> anyhow::Result<()> {
-    debug!("Running {} ", msg);
+    info!(
+        app_name = %context.app_data.name,
+        command = %command,
+        args = ?args,
+        "Starting task: {}", msg
+    );
 
     let task_id = context.task.read().await.id;
 
@@ -82,6 +87,15 @@ pub async fn run_task_and_wait(
                     format!("Failed: {} (exit code {})", msg, last_exit_code),
                 )
                 .await;
+
+            error!(
+                app_name = %context.app_data.name,
+                command = %command,
+                args = ?args,
+                exit_code = last_exit_code,
+                "Task failed: {}", msg
+            );
+
             return Err(anyhow::anyhow!(
                 "{} failed with exit code {}",
                 msg,
@@ -96,7 +110,12 @@ pub async fn run_task_and_wait(
         .add_task_status(&task_id, format!("Completed: {}", msg))
         .await;
 
-    debug!("{} finished", msg);
+    info!(
+        app_name = %context.app_data.name,
+        command = %command,
+        "Task completed successfully: {}", msg
+    );
+
     context
         .app_state
         .messenger

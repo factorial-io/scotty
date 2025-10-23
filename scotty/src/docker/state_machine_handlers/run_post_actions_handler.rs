@@ -6,7 +6,7 @@ use scotty_core::{
     utils::secret::SecretHashMap,
 };
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{api::error::AppError, state_machine::StateHandler};
 
@@ -66,14 +66,37 @@ where
         let blueprint_actions = &blueprint.unwrap().actions;
         let selected_action = blueprint_actions.get(&self.action);
 
+        // Two different environment variables are used for different purposes:
+        // - `environment`: Full environment (app settings + augmented SCOTTY__* vars)
+        //   This is passed to the docker-compose command itself for variable substitution in docker-compose.yml
+        // - `augmented_env`: Only the augmented SCOTTY__* variables (APP_NAME, PUBLIC_URL__*, etc.)
+        //   These are explicitly exported in the shell script for convenience, so custom action scripts
+        //   can easily access Scotty-provided metadata without relying on docker-compose.yml environment section
         let environment = context.app_data.get_environment();
         let augmented_env = context.app_data.augment_environment(SecretHashMap::new());
 
         if let Some(action) = selected_action {
+            info!(
+                app_name = %context.app_data.name,
+                action = ?self.action,
+                service_count = action.commands.len(),
+                "Executing custom action on {} service(s)",
+                action.commands.len()
+            );
+
             for (service, script) in &action.commands {
+                info!(
+                    app_name = %context.app_data.name,
+                    action = ?self.action,
+                    service = %service,
+                    script_lines = script.len(),
+                    "Running action on service"
+                );
+
                 let mut augmented_script = Vec::new();
                 for (key, value) in augmented_env.iter() {
-                    augmented_script.push(format!("export {key}={value}"));
+                    // Use expose_secret() to get the real value, not the masked display value
+                    augmented_script.push(format!("export {key}={}", value.expose_secret()));
                 }
                 augmented_script.extend(script.iter().cloned());
                 let script_one_line = augmented_script.join("; ");
@@ -85,7 +108,7 @@ where
                     "docker-compose",
                     &args,
                     &environment,
-                    &format!("post-action {:?} on service {}", &self.action, service),
+                    &format!("action {:?} on service {}", &self.action, service),
                 )
                 .await?;
             }
