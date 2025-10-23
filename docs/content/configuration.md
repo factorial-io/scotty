@@ -224,6 +224,40 @@ apps:
   The key is the service name, the value is a list of commands to run on that
   service.
 
+#### Environment Variables in Blueprint Actions
+
+When blueprint action scripts are executed, Scotty automatically injects
+additional environment variables that can be used in your commands:
+
+* `SCOTTY__APP_NAME` - Contains the name of the app
+* `SCOTTY__PUBLIC_URL__<SERVICE_NAME>` - Contains the public URL for each
+  service that has a public URL configured. The service name is sanitized
+  to be a valid environment variable name (e.g., `my-service` becomes
+  `SCOTTY__PUBLIC_URL__MY_SERVICE`)
+
+These variables are available in addition to any environment variables you've
+configured for your app via the `--env` option or in the `.scotty.yml` file.
+
+**Example usage:**
+
+```yaml
+apps:
+  blueprints:
+    drupal-lagoon:
+      name: "Drupal using lagoon base images"
+      description: "A simple Drupal application using lagoon base images"
+      required_services:
+        - cli
+      public_services:
+        nginx: 8080
+      actions:
+        post_run:
+          cli:
+            - echo "App name is $SCOTTY__APP_NAME"
+            - echo "Public URL is $SCOTTY__PUBLIC_URL__NGINX"
+            - drush uli --uri="$SCOTTY__PUBLIC_URL__NGINX"
+```
+
 If you create a new app via `app:create` or the REST-API, you can provide the
 blueprint to associate with your app.
 
