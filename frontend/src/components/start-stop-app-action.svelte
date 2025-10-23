@@ -40,7 +40,10 @@
 </script>
 
 {#if failed_task}
-	<div class="tooltip tooltip-error tooltip-right" data-tip={failed_task.stderr}>
+	<div
+		class="tooltip tooltip-error tooltip-right"
+		data-tip={`Task failed: ${failed_task.command}. Check task details for output.`}
+	>
 		<button class="btn btn-circle btn-xs bg-error text-white" on:click={handleClick}>
 			<Icon icon={errorIcon} />
 		</button>

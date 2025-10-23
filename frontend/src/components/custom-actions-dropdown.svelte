@@ -85,15 +85,15 @@
 	}
 
 	// Update the exported hasActions variable reactively
-	$: hasActions = !isLoading && customActions.length > 0 && canManage && isSupported();
+	$: hasActions = Boolean(!isLoading && customActions.length > 0 && canManage && isSupported());
 </script>
 
 {#if hasAvailableActions()}
-	<div class="dropdown">
+	<div class="dropdown dropdown-end">
 		<div
 			tabindex="0"
 			role="button"
-			class="btn btn-sm join-item {currentTaskId !== null || !canManage || !isSupported()
+			class="btn btn-sm {currentTaskId !== null || !canManage || !isSupported()
 				? 'btn-disabled'
 				: ''}"
 		>

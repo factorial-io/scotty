@@ -139,7 +139,7 @@
 					<pre
 						data-prefix={index + 1}
 						class={getStreamTypeClass(line.stream)}
-					><code>{#if showTimestamps}<span class="text-gray-500 mr-2">{formatTimestamp(line.timestamp)}</span>{/if}<span class="inline-flex items-center mr-2">{#if getStreamTypeIcon(line.stream)}<Icon icon={getStreamTypeIcon(line.stream)} class="w-3 h-3 mr-1" />{:else}<span class="w-3 h-3 mr-1 inline-block"></span>{/if}{#if showTimestamps}<span class={getStreamTypeClass(line.stream)}>{getStreamTypePrefix(line.stream)}</span>{/if}</span>{line.content}</code></pre>
+					><code>{#if showTimestamps}<span class="text-gray-500 mr-2">{formatTimestamp(line.timestamp)}</span>{/if}<span class="inline-flex items-center mr-2">{#if getStreamTypeIcon(line.stream)}<Icon icon={getStreamTypeIcon(line.stream) || ''} class="w-3 h-3 mr-1" />{:else}<span class="w-3 h-3 mr-1 inline-block"></span>{/if}{#if showTimestamps}<span class={getStreamTypeClass(line.stream)}>{getStreamTypePrefix(line.stream)}</span>{/if}</span>{line.content}</code></pre>
 				{/each}
 
 				{#if lines.length === 0 && !loading}

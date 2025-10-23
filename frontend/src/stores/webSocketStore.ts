@@ -42,8 +42,8 @@ const initialState: WebSocketState = {
 // Create the store
 const { subscribe, set, update } = writable<WebSocketState>(initialState);
 
-let pingInterval: NodeJS.Timeout | null = null;
-let reconnectTimeout: NodeJS.Timeout | null = null;
+let pingInterval: number | null = null;
+let reconnectTimeout: number | null = null;
 
 /**
  * Get WebSocket URL with proper protocol

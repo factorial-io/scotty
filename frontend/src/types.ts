@@ -118,3 +118,10 @@ export interface OAuthErrorResponse {
 	error: string;
 	error_description: string;
 }
+
+export interface UserInfo {
+	id: string;
+	name: string;
+	email: string;
+	picture?: string;
+}
