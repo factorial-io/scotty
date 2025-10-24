@@ -34,9 +34,10 @@ tokio = { version = "1.44.2", features = [
 tracing = "0.1.40"
 tracing-subscriber = "*"
 ts-rs = "10.0"
-opentelemetry = { version = "0.28.0", features = ["trace"] }
+opentelemetry = { version = "0.28.0", features = ["trace", "metrics"] }
 opentelemetry_sdk = { version = "0.28", features = [
     "rt-tokio",
+    "metrics",
 ], default-features = false }
 tracing-opentelemetry = "0.29"
 init-tracing-opentelemetry = { version = "0.27.0", features = [
@@ -49,6 +50,7 @@ opentelemetry-otlp = { version = "0.28.0", features = [
     "reqwest-rustls",
     "http-proto",
     "tls",
+    "metrics",
 ] }
 
 utoipa = { version = "5.3", features = ["axum_extras", "uuid", "chrono"] }

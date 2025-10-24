@@ -15,7 +15,7 @@ scheduler:
     running_app_check: "15m"
     ttl_check: "10m"
     task_cleanup: "3m"
-telemetry: None
+telemetry: None  # Options: None, "traces", "metrics", or "traces,metrics" for both
 apps:
     domain_suffix: "ddev.site"
     root_folder: "./apps" # Path to the folder where the apps are stored
