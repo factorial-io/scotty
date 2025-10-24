@@ -1,10 +1,15 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import UnifiedOutput from '../../../components/unified-output.svelte';
 	import PageHeader from '../../../components/page-header.svelte';
 	import TaskStatusPill from '../../../components/task-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { tasks } from '../../../stores/tasksStore';
-	import { getTaskOutput, initializeTaskOutput, setTaskOutputSubscribed } from '../../../stores/taskOutputStore';
+	import {
+		getTaskOutput,
+		initializeTaskOutput,
+		setTaskOutputSubscribed
+	} from '../../../stores/taskOutputStore';
 	import { webSocketStore, isConnected } from '../../../stores/webSocketStore';
 	import { isAuthenticated } from '../../../stores/sessionStore';
 	import type { TaskDetail } from '../../../types';
@@ -52,7 +57,6 @@
 	tasks.subscribe((new_tasks) => {
 		data = Object.values(new_tasks).find((t) => t.id === data.id) || data;
 	});
-
 </script>
 
 <PageHeader>
@@ -69,7 +73,9 @@
 		<div class="mt-2 text-xs text-gray-500">
 			Started <TimeAgo dateString={data.start_time} /> <br />
 			Finished <TimeAgo dateString={data.finish_time} /> <br />
-			App: <a class="link-primary" href="/dashboard/{data.app_name}">{data.app_name}</a>
+			App:
+			<a class="link-primary" href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a
+			>
 		</div>
 	</div>
 </PageHeader>
@@ -98,8 +104,10 @@
 		class="btn btn-sm btn-outline"
 		class:btn-error={$taskOutput.subscribed && $isConnected}
 		class:btn-primary={!$taskOutput.subscribed && $isConnected && data.state === 'Running'}
-		class:btn-disabled={!($taskOutput.subscribed && $isConnected) && !(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
-		disabled={!($taskOutput.subscribed && $isConnected) && !(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
+		class:btn-disabled={!($taskOutput.subscribed && $isConnected) &&
+			!(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
+		disabled={!($taskOutput.subscribed && $isConnected) &&
+			!(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
 		on:click={() => {
 			if ($taskOutput.subscribed && $isConnected) {
 				webSocketStore.stopTaskOutputStream(data.id);

@@ -8,13 +8,17 @@
 
 import { sessionStore } from '../stores/sessionStore';
 import { authService } from './authService';
+import type { ServerInfo } from '../types';
 
 export type AuthMode = 'dev' | 'oauth' | 'bearer';
 
 /**
  * Make authenticated API calls using SessionStore
  */
-export async function authenticatedApiCall(url: string, options: RequestInit = {}): Promise<unknown> {
+export async function authenticatedApiCall(
+	url: string,
+	options: RequestInit = {}
+): Promise<unknown> {
 	// Ensure session is initialized
 	if (!sessionStore.isAuthenticated()) {
 		await sessionStore.init();
@@ -44,7 +48,6 @@ export async function authenticatedApiCall(url: string, options: RequestInit = {
 		}
 
 		return await response.json();
-
 	} catch (error) {
 		console.error('API call failed:', error);
 		throw error;
@@ -63,7 +66,6 @@ export async function publicApiCall(url: string, options: RequestInit = {}): Pro
 		}
 
 		return await response.json();
-
 	} catch (error) {
 		console.error('Public API call failed:', error);
 		throw error;
@@ -105,7 +107,7 @@ async function handleUnauthorized(): Promise<void> {
 export async function getAuthMode(): Promise<AuthMode> {
 	try {
 		const info = await publicApiCall('info');
-		return (info as any).auth_mode || 'bearer';
+		return (info as ServerInfo).auth_mode || 'bearer';
 	} catch (error) {
 		console.warn('Failed to get auth mode, defaulting to bearer:', error);
 		return 'bearer';

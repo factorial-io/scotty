@@ -17,12 +17,15 @@
 {#if status !== 'Running'}
 	<button class="btn btn-xs" disabled>{service.service}</button>
 {:else}
+	<!-- eslint-disable svelte/no-navigation-without-resolve -->
 	{#each service.domains as domain (domain)}
 		<a
 			title={domain}
 			class="btn btn-xs mr-2 mb-2"
 			href={url(domain, service.use_tls)}
-			target="_blank"><Icon icon={ArrowUpRight} />{title(domain)}</a
+			target="_blank"
+			rel="external"><Icon icon={ArrowUpRight} />{title(domain)}</a
 		>
 	{/each}
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {/if}

@@ -71,7 +71,6 @@ function createSessionStore() {
 					hasUserInfo: !!userInfo,
 					tokenType: currentTokenType
 				});
-
 			} catch (error) {
 				console.error('Failed to initialize session store:', error);
 				set({
@@ -89,7 +88,7 @@ function createSessionStore() {
 		 */
 		setBearerToken(token: string): void {
 			if (sessionManager.setBearerToken(token)) {
-				update(state => ({
+				update((state) => ({
 					...state,
 					isAuthenticated: true,
 					currentTokenType: 'bearer'
@@ -108,7 +107,7 @@ function createSessionStore() {
 				// Clear any existing bearer token
 				sessionManager.removeBearerToken();
 
-				update(state => ({
+				update((state) => ({
 					...state,
 					userInfo,
 					isAuthenticated: true,
@@ -168,7 +167,7 @@ function createSessionStore() {
 		logout(): void {
 			sessionManager.clearAllTokens();
 
-			update(state => ({
+			update((state) => ({
 				...state,
 				userInfo: null,
 				isAuthenticated: false,
@@ -188,7 +187,7 @@ function createSessionStore() {
 				sessionManager.clearBearerSession();
 			}
 
-			update(state => ({
+			update((state) => ({
 				...state,
 				userInfo: null,
 				isAuthenticated: false,
@@ -253,8 +252,8 @@ function createSessionStore() {
 export const sessionStore = createSessionStore();
 
 // Derived stores for convenient access
-export const authMode = derived(sessionStore, $session => $session.authMode);
-export const userInfo = derived(sessionStore, $session => $session.userInfo);
-export const isAuthenticated = derived(sessionStore, $session => $session.isAuthenticated);
-export const isInitialized = derived(sessionStore, $session => $session.isInitialized);
-export const currentTokenType = derived(sessionStore, $session => $session.currentTokenType);
+export const authMode = derived(sessionStore, ($session) => $session.authMode);
+export const userInfo = derived(sessionStore, ($session) => $session.userInfo);
+export const isAuthenticated = derived(sessionStore, ($session) => $session.isAuthenticated);
+export const isInitialized = derived(sessionStore, ($session) => $session.isInitialized);
+export const currentTokenType = derived(sessionStore, ($session) => $session.currentTokenType);

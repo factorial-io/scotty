@@ -3,10 +3,10 @@
 	import logo from '$lib/assets/scotty.svg';
 	import { publicApiCall, initializeAuth } from '$lib';
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import title from '../stores/titleStore';
 	import UserInfo from '../components/user-info.svelte';
 	import WebSocketStatus from '../components/websocket-status.svelte';
-	import { sessionStore } from '../stores/sessionStore';
 	import { webSocketStore } from '../stores/webSocketStore';
 
 	type SiteInfo = {
@@ -44,18 +44,20 @@
 						<img alt="Scotty Logo" src={logo} />
 					</div>
 				</div>
-				<a href="/dashboard" class="text-xl ml-4 font-bold">scotty @ {site_info.domain}</a>
+				<a href={resolve('/dashboard')} class="text-xl ml-4 font-bold"
+					>scotty @ {site_info.domain}</a
+				>
 			</div>
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
 					<li>
-						<a href="/dashboard">Apps</a>
+						<a href={resolve('/dashboard')}>Apps</a>
 					</li>
 					<li>
-						<a href="/tasks">Tasks</a>
+						<a href={resolve('/tasks')}>Tasks</a>
 					</li>
 					<li>
-						<a href="/rapidoc" target="_blank" rel="noopener noreferrer"
+						<a href={resolve('/rapidoc')} target="_blank" rel="noopener noreferrer"
 							>API Documentation</a
 						>
 					</li>

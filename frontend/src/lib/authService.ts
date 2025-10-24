@@ -8,6 +8,7 @@
 
 import { sessionStore } from '../stores/sessionStore';
 import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
 import type { UserInfo } from '../types';
 
 export interface LoginResult {
@@ -70,7 +71,6 @@ export class AuthService {
 			} else {
 				return { success: false, error: result.message || 'Login failed' };
 			}
-
 		} catch (error) {
 			console.error('Login error:', error);
 			return { success: false, error: 'Network error occurred' };
@@ -122,7 +122,6 @@ export class AuthService {
 			sessionStore.setOAuthSession(tokenData.access_token, userInfo);
 
 			return { success: true };
-
 		} catch (error) {
 			console.error('OAuth callback error:', error);
 			return {
@@ -137,7 +136,7 @@ export class AuthService {
 	 */
 	async logout(redirectTo: string = '/login'): Promise<void> {
 		sessionStore.logout();
-		await goto(redirectTo);
+		await goto(resolve(redirectTo));
 	}
 
 	/**
@@ -239,7 +238,6 @@ export class AuthService {
 
 			// Fallback to bearer mode
 			return { authMode: 'bearer' };
-
 		} catch (error) {
 			console.warn('Failed to check auth mode:', error);
 			return { authMode: 'bearer' };

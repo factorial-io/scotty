@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { apps } from '../../stores/appsStore';
 	import { loadApps } from '../../stores/appsStore';
 	import { writable } from 'svelte/store';
@@ -90,7 +91,10 @@
 		{#each $filteredAndSortedApps as app (app.name)}
 			<tr>
 				<td><StartStopAppAction name={app.name} status={app.status} /></td>
-				<td><a class="link-primary" href="/dashboard/{app.name}">{app.name}</a></td>
+				<td
+					><a class="link-primary" href={resolve(`/dashboard/${app.name}`)}>{app.name}</a
+					></td
+				>
 				<td
 					>{#each app.services as service (service.service)}
 						{#if service.domains && service.domains.length > 0}

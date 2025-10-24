@@ -1,5 +1,5 @@
 import { writable, derived, type Writable } from 'svelte/store';
-import type { TaskOutputData, OutputLine, WebSocketMessage } from '../types';
+import type { OutputLine, WebSocketMessage } from '../types';
 import { isTaskOutputData, isTaskOutputStreamStarted, isTaskOutputStreamEnded } from '../generated';
 
 interface TaskOutputState {
@@ -25,13 +25,15 @@ export const activeSubscriptions: Writable<Set<string>> = writable(new Set());
  */
 export function getTaskOutput(taskId: string) {
 	return derived(taskOutputs, ($taskOutputs) => {
-		return $taskOutputs[taskId] ?? {
-			lines: [],
-			loading: false,
-			subscribed: false,
-			totalLines: 0,
-			hasCompleted: false
-		};
+		return (
+			$taskOutputs[taskId] ?? {
+				lines: [],
+				loading: false,
+				subscribed: false,
+				totalLines: 0,
+				hasCompleted: false
+			}
+		);
 	});
 }
 
@@ -39,7 +41,7 @@ export function getTaskOutput(taskId: string) {
  * Initialize task output state
  */
 export function initializeTaskOutput(taskId: string) {
-	taskOutputs.update(store => ({
+	taskOutputs.update((store) => ({
 		...store,
 		[taskId]: {
 			lines: [],
@@ -55,7 +57,7 @@ export function initializeTaskOutput(taskId: string) {
  * Set loading state for a task
  */
 export function setTaskOutputLoading(taskId: string, loading: boolean) {
-	taskOutputs.update(store => ({
+	taskOutputs.update((store) => ({
 		...store,
 		[taskId]: {
 			...store[taskId],
@@ -68,7 +70,7 @@ export function setTaskOutputLoading(taskId: string, loading: boolean) {
  * Mark task as subscribed to WebSocket stream
  */
 export function setTaskOutputSubscribed(taskId: string, subscribed: boolean) {
-	taskOutputs.update(store => ({
+	taskOutputs.update((store) => ({
 		...store,
 		[taskId]: {
 			...store[taskId],
@@ -77,9 +79,9 @@ export function setTaskOutputSubscribed(taskId: string, subscribed: boolean) {
 	}));
 
 	if (subscribed) {
-		activeSubscriptions.update(subs => new Set([...subs, taskId]));
+		activeSubscriptions.update((subs) => new Set([...subs, taskId]));
 	} else {
-		activeSubscriptions.update(subs => {
+		activeSubscriptions.update((subs) => {
 			const newSubs = new Set(subs);
 			newSubs.delete(taskId);
 			return newSubs;
@@ -90,8 +92,12 @@ export function setTaskOutputSubscribed(taskId: string, subscribed: boolean) {
 /**
  * Add output lines to a task (maintains chronological order)
  */
-export function addTaskOutputLines(taskId: string, newLines: OutputLine[], isHistorical: boolean = false) {
-	taskOutputs.update(store => {
+export function addTaskOutputLines(
+	taskId: string,
+	newLines: OutputLine[],
+	isHistorical: boolean = false
+) {
+	taskOutputs.update((store) => {
 		const currentState = store[taskId] ?? {
 			lines: [],
 			loading: false,
@@ -107,8 +113,8 @@ export function addTaskOutputLines(taskId: string, newLines: OutputLine[], isHis
 		allLines.sort((a, b) => Number(a.sequence) - Number(b.sequence));
 
 		// Remove duplicates based on sequence number
-		const uniqueLines = allLines.filter((line, index, arr) =>
-			index === 0 || line.sequence !== arr[index - 1].sequence
+		const uniqueLines = allLines.filter(
+			(line, index, arr) => index === 0 || line.sequence !== arr[index - 1].sequence
 		);
 
 		return {
@@ -131,7 +137,7 @@ export function handleTaskOutputMessage(message: WebSocketMessage) {
 	if (isTaskOutputStreamStarted(message)) {
 		console.log('Task output stream started for:', message.data.task_id);
 		const { task_id, total_lines } = message.data;
-		taskOutputs.update(store => ({
+		taskOutputs.update((store) => ({
 			...store,
 			[task_id]: {
 				...store[task_id],
@@ -141,10 +147,13 @@ export function handleTaskOutputMessage(message: WebSocketMessage) {
 			}
 		}));
 		setTaskOutputSubscribed(task_id, true);
-	}
-
-	else if (isTaskOutputData(message)) {
-		console.log('Task output data received for:', message.data.task_id, 'lines:', message.data.lines.length);
+	} else if (isTaskOutputData(message)) {
+		console.log(
+			'Task output data received for:',
+			message.data.task_id,
+			'lines:',
+			message.data.lines.length
+		);
 		const { task_id, lines, is_historical } = message.data;
 		addTaskOutputLines(task_id, lines, is_historical);
 
@@ -152,12 +161,10 @@ export function handleTaskOutputMessage(message: WebSocketMessage) {
 		if (is_historical && !message.data.has_more) {
 			setTaskOutputLoading(task_id, false);
 		}
-	}
-
-	else if (isTaskOutputStreamEnded(message)) {
+	} else if (isTaskOutputStreamEnded(message)) {
 		console.log('Task output stream ended for:', message.data.task_id);
 		const { task_id } = message.data;
-		taskOutputs.update(store => ({
+		taskOutputs.update((store) => ({
 			...store,
 			[task_id]: {
 				...store[task_id],
@@ -174,7 +181,7 @@ export function handleTaskOutputMessage(message: WebSocketMessage) {
  * Clear output for a specific task
  */
 export function clearTaskOutput(taskId: string) {
-	taskOutputs.update(store => {
+	taskOutputs.update((store) => {
 		const newStore = { ...store };
 		delete newStore[taskId];
 		return newStore;
@@ -207,8 +214,8 @@ export function getTaskOutputStats(taskId: string) {
 			};
 		}
 
-		const stdoutLines = state.lines.filter(line => line.stream === 'Stdout').length;
-		const stderrLines = state.lines.filter(line => line.stream === 'Stderr').length;
+		const stdoutLines = state.lines.filter((line) => line.stream === 'Stdout').length;
+		const stderrLines = state.lines.filter((line) => line.stream === 'Stderr').length;
 
 		return {
 			totalLines: state.lines.length,

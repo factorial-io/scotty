@@ -4,6 +4,7 @@
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let password = '';
 	let loading = true;
@@ -24,16 +25,15 @@
 
 			// Handle dev mode - redirect directly to dashboard
 			if (authMode === 'dev') {
-				await goto('/dashboard');
+				await goto(resolve('/dashboard'));
 				return;
 			}
 
 			// Check if already authenticated and redirect
 			if (authService.isAuthenticated()) {
-				await goto('/dashboard');
+				await goto(resolve('/dashboard'));
 				return;
 			}
-
 		} catch (err) {
 			console.warn('Failed to check auth mode:', err);
 			authMode = 'bearer'; // fallback
@@ -59,7 +59,7 @@
 				if (result.redirectUrl) {
 					window.location.href = result.redirectUrl;
 				} else {
-					await goto('/dashboard');
+					await goto(resolve('/dashboard'));
 				}
 			} else {
 				error = result.error || 'Login failed';

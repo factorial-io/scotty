@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { authService } from '../../../lib/authService';
 
@@ -43,12 +44,11 @@
 				await loadUserPermissions();
 
 				// Redirect to dashboard
-				await goto('/dashboard');
+				await goto(resolve('/dashboard'));
 			} else {
 				error = result.error || 'Authentication failed';
 				loading = false;
 			}
-
 		} catch (err) {
 			console.error('OAuth callback error:', err);
 			error = err instanceof Error ? err.message : 'An unexpected error occurred';

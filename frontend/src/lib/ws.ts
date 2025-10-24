@@ -17,7 +17,7 @@ export interface WebSocketAuthMessage {
 
 export interface WebSocketMessage {
 	type: string;
-	data?: any;
+	data?: Record<string, unknown>;
 }
 
 /**
@@ -27,7 +27,10 @@ export function authenticateWebSocket(socket: WebSocket): void {
 	const token = sessionStore.getAuthToken();
 
 	if (token) {
-		console.log('Authenticating WebSocket with token (first 8 chars):', token.substring(0, 8) + '...');
+		console.log(
+			'Authenticating WebSocket with token (first 8 chars):',
+			token.substring(0, 8) + '...'
+		);
 
 		const authMessage: WebSocketAuthMessage = {
 			type: 'Authenticate',
@@ -68,7 +71,7 @@ export function createAuthenticatedWebSocket(url: string): WebSocket {
 					console.error('WebSocket authentication failed:', message.data.error);
 				}
 			}
-		} catch (error) {
+		} catch {
 			// Not a JSON message, ignore
 		}
 	});

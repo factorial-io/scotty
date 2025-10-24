@@ -8,13 +8,18 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { sessionStore, isAuthenticated } from './sessionStore';
-import { loadApps, updateAppInfo } from './appsStore';
+import { loadApps } from './appsStore';
 import { updateTask, requestAllTasks } from './tasksStore';
 import { handleTaskOutputMessage } from './taskOutputStore';
 import type { WebSocketMessage } from '../types';
 // Removed unused import: isTaskInfoUpdated
 
-export type WebSocketConnectionState = 'disconnected' | 'connecting' | 'connected' | 'authenticated' | 'error';
+export type WebSocketConnectionState =
+	| 'disconnected'
+	| 'connecting'
+	| 'connected'
+	| 'authenticated'
+	| 'error';
 
 export interface WebSocketState {
 	connectionState: WebSocketConnectionState;
@@ -40,7 +45,7 @@ const initialState: WebSocketState = {
 };
 
 // Create the store
-const { subscribe, set, update } = writable<WebSocketState>(initialState);
+const { subscribe, update } = writable<WebSocketState>(initialState);
 
 let pingInterval: number | null = null;
 let reconnectTimeout: number | null = null;
@@ -75,7 +80,10 @@ function authenticateWebSocket() {
 	});
 
 	if (token) {
-		console.log('Authenticating WebSocket with token (first 8 chars):', token.substring(0, 8) + '...');
+		console.log(
+			'Authenticating WebSocket with token (first 8 chars):',
+			token.substring(0, 8) + '...'
+		);
 		sendMessage({
 			type: 'Authenticate',
 			data: { token: token }
@@ -112,13 +120,13 @@ function handleMessage(event: MessageEvent) {
 		switch (message.type) {
 			case 'AuthenticationSuccess':
 				console.log('WebSocket authentication successful');
-				update(state => ({ ...state, connectionState: 'authenticated' }));
+				update((state) => ({ ...state, connectionState: 'authenticated' }));
 				startPing();
 				break;
 
 			case 'AuthenticationFailed':
 				console.error('WebSocket authentication failed:', message.data.reason);
-				update(state => ({
+				update((state) => ({
 					...state,
 					connectionState: 'error',
 					lastError: `Authentication failed: ${message.data.reason}`
@@ -127,7 +135,7 @@ function handleMessage(event: MessageEvent) {
 
 			case 'Error':
 				console.error('WebSocket error:', message.data);
-				update(state => ({
+				update((state) => ({
 					...state,
 					lastError: message.data
 				}));
@@ -218,14 +226,14 @@ function connect() {
 	const url = getWebSocketUrl();
 	console.log('Connecting to WebSocket:', url);
 
-	update(state => ({ ...state, connectionState: 'connecting', lastError: null }));
+	update((state) => ({ ...state, connectionState: 'connecting', lastError: null }));
 
 	try {
 		const socket = new WebSocket(url);
 
 		socket.onopen = () => {
 			console.log('WebSocket connected');
-			update(state => ({
+			update((state) => ({
 				...state,
 				connectionState: 'connected',
 				socket,
@@ -243,7 +251,7 @@ function connect() {
 			console.log('WebSocket closed:', event.code, event.reason);
 			stopPing();
 
-			update(state => {
+			update((state) => {
 				const newState = {
 					...state,
 					connectionState: 'disconnected' as WebSocketConnectionState,
@@ -253,10 +261,12 @@ function connect() {
 				// Only attempt reconnect if it wasn't a normal closure and we haven't exceeded max attempts
 				if (event.code !== 1000 && state.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
 					const delay = getReconnectDelay(state.reconnectAttempts);
-					console.log(`Reconnecting in ${delay}ms (attempt ${state.reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+					console.log(
+						`Reconnecting in ${delay}ms (attempt ${state.reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`
+					);
 
 					reconnectTimeout = setTimeout(() => {
-						update(s => ({ ...s, reconnectAttempts: s.reconnectAttempts + 1 }));
+						update((s) => ({ ...s, reconnectAttempts: s.reconnectAttempts + 1 }));
 						connect();
 					}, delay);
 				} else if (state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -270,16 +280,15 @@ function connect() {
 
 		socket.onerror = (error) => {
 			console.error('WebSocket error:', error);
-			update(state => ({
+			update((state) => ({
 				...state,
 				connectionState: 'error',
 				lastError: 'Connection error occurred'
 			}));
 		};
-
 	} catch (error) {
 		console.error('Failed to create WebSocket:', error);
-		update(state => ({
+		update((state) => ({
 			...state,
 			connectionState: 'error',
 			lastError: 'Failed to create WebSocket connection'
@@ -304,7 +313,7 @@ function disconnect() {
 		state.socket.close(1000, 'User requested disconnect');
 	}
 
-	update(state => ({
+	update((state) => ({
 		...state,
 		connectionState: 'disconnected',
 		socket: null,
@@ -320,7 +329,7 @@ function initialize() {
 	if (!browser) return;
 
 	// Subscribe to authentication changes
-	isAuthenticated.subscribe(authenticated => {
+	isAuthenticated.subscribe((authenticated) => {
 		if (authenticated) {
 			// User is authenticated, connect to WebSocket
 			connect();
@@ -368,9 +377,12 @@ export const webSocketStore = {
 };
 
 // Derived stores for convenient access
-export const connectionState = derived(webSocketStore, $ws => $ws.connectionState);
-export const isConnected = derived(webSocketStore, $ws => $ws.connectionState === 'authenticated');
-export const lastError = derived(webSocketStore, $ws => $ws.lastError);
+export const connectionState = derived(webSocketStore, ($ws) => $ws.connectionState);
+export const isConnected = derived(
+	webSocketStore,
+	($ws) => $ws.connectionState === 'authenticated'
+);
+export const lastError = derived(webSocketStore, ($ws) => $ws.lastError);
 
 // Auto-initialize when module loads
 if (browser) {

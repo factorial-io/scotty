@@ -2,6 +2,7 @@
 	import { authenticatedApiCall } from '$lib';
 	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { sessionStore } from '../stores/sessionStore';
 
 	export let app: App;
@@ -90,7 +91,7 @@
 			const context = result as RunningAppContext;
 			if (context && context.task && context.task.id) {
 				currentTaskId = context.task.id;
-				goto(`/tasks/${currentTaskId}`);
+				goto(resolve(`/tasks/${currentTaskId}`));
 			} else {
 				console.error('Unexpected API response:', result);
 				throw new Error('Invalid response from server');
