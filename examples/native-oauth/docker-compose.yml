@@ -1,0 +1,52 @@
+version: '3.8'
+
+# Native OAuth Example - Scotty with built-in GitLab OIDC authentication
+# No external authentication proxy needed - Scotty handles OAuth directly
+
+services:
+  # Scotty with native OAuth support
+  scotty-native-oauth:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "21342:21342"
+    environment:
+      # OAuth authentication mode
+      - SCOTTY__API__AUTH_MODE=oauth
+      - SCOTTY__API__BIND_ADDRESS=0.0.0.0:21342
+      
+      # GitLab OAuth configuration
+      - SCOTTY__API__OAUTH__GITLAB_URL=${GITLAB_URL:-https://gitlab.com}
+      - SCOTTY__API__OAUTH__CLIENT_ID=${GITLAB_CLIENT_ID}
+      - SCOTTY__API__OAUTH__CLIENT_SECRET=${GITLAB_CLIENT_SECRET}
+      - SCOTTY__API__OAUTH__REDIRECT_URL=${OAUTH_REDIRECT_URL:-http://localhost:21342/oauth/callback}
+      
+      # Optional: Enable debug logging
+      - RUST_LOG=info
+      
+    volumes:
+      # Mount Docker socket for app management
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Configuration files
+      - ../../config/default.yaml:/app/config/default.yaml:ro
+      - ./config/oauth.yaml:/app/config/local.yaml:ro
+      - ../../config/blueprints:/app/config/blueprints:ro
+      
+      # Apps directory for managing applications
+      - ./apps:/app/apps
+      
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:21342/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Create apps directory for application management
+volumes: {}
+
+networks:
+  default:
+    name: scotty-native-oauth

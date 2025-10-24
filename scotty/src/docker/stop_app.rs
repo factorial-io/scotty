@@ -18,7 +18,7 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 use super::helper::run_sm;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-enum StopAppStates {
+pub(crate) enum StopAppStates {
     RunDockerCompose,
     UpdateAppData,
     SetFinished,

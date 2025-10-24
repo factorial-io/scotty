@@ -1,0 +1,10 @@
+# This directory will contain your Docker Compose applications
+# 
+# Example structure:
+# apps/
+# ├── my-app/
+# │   ├── docker-compose.yml
+# │   └── .scotty.yml (optional)
+# └── another-app/
+#     ├── docker-compose.yml
+#     └── .scotty.yml (optional)

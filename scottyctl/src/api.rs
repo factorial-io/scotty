@@ -1,20 +1,74 @@
 use anyhow::Context;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
 use serde_json::Value;
-use tokio::time::{sleep, Duration};
+use tokio::time::sleep;
 use tracing::{error, info};
 
+use crate::auth::config::get_server_info;
+use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
-use std::sync::Arc;
-
+use scotty_core::http::{HttpClient, RetryError};
+use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::{State, TaskDetails};
+use scotty_core::version::VersionManager;
+use std::sync::Arc;
+use std::time::Duration;
 
-// Constants for retry mechanism
-const MAX_RETRIES: usize = 5;
-const INITIAL_RETRY_DELAY_MS: u64 = 500;
-const MAX_RETRY_DELAY_MS: u64 = 8000; // 8 seconds
+const MAX_RETRIES: u8 = 3;
+const INITIAL_RETRY_DELAY_MS: u64 = 100;
+const MAX_RETRY_DELAY_MS: u64 = 2000;
+
+async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
+    // 1. Check server auth mode to determine if OAuth tokens should be used
+    let server_supports_oauth = match get_server_info(server).await {
+        Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
+        Err(_) => false, // If we can't check, assume OAuth is not supported
+    };
+
+    // 2. Try stored OAuth token only if server supports OAuth
+    if server_supports_oauth {
+        if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
+            // TODO: Check if token is expired and refresh if needed
+            return Ok(stored_token.access_token);
+        }
+    }
+
+    // 3. Fall back to environment variable or command line token
+    if let Some(token) = &server.access_token {
+        return Ok(token.clone());
+    }
+
+    Err(anyhow::anyhow!(
+        "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
+    ))
+}
+
+fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", token))
+            .context("Failed to create authorization header")?,
+    );
+
+    // Add user agent with version
+    let version = VersionManager::current_version()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_str(&format!("scottyctl/{}", version))
+            .context("Failed to create user agent header")?,
+    );
+
+    HttpClient::builder()
+        .with_timeout(Duration::from_secs(10))
+        .with_default_headers(headers)
+        .build()
+}
 
 /// Helper function to normalize URLs by handling trailing slashes
 fn normalize_url(base_url: &str, path: &str) -> String {
@@ -87,74 +141,64 @@ pub async fn get_or_post(
     method: &str,
     body: Option<Value>,
 ) -> anyhow::Result<Value> {
-    let url = normalize_url(&server.server, &format!("api/v1/{}", action));
+    let token = get_auth_token(server).await?;
+    let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", action));
     info!("Calling scotty API at {}", &url);
 
     with_retry(|| async {
-        let client = reqwest::Client::new();
-        let response = match method.to_lowercase().as_str() {
+        let client = create_authenticated_client(&token)?;
+
+        let result = match method.to_lowercase().as_str() {
             "post" => {
                 if let Some(body) = body.clone() {
-                    client.post(&url).json(&body)
+                    client.post_json::<Value, Value>(&url, &body).await
                 } else {
-                    client.post(&url)
+                    client.post(&url, &serde_json::json!({})).await?;
+                    // For POST without body, we still need to get the response as JSON
+                    client.get_json::<Value>(&url).await
                 }
             }
-            _ => client.get(&url),
+            "delete" => {
+                if let Some(body) = body.clone() {
+                    let response = client
+                        .request_with_body(reqwest::Method::DELETE, &url, &body)
+                        .await?;
+                    response
+                        .json::<Value>()
+                        .await
+                        .map_err(|e| RetryError::NonRetriable(e.into()))
+                } else {
+                    let response = client.request(reqwest::Method::DELETE, &url).await?;
+                    response
+                        .json::<Value>()
+                        .await
+                        .map_err(|e| RetryError::NonRetriable(e.into()))
+                }
+            }
+            _ => client.get_json::<Value>(&url).await,
         };
 
-        let response = response
-            .bearer_auth(server.access_token.as_deref().unwrap_or_default())
-            .timeout(Duration::from_secs(10)) // Add timeout for requests
-            .send()
-            .await
-            .context(format!("Failed to call scotty API at {}", &url))?;
-
-        // Client errors (4xx) shouldn't be retried - fail fast
-        if response.status().is_client_error() {
-            let status = response.status();
-            let content = response.json::<Value>().await.ok();
-            let error_message = if let Some(content) = content {
-                if let Some(message) = content.get("message") {
-                    format!(": {}", message.as_str().unwrap_or("Unknown error"))
-                } else {
-                    String::new()
+        match result {
+            Ok(value) => Ok(value),
+            Err(RetryError::NonRetriable(err)) => {
+                // Check if this is an HTTP error we can extract more info from
+                if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
+                    if let Some(status) = reqwest_err.status() {
+                        if status.is_client_error() {
+                            return Err(anyhow::anyhow!(
+                                "Client error calling scotty API at {}: {}",
+                                &url,
+                                status
+                            ));
+                        }
+                    }
                 }
-            } else {
-                String::new()
-            };
-            return Err(anyhow::anyhow!(
-                "Client error calling scotty API at {} : {}{}",
-                &url,
-                &status,
-                error_message
-            ));
-        }
-
-        if response.status().is_success() {
-            let json = response.json::<Value>().await.context(format!(
-                "Failed to parse response from scotty API at {}",
+                Err(err.context(format!("Failed to call scotty API at {}", &url)))
+            }
+            Err(RetryError::ExhaustedRetries(err)) => Err(err.context(format!(
+                "Failed to call scotty API at {} after retries",
                 &url
-            ))?;
-            Ok(json)
-        } else {
-            let status = &response.status();
-            let content = response.json::<Value>().await.ok();
-            let error_message = if let Some(content) = content {
-                if let Some(message) = content.get("message") {
-                    format!(": {}", message.as_str().unwrap_or("Unknown error"))
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-            Err(anyhow::anyhow!(
-                "Failed to call scotty API at {} : {}{}",
-                &url,
-                &status,
-                error_message
-            ))
+            ))),
         }
     })
     .await
@@ -162,6 +206,18 @@ pub async fn get_or_post(
 
 pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value> {
     get_or_post(server, method, "GET", None).await
+}
+
+pub async fn post(server: &ServerSettings, method: &str, body: Value) -> anyhow::Result<Value> {
+    get_or_post(server, method, "post", Some(body)).await
+}
+
+pub async fn delete(
+    server: &ServerSettings,
+    method: &str,
+    body: Option<Value>,
+) -> anyhow::Result<Value> {
+    get_or_post(server, method, "delete", body).await
 }
 
 pub async fn wait_for_task(

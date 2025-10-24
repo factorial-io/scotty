@@ -6,6 +6,7 @@
 	import errorIcon from '@iconify-icons/ph/warning-octagon';
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
 	import { monitorTask } from '../stores/tasksStore';
+	import { hasPermission, permissionsLoaded } from '../stores/permissionStore';
 	import type { TaskDetail } from '../types';
 
 	export let name = '';
@@ -18,10 +19,12 @@
 		return status !== 'Unsupported';
 	}
 
+	$: canManage = $permissionsLoaded ? hasPermission(name, 'manage') : false;
 	$: currentIcon = status === 'Running' ? stop : !isSupported() ? unsupported : play;
+	$: isDisabled = !isSupported() || !canManage;
 
 	async function handleClick() {
-		if (!isSupported()) return;
+		if (!isSupported() || !canManage) return;
 		failed_task = null;
 		if (task_id !== '') return;
 		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
@@ -43,7 +46,7 @@
 		</button>
 	</div>
 {:else}
-	<button class="btn btn-circle btn-xs" on:click={handleClick} disabled={!isSupported()}>
+	<button class="btn btn-circle btn-xs" on:click={handleClick} disabled={isDisabled}>
 		{#if task_id !== ''}
 			<span class="loading loading-spinner"></span>
 		{:else}

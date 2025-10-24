@@ -55,16 +55,220 @@ frontend_directory: ./frontend/build
 ```yaml
 api:
   bind_address: "0.0.0.0:21342"
-  access_token: "mysecret"
+  bearer_tokens:
+    admin: "placeholder-will-be-overridden" 
+    client-a: "placeholder-will-be-overridden"
+    deployment: "placeholder-will-be-overridden"
   create_app_max_size: "50M"
+  auth_mode: "bearer"  # "dev", "oauth", or "bearer"
+  dev_user_email: "dev@localhost"
+  dev_user_name: "Dev User"
+  oauth:
+    oidc_issuer_url: "https://gitlab.com"
+    client_id: "your_client_id" 
+    client_secret: "your_client_secret"
+    redirect_url: "http://localhost:21342/api/oauth/callback"
 ```
 
 * `bind_address`: The address and port the server listens on.
-* `access_token`: The token to authenticate against the server. This token is
-  needed by the clients to authenticate against the server.
+* `bearer_tokens`: **Required for bearer authentication**. Map of logical token identifiers to secure bearer tokens. **Security Note**: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
+* `auth_mode`: Authentication mode. Options are:
+  * `"dev"`: Development mode with no authentication (uses fixed dev user)
+  * `"oauth"`: Native OAuth authentication with OIDC providers
+  * `"bearer"`: Traditional token-based authentication (default)
+* `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
+* `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
+* `oauth`: OAuth configuration section (used when `auth_mode` is "oauth")
+  * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
+  * `client_id`: OAuth application client ID from your OIDC provider
+  * `client_secret`: OAuth application client secret from your OIDC provider  
+  * `redirect_url`: OAuth callback URL - must match your provider's configuration
+
+### Authorization settings
+
+Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
+
+**Authorization is entirely optional** - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.
+
+#### Configuration Files
+
+Authorization requires two configuration files in the `config/casbin/` directory:
+
+```
+config/
+├── casbin/
+│   ├── model.conf       # Casbin RBAC model (auto-generated)
+│   └── policy.yaml      # Groups, roles, and assignments
+└── default.yaml         # Main configuration
+```
+
+#### Example Authorization Configuration
+
+Create `config/casbin/policy.yaml` with your access control setup:
+
+```yaml
+# Scope definitions - organize apps by purpose
+scopes:
+  frontend:
+    description: "Frontend applications"
+    created_at: "2023-12-01T00:00:00Z"
+  backend: 
+    description: "Backend services"
+    created_at: "2023-12-01T00:00:00Z"
+  production:
+    description: "Production environment"
+    created_at: "2023-12-01T00:00:00Z"
+
+# Role definitions with permissions
+roles:
+  admin:
+    description: "Full administrative access"
+    permissions: ["*"]  # Wildcard for all permissions
+    created_at: "2023-12-01T00:00:00Z"
+  developer:
+    description: "Development access"
+    permissions: ["view", "manage", "shell", "logs", "create"]
+    created_at: "2023-12-01T00:00:00Z"
+  operator:
+    description: "Operations access without shell"
+    permissions: ["view", "manage", "logs"]
+    created_at: "2023-12-01T00:00:00Z"
+
+# User/token assignments to roles within scopes
+assignments:
+  "alice@example.com":
+    - role: "admin"
+      scopes: ["*"]  # Global access
+  "bob@example.com":
+    - role: "developer"
+      scopes: ["frontend", "backend"]
+  "identifier:deployment":  # Maps to bearer_tokens.deployment
+    - role: "developer"
+      scopes: ["staging"]
+
+# App scope mappings (managed automatically from .scotty.yml)
+apps:
+  "my-frontend-app": ["frontend"]
+  "my-backend-api": ["backend"]
+```
+
+#### App Scope Assignment
+
+Apps declare scope membership in their `.scotty.yml` configuration:
+
+```yaml
+# Apps can belong to multiple scopes
+scopes:
+  - "frontend"
+  - "staging"
+
+public_services:
+  - service: "web"
+    port: 3000
+```
+
+#### Available Permissions
+
+- `view` - See app status and information
+- `manage` - Start, stop, restart applications
+- `logs` - View application logs
+- `shell` - Execute shell commands in containers
+- `create` - Create new apps in scope
+- `destroy` - Delete apps from scope
+
+#### Bearer Token Integration
+
+Bearer tokens are configured using logical identifiers that map to secure tokens:
+
+1. **Configuration**: Define secure tokens in `api.bearer_tokens` section
+2. **Authorization**: Reference identifiers in policy assignments as `identifier:name`
+3. **Environment Override**: Use `SCOTTY__API__BEARER_TOKENS__NAME=secure_token`
+
+Example CLI usage with authorized token:
+```bash
+export SCOTTY_ACCESS_TOKEN="secure-admin-token-abc123"
+scottyctl app:list  # Shows only apps user has 'view' permission for
+```
+
+**Important**: The `api.access_token` configuration is **no longer supported**. Use `api.bearer_tokens` instead.
+
+#### Bearer Token Security Best Practices
+
+🔒 **NEVER store actual bearer tokens in configuration files!** Follow these security guidelines:
+
+##### 1. Use Environment Variables for Actual Tokens
+
+Store only placeholder values in configuration files and override with secure environment variables:
+
+```bash
+# Production deployment - set actual secure tokens via environment variables
+export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
+export SCOTTY__API__BEARER_TOKENS__DEPLOYMENT="$(openssl rand -base64 32)"
+export SCOTTY__API__BEARER_TOKENS__CLIENT_A="$(openssl rand -base64 32)"
+
+# Start Scotty server
+./scotty
+```
+
+##### 2. Generate Strong Tokens
+
+Use cryptographically secure random tokens:
+
+```bash
+# Generate 32-byte base64-encoded tokens (recommended)
+openssl rand -base64 32
+
+# Or use system UUID (less entropy but still secure)
+uuidgen
+```
+
+##### 3. Configuration File Security
+
+In your `config/local.yaml` or `config/default.yaml`:
+
+```yaml
+api:
+  bearer_tokens:
+    admin: "OVERRIDE_VIA_ENV_VAR"           # Will be overridden by SCOTTY__API__BEARER_TOKENS__ADMIN
+    deployment: "OVERRIDE_VIA_ENV_VAR"      # Will be overridden by SCOTTY__API__BEARER_TOKENS__DEPLOYMENT
+    monitoring: "OVERRIDE_VIA_ENV_VAR"      # Will be overridden by SCOTTY__API__BEARER_TOKENS__MONITORING
+```
+
+##### 4. Token Rotation
+
+Regularly rotate bearer tokens:
+
+1. Generate new secure tokens
+2. Update environment variables
+3. Restart Scotty server
+4. Update CLI configurations and automation tools
+
+##### 5. Access Control
+
+- **Principle of Least Privilege**: Create different tokens with different permissions via authorization system
+- **Scope Limitation**: Use authorization scopes to limit what each token can access
+- **Audit Regularly**: Review token assignments and remove unused tokens
+
+Example secure deployment setup:
+
+```bash
+#!/bin/bash
+# secure-deploy.sh - Production deployment script
+
+# Generate secure tokens if they don't exist
+export SCOTTY__API__BEARER_TOKENS__ADMIN="${ADMIN_TOKEN:-$(openssl rand -base64 32)}"
+export SCOTTY__API__BEARER_TOKENS__DEPLOY="${DEPLOY_TOKEN:-$(openssl rand -base64 32)}"
+
+# Set restrictive file permissions
+chmod 700 config/
+chmod 600 config/*.yaml
+
+# Start server with secure token environment
+exec ./scotty
+```
 
 ###  Scheduler settings
 
@@ -361,8 +565,8 @@ As an alternative you can override the configuration by setting environment
 variables, this is especiall useful for sensitive data like passwords.
 
 The environment variables must be prefixed with `SCOTTY__` and the keys must be
-concatenated with *double underscores*. For example to override the access token
-you can set the environment variable `SCOTTY__API__ACCESS_TOKEN`.
+concatenated with *double underscores*. For example to override bearer tokens
+you can set environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN`.
 
 Rule of thumb is: If you want to override a key, replace the dots with double
 underscores and prefix the key with `SCOTTY__`.
@@ -372,8 +576,16 @@ underscores and prefix the key with `SCOTTY__`.
 | name of value in the config file                  | environment variable                                     |
 |---------------------------------------------------|----------------------------------------------------------|
 | `debug`                                           | `SCOTTY__DEBUG`                                          |
-| `api.access_token`                                | `SCOTTY__API__ACCESS_TOKEN`                              |
+| `api.bearer_tokens.admin`                         | `SCOTTY__API__BEARER_TOKENS__ADMIN`                      |
+| `api.bearer_tokens.deployment`                    | `SCOTTY__API__BEARER_TOKENS__DEPLOYMENT`                 |
 | `api.bind_address`                                | `SCOTTY__API__BIND_ADDRESS`                              |
+| `api.auth_mode`                                   | `SCOTTY__API__AUTH_MODE`                                 |
+| `api.dev_user_email`                              | `SCOTTY__API__DEV_USER_EMAIL`                            |
+| `api.dev_user_name`                               | `SCOTTY__API__DEV_USER_NAME`                             |
+| `api.oauth.oidc_issuer_url`                       | `SCOTTY__API__OAUTH__OIDC_ISSUER_URL`                    |
+| `api.oauth.client_id`                             | `SCOTTY__API__OAUTH__CLIENT_ID`                          |
+| `api.oauth.client_secret`                         | `SCOTTY__API__OAUTH__CLIENT_SECRET`                      |
+| `api.oauth.redirect_url`                          | `SCOTTY__API__OAUTH__REDIRECT_URL`                       |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |
