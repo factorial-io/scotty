@@ -10,6 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
+use crate::metrics;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{
@@ -221,6 +222,13 @@ impl LogStreamingService {
             streams.insert(stream_id, session.clone());
         }
 
+        // Track metrics: record active streams and increment total counter
+        if let Some(m) = metrics::get_metrics() {
+            let active_count = self.active_streams.read().await.len() as i64;
+            m.log_streams_active.record(active_count, &[]);
+            m.log_streams_total.add(1, &[]);
+        }
+
         // Send stream started message to the specific client
         if let Some(client_id) = client_id {
             let _ = app_state
@@ -246,6 +254,9 @@ impl LogStreamingService {
         let service_name = service_name.to_string();
 
         tokio::spawn(async move {
+            // Track stream duration
+            let stream_start = std::time::Instant::now();
+
             info!(
                 "Starting log stream {} for container {} (app: '{}', service: '{}', follow: {})",
                 stream_id, container_id, app_name, service_name, follow
@@ -334,6 +345,11 @@ impl LogStreamingService {
                                     last_log_time = tokio::time::Instant::now(); // Reset idle timer
                                     buffer.push(output_line);
 
+                                    // Track metrics: increment log lines received
+                                    if let Some(m) = metrics::get_metrics() {
+                                        m.log_lines_received.add(1, &[]);
+                                    }
+
                                     // Send buffered lines if we should flush
                                     if buffer.should_flush() && buffer.has_data() {
                                         if let Some(client_id) = client_id {
@@ -352,6 +368,12 @@ impl LogStreamingService {
                             }
                             Err(e) => {
                                 error!("Error reading logs for stream {}: {}", stream_id, e);
+
+                                // Track metrics: increment error counter
+                                if let Some(m) = metrics::get_metrics() {
+                                    m.log_stream_errors.add(1, &[]);
+                                }
+
                                 if let Some(client_id) = client_id {
                                     let _ = app_state.messenger.send_to_client(
                                         client_id,
@@ -393,6 +415,14 @@ impl LogStreamingService {
             {
                 let mut streams = active_streams.write().await;
                 streams.remove(&stream_id);
+            }
+
+            // Track metrics: record active gauge and duration
+            if let Some(m) = metrics::get_metrics() {
+                let active_count = active_streams.read().await.len() as i64;
+                m.log_streams_active.record(active_count, &[]);
+                let duration_secs = stream_start.elapsed().as_secs_f64();
+                m.log_stream_duration.record(duration_secs, &[]);
             }
 
             if let Some(client_id) = client_id {

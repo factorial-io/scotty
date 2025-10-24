@@ -38,5 +38,10 @@ pub fn init_metrics() -> Result<ScottyMetrics> {
 
     // Create metrics
     let meter = provider.meter(env!("CARGO_PKG_NAME"));
-    Ok(ScottyMetrics::new(meter))
+    let metrics = ScottyMetrics::new(meter);
+
+    // Set global metrics instance
+    super::set_metrics(metrics.clone());
+
+    Ok(metrics)
 }
