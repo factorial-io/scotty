@@ -74,21 +74,10 @@
 			Started <TimeAgo dateString={data.start_time} /> <br />
 			Finished <TimeAgo dateString={data.finish_time} /> <br />
 			App:
-			<a class="link-primary" href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a
-			>
+			<a class="link-primary" href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a>
 		</div>
 	</div>
 </PageHeader>
-
-<!-- Output Info -->
-{#if $taskOutput.lines.length > 0}
-	<div class="mb-4 text-sm text-gray-500">
-		{$taskOutput.lines.length} lines
-		{#if $taskOutput.totalLines > 0 && $taskOutput.totalLines !== $taskOutput.lines.length}
-			(of {$taskOutput.totalLines})
-		{/if}
-	</div>
-{/if}
 
 <!-- Unified Output Display -->
 <UnifiedOutput
@@ -97,31 +86,3 @@
 	loading={$taskOutput.loading}
 	maxHeight="600px"
 />
-
-<!-- Control Buttons -->
-<div class="mt-4 flex items-center justify-end">
-	<button
-		class="btn btn-sm btn-outline"
-		class:btn-error={$taskOutput.subscribed && $isConnected}
-		class:btn-primary={!$taskOutput.subscribed && $isConnected && data.state === 'Running'}
-		class:btn-disabled={!($taskOutput.subscribed && $isConnected) &&
-			!(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
-		disabled={!($taskOutput.subscribed && $isConnected) &&
-			!(!$taskOutput.subscribed && $isConnected && data.state === 'Running')}
-		on:click={() => {
-			if ($taskOutput.subscribed && $isConnected) {
-				webSocketStore.stopTaskOutputStream(data.id);
-			} else if (!$taskOutput.subscribed && $isConnected && data.state === 'Running') {
-				webSocketStore.requestTaskOutputStream(data.id, false);
-			}
-		}}
-	>
-		{#if $taskOutput.subscribed && $isConnected}
-			Stop Stream
-		{:else if !$taskOutput.subscribed && $isConnected && data.state === 'Running'}
-			Start Stream
-		{:else}
-			{data.state === 'Running' ? 'Not Connected' : 'Task Not Running'}
-		{/if}
-	</button>
-</div>
