@@ -3,6 +3,7 @@ mod app_state;
 mod docker;
 mod http;
 mod init_telemetry;
+mod metrics;
 mod notification;
 mod oauth;
 mod onepassword;

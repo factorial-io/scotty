@@ -123,8 +123,10 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     };
 
     if metrics_enabled {
-        // @todo: Handle metrics
-        warn!("Metrics are not yet implemented");
+        match crate::metrics::init_metrics() {
+            Ok(_) => info!("OpenTelemetry metrics initialized successfully"),
+            Err(e) => warn!("Failed to initialize metrics: {}", e),
+        }
     }
 
     tracing_result

@@ -24,6 +24,7 @@ mime_guess.workspace = true
 maplit.workspace = true
 opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
 path-clean.workspace = true
 readonly.workspace = true
 regex.workspace = true
