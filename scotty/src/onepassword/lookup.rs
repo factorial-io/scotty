@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use scotty_core::utils::secret::{MaskedSecret, SecretHashMap};
 use tracing::{debug, error};
 
 use crate::settings::config::Settings;
@@ -9,23 +10,24 @@ use super::env_substitution::process_env_vars;
 
 pub async fn resolve_environment_variables(
     settings: &Settings,
-    env: &HashMap<String, String>,
-) -> HashMap<String, String> {
-    let mut resolved = HashMap::new();
+    env: &SecretHashMap,
+) -> SecretHashMap {
+    let mut resolved = SecretHashMap::new();
 
     // First pass - resolve 1Password references
     let mut onepassword_resolved = HashMap::new();
-    for (key, value) in env {
-        let resolved_value = if value.starts_with("op://") {
-            match lookup_password(settings, value).await {
-                Ok(resolved_value) => resolved_value,
+    for (key, value) in env.iter() {
+        let value_str = value.expose_secret();
+        let resolved_value = if value_str.starts_with("op://") {
+            match lookup_password(settings, value_str).await {
+                Ok(masked_secret) => masked_secret.expose_secret().to_string(),
                 Err(e) => {
                     error!("Failed to resolve password for {}: {}", key, e);
-                    value.clone()
+                    value_str.to_string()
                 }
             }
         } else {
-            value.clone()
+            value_str.to_string()
         };
         onepassword_resolved.insert(key.clone(), resolved_value);
     }
@@ -49,7 +51,7 @@ pub async fn resolve_environment_variables(
     resolved
 }
 
-async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<String> {
+async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<MaskedSecret> {
     // Remove "op://" prefix
     let parts: Vec<&str> = op_uri
         .strip_prefix("op://")
@@ -91,7 +93,7 @@ async fn lookup_password(settings: &Settings, op_uri: &str) -> anyhow::Result<St
     };
 
     match result {
-        Some(v) => Ok(v.to_string()),
+        Some(v) => Ok(MaskedSecret::new(v.to_string())),
         None => Err(anyhow::anyhow!(
             "Failed to get field value for field_id : {:?}",
             field_id
@@ -130,6 +132,7 @@ mod tests {
             "SECTION_A_PASSWORD".to_string(),
             "op://factorial/n33i6edy47edsntxuj3a7lgiz4/ida4izoksx4mwdpvt7wbbq6d7y/Section A/password".to_string(),
         );
+        let env = SecretHashMap::from_hashmap(env);
 
         let onepassword_settings = OnePasswordSettings {
             jwt_token: std::env::var("SCOTTY_OP_JWT_TEST_TOKEN")
@@ -144,14 +147,23 @@ mod tests {
 
         let resolved = resolve_environment_variables(&settings, &env).await;
 
-        assert_eq!(resolved.get("KEY1").unwrap(), "value1");
-        assert_eq!(resolved.get("USERNAME").unwrap(), "scotty@factorial.io");
-        assert_eq!(resolved.get("PASSWORD").unwrap(), "my-little-secret");
+        assert_eq!(resolved.get("KEY1").unwrap().expose_secret(), "value1");
         assert_eq!(
-            resolved.get("SECTION_A_SERVER").unwrap(),
+            resolved.get("USERNAME").unwrap().expose_secret(),
+            "scotty@factorial.io"
+        );
+        assert_eq!(
+            resolved.get("PASSWORD").unwrap().expose_secret(),
+            "my-little-secret"
+        );
+        assert_eq!(
+            resolved.get("SECTION_A_SERVER").unwrap().expose_secret(),
             "https://scotty.test.url"
         );
-        assert_eq!(resolved.get("SECTION_A_PASSWORD").unwrap(), "second-secret");
+        assert_eq!(
+            resolved.get("SECTION_A_PASSWORD").unwrap().expose_secret(),
+            "second-secret"
+        );
     }
 
     #[tokio::test]
@@ -164,7 +176,7 @@ mod tests {
         env.insert("EMPTY".to_string(), "".to_string());
 
         // Test various substitution patterns
-        env.insert("CONNECTION_STRING".to_string(), 
+        env.insert("CONNECTION_STRING".to_string(),
             "postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/mydb".to_string());
         env.insert(
             "BACKUP_HOST".to_string(),
@@ -178,23 +190,31 @@ mod tests {
             "REQUIRED_VAR".to_string(),
             "${CRITICAL_CONFIG?Missing critical configuration}".to_string(),
         );
+        let env = SecretHashMap::from_hashmap(env);
 
         let settings = Settings::default();
         let resolved = resolve_environment_variables(&settings, &env).await;
 
         // Check the connection string with multiple variable substitutions
         assert_eq!(
-            resolved.get("CONNECTION_STRING").unwrap(),
+            resolved.get("CONNECTION_STRING").unwrap().expose_secret(),
             "postgresql://db_user:password123@localhost:5432/mydb"
         );
 
         // Check nested variable substitution with default
-        assert_eq!(resolved.get("BACKUP_HOST").unwrap(), "localhost");
+        assert_eq!(
+            resolved.get("BACKUP_HOST").unwrap().expose_secret(),
+            "localhost"
+        );
 
         // Check conditional with default
-        assert_eq!(resolved.get("LOG_LEVEL").unwrap(), "info");
+        assert_eq!(resolved.get("LOG_LEVEL").unwrap().expose_secret(), "info");
 
         // The error message should be part of the value rather than causing a hard error
-        assert!(resolved.get("REQUIRED_VAR").unwrap().contains("ERROR"));
+        assert!(resolved
+            .get("REQUIRED_VAR")
+            .unwrap()
+            .expose_secret()
+            .contains("ERROR"));
     }
 }

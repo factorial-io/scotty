@@ -104,7 +104,10 @@
 				Custom Actions
 			{/if}
 		</div>
-		<ul class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm">
+		<ul
+			tabindex="0"
+			class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm"
+		>
 			{#each customActions as action (action)}
 				<li>
 					<button

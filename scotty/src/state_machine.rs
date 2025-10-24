@@ -71,8 +71,16 @@ where
     pub fn spawn(self, context: Arc<RwLock<C>>) -> tokio::task::JoinHandle<()> {
         let cloned_self = Arc::new(RwLock::new(self));
         tokio::spawn(async move {
+            let current_state = cloned_self.read().await.state;
             if let Err(e) = cloned_self.write().await.run(context).await {
-                error!("Error running state machine: {:?}", e);
+                let failed_state = cloned_self.read().await.state;
+                error!(
+                    current_state = ?current_state,
+                    failed_state = ?failed_state,
+                    error = %e,
+                    error_chain = ?e.chain().collect::<Vec<_>>(),
+                    "State machine execution failed"
+                );
             }
         })
     }

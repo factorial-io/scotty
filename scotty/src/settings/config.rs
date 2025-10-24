@@ -170,7 +170,13 @@ mod tests {
 
         let settings: Settings = builder.build().unwrap().try_deserialize().unwrap();
         assert_eq!(
-            &settings.docker.registries.get("test").unwrap().password,
+            settings
+                .docker
+                .registries
+                .get("test")
+                .unwrap()
+                .password
+                .expose_secret(),
             "test_password"
         );
         assert_eq!(
@@ -206,13 +212,19 @@ mod tests {
         assert!(mattermost_settings.is_some());
         let mattermost_settings = mattermost_settings.unwrap();
         assert_eq!(mattermost_settings.host, "https://mattermost.example.com");
-        assert_eq!(mattermost_settings.hook_id, "my-mattermost-hook");
+        assert_eq!(
+            mattermost_settings.hook_id.expose_secret(),
+            "my-mattermost-hook"
+        );
 
         let gitlab_settings = settings.notification_services.get_gitlab("test-gitlab");
         assert!(gitlab_settings.is_some());
         let gitlab_settings = gitlab_settings.unwrap();
         assert_eq!(gitlab_settings.host, "https://gitlab.example.com");
-        assert_eq!(gitlab_settings.token, "my-secret-gitlab-token");
+        assert_eq!(
+            gitlab_settings.token.expose_secret(),
+            "my-secret-gitlab-token"
+        );
     }
 
     #[test]

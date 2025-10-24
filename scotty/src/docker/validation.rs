@@ -1,11 +1,11 @@
 use crate::api::error::AppError;
 use crate::onepassword::env_substitution;
-use std::collections::HashMap;
+use scotty_core::utils::secret::SecretHashMap;
 
 /// Checks if the Docker Compose file contains environment variables without using external commands
 pub fn check_for_environment_variables(
     docker_compose_data: &serde_norway::Value,
-    env_vars: Option<&HashMap<String, String>>,
+    env_vars: Option<&SecretHashMap>,
 ) -> Result<(), AppError> {
     let missing_vars = find_env_vars_recursively(docker_compose_data, env_vars);
     if missing_vars.is_empty() {
@@ -20,7 +20,7 @@ pub fn check_for_environment_variables(
 /// Recursively find environment variables in the YAML structure
 fn find_env_vars_recursively(
     value: &serde_norway::Value,
-    env_vars: Option<&HashMap<String, String>>,
+    env_vars: Option<&SecretHashMap>,
 ) -> Vec<String> {
     match value {
         serde_norway::Value::String(s) => {
@@ -43,7 +43,7 @@ fn find_env_vars_recursively(
 }
 
 /// Check if an environment variable is provided or has a default value
-fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bool {
+fn has_env_var(var_name: &str, env_vars: Option<&SecretHashMap>) -> bool {
     // Remove the ${} wrapper
     let clean_name = if var_name.starts_with("${") && var_name.ends_with('}') {
         &var_name[2..var_name.len() - 1]
@@ -56,7 +56,7 @@ fn has_env_var(var_name: &str, env_vars: Option<&HashMap<String, String>>) -> bo
     // Check if the variable is provided in env_vars
     if let Some(vars) = env_vars {
         let actual_name = extract_var_name(clean_name);
-        if vars.contains_key(actual_name) {
+        if vars.get(actual_name).is_some() {
             return true;
         }
     }
@@ -105,7 +105,7 @@ fn extract_var_name(clean_name: &str) -> &str {
 pub fn validate_docker_compose_content(
     docker_compose_content: &[u8],
     public_service_names: &[String],
-    env_vars: Option<&HashMap<String, String>>,
+    env_vars: Option<&SecretHashMap>,
 ) -> Result<Vec<String>, AppError> {
     // Parse the Docker Compose file
     let docker_compose_data: serde_norway::Value = serde_norway::from_slice(docker_compose_content)
@@ -171,6 +171,7 @@ fn validate_no_ports_exposed(docker_compose_data: &serde_norway::Value) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_public_service_not_found() {
@@ -246,6 +247,7 @@ services:
 ";
         let mut env_vars = HashMap::new();
         env_vars.insert("SOME_VAR".to_string(), "value".to_string());
+        let env_vars = SecretHashMap::from_hashmap(env_vars);
 
         // This test might fail if run_docker_compose_now is mocked in tests
         // as it actually tries to run docker compose
@@ -299,6 +301,7 @@ services:
         env_vars.insert("ANOTHER".to_string(), "value".to_string());
         env_vars.insert("REQUIRED".to_string(), "value".to_string());
         env_vars.insert("NEEDED".to_string(), "value".to_string());
+        let env_vars = SecretHashMap::from_hashmap(env_vars);
 
         let result = validate_docker_compose_content(content, &[], Some(&env_vars));
         assert!(
@@ -348,6 +351,7 @@ services:
         let mut env_vars = HashMap::new();
         env_vars.insert("TEST_VAR".to_string(), "test_value".to_string());
         env_vars.insert("EMPTY_VAR".to_string(), "".to_string());
+        let env_vars = SecretHashMap::from_hashmap(env_vars);
 
         // Test with variable in env_vars
         assert!(has_env_var("TEST_VAR", Some(&env_vars)));
@@ -400,6 +404,7 @@ services:
         // Create a test environment variable map
         let mut env_vars = HashMap::new();
         env_vars.insert("EXISTING_VAR".to_string(), "value".to_string());
+        let env_vars = SecretHashMap::from_hashmap(env_vars);
 
         // Test with no environment variables
         let data = serde_norway::from_str("key: value").unwrap();
