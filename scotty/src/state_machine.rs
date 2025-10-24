@@ -17,6 +17,7 @@ where
 {
     state: S,
     end_state: S,
+    error_state: Option<S>,
     handlers: HashMap<S, Arc<dyn StateHandler<S, C> + Send + Sync>>,
 }
 
@@ -36,8 +37,13 @@ where
         Self {
             state: initial_state,
             end_state,
+            error_state: None,
             handlers: HashMap::new(),
         }
+    }
+
+    pub fn set_error_state(&mut self, error_state: S) {
+        self.error_state = Some(error_state);
     }
 
     pub fn add_handler(&mut self, state: S, handler: Arc<dyn StateHandler<S, C> + Send + Sync>) {
@@ -55,6 +61,21 @@ where
                         info!("Transitioned from {:?} to {:?}", old_state, self.state);
                     }
                     Err(e) => {
+                        // If error_state is set, transition to it first
+                        if let Some(error_state) = self.error_state {
+                            error!(
+                                "Handler for {:?} failed, transitioning to error state {:?}",
+                                old_state, error_state
+                            );
+                            self.state = error_state;
+
+                            // Run the error handler if it exists
+                            if let Some(error_handler) = self.handlers.get(&error_state) {
+                                let _ = error_handler
+                                    .transition(&error_state, context.clone())
+                                    .await;
+                            }
+                        }
                         return Err(e);
                     }
                 }
