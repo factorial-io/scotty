@@ -8,11 +8,13 @@ use axum::{
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use tokio::sync::broadcast;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
+use crate::api::auth_core;
 use crate::api::websocket::handlers::handle_websocket_message;
 use crate::app_state::SharedAppState;
+use scotty_core::settings::api_server::AuthMode;
 use scotty_core::websocket::message::WebSocketMessage;
 
 #[instrument(skip(state, ws))]
@@ -24,6 +26,31 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
         info!("New WebSocket connection");
         let client = crate::app_state::WebSocketClient::new(tx.clone());
         state.messenger.add_client(client_id, client).await;
+    }
+
+    // Auto-authenticate in development mode
+    if matches!(state.settings.api.auth_mode, AuthMode::Development) {
+        debug!(
+            "Auto-authenticating WebSocket client {} in development mode",
+            client_id
+        );
+        let dev_user = auth_core::authenticate_dev_user(&state);
+        if let Err(e) = state
+            .messenger
+            .authenticate_client(client_id, dev_user)
+            .await
+        {
+            warn!(
+                "Failed to auto-authenticate WebSocket client {} in dev mode: {}",
+                client_id, e
+            );
+        } else {
+            info!(
+                "WebSocket client {} auto-authenticated in development mode",
+                client_id
+            );
+            state.messenger.send_auth_success(client_id).await;
+        }
     }
 
     // Don't send initial ping - wait for authentication first

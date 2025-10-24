@@ -16,8 +16,9 @@ mod utils;
 
 use docker::setup::setup_docker_integration;
 use http::setup_http_server;
+use scotty_core::settings::api_server::AuthMode;
 use tokio::time::sleep;
-use tracing::info;
+use tracing::{info, warn};
 
 use clap::Parser;
 
@@ -57,6 +58,19 @@ async fn main() -> anyhow::Result<()> {
 
     let app_state = app_state::AppState::new().await?;
     init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
+
+    // Warn if running in development mode
+    if matches!(app_state.settings.api.auth_mode, AuthMode::Development) {
+        let dev_user = app_state
+            .settings
+            .api
+            .dev_user_email
+            .as_deref()
+            .unwrap_or("dev:system:internal");
+        warn!("⚠️  RUNNING IN DEVELOPMENT MODE - NO AUTHENTICATION REQUIRED!");
+        warn!("⚠️  All requests will be authenticated as: {}", dev_user);
+        warn!("⚠️  DO NOT USE IN PRODUCTION!");
+    }
 
     // Determine if telemetry tracing is enabled
     let telemetry_enabled = app_state

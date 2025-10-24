@@ -61,7 +61,7 @@ api:
     deployment: "placeholder-will-be-overridden"
   create_app_max_size: "50M"
   auth_mode: "bearer"  # "dev", "oauth", or "bearer"
-  dev_user_email: "dev@localhost"
+  dev_user_email: "dev:system:internal"
   dev_user_name: "Dev User"
   oauth:
     oidc_issuer_url: "https://gitlab.com"

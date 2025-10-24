@@ -1,7 +1,7 @@
 use tracing::{debug, warn};
 
 use crate::app_state::SharedAppState;
-use scotty_core::settings::api_server::AuthMode;
+use scotty_core::settings::api_server::{AuthMode, DEFAULT_DEV_USER_EMAIL};
 
 #[derive(Clone, Debug)]
 pub struct CurrentUser {
@@ -59,7 +59,7 @@ pub fn authenticate_dev_user(state: &SharedAppState) -> CurrentUser {
             .api
             .dev_user_email
             .clone()
-            .unwrap_or_else(|| "dev@localhost".to_string()),
+            .unwrap_or_else(|| DEFAULT_DEV_USER_EMAIL.to_string()),
         name: state
             .settings
             .api
