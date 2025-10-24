@@ -10,7 +10,7 @@
 		initializeTaskOutput,
 		setTaskOutputSubscribed
 	} from '../../../stores/taskOutputStore';
-	import { webSocketStore, isConnected } from '../../../stores/webSocketStore';
+	import { webSocketStore } from '../../../stores/webSocketStore';
 	import { isAuthenticated } from '../../../stores/sessionStore';
 	import type { TaskDetail } from '../../../types';
 	import { onMount, onDestroy } from 'svelte';
@@ -60,9 +60,7 @@
 </script>
 
 <PageHeader>
-	<h2 class="card-title" slot="header">
-		Task-Details for <br />{data.id}<br />
-	</h2>
+	<h2 class="card-title" slot="header">Task-Details</h2>
 	<div slot="meta">
 		<div class="flex items-center gap-2">
 			<TaskStatusPill status={data.state} />
@@ -70,19 +68,54 @@
 				<span class="badge badge-info badge-sm">Live</span>
 			{/if}
 		</div>
-		<div class="mt-2 text-xs text-gray-500">
-			Started <TimeAgo dateString={data.start_time} /> <br />
-			Finished <TimeAgo dateString={data.finish_time} /> <br />
-			App:
-			<a class="link-primary" href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a>
-		</div>
 	</div>
 </PageHeader>
 
-<!-- Unified Output Display -->
+<!-- Breadcrumb Navigation -->
+<div class="text-sm breadcrumbs mb-4">
+	<ul>
+		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
+		<li><a href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a></li>
+		<li>{data.id}</li>
+	</ul>
+</div>
+
+<!-- Task Information Section -->
+<h3 class="text-xl mt-8 mb-4">Task Information</h3>
+<table class="table table-zebra">
+	<tbody>
+		<tr>
+			<td class="text-gray-500 w-48"><strong>Task ID</strong></td>
+			<td>{data.id}</td>
+		</tr>
+		<tr>
+			<td class="text-gray-500"><strong>Status</strong></td>
+			<td><TaskStatusPill status={data.state} /></td>
+		</tr>
+		<tr>
+			<td class="text-gray-500"><strong>Started</strong></td>
+			<td><TimeAgo dateString={data.start_time} /></td>
+		</tr>
+		<tr>
+			<td class="text-gray-500"><strong>Finished</strong></td>
+			<td><TimeAgo dateString={data.finish_time} /></td>
+		</tr>
+		<tr>
+			<td class="text-gray-500"><strong>App</strong></td>
+			<td>
+				<a class="link link-primary" href={resolve(`/dashboard/${data.app_name}`)}
+					>{data.app_name}</a
+				>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<!-- Task Output Section -->
+<h3 class="text-xl mt-8 mb-4">Task Output</h3>
 <UnifiedOutput
 	lines={$taskOutput.lines}
-	heading="Task Output"
+	heading=""
 	loading={$taskOutput.loading}
 	maxHeight="600px"
 />

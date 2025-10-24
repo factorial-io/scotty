@@ -11,6 +11,7 @@ import { sessionStore, isAuthenticated } from './sessionStore';
 import { loadApps } from './appsStore';
 import { updateTask, requestAllTasks } from './tasksStore';
 import { handleTaskOutputMessage } from './taskOutputStore';
+import { handleContainerLogsMessage } from './containerLogsStore';
 import type { WebSocketMessage } from '../types';
 // Removed unused import: isTaskInfoUpdated
 
@@ -172,6 +173,14 @@ function handleMessage(event: MessageEvent) {
 			case 'TaskOutputStreamStarted':
 			case 'TaskOutputStreamEnded':
 				handleTaskOutputMessage(message);
+				break;
+
+			// Container log streaming events
+			case 'LogsStreamStarted':
+			case 'LogsStreamData':
+			case 'LogsStreamEnded':
+			case 'LogsStreamError':
+				handleContainerLogsMessage(message);
 				break;
 
 			default:
@@ -365,6 +374,42 @@ function stopTaskOutputStream(taskId: string) {
 	});
 }
 
+/**
+ * Request log streaming for a specific container
+ */
+function requestLogStream(
+	appName: string,
+	serviceName: string,
+	follow: boolean = true,
+	lines: number | null = null,
+	timestamps: boolean = false
+) {
+	sendMessage({
+		type: 'StartLogStream',
+		data: {
+			app_name: appName,
+			service_name: serviceName,
+			follow,
+			lines,
+			since: null,
+			until: null,
+			timestamps
+		}
+	});
+}
+
+/**
+ * Stop log streaming for a specific stream
+ */
+function stopLogStream(streamId: string) {
+	sendMessage({
+		type: 'StopLogStream',
+		data: {
+			stream_id: streamId
+		}
+	});
+}
+
 // Export the store and functions
 export const webSocketStore = {
 	subscribe,
@@ -373,7 +418,9 @@ export const webSocketStore = {
 	sendMessage,
 	initialize,
 	requestTaskOutputStream,
-	stopTaskOutputStream
+	stopTaskOutputStream,
+	requestLogStream,
+	stopLogStream
 };
 
 // Derived stores for convenient access

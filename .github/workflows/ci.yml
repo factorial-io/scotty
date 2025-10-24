@@ -57,6 +57,17 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+
+            # Setup Rust toolchain for TypeScript generation
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: stable
+
+            # Generate TypeScript types from Rust code
+            - name: Generate TypeScript types
+              run: cargo run
+              working-directory: ts-generator
+
             - uses: oven-sh/setup-bun@v2
 
             # run any `bun` or `bunx` command
