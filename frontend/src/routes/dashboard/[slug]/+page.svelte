@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import PageHeader from '../../../components/page-header.svelte';
 	import AppStatusPill from '../../../components/app-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
@@ -139,7 +140,15 @@
 	</div>
 </PageHeader>
 
-<h3 class="text-xl mt-16 mb-4">Available Actions</h3>
+<!-- Breadcrumb Navigation -->
+<div class="text-sm breadcrumbs mb-4">
+	<ul>
+		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
+		<li>{data.name}</li>
+	</ul>
+</div>
+
+<h3 class="text-xl mt-8 mb-4">Available Actions</h3>
 <div class="flex flex-wrap items-center gap-2">
 	{#if isLoadingPermissions}
 		<div class="btn btn-sm join-item loading">Loading permissions...</div>
@@ -179,7 +188,18 @@
 	<tbody>
 		{#each data.services as service (service.service)}
 			<tr>
-				<td>{service.service}</td>
+				<td>
+					{#if permissions.logs}
+						<a
+							href={resolve(`/dashboard/${data.name}/${service.service}`)}
+							class="link link-primary"
+						>
+							{service.service}
+						</a>
+					{:else}
+						{service.service}
+					{/if}
+				</td>
 				<td><AppStatusPill status={service.status || 'unknown'} /></td>
 				<td
 					>{#if service.domains && service.domains.length > 0}
