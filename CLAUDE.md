@@ -184,11 +184,22 @@ Scotty generates appropriate configurations for:
 
 ## Current Work in Progress
 
-### Unified Output System Implementation ✅ COMPLETED (Phase 3.7)
+### Unified Output System Implementation 🚧 BACKEND COMPLETE, FRONTEND PARTIAL
 
 **Branch:** `feat/better-logs-and-shell`
 
-**Status: Core functionality complete with infrastructure optimization**
+**Status: Backend fully functional, CLI logs working, frontend task output complete**
+
+**What's Working:**
+- ✅ Backend log streaming and shell services (fully tested)
+- ✅ CLI `app:logs` command with real-time streaming
+- ✅ Frontend task output viewer with WebSocket integration
+- ✅ Performance optimizations and security improvements
+
+**What's Missing:**
+- ❌ CLI `app:shell` command (backend ready, CLI not implemented)
+- ❌ Frontend container log viewer UI
+- ❌ Frontend interactive shell UI
 
 ### Phase 1 Completed:
 - ✅ Unified output data model (OutputLine, TaskOutputData, OutputStreamType)
@@ -208,9 +219,11 @@ Scotty generates appropriate configurations for:
 - ✅ Added comprehensive tests (16 tests total) with CI-friendly Docker handling
 - ✅ All tests passing, GitHub Actions CI ready
 
-### Phase 3 Completed:
-- ✅ **CLI Commands**: Implemented full `app:logs` and `app:shell` commands in scottyctl
-- ✅ **WebSocket Integration**: Added WebSocket handlers in message_handler.rs for real-time streaming
+### Phase 3 Partially Completed:
+- ✅ **CLI Logs Command**: Fully implemented `app:logs` command with real-time streaming
+- ✅ **Shell Backend**: Complete ShellService with REST/WebSocket APIs and session management
+- ❌ **CLI Shell Command**: `app:shell` NOT implemented in scottyctl (backend is ready)
+- ✅ **WebSocket Integration**: Added WebSocket handlers for logs, shell, and task output
 - ✅ **Authentication System**: Centralized auth logic in auth_core module, eliminating duplication
 - ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
 - ✅ **User Experience Improvements**:
@@ -219,7 +232,7 @@ Scotty generates appropriate configurations for:
   - Changed timestamps to opt-in with `--timestamps` flag (default: disabled)
 - ✅ **WebSocket Authentication**: Implemented message-based authentication flow
 - ✅ **Example App**: Added log-demo example app for testing and development
-- ✅ **End-to-End Testing**: Verified complete functionality with real containers
+- ✅ **Testing**: 16 comprehensive backend tests, all passing in CI
 
 ### Phase 3.5 Completed:
 - ✅ **WebSocket Message Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
@@ -237,7 +250,7 @@ Scotty generates appropriate configurations for:
 - ✅ **Resource Cleanup**: Proper WebSocket subscription cleanup during task completion
 - ✅ **Breaking Change Complete**: TaskDetails no longer contains stdout/stderr fields
 
-### Phase 3.7 Completed:
+### Phase 3.7 Completed (Infrastructure Optimization):
 - ✅ **Build System Optimization**: Created standalone `ts-generator` crate reducing TypeScript generation from 27s to 6s
 - ✅ **Type System Consolidation**: Moved all shared types to `scotty-types` crate, eliminated duplication between `scotty-core` and `scotty-types`
 - ✅ **Frontend Build Migration**: Switched from npm to bun for 62% faster frontend builds (3.2s vs 5.2s)
@@ -247,25 +260,43 @@ Scotty generates appropriate configurations for:
 - ✅ **Legacy Cleanup**: Removed package-lock.json, yarn.lock, and redundant dependencies
 - ✅ **Multi-Platform Support**: Docker builds work on ARM64, x86_64, glibc, and musl
 
-### Future Phase (Phase 4 - Frontend Integration):
-- Replace current stdout/stderr UI components with unified output viewer
-- Use WebSocket-only approach for task output (no REST endpoints)
-- Add real-time WebSocket task output streaming to web UI
-- Display output in chronological order with stream type indicators
-- Polish user experience, loading states, and error handling in frontend
+### Phase 4 Partially Completed (Frontend Integration):
+- ✅ **Unified Output Viewer**: Created `unified-output.svelte` with chronological display, timestamps, auto-scroll
+- ✅ **WebSocket-Only Task Output**: Task output uses WebSocket streaming (no REST endpoints)
+- ✅ **Real-time Task Streaming**: Live stdout/stderr during all app operations
+- ✅ **Task Output Store**: Implemented taskOutputStore.ts for managing streaming data
+- ✅ **WebSocket Store**: Connection management and message handling in webSocketStore.ts
+- ✅ **Enhanced Task Detail Page**: Real-time output with WebSocket status indicator
+- ❌ **Container Log Viewer**: Frontend UI for viewing service logs NOT implemented
+- ❌ **Interactive Shell UI**: xterm.js terminal integration NOT implemented
+
+### Phase 5 Completed (Performance & Reliability):
+- ✅ **Deadlock Resolution**: Fixed critical lock contention causing API hangs (commit 160375a2)
+- ✅ **Performance Optimization**: Reduced write lock frequency 20-100x (1000/sec → 10-50/sec)
+- ✅ **TimedBuffer System**: Generic batching utility with configurable thresholds
+- ✅ **Memory Management**: Proper output limits, cleanup intervals, resource management
+- ✅ **Security Enhancements**: MaskedSecret and SecretHashMap for memory-safe secrets
+- ✅ **Error Handling**: Robust enum-based errors (LogStreamError, ShellServiceError)
+
+### Future Work (Phase 6):
+- Implement `app:shell` CLI command with terminal integration
+- Add container log viewer UI to frontend
+- Add interactive shell UI to frontend (xterm.js integration)
+- Enhanced monitoring and metrics
+- End-user documentation
 
 ### Key Commands Available:
 ```bash
-# Log streaming with various options
+# Log streaming with various options (✅ IMPLEMENTED)
 scottyctl app:logs myapp web                    # Historical logs
 scottyctl app:logs myapp web --follow           # Real-time streaming
 scottyctl app:logs myapp web --timestamps       # With timestamps
 scottyctl app:logs myapp web --lines 500        # Custom line count
+scottyctl app:logs myapp web --since 1h         # Logs from last hour
 
-# Interactive shell access
-scottyctl app:shell myapp web                   # Interactive bash shell
-scottyctl app:shell myapp web --user www-data   # As specific user
-scottyctl app:shell myapp web --shell /bin/sh   # Different shell
+# Interactive shell access (❌ NOT YET IMPLEMENTED IN CLI)
+# Backend is ready, but CLI command needs to be added
+# Use REST API directly as workaround: POST /apps/{app}/shell/{service}
 ```
 
 ### Key Files Added/Modified (All Phases):
@@ -276,12 +307,16 @@ scottyctl app:shell myapp web --shell /bin/sh   # Different shell
 - `scotty/src/api/auth_core.rs` - Centralized authentication logic
 - `scotty/src/api/rest/handlers/` - **RESTRUCTURED**: REST API handlers organized by protocol
 - `scotty/src/api/websocket/handlers/` - **RESTRUCTURED**: WebSocket handlers (auth, logs, tasks)
-- `scotty/src/docker/services/logs.rs` - Complete log streaming implementation
-- `scotty/src/docker/services/shell.rs` - Complete shell service implementation
+- `scotty/src/docker/services/logs.rs` - Complete log streaming implementation (18KB)
+- `scotty/src/docker/services/shell.rs` - Complete shell service implementation (18KB)
 - `scotty/src/api/websocket/client.rs` - WebSocket client management and cleanup (formerly ws.rs)
 - `scotty/src/app_state.rs` - Shared LogStreamingService integration
-- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command (now uses direct scotty-types imports)
-- `scottyctl/src/commands/apps/shell.rs` - CLI shell access command
+- `scotty/src/tasks/timed_buffer.rs` - **NEW**: Generic batching utility for performance
+- `scottyctl/src/commands/apps/logs.rs` - CLI log streaming command (✅ implemented)
+- `scottyctl/src/commands/apps/shell.rs` - ❌ **DOES NOT EXIST** - needs to be created for CLI shell support
+- `frontend/src/components/unified-output.svelte` - **NEW**: Unified output viewer component
+- `frontend/src/stores/taskOutputStore.ts` - **NEW**: Task output WebSocket store
+- `frontend/src/stores/webSocketStore.ts` - **NEW**: WebSocket connection management
 - `examples/log-demo/` - Demo application for testing
 - `Dockerfile` - **OPTIMIZED**: Multi-stage build with bun and platform-agnostic Rollup binaries
 - `Cargo.toml` - **UPDATED**: Workspace now includes scotty-types and ts-generator crates
@@ -294,13 +329,16 @@ scottyctl app:shell myapp web --shell /bin/sh   # Different shell
 - `scottyctl/src/websocket.rs` - **NEW**: Reusable WebSocket utilities and AuthenticatedWebSocket struct
 
 ### Latest Commits (All Phases):
-- `24d2250` - refactor: optimize build system and eliminate type duplication (Phase 3.7 complete)
+- `d3bd5ae0` - refactor(frontend): fix ESLint errors and improve code quality
+- `b1983744` - chore: Code style fixes
+- `20b3da2e` - fix(frontend): resolve custom actions dropdown reactivity issues
+- `5518021e` - chore(frontend): improve UI components and development tooling
+- `160375a2` - fix(backend): resolve deadlock and lock contention in task management
+- `fef2f3b9` - feat(frontend): implement real-time task output and WebSocket integration
+- `41b65f64` - refactor(core): embed TaskOutput directly in TaskDetails for tight coupling
+- `24d2250` - refactor: optimize build system and eliminate type duplication (Phase 3.7)
 - `71d155e` - feat(websocket): implement real-time task output streaming for Phase 3.6
-- `b220730` - docs: update PRD and CLAUDE.md for Phase 3.5 completion
-- `ee1875d` - refactor(websocket): consolidate message types in scotty-core (Phase 3.5 complete)
-- `4606adc` - refactor(api): restructure handlers into REST and WebSocket modules
-- `afad796` - feat(websocket): implement unified task output streaming system
-- `b4be84c` - feat(cli): improve log command UX and add terminal detection
+- `ee1875d` - refactor(websocket): consolidate message types in scotty-core (Phase 3.5)
 
 ### Reference Documents:
 - `docs/prds/unified-output-system.md` - Complete PRD and technical specifications

@@ -232,8 +232,11 @@ EXAMPLES:
     scottyctl app:logs my-app web --since 1h         # Logs from last hour
 ```
 
-### app:shell Command
+### app:shell Command (NOT YET IMPLEMENTED)
 
+**Note**: The backend shell service is fully implemented, but the CLI command is not yet available in scottyctl.
+
+**Planned Command:**
 ```bash
 scottyctl app:shell <app_name> <service> [OPTIONS]
 
@@ -243,11 +246,13 @@ OPTIONS:
         --shell <SHELL>       Shell to use (default: /bin/bash)
         --timeout <DURATION>  Session timeout (default: from config)
 
-EXAMPLES:
+PLANNED EXAMPLES:
     scottyctl app:shell my-app web                   # Open bash shell
     scottyctl app:shell my-app web -u www-data       # Shell as www-data user
     scottyctl app:shell my-app db --shell /bin/sh    # Use sh instead of bash
 ```
+
+**Current Workaround**: Use the REST API directly or wait for CLI implementation (Phase 6).
 
 ## Configuration Options
 
@@ -291,26 +296,43 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 
 ## Implementation Status
 
-**Current Status: Infrastructure Optimization Complete** 🎉
+**Current Status: Backend Complete, Frontend Partial** 🎯
 
-All unified output system functionality is complete and working, with significant infrastructure improvements added. The system now provides:
+The unified output system backend is fully functional with significant performance and infrastructure improvements. Current state:
+
+**✅ FULLY COMPLETED:**
+- **Backend Infrastructure**: All services, APIs, and WebSocket handlers implemented and tested
+- **CLI Logs Command**: `app:logs` fully functional with real-time streaming
+- **Task Output UI**: Unified output viewer in frontend with WebSocket integration
+- **Performance & Reliability**: Deadlock fixes, batching, security improvements
+- **Breaking Changes**: Removed stdout/stderr from TaskDetails, WebSocket-only streaming
+
+**🚧 PARTIALLY COMPLETED:**
+- **CLI Shell Command**: Backend ready, CLI command NOT implemented
+- **Frontend Integration**: Task output viewer done, container logs/shell UI NOT implemented
+
+**Completed Features:**
 - ✅ **BREAKING CHANGE IMPLEMENTED**: Removed stdout/stderr from TaskDetails, now uses WebSocket-only task output streaming
-- ✅ Full WebSocket-based authenticated log streaming with `app:logs` command
-- ✅ Interactive shell access with `app:shell` command
-- ✅ Real-time task output streaming with hybrid REST + WebSocket approach via TaskOutputData messages
+- ✅ Full WebSocket-based authenticated log streaming backend with REST API endpoints
+- ✅ `app:logs` CLI command with follow, timestamps, line limits, and time filters
+- ✅ Interactive shell backend service (ShellService) with WebSocket handlers
+- ✅ Real-time task output streaming via TaskOutputData messages with unified-output component
 - ✅ WebSocketMessenger architecture for centralized client management
-- ✅ Resolved stack overflow issues through architectural improvements
+- ✅ Resolved deadlock and lock contention issues (20-100x performance improvement)
+- ✅ TimedBuffer batching system for efficient output handling
 - ✅ Proper resource cleanup and subscription management
-- ✅ Comprehensive test coverage and CI integration
-- ✅ Consolidated WebSocket message types in scotty-types (eliminates duplication, ensures type consistency)
+- ✅ Comprehensive test coverage (16 tests) and CI integration
+- ✅ Consolidated WebSocket message types in scotty-types crate
 - ✅ **Live task output during all app operations** - unified OutputLine format with timestamps and sequence numbers
 - ✅ **Build System Optimization** - TypeScript generation optimized from 27s to 6s
 - ✅ **Type System Consolidation** - Eliminated all type duplication with scotty-types crate
 - ✅ **Frontend Build Optimization** - Migrated to bun for 62% faster builds
 - ✅ **Platform-Agnostic Docker Builds** - Multi-platform support with consolidated Rollup binaries
+- ✅ **MaskedSecret/SecretHashMap** - Memory-safe secret handling
 
 **Next Steps**:
-- Phase 4: Frontend Integration - Replace current stdout/stderr UI with unified log viewer
+- Phase 3 Completion: Implement `app:shell` CLI command
+- Phase 4 Completion: Add container log viewer and shell UI to frontend
 
 ---
 
@@ -328,14 +350,14 @@ All unified output system functionality is complete and working, with significan
 3. ✅ **Permission Integration**: Add authorization checks for logs access
 4. ✅ **Testing**: Unit and integration tests for log streaming
 
-### Phase 3: Shell Access ✅ COMPLETED
-1. ✅ **Shell Session Management**: Implement session creation, management, and cleanup
-2. ✅ **Backend Shell API**: REST endpoints and WebSocket handlers for shell sessions
-3. ✅ **CLI Shell Command**: Implement `app:shell` with terminal integration
-4. ✅ **Permission Integration**: Add authorization checks for shell access
-5. ✅ **Authentication Enhancement**: Implemented centralized auth system for WebSocket connections
-6. ✅ **Stream Cleanup**: Added proactive client disconnect cleanup for proper resource management
-7. ✅ **User Experience**: Improved completion timing and removed duplicate messages
+### Phase 3: CLI Commands 🚧 PARTIALLY COMPLETED
+1. ✅ **CLI Logs Command**: Fully implemented `app:logs` with WebSocket integration, follow mode, timestamps, line limits
+2. ✅ **Permission Integration**: Authorization checks for logs access
+3. ✅ **Authentication Enhancement**: Centralized auth system for WebSocket connections
+4. ✅ **Stream Cleanup**: Proactive client disconnect cleanup for proper resource management
+5. ✅ **User Experience**: Improved completion timing and removed duplicate messages
+6. ✅ **Shell Backend**: Complete ShellService implementation with session management, REST/WebSocket APIs
+7. ❌ **CLI Shell Command**: NOT IMPLEMENTED - `app:shell` command missing from scottyctl (backend ready)
 
 ### Phase 3.5: WebSocket Message Consolidation ✅ COMPLETED
 1. ✅ **Message Type Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
@@ -365,17 +387,53 @@ All unified output system functionality is complete and working, with significan
 7. ✅ **Legacy Cleanup**: Removed duplicate dependencies, old package manager files, and unused code
 8. ✅ **Multi-Platform Support**: Docker builds now work on ARM64, x86_64, and different libc implementations
 
-### Phase 4: Frontend Integration
-1. **Unified Output Viewer**: Replace separate stdout/stderr components with chronological display
-2. **WebSocket-Only Streaming**: Use WebSocket for all task output (no REST endpoints for output)
-3. **Real-time Updates**: Live task output streaming during execution via WebSocket
-4. **User Experience**: Polish, error handling, and loading states
+### Phase 4: Frontend Integration 🚧 PARTIALLY COMPLETED
+1. ✅ **Unified Output Viewer**: Created `unified-output.svelte` component with chronological display
+2. ✅ **WebSocket-Only Streaming**: Task output uses WebSocket streaming (TaskOutputData messages)
+3. ✅ **Real-time Updates**: Live task output streaming during execution via WebSocket
+4. ✅ **Task Output Store**: Implemented taskOutputStore.ts for managing streaming data
+5. ✅ **WebSocket Store**: Connection management and message handling in webSocketStore.ts
+6. ✅ **Task Detail Page**: Enhanced with real-time output streaming and WebSocket status indicator
+7. ❌ **Container Log Viewer UI**: NOT IMPLEMENTED - No frontend UI for viewing service logs
+8. ❌ **Interactive Shell UI**: NOT IMPLEMENTED - No xterm.js or shell UI in frontend
 
-### Phase 5: Performance and Reliability
-1. **Memory Management**: Implement proper output limits and cleanup
-2. **Error Handling**: Robust error handling and recovery
-3. **Monitoring**: Metrics and logging for the new system
-4. **Documentation**: User and developer documentation
+### Phase 5: Performance and Reliability ✅ COMPLETED
+1. ✅ **Deadlock Resolution**: Fixed critical lock contention causing API hangs (commit 160375a2)
+2. ✅ **Performance Optimization**: Reduced write lock frequency 20-100x (1000/sec → 10-50/sec)
+3. ✅ **TimedBuffer System**: Generic batching utility with configurable size and time thresholds
+4. ✅ **Memory Management**: Proper output limits, cleanup intervals, and resource management
+5. ✅ **Lock Pattern Improvements**: Helper methods to ensure consistent, minimal lock holding times
+6. ✅ **Security Enhancements**: MaskedSecret and SecretHashMap for memory-safe secret handling
+7. ✅ **Error Handling**: Robust error handling with enum-based errors (LogStreamError, ShellServiceError)
+8. ✅ **Test Coverage**: 16 comprehensive tests with CI-friendly Docker handling
+9. 🚧 **Monitoring**: Metrics and logging for the new system (partial - basic logging in place)
+10. 🚧 **Documentation**: User and developer documentation (this PRD complete, end-user docs pending)
+
+### Phase 6: Remaining Features (Future Work)
+1. **CLI Shell Command**: Implement `app:shell` command in scottyctl with terminal integration
+   - Add ShellCommand struct to cli.rs
+   - Implement WebSocket-based shell handler
+   - Add TTY resize handling and raw terminal mode
+   - Interactive command input/output with proper escape sequences
+2. **Frontend Log Viewer**: Add container log viewing UI to web interface
+   - Create log viewer component (similar to unified-output.svelte)
+   - Add WebSocket handlers for LogLineReceived/LogStreamStarted/LogStreamEnded
+   - Add log viewer page or modal for each service
+   - Integration with app detail page
+3. **Frontend Shell UI**: Add interactive shell terminal to web interface
+   - Integrate xterm.js for terminal emulation
+   - WebSocket handlers for ShellSession* messages
+   - TTY resize support, copy/paste, terminal settings
+   - Shell session management UI (list, create, terminate)
+4. **Monitoring & Observability**:
+   - Add metrics for log/shell session counts, durations, errors
+   - OpenTelemetry integration for tracing
+   - Performance dashboards
+5. **End-User Documentation**:
+   - User guide for app:logs command
+   - User guide for app:shell command (once implemented)
+   - Web UI documentation for log viewer and shell access
+   - Security best practices for shell access
 
 ## Security Considerations
 
