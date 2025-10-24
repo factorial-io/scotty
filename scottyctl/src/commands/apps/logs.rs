@@ -275,7 +275,7 @@ fn display_log_line(line: &OutputLine, cmd: &LogsCommand, ui: &crate::utils::ui:
                 format!("{} {}", timestamp_str.dimmed(), content)
             }
             scotty_core::output::unified_output::OutputStreamType::Stderr => {
-                format!("{} {}", timestamp_str.dimmed(), content.red())
+                format!("{} {}", timestamp_str.dimmed(), content.dimmed())
             }
             scotty_core::output::unified_output::OutputStreamType::Status => {
                 format!("{} [STATUS] {}", timestamp_str.dimmed(), content.green())

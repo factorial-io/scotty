@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { OutputLine, OutputStreamType } from '../types';
-	import { onMount } from 'svelte';
+	import { onMount, afterUpdate } from 'svelte';
 	import Icon from '@iconify/svelte';
 
 	export let lines: OutputLine[] = [];
@@ -12,10 +12,14 @@
 	let outputContainer: HTMLElement;
 	let shouldAutoScroll = true;
 
-	// Auto-scroll to bottom when new lines are added
-	$: if (lines && outputContainer && shouldAutoScroll) {
-		scrollToBottom();
-	}
+	// Auto-scroll after DOM updates (better than reactive statement with tick())
+	afterUpdate(() => {
+		if (shouldAutoScroll && outputContainer) {
+			requestAnimationFrame(() => {
+				scrollToBottom();
+			});
+		}
+	});
 
 	function scrollToBottom() {
 		if (outputContainer) {
@@ -24,11 +28,7 @@
 	}
 
 	function handleScroll() {
-		if (outputContainer) {
-			const { scrollTop, scrollHeight, clientHeight } = outputContainer;
-			// If user is near the bottom (within 50px), keep auto-scrolling
-			shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 50;
-		}
+		// Scroll handler removed - user controls auto-scroll via button only
 	}
 
 	function formatTimestamp(timestamp: string): string {
@@ -44,7 +44,7 @@
 	function getStreamTypeClass(stream: OutputStreamType): string {
 		switch (stream) {
 			case 'Stderr':
-				return 'text-red-400';
+				return 'text-gray-300';
 			case 'Stdout':
 				return 'text-gray-100';
 			case 'Status':
@@ -118,7 +118,7 @@
 			{/if}
 			{#if loading}
 				<span class="loading loading-spinner loading-sm"></span>
-				<span class="text-gray-500">Loading...</span>
+				<span class="text-gray-500">Streaming...</span>
 			{/if}
 		</div>
 	</div>
@@ -132,7 +132,7 @@
 		{#if loading && lines.length === 0}
 			<div class="p-4 text-center text-gray-500">
 				<span class="loading loading-spinner loading-md"></span>
-				<div class="mt-2">Loading output...</div>
+				<div class="mt-2">Streaming...</div>
 			</div>
 		{:else}
 			{#each lines as line, index (line.sequence)}
@@ -167,6 +167,13 @@
 				on:click={scrollToBottom}
 			>
 				Scroll to bottom ↓
+			</button>
+
+			<button
+				class="btn btn-sm {shouldAutoScroll ? 'btn-primary' : 'btn-outline'}"
+				on:click={() => (shouldAutoScroll = !shouldAutoScroll)}
+			>
+				Auto-scroll {shouldAutoScroll ? 'ON' : 'OFF'}
 			</button>
 
 			<button

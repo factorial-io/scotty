@@ -267,15 +267,11 @@ impl LogStreamingService {
             );
 
             let mut converter = LogOutputConverter::new();
-            // For follow mode, use more aggressive buffering (1 line or 50ms)
-            // For historical logs, use normal buffering (10 lines or 100ms)
-            let mut buffer = if follow {
-                LogBuffer::new(1, 50)
-            } else {
-                LogBuffer::new(10, 100)
-            };
+            // Use consistent buffering for both follow and historical modes (50 lines or 100ms)
+            // This provides good performance for both CLI and frontend without causing UI lag
+            let mut buffer = LogBuffer::new(50, 100);
 
-            let flush_interval = tokio::time::Duration::from_millis(if follow { 50 } else { 100 });
+            let flush_interval = tokio::time::Duration::from_millis(100);
             let mut flush_timer = tokio::time::interval(flush_interval);
             flush_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
