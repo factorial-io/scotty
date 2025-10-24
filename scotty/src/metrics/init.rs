@@ -11,10 +11,14 @@ use std::time::Duration;
 /// Sets up the global MeterProvider to export metrics via OTLP
 /// to the OpenTelemetry Collector.
 pub fn init_metrics() -> Result<ScottyMetrics> {
+    // Get OTLP endpoint from environment or use default
+    let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://otel-collector:4317".to_string());
+
     // Build OTLP metric exporter
     let exporter = MetricExporter::builder()
         .with_tonic()
-        .with_endpoint("http://otel-collector:4317")
+        .with_endpoint(endpoint)
         .build()?;
 
     // Periodic reader (export every 10s)
