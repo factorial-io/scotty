@@ -12,7 +12,7 @@ use std::sync::OnceLock;
 pub use init::init_metrics;
 pub use instruments::ScottyMetrics;
 pub use memory::sample_memory_metrics;
-pub use tokio_runtime::sample_tokio_metrics;
+pub use tokio_runtime::{sample_tokio_metrics, spawn_instrumented};
 
 /// Global metrics instance
 static METRICS: OnceLock<ScottyMetrics> = OnceLock::new();

@@ -37,6 +37,13 @@ pub struct ScottyMetrics {
     // Tokio runtime metrics
     pub tokio_workers_count: Gauge<u64>,
     pub tokio_active_tasks_count: Gauge<u64>,
+    pub tokio_tasks_dropped: Counter<u64>,
+    pub tokio_poll_count: Counter<u64>,
+    pub tokio_poll_duration: Histogram<f64>,
+    pub tokio_slow_poll_count: Counter<u64>,
+    pub tokio_idle_duration: Histogram<f64>,
+    pub tokio_scheduled_count: Counter<u64>,
+    pub tokio_first_poll_delay: Histogram<f64>,
 }
 
 impl ScottyMetrics {
@@ -146,7 +153,45 @@ impl ScottyMetrics {
 
             tokio_active_tasks_count: meter
                 .u64_gauge("scotty.tokio.tasks.active")
-                .with_description("Number of active Tokio tasks")
+                .with_description("Number of active instrumented tasks")
+                .build(),
+
+            tokio_tasks_dropped: meter
+                .u64_counter("scotty.tokio.tasks.dropped")
+                .with_description("Number of completed tasks")
+                .build(),
+
+            tokio_poll_count: meter
+                .u64_counter("scotty.tokio.poll.count")
+                .with_description("Total number of task polls")
+                .build(),
+
+            tokio_poll_duration: meter
+                .f64_histogram("scotty.tokio.poll.duration")
+                .with_description("Task poll duration")
+                .with_unit("s")
+                .build(),
+
+            tokio_slow_poll_count: meter
+                .u64_counter("scotty.tokio.poll.slow_count")
+                .with_description("Number of slow task polls")
+                .build(),
+
+            tokio_idle_duration: meter
+                .f64_histogram("scotty.tokio.idle.duration")
+                .with_description("Task idle duration between polls")
+                .with_unit("s")
+                .build(),
+
+            tokio_scheduled_count: meter
+                .u64_counter("scotty.tokio.scheduled.count")
+                .with_description("Number of times tasks were scheduled")
+                .build(),
+
+            tokio_first_poll_delay: meter
+                .f64_histogram("scotty.tokio.first_poll.delay")
+                .with_description("Delay between task creation and first poll")
+                .with_unit("s")
                 .build(),
         }
     }

@@ -2,6 +2,7 @@ use axum::http::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     HeaderValue, Method,
 };
+use axum_otel_metrics::HttpMetricsLayerBuilder;
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use tower_http::cors::CorsLayer;
 use tracing::info;
@@ -28,7 +29,9 @@ pub async fn setup_http_server(
     let mut app = ApiRoutes::create(app_state.clone()).layer(cors);
 
     if telemetry_enabled {
+        let http_metrics = HttpMetricsLayerBuilder::new().build();
         app = app
+            .layer(http_metrics)
             .layer(OtelInResponseLayer)
             .layer(OtelAxumLayer::default());
     }
@@ -37,7 +40,7 @@ pub async fn setup_http_server(
     let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();
 
     let stop_flag = app_state.clone().stop_flag.clone();
-    let handle = tokio::spawn({
+    let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();
         async move {
             info!("Starting HTTP server");
@@ -54,7 +57,7 @@ pub async fn setup_http_server(
             info!("HTTP server is down");
             Ok(())
         }
-    });
+    }).await;
 
     Ok(handle)
 }

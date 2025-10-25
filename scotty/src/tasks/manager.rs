@@ -48,6 +48,13 @@ fn record_task_finished_metrics(
     }
 }
 
+/// Record metrics when tasks are cleaned up
+fn record_task_cleanup_metrics(active_count: usize) {
+    if let Some(m) = metrics::get_metrics() {
+        m.tasks_active.record(active_count as i64, &[]);
+    }
+}
+
 /// Helper function to add multiple lines to task output with a single write lock
 async fn add_output_lines(
     details: &Arc<RwLock<TaskDetails>>,
@@ -394,6 +401,10 @@ impl TaskManager {
             for uuid in to_remove {
                 processes.remove(&uuid);
             }
+            let active_count = processes.len();
+            drop(processes); // Release lock before recording metrics
+
+            record_task_cleanup_metrics(active_count);
         }
         // Write lock released immediately
     }

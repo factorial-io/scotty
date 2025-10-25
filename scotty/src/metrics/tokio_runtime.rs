@@ -1,18 +1,22 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_metrics::TaskMonitor;
-use tracing::debug;
 
 /// Global task monitor for tracking Tokio task metrics
 static TASK_MONITOR: once_cell::sync::Lazy<Arc<RwLock<TaskMonitor>>> =
     once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(TaskMonitor::new())));
 
-/// Get the global task monitor
+/// Spawn a task instrumented with the global TaskMonitor
 ///
-/// This should be used to instrument tasks throughout the application.
-#[allow(dead_code)] // Reserved for future task instrumentation
-pub fn get_task_monitor() -> Arc<RwLock<TaskMonitor>> {
-    TASK_MONITOR.clone()
+/// This is a convenience wrapper around `tokio::spawn` that automatically
+/// instruments the task with our metrics TaskMonitor.
+pub async fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
+where
+    F: std::future::Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    let monitor = TASK_MONITOR.read().await;
+    tokio::spawn(monitor.instrument(future))
 }
 
 /// Sample Tokio task metrics and record them
@@ -24,19 +28,53 @@ pub async fn sample_tokio_metrics() {
     let mut intervals = monitor.intervals();
 
     if let Some(metrics) = intervals.next() {
-        let instrumented_count = metrics.instrumented_count;
-
-        debug!(
-            "Tokio task metrics - instrumented tasks: {}, workers: {}",
-            instrumented_count,
-            num_cpus::get()
+        tracing::info!(
+            "Tokio metrics sample - active_tasks={}, dropped={}, polls={}, slow_polls={}, scheduled={}, poll_duration={:?}, idle_duration={:?}",
+            metrics.instrumented_count,
+            metrics.dropped_count,
+            metrics.total_poll_count,
+            metrics.total_slow_poll_count,
+            metrics.total_scheduled_count,
+            metrics.total_poll_duration,
+            metrics.total_idle_duration
         );
 
         // Record metrics if available
         if let Some(m) = super::get_metrics() {
-            m.tokio_active_tasks_count.record(instrumented_count, &[]);
-            // Note: Worker count is set to a constant since we can't get it from stable APIs
+            // Task counts
+            m.tokio_active_tasks_count
+                .record(metrics.instrumented_count, &[]);
+            m.tokio_tasks_dropped.add(metrics.dropped_count, &[]);
             m.tokio_workers_count.record(num_cpus::get() as u64, &[]);
+
+            // Poll metrics
+            m.tokio_poll_count.add(metrics.total_poll_count, &[]);
+            m.tokio_slow_poll_count
+                .add(metrics.total_slow_poll_count, &[]);
+
+            // Duration metrics (convert from Duration to seconds)
+            // For histograms, we record the total duration across all events in this interval
+            // The histogram will track the distribution of these aggregate values
+            let poll_duration_secs = metrics.total_poll_duration.as_secs_f64();
+            if poll_duration_secs > 0.0 {
+                m.tokio_poll_duration.record(poll_duration_secs, &[]);
+            }
+
+            let idle_duration_secs = metrics.total_idle_duration.as_secs_f64();
+            if idle_duration_secs > 0.0 {
+                m.tokio_idle_duration.record(idle_duration_secs, &[]);
+            }
+
+            // Scheduling metrics
+            m.tokio_scheduled_count
+                .add(metrics.total_scheduled_count, &[]);
+
+            // First poll delay
+            let first_poll_delay_secs = metrics.total_first_poll_delay.as_secs_f64();
+            if first_poll_delay_secs > 0.0 {
+                m.tokio_first_poll_delay
+                    .record(first_poll_delay_secs, &[]);
+            }
         }
     }
 }

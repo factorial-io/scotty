@@ -68,23 +68,23 @@ pub async fn setup_docker_integration(
             });
     }
     {
-        // Sample memory metrics every 30 seconds
+        // Sample memory metrics every 10 seconds
         scheduler
-            .every(clokwerk::Interval::Seconds(30))
+            .every(clokwerk::Interval::Seconds(10))
             .run(move || async move {
                 crate::metrics::sample_memory_metrics().await;
             });
     }
     {
-        // Sample Tokio task metrics every 30 seconds
+        // Sample Tokio task metrics every 10 seconds
         scheduler
-            .every(clokwerk::Interval::Seconds(30))
+            .every(clokwerk::Interval::Seconds(10))
             .run(move || async move {
                 crate::metrics::sample_tokio_metrics().await;
             });
     }
     // Handle the scheduler in a separate task.
-    let handle = tokio::spawn({
+    let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();
         async move {
             while !stop_flag.is_stopped() {
@@ -94,7 +94,7 @@ pub async fn setup_docker_integration(
 
             Ok(())
         }
-    });
+    }).await;
 
     Ok(handle)
 }
