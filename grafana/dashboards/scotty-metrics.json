@@ -264,7 +264,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "rate(scotty_log_lines_received[5m])",
+          "expr": "rate(scotty_log_stream_lines_total[5m])",
           "legendFormat": "Log lines/s",
           "refId": "A"
         }
@@ -350,7 +350,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(scotty_log_stream_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(scotty_log_stream_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
@@ -359,7 +359,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scotty_log_stream_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(scotty_log_stream_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
           "refId": "B"
         },
@@ -368,7 +368,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(scotty_log_stream_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(scotty_log_stream_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -458,7 +458,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "rate(scotty_log_stream_errors[5m])",
+          "expr": "rate(scotty_log_stream_errors_total[5m])",
           "legendFormat": "Error rate",
           "refId": "A"
         }
@@ -709,7 +709,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "rate(scotty_shell_session_errors[5m])",
+          "expr": "rate(scotty_shell_session_errors_total[5m])",
           "legendFormat": "Error rate",
           "refId": "A"
         }
@@ -795,7 +795,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(scotty_shell_session_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(scotty_shell_session_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
@@ -804,7 +804,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scotty_shell_session_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(scotty_shell_session_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
           "refId": "B"
         },
@@ -813,7 +813,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(scotty_shell_session_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(scotty_shell_session_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -978,7 +978,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "rate(scotty_websocket_messages_sent[5m])",
+          "expr": "rate(scotty_websocket_messages_sent_total[5m])",
           "legendFormat": "Messages/s",
           "refId": "A"
         }
