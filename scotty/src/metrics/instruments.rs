@@ -26,6 +26,10 @@ pub struct ScottyMetrics {
     // Task metrics
     pub tasks_active: Gauge<i64>,
     pub tasks_total: Counter<u64>,
+
+    // Memory metrics
+    pub memory_rss_bytes: Gauge<u64>,
+    pub memory_virtual_bytes: Gauge<u64>,
 }
 
 impl ScottyMetrics {
@@ -101,6 +105,19 @@ impl ScottyMetrics {
             tasks_total: meter
                 .u64_counter("scotty.tasks.total")
                 .with_description("Total tasks executed")
+                .build(),
+
+            // Memory
+            memory_rss_bytes: meter
+                .u64_gauge("scotty.memory.rss_bytes")
+                .with_description("Resident Set Size (RSS) in bytes")
+                .with_unit("bytes")
+                .build(),
+
+            memory_virtual_bytes: meter
+                .u64_gauge("scotty.memory.virtual_bytes")
+                .with_description("Virtual memory size in bytes")
+                .with_unit("bytes")
                 .build(),
         }
     }

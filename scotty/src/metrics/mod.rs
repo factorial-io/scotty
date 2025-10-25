@@ -4,11 +4,13 @@
 
 mod init;
 mod instruments;
+mod memory;
 
 use std::sync::OnceLock;
 
 pub use init::init_metrics;
 pub use instruments::ScottyMetrics;
+pub use memory::sample_memory_metrics;
 
 /// Global metrics instance
 static METRICS: OnceLock<ScottyMetrics> = OnceLock::new();
