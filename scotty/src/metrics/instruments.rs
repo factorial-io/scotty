@@ -1,4 +1,4 @@
-use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter};
+use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, UpDownCounter};
 
 /// Scotty metrics instruments
 ///
@@ -44,6 +44,11 @@ pub struct ScottyMetrics {
     pub tokio_idle_duration: Histogram<f64>,
     pub tokio_scheduled_count: Counter<u64>,
     pub tokio_first_poll_delay: Histogram<f64>,
+
+    // HTTP server metrics
+    pub http_requests_total: Counter<u64>,
+    pub http_request_duration: Histogram<f64>,
+    pub http_requests_active: UpDownCounter<i64>,
 }
 
 impl ScottyMetrics {
@@ -192,6 +197,23 @@ impl ScottyMetrics {
                 .f64_histogram("scotty.tokio.first_poll.delay")
                 .with_description("Delay between task creation and first poll")
                 .with_unit("s")
+                .build(),
+
+            // HTTP server
+            http_requests_total: meter
+                .u64_counter("scotty.http.requests.total")
+                .with_description("Total HTTP requests")
+                .build(),
+
+            http_request_duration: meter
+                .f64_histogram("scotty.http.request.duration")
+                .with_description("HTTP request duration")
+                .with_unit("s")
+                .build(),
+
+            http_requests_active: meter
+                .i64_up_down_counter("scotty.http.requests.active")
+                .with_description("Active HTTP requests")
                 .build(),
         }
     }

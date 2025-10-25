@@ -1,7 +1,6 @@
 use anyhow::Result;
-use init_tracing_opentelemetry::tracing_subscriber_ext::build_logger_text;
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry_sdk::trace::Tracer;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::trace::{Tracer, TraceError};
 use tracing::{info, warn, Subscriber};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, registry::LookupSpan, Layer};
@@ -13,7 +12,7 @@ where
 {
     use init_tracing_opentelemetry::{
         init_propagator, //stdio,
-        otlp,
+        otlp::traces::{init_tracerprovider, identity},
         resource::DetectResource,
     };
     use opentelemetry::global;
@@ -21,7 +20,8 @@ where
         .with_fallback_service_name(env!("CARGO_PKG_NAME"))
         .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
         .build();
-    let tracerprovider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
+    let tracerprovider = init_tracerprovider(otel_rsrc, identity)
+        .map_err(|e| TraceError::Other(Box::new(e)))?;
     // to not send trace somewhere, but continue to create and propagate,...
     // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
     // or to `std::io::stdout()` to print
@@ -85,9 +85,10 @@ pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
 
 pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     //setup a temporary subscriber to log output during setup
+    use init_tracing_opentelemetry::config::TracingConfig;
     let subscriber = registry()
         .with(build_loglevel_filter_layer())
-        .with(build_logger_text());
+        .with(TracingConfig::default().build_layer()?);
     let _guard = tracing::subscriber::set_default(subscriber);
     info!("init logging & tracing");
 

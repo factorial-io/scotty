@@ -2,6 +2,7 @@
 //!
 //! This module provides metrics instrumentation for the unified output system.
 
+mod http;
 mod init;
 mod instruments;
 mod memory;
@@ -9,6 +10,7 @@ mod tokio_runtime;
 
 use std::sync::OnceLock;
 
+pub use http::http_metrics_middleware;
 pub use init::init_metrics;
 pub use instruments::ScottyMetrics;
 pub use memory::sample_memory_metrics;

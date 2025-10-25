@@ -14,7 +14,6 @@ license-file = "LICENSE"
 [workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.8.0", features = ["ws", "macros"] }
-axum-otel-metrics = "0.12"
 bollard = "0.19.0"
 config = "0.15.0"
 readonly = "0.2.12"
@@ -36,18 +35,19 @@ tokio-metrics = "0.3"
 tracing = "0.1.40"
 tracing-subscriber = "*"
 ts-rs = "10.0"
-opentelemetry = { version = "0.28.0", features = ["trace", "metrics"] }
-opentelemetry_sdk = { version = "0.28", features = [
+opentelemetry = { version = "0.31.0", features = ["trace", "metrics"] }
+opentelemetry_sdk = { version = "0.31", features = [
     "rt-tokio",
     "metrics",
 ], default-features = false }
-tracing-opentelemetry = "0.29"
-init-tracing-opentelemetry = { version = "0.27.0", features = [
+tracing-opentelemetry = "0.32"
+init-tracing-opentelemetry = { version = "0.32.1", features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
-axum-tracing-opentelemetry = "0.26.0"
-opentelemetry-otlp = { version = "0.28.0", features = [
+axum-tracing-opentelemetry = "0.32.1"
+opentelemetry-otlp = { version = "0.31.0", features = [
+    "grpc-tonic",
     "reqwest-client",
     "reqwest-rustls",
     "http-proto",
