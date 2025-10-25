@@ -5,13 +5,13 @@
 Scotty already uses OpenTelemetry for distributed tracing with:
 - ✅ `opentelemetry` 0.28.0 with trace features
 - ✅ `opentelemetry-otlp` for OTLP protocol
-- ✅ Jaeger all-in-one running in docker-compose.yml (port 4318 OTLP receiver)
+- ✅ Jaeger all-in-one running in observability/docker-compose.yml (port 4318 OTLP receiver)
 - ✅ `tracing-opentelemetry` integration
 
 **Goal**: Extend OpenTelemetry usage to include metrics while:
 - Using OpenTelemetry metrics API (not Prometheus directly)
 - Keeping resource requirements low (no Prometheus)
-- Integrating with existing docker-compose.yml and Jaeger setup
+- Integrating with existing observability/docker-compose.yml and Jaeger setup
 - Visualizing with Grafana
 
 ## Architecture Options
@@ -105,7 +105,7 @@ Scotty
 - VictoriaMetrics: ~50-100 MB
 - **Total: ~100-150 MB** (still lighter than Prometheus alone)
 
-**docker-compose.yml addition:**
+**observability/docker-compose.yml addition:**
 ```yaml
 services:
   otel-collector:
@@ -193,7 +193,7 @@ Scotty
 - VictoriaMetrics: ~50-100 MB
 - **Total: ~50-100 MB** (lightest option)
 
-**docker-compose.yml addition:**
+**observability/docker-compose.yml addition:**
 ```yaml
 services:
   victoriametrics:
@@ -304,7 +304,7 @@ opentelemetry-otlp = { version = "0.28.0", features = [
 #### Step 2: Create OTel Collector Configuration
 
 ```yaml
-# otel-collector-config.yaml
+# observability/otel-collector-config.yaml
 receivers:
   otlp:
     protocols:
@@ -348,7 +348,7 @@ service:
       exporters: [prometheusremotewrite, logging]
 ```
 
-#### Step 3: Update docker-compose.yml
+#### Step 3: Update observability/docker-compose.yml
 
 ```yaml
 services:
@@ -626,7 +626,7 @@ datasources:
 
 - [x] Uses OpenTelemetry metrics API (native integration)
 - [x] Total memory overhead < 250 MB
-- [x] Integrates with existing Jaeger in docker-compose.yml
+- [x] Integrates with existing Jaeger in observability/docker-compose.yml
 - [x] No port conflicts
 - [x] Grafana dashboards showing real-time metrics
 - [x] 30-day retention configured
