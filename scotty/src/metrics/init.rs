@@ -3,7 +3,10 @@ use anyhow::Result;
 use opentelemetry::metrics::MeterProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::{MetricExporter, WithExportConfig};
-use opentelemetry_sdk::{metrics::{PeriodicReader, SdkMeterProvider}, Resource};
+use opentelemetry_sdk::{
+    metrics::{PeriodicReader, SdkMeterProvider},
+    Resource,
+};
 use std::time::Duration;
 
 /// Initialize OpenTelemetry metrics with OTLP exporter

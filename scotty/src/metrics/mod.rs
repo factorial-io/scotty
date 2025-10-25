@@ -5,12 +5,14 @@
 mod init;
 mod instruments;
 mod memory;
+mod tokio_runtime;
 
 use std::sync::OnceLock;
 
 pub use init::init_metrics;
 pub use instruments::ScottyMetrics;
 pub use memory::sample_memory_metrics;
+pub use tokio_runtime::sample_tokio_metrics;
 
 /// Global metrics instance
 static METRICS: OnceLock<ScottyMetrics> = OnceLock::new();

@@ -33,6 +33,10 @@ pub struct ScottyMetrics {
     // Memory metrics
     pub memory_rss_bytes: Gauge<u64>,
     pub memory_virtual_bytes: Gauge<u64>,
+
+    // Tokio runtime metrics
+    pub tokio_workers_count: Gauge<u64>,
+    pub tokio_active_tasks_count: Gauge<u64>,
 }
 
 impl ScottyMetrics {
@@ -132,6 +136,17 @@ impl ScottyMetrics {
                 .u64_gauge("scotty.memory.virtual_bytes")
                 .with_description("Virtual memory size in bytes")
                 .with_unit("bytes")
+                .build(),
+
+            // Tokio runtime
+            tokio_workers_count: meter
+                .u64_gauge("scotty.tokio.workers.count")
+                .with_description("Number of Tokio worker threads")
+                .build(),
+
+            tokio_active_tasks_count: meter
+                .u64_gauge("scotty.tokio.tasks.active")
+                .with_description("Number of active Tokio tasks")
                 .build(),
         }
     }

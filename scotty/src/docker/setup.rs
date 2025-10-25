@@ -75,6 +75,14 @@ pub async fn setup_docker_integration(
                 crate::metrics::sample_memory_metrics().await;
             });
     }
+    {
+        // Sample Tokio task metrics every 30 seconds
+        scheduler
+            .every(clokwerk::Interval::Seconds(30))
+            .run(move || async move {
+                crate::metrics::sample_tokio_metrics().await;
+            });
+    }
     // Handle the scheduler in a separate task.
     let handle = tokio::spawn({
         let stop_flag = stop_flag.clone();
