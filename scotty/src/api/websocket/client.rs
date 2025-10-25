@@ -55,7 +55,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
 
     // Don't send initial ping - wait for authentication first
 
-    tokio::spawn(async move {
+    crate::metrics::spawn_instrumented(async move {
         info!("Started WebSocket forwarding task for client {}", client_id);
         loop {
             match rx.recv().await {
@@ -82,7 +82,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
             }
         }
         info!("WebSocket forwarding task ended for client {}", client_id);
-    });
+    }).await;
 
     while let Some(Ok(msg)) = receiver.next().await {
         info!("Received message: {:?}", msg);

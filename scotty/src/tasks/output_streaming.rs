@@ -91,7 +91,7 @@ impl TaskOutputStreamingService {
         let output_collection_active = task_details.output_collection_active;
 
         // Start the streaming task
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
             info!(
                 "Task output streaming task started for task {} (output_collection_active: {})",
                 task_id, output_collection_active
@@ -300,7 +300,7 @@ impl TaskOutputStreamingService {
                 "Task output stream for task {} ended and cleaned up",
                 task_id
             );
-        });
+        }).await;
 
         Ok(())
     }

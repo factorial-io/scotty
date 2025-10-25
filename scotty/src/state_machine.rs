@@ -89,9 +89,9 @@ where
         Ok(())
     }
 
-    pub fn spawn(self, context: Arc<RwLock<C>>) -> tokio::task::JoinHandle<()> {
+    pub async fn spawn(self, context: Arc<RwLock<C>>) -> tokio::task::JoinHandle<()> {
         let cloned_self = Arc::new(RwLock::new(self));
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
             let current_state = cloned_self.read().await.state;
             if let Err(e) = cloned_self.write().await.run(context).await {
                 let failed_state = cloned_self.read().await.state;
@@ -103,7 +103,7 @@ where
                     "State machine execution failed"
                 );
             }
-        })
+        }).await
     }
 }
 #[cfg(test)]

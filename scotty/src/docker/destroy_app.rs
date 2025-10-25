@@ -33,7 +33,7 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<DestroyAppStates> {
         let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
-        let handle = sm.spawn(context.clone());
+        let handle = sm.spawn(context.clone()).await;
         let _ = handle.await;
 
         Ok(self.next_state)

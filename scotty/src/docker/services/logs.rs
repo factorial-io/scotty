@@ -279,7 +279,7 @@ impl LogStreamingService {
         let app_name = app_data.name.clone();
         let service_name = service_name.to_string();
 
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
             // Track stream duration
             let stream_start = std::time::Instant::now();
 
@@ -467,7 +467,7 @@ impl LogStreamingService {
                 "Log stream {} cleaned up and removed from active streams",
                 stream_id
             );
-        });
+        }).await;
 
         Ok(stream_id)
     }

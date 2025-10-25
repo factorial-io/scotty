@@ -262,7 +262,7 @@ impl ShellService {
         let active_sessions = self.active_sessions.clone();
         let session_ttl = self.shell_settings.session_ttl();
 
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
             info!(
                 "Starting shell session {} for container {}",
                 session_id, container_id_clone
@@ -404,7 +404,7 @@ impl ShellService {
             }
 
             info!("Shell session {} cleaned up", session_id);
-        });
+        }).await;
 
         Ok(session_id)
     }
