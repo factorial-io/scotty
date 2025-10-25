@@ -73,12 +73,15 @@ async fn main() -> anyhow::Result<()> {
         warn!("⚠️  DO NOT USE IN PRODUCTION!");
     }
 
-    // Determine if telemetry tracing is enabled
+    // Determine if telemetry (tracing or metrics) is enabled
     let telemetry_enabled = app_state
         .settings
         .telemetry
         .as_ref()
-        .map(|settings| settings.to_lowercase().split(',').any(|s| s == "traces"))
+        .map(|settings| {
+            let lower = settings.to_lowercase();
+            lower.split(',').any(|s| s == "traces" || s == "metrics")
+        })
         .unwrap_or(false);
 
     // Setup http server.
