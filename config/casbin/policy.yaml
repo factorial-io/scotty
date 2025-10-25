@@ -5,17 +5,23 @@ scopes:
   client-a:
     description: Client A
     created_at: '2024-01-01T00:00:00Z'
-  default:
-    description: Default scope for unassigned apps
-    created_at: '2024-01-01T00:00:00Z'
   qa:
     description: QA
+    created_at: '2024-01-01T00:00:00Z'
+  default:
+    description: Default scope for unassigned apps
     created_at: '2024-01-01T00:00:00Z'
 roles:
   viewer:
     permissions:
     - view
     description: Read-only access
+  operator:
+    permissions:
+    - view
+    - manage
+    - logs
+    description: Operations team - no shell or destroy
   developer:
     permissions:
     - view
@@ -28,27 +34,19 @@ roles:
     permissions:
     - '*'
     description: Full system access
-  operator:
-    permissions:
-    - view
-    - manage
-    - logs
-    description: Operations team - no shell or destroy
 assignments:
-  dev:system:internal:
-  - role: admin
-    scopes:
-    - '*'
-  identifier:hello-world:
+  identifier:client-a:
   - role: developer
     scopes:
     - client-a
-    - client-b
-    - qa
   '*':
   - role: viewer
     scopes:
     - default
+  stephan@factorial.io:
+  - role: admin
+    scopes:
+    - '*'
   identifier:test-bearer-token-123:
   - role: admin
     scopes:
@@ -63,11 +61,13 @@ assignments:
     - client-b
     - qa
     - default
-  stephan@factorial.io:
+  dev:system:internal:
   - role: admin
     scopes:
     - '*'
-  identifier:client-a:
+  identifier:hello-world:
   - role: developer
     scopes:
     - client-a
+    - client-b
+    - qa
