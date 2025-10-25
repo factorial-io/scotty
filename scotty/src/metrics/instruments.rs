@@ -5,6 +5,7 @@ use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter};
 /// Holds all OpenTelemetry metric instruments for monitoring
 /// the unified output system (log streaming, shell sessions, WebSocket, tasks).
 #[derive(Clone)]
+#[allow(dead_code)] // Some metrics are not yet instrumented (shell, websocket)
 pub struct ScottyMetrics {
     // Log streaming metrics
     pub log_streams_active: Gauge<i64>,
@@ -26,6 +27,8 @@ pub struct ScottyMetrics {
     // Task metrics
     pub tasks_active: Gauge<i64>,
     pub tasks_total: Counter<u64>,
+    pub task_duration: Histogram<f64>,
+    pub task_failures: Counter<u64>,
 
     // Memory metrics
     pub memory_rss_bytes: Gauge<u64>,
@@ -105,6 +108,17 @@ impl ScottyMetrics {
             tasks_total: meter
                 .u64_counter("scotty.tasks.total")
                 .with_description("Total tasks executed")
+                .build(),
+
+            task_duration: meter
+                .f64_histogram("scotty.task.duration")
+                .with_description("Task execution duration")
+                .with_unit("s")
+                .build(),
+
+            task_failures: meter
+                .u64_counter("scotty.task.failures")
+                .with_description("Failed tasks")
                 .build(),
 
             // Memory

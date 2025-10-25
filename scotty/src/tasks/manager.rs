@@ -16,7 +16,37 @@ use scotty_core::output::{OutputStreamType, TaskOutput};
 use scotty_core::tasks::task_details::{State, TaskDetails, TaskState};
 
 use crate::api::websocket::WebSocketMessenger;
+use crate::metrics;
 use crate::tasks::timed_buffer::TimedBuffer;
+
+/// Record metrics when a new task is added
+fn record_task_added_metrics(active_count: usize) {
+    if let Some(m) = metrics::get_metrics() {
+        m.tasks_total.add(1, &[]);
+        m.tasks_active.record(active_count as i64, &[]);
+    }
+}
+
+/// Record metrics when a task finishes
+fn record_task_finished_metrics(
+    start_time: chrono::DateTime<chrono::Utc>,
+    finish_time: chrono::DateTime<chrono::Utc>,
+    state: &State,
+) {
+    if let Some(m) = metrics::get_metrics() {
+        // Record task duration
+        let duration_secs = finish_time
+            .signed_duration_since(start_time)
+            .num_milliseconds() as f64
+            / 1000.0;
+        m.task_duration.record(duration_secs, &[]);
+
+        // Track failures
+        if matches!(state, State::Failed) {
+            m.task_failures.add(1, &[]);
+        }
+    }
+}
 
 /// Helper function to add multiple lines to task output with a single write lock
 async fn add_output_lines(
@@ -216,10 +246,16 @@ impl TaskManager {
             "TaskManager: Setting task finished for {}",
             details.read().await.id
         );
-        let mut details = details.write().await;
-        details.last_exit_code = exit_code;
-        details.finish_time = Some(chrono::Utc::now());
-        details.state = state;
+
+        let start_time = details.read().await.start_time;
+        let mut details_guard = details.write().await;
+
+        let finish_time = chrono::Utc::now();
+        details_guard.last_exit_code = exit_code;
+        details_guard.finish_time = Some(finish_time);
+        details_guard.state = state.clone();
+
+        record_task_finished_metrics(start_time, finish_time, &state);
     }
 
     pub async fn start_process(
@@ -300,6 +336,8 @@ impl TaskManager {
         let mut processes = self.processes.write().await;
         let task_state = TaskState { details, handle };
         processes.insert(*id, task_state);
+
+        record_task_added_metrics(processes.len());
     }
 
     pub async fn add_task_with_output(
