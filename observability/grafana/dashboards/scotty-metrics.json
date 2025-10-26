@@ -2402,7 +2402,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 102
+        "y": 103
       },
       "id": 23,
       "options": {
@@ -2488,7 +2488,7 @@
         "h": 8,
         "w": 18,
         "x": 6,
-        "y": 102
+        "y": 103
       },
       "id": 24,
       "options": {
@@ -2623,7 +2623,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 110
+        "y": 111
       },
       "id": 25,
       "options": {
@@ -2739,7 +2739,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 110
+        "y": 111
       },
       "id": 26,
       "options": {
@@ -2879,6 +2879,21 @@
       ],
       "title": "Task Output Throughput",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 102
+      },
+      "id": 600,
+      "title": "Application Metrics",
+      "type": "row"
     }
   ],
   "refresh": "10s",
