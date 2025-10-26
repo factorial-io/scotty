@@ -28,6 +28,227 @@ The observability stack requires approximately:
 - **CPU**: Minimal (< 5% on modern systems)
 - **Disk**: ~1-2 GB for 30 days of metrics retention
 
+## Prometheus Compatibility & Stack Flexibility
+
+The observability stack is built on open standards and is **fully Prometheus-compatible**, giving you complete flexibility to orchestrate the stack according to your needs.
+
+### Prometheus Compatibility
+
+All metrics exported by Scotty are **Prometheus-compatible** and follow Prometheus naming conventions:
+
+- **Metric Format**: OpenTelemetry dot notation (`scotty.metric.name`) is automatically converted to Prometheus format (`scotty_metric_name_total`)
+- **Metric Types**: Counter, Gauge, Histogram, UpDownCounter - all map to Prometheus equivalents
+- **Labels/Attributes**: OpenTelemetry attributes become Prometheus labels (e.g., `method`, `status`, `path`)
+- **Scrape Endpoint**: While Scotty uses OTLP push, metrics can be scraped using Prometheus exporters
+
+### Stack Components Are Interchangeable
+
+The modular architecture allows you to swap components based on your requirements:
+
+#### Use Prometheus Instead of VictoriaMetrics
+
+Replace VictoriaMetrics with Prometheus by updating the OpenTelemetry Collector configuration:
+
+```yaml
+# observability/otel-collector-config.yaml
+exporters:
+  prometheus:
+    endpoint: "prometheus:9090"
+    namespace: scotty
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]  # Instead of prometheusremotewrite
+```
+
+Then update `docker-compose.yml`:
+
+```yaml
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+```
+
+#### Direct Prometheus Scraping (Without Collector)
+
+For simpler setups, expose Prometheus metrics directly from Scotty:
+
+1. **Enable Prometheus exporter** in Scotty (requires code change to add prometheus crate)
+2. **Configure scrape endpoint** at `:9090/metrics`
+3. **Point Prometheus** to scrape Scotty directly
+
+This bypasses OpenTelemetry Collector but loses flexibility for routing to multiple backends.
+
+#### Alternative Metrics Backends
+
+The OpenTelemetry Collector can export to any metrics backend:
+
+**Supported backends:**
+- **Prometheus** (native or remote write)
+- **VictoriaMetrics** (current default, Prometheus-compatible)
+- **Thanos** (long-term Prometheus storage)
+- **Cortex** (multi-tenant Prometheus)
+- **M3DB** (Uber's metrics platform)
+- **InfluxDB** (OTLP or Prometheus remote write)
+- **Datadog, New Relic, Honeycomb** (commercial SaaS)
+- **Grafana Cloud** (managed Prometheus)
+
+**Example: Export to multiple backends simultaneously:**
+
+```yaml
+# otel-collector-config.yaml
+exporters:
+  prometheusremotewrite/victoriametrics:
+    endpoint: "http://victoriametrics:8428/api/v1/write"
+
+  prometheusremotewrite/thanos:
+    endpoint: "http://thanos-receive:19291/api/v1/receive"
+
+  otlp/datadog:
+    endpoint: "https://api.datadoghq.com"
+    headers:
+      DD-API-KEY: "${DATADOG_API_KEY}"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheusremotewrite/victoriametrics, prometheusremotewrite/thanos, otlp/datadog]
+```
+
+#### Alternative Visualization Tools
+
+Replace Grafana with other visualization tools:
+
+- **Prometheus UI**: Built-in query interface (`http://prometheus:9090`)
+- **VictoriaMetrics vmui**: Built-in UI (`http://victoriametrics:8428/vmui`)
+- **Chronograf**: InfluxDB's visualization tool
+- **Datadog, New Relic, Grafana Cloud**: Commercial dashboards
+
+All these tools can query Prometheus-compatible metrics via PromQL.
+
+#### Alternative Tracing Backends
+
+Replace Jaeger with other tracing systems:
+
+- **Zipkin**: Configure OTLP exporter to Zipkin format
+- **Tempo**: Grafana's tracing backend
+- **Elasticsearch + Jaeger**: For persistent trace storage
+- **Lightstep, Honeycomb**: Commercial tracing platforms
+
+### Why We Chose This Stack
+
+The default stack (VictoriaMetrics + Jaeger + Grafana + OTel Collector) was chosen for:
+
+1. **Resource Efficiency**: VictoriaMetrics uses less memory than Prometheus (important for development)
+2. **Prometheus Compatibility**: Drop-in replacement, uses PromQL
+3. **Single Binary**: VictoriaMetrics is one binary vs Prometheus + long-term storage
+4. **OpenTelemetry Native**: Future-proof, vendor-neutral telemetry
+5. **Free & Open Source**: No licensing costs, full control
+
+However, you can **easily swap any component** to match your production environment or existing observability infrastructure.
+
+### Integration with Existing Prometheus Infrastructure
+
+If you already have Prometheus infrastructure, integrate Scotty seamlessly:
+
+#### Option 1: Remote Write to Your Prometheus
+
+```yaml
+# otel-collector-config.yaml
+exporters:
+  prometheusremotewrite:
+    endpoint: "https://your-prometheus.company.com/api/v1/write"
+    headers:
+      Authorization: "Bearer ${PROMETHEUS_TOKEN}"
+```
+
+#### Option 2: Federate Metrics
+
+Configure your existing Prometheus to scrape VictoriaMetrics:
+
+```yaml
+# prometheus.yml (your existing Prometheus)
+scrape_configs:
+  - job_name: 'scotty-victoriametrics'
+    honor_labels: true
+    metrics_path: '/api/v1/export/prometheus'
+    params:
+      match[]:
+        - '{__name__=~"scotty_.*"}'
+    static_configs:
+      - targets: ['victoriametrics.ddev.site:8428']
+```
+
+#### Option 3: Direct Prometheus Service Discovery
+
+If using Kubernetes or Consul, Prometheus can discover Scotty instances automatically:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'scotty'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['scotty']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: scotty
+```
+
+### Querying Metrics from External Tools
+
+Any tool that speaks PromQL can query Scotty metrics:
+
+**VictoriaMetrics API (Prometheus-compatible):**
+```bash
+# Query active HTTP requests
+curl "http://vm.ddev.site/api/v1/query?query=scotty_http_requests_active"
+
+# Range query for request rate
+curl "http://vm.ddev.site/api/v1/query_range?query=rate(scotty_http_requests_total[5m])&start=2025-01-01T00:00:00Z&end=2025-01-01T01:00:00Z&step=60s"
+```
+
+**From Python (using prometheus-api-client):**
+```python
+from prometheus_api_client import PrometheusConnect
+
+prom = PrometheusConnect(url="http://vm.ddev.site")
+result = prom.custom_query(query="scotty_memory_rss_bytes")
+```
+
+**From Grafana (any Prometheus datasource):**
+```
+Data Source: Prometheus/VictoriaMetrics
+URL: http://victoriametrics:8428
+Query: scotty_http_requests_total
+```
+
+### Standards Compliance
+
+Scotty's observability implementation follows industry standards:
+
+- **OpenTelemetry Protocol (OTLP)**: Vendor-neutral telemetry standard
+- **Prometheus Exposition Format**: Metric naming and types
+- **PromQL**: Query language for metrics
+- **OpenTelemetry Semantic Conventions**: Consistent attribute naming
+- **W3C Trace Context**: Distributed tracing propagation
+
+This ensures **long-term compatibility** and **ecosystem integration** regardless of which specific tools you choose.
+
 ## Quick Start
 
 ### Prerequisites
