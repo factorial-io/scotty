@@ -23,6 +23,8 @@ pub struct ScottyMetrics {
     // WebSocket metrics
     pub websocket_connections_active: Gauge<i64>,
     pub websocket_messages_sent: Counter<u64>,
+    pub websocket_messages_received: Counter<u64>,
+    pub websocket_auth_failures: Counter<u64>,
 
     // Task metrics
     pub tasks_active: Gauge<i64>,
@@ -119,6 +121,16 @@ impl ScottyMetrics {
             websocket_messages_sent: meter
                 .u64_counter("scotty.websocket.messages_sent")
                 .with_description("WebSocket messages sent")
+                .build(),
+
+            websocket_messages_received: meter
+                .u64_counter("scotty.websocket.messages_received")
+                .with_description("WebSocket messages received")
+                .build(),
+
+            websocket_auth_failures: meter
+                .u64_counter("scotty.websocket.auth_failures")
+                .with_description("WebSocket authentication failures")
                 .build(),
 
             // Tasks

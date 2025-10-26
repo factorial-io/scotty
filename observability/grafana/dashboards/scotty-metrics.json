@@ -903,7 +903,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "scotty_websocket_connections_active",
+          "expr": "scotty_websocket_connections",
           "refId": "A"
         }
       ],
@@ -988,12 +988,30 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "rate(scotty_websocket_messages_sent_total[5m])",
-          "legendFormat": "Messages/s",
+          "expr": "rate(scotty_websocket_messages_sent_total[1m])",
+          "legendFormat": "Messages Sent",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "rate(scotty_websocket_messages_received_total[1m])",
+          "legendFormat": "Messages Received",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "rate(scotty_websocket_auth_failures_total[1m])",
+          "legendFormat": "Auth Failures",
+          "refId": "C"
         }
       ],
-      "title": "WebSocket Message Rate",
+      "title": "WebSocket Metrics (Messages & Auth)",
       "type": "timeseries"
     },
     {

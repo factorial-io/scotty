@@ -8,6 +8,7 @@ mod init;
 mod instruments;
 mod memory;
 mod tokio_runtime;
+pub mod websocket;
 
 use std::sync::OnceLock;
 
