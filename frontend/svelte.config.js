@@ -13,7 +13,7 @@ const config = {
 
 	kit: {
 		alias: {
-			$generated: 'src/generated'
+			$generated: 'src/generated/index.ts'
 		},
 		prerender: {
 			handleHttpError: ({ path, message }) => {
