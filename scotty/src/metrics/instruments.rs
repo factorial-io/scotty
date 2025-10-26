@@ -19,6 +19,7 @@ pub struct ScottyMetrics {
     pub shell_sessions_total: Counter<u64>,
     pub shell_session_duration: Histogram<f64>,
     pub shell_session_errors: Counter<u64>,
+    pub shell_session_timeouts: Counter<u64>,
 
     // WebSocket metrics
     pub websocket_connections_active: Gauge<i64>,
@@ -111,6 +112,11 @@ impl ScottyMetrics {
             shell_session_errors: meter
                 .u64_counter("scotty.shell_session.errors")
                 .with_description("Shell session errors")
+                .build(),
+
+            shell_session_timeouts: meter
+                .u64_counter("scotty.shell_session.timeouts")
+                .with_description("Shell session timeouts")
                 .build(),
 
             // WebSocket

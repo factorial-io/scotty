@@ -7,6 +7,7 @@ mod http;
 mod init;
 mod instruments;
 mod memory;
+pub mod shell;
 pub mod tasks;
 mod tokio_runtime;
 pub mod websocket;

@@ -686,7 +686,7 @@
               }
             ]
           },
-          "unit": "errors/s"
+          "unit": "events/s"
         }
       },
       "gridPos": {
@@ -717,11 +717,20 @@
             "uid": "victoriametrics"
           },
           "expr": "rate(scotty_shell_session_errors_total[5m])",
-          "legendFormat": "Error rate",
+          "legendFormat": "Errors",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "rate(scotty_shell_session_timeouts_total[5m])",
+          "legendFormat": "Timeouts",
+          "refId": "B"
         }
       ],
-      "title": "Shell Session Errors",
+      "title": "Shell Session Errors & Timeouts",
       "type": "timeseries"
     },
     {
