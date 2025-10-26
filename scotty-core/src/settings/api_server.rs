@@ -2,6 +2,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
+/// Default development user identifier
+/// This uses a URI-like format that cannot exist in real OAuth/OIDC systems,
+/// preventing accidental privilege escalation in production environments.
+pub const DEFAULT_DEV_USER_EMAIL: &str = "dev:system:internal";
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default, ToSchema)]
 pub enum AuthMode {
     #[serde(rename = "dev")]
@@ -73,7 +78,7 @@ impl Default for ApiServer {
             access_token: None,
             create_app_max_size: 1024 * 1024 * 10,
             auth_mode: AuthMode::default(),
-            dev_user_email: Some("dev@localhost".to_string()),
+            dev_user_email: Some(DEFAULT_DEV_USER_EMAIL.to_string()),
             dev_user_name: Some("Dev User".to_string()),
             oauth: OAuthSettings::default(),
             bearer_tokens: HashMap::new(),

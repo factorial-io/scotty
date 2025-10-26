@@ -248,6 +248,77 @@ impl AuthorizationService {
         false
     }
 
+    /// Check if a user has permission in any of the specified scopes
+    /// This is used for actions like app creation where the target scope is known
+    pub async fn check_permission_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &Permission,
+    ) -> bool {
+        info!(
+            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+            user,
+            scopes,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+
+        // Get user assignments (both specific and wildcard)
+        let all_assignments = [
+            config
+                .assignments
+                .get(user)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+            config
+                .assignments
+                .get("*")
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]),
+        ]
+        .concat();
+
+        // Check if user has the permission in any of their roles that overlap with target scopes
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    // Expand wildcard scopes and check access
+                    let expanded_scopes =
+                        self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+                    let has_scope_access = expanded_scopes
+                        .iter()
+                        .any(|assigned_scope| scopes.contains(assigned_scope));
+
+                    if has_scope_access {
+                        info!(
+                            "Permission granted: {} has {} in scopes {:?} via role {}",
+                            user,
+                            action.as_str(),
+                            scopes,
+                            assignment.role
+                        );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        info!(
+            "Permission denied: {} lacks {} in scopes {:?}",
+            user,
+            action.as_str(),
+            scopes
+        );
+        false
+    }
+
     /// Format user identifier for authorization checks
     pub fn format_user_id(email: &str, token: Option<&str>) -> String {
         if let Some(token) = token {
@@ -266,6 +337,20 @@ impl AuthorizationService {
         } else {
             // OAuth users use their email address directly
             user.email.clone()
+        }
+    }
+
+    /// Helper method to expand wildcard scopes to actual scope names
+    /// Returns the original scopes if no wildcard, or all available scopes if wildcard is present
+    fn expand_wildcard_scopes(
+        &self,
+        scopes: &[String],
+        available_scopes: &std::collections::HashMap<String, super::types::ScopeConfig>,
+    ) -> Vec<String> {
+        if scopes.contains(&"*".to_string()) {
+            available_scopes.keys().cloned().collect()
+        } else {
+            scopes.to_vec()
         }
     }
 
@@ -339,7 +424,7 @@ impl AuthorizationService {
     pub async fn get_user_scopes_with_permissions(
         &self,
         user: &str,
-    ) -> Vec<crate::api::handlers::scopes::list::ScopeInfo> {
+    ) -> Vec<crate::api::rest::handlers::scopes::list::ScopeInfo> {
         let config = self.config.read().await;
         let mut user_scopes = Vec::new();
 
@@ -372,9 +457,11 @@ impl AuthorizationService {
                 vec![]
             };
 
-            // Add each group the user has access to
-            for scope in &assignment.scopes {
-                let scope_info = crate::api::handlers::scopes::list::ScopeInfo {
+            // Expand wildcard scopes and add each scope the user has access to
+            let expanded_scopes = self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+
+            for scope in &expanded_scopes {
+                let scope_info = crate::api::rest::handlers::scopes::list::ScopeInfo {
                     name: scope.clone(),
                     description: config
                         .scopes
@@ -385,17 +472,18 @@ impl AuthorizationService {
                 };
 
                 // Only add if not already in the list (user might have multiple roles for same scope)
-                if !user_scopes
-                    .iter()
-                    .any(|s: &crate::api::handlers::scopes::list::ScopeInfo| {
+                if !user_scopes.iter().any(
+                    |s: &crate::api::rest::handlers::scopes::list::ScopeInfo| {
                         s.name == scope_info.name
-                    })
-                {
+                    },
+                ) {
                     user_scopes.push(scope_info);
                 } else {
                     // If scope already exists, merge permissions
                     if let Some(existing) = user_scopes.iter_mut().find(
-                        |s: &&mut crate::api::handlers::scopes::list::ScopeInfo| s.name == *scope,
+                        |s: &&mut crate::api::rest::handlers::scopes::list::ScopeInfo| {
+                            s.name == *scope
+                        },
                     ) {
                         for perm in &permissions {
                             if !existing.permissions.contains(perm) {
@@ -525,7 +613,10 @@ impl AuthorizationService {
 
         // Add user permissions for each scope to Casbin (direct user-scope-permission policies)
         if let Some(role_config) = config.roles.get(role) {
-            for scope in &scopes {
+            // Expand wildcard scopes to actual scopes
+            let expanded_scopes = self.expand_wildcard_scopes(&scopes, &config.scopes);
+
+            for scope in &expanded_scopes {
                 for permission in &role_config.permissions {
                     match permission {
                         PermissionOrWildcard::Wildcard => {
@@ -612,8 +703,11 @@ impl AuthorizationService {
                     })
                     .collect();
 
-                // Add permissions for each scope
-                for scope in &assignment.scopes {
+                // Expand wildcard scopes and add permissions for each scope
+                let expanded_scopes =
+                    self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+
+                for scope in &expanded_scopes {
                     let scope_perms = all_permissions.entry(scope.clone()).or_default();
                     for perm in &permissions {
                         if !scope_perms.contains(perm) {

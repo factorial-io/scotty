@@ -23,7 +23,7 @@ use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalanc
 use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
 use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
-use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
+use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
 use super::validation::validate_docker_compose_content;
 
@@ -41,7 +41,7 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
     ) -> anyhow::Result<CreateAppStates> {
         let app_state = &context.read().await.app_state;
         let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
-        let handle = sm.spawn(context.clone());
+        let handle = sm.spawn(context.clone()).await;
         let _ = handle.await;
 
         Ok(self.next_state)
@@ -58,6 +58,7 @@ enum CreateAppStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -68,6 +69,7 @@ async fn create_app_prepare(
     files: &FileList,
 ) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
     let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
+    sm.set_error_state(CreateAppStates::SetFailed);
     sm.add_handler(
         CreateAppStates::CreateDirectory,
         Arc::new(CreateDirectoryHandler::<CreateAppStates> {
@@ -123,10 +125,14 @@ async fn create_app_prepare(
 
     sm.add_handler(
         CreateAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<CreateAppStates> {
-            next_state: CreateAppStates::Done,
-            notification: Some(Message::new(MessageType::AppCreated, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            CreateAppStates::Done,
+            Some(Message::new(MessageType::AppCreated, app)),
+        )),
+    );
+    sm.add_handler(
+        CreateAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(CreateAppStates::Done, None)),
     );
     Ok(sm)
 }

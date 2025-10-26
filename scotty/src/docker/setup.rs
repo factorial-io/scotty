@@ -1,7 +1,6 @@
 use tracing::instrument;
 
 use crate::{
-    api::ws::broadcast_message,
     app_state::SharedAppState,
     docker::{find_apps::find_apps, ttl_checker::check_app_ttl},
 };
@@ -59,16 +58,45 @@ pub async fn setup_docker_integration(
                         .task_manager
                         .run_cleanup_task(app_state.settings.scheduler.task_cleanup.clone())
                         .await;
-                    broadcast_message(
-                        &app_state,
-                        crate::api::message::WebSocketMessage::TaskListUpdated,
-                    )
-                    .await;
+                    app_state
+                        .messenger
+                        .broadcast_to_all(
+                            scotty_core::websocket::message::WebSocketMessage::TaskListUpdated,
+                        )
+                        .await;
+                }
+            });
+    }
+    {
+        // Sample memory metrics every 10 seconds
+        scheduler
+            .every(clokwerk::Interval::Seconds(10))
+            .run(move || async move {
+                crate::metrics::sample_memory_metrics().await;
+            });
+    }
+    {
+        // Sample Tokio task metrics every 10 seconds
+        scheduler
+            .every(clokwerk::Interval::Seconds(10))
+            .run(move || async move {
+                crate::metrics::sample_tokio_metrics().await;
+            });
+    }
+    {
+        // Sample AppList metrics every 30 seconds
+        let app_state = app_state.clone();
+        scheduler
+            .every(clokwerk::Interval::Seconds(30))
+            .run(move || {
+                let app_state = app_state.clone();
+                async move {
+                    crate::metrics::sample_app_list_metrics(app_state).await;
                 }
             });
     }
     // Handle the scheduler in a separate task.
-    let handle = tokio::spawn({
+    let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();
         async move {
             while !stop_flag.is_stopped() {
@@ -78,7 +106,8 @@ pub async fn setup_docker_integration(
 
             Ok(())
         }
-    });
+    })
+    .await;
 
     Ok(handle)
 }
@@ -90,11 +119,10 @@ async fn schedule_app_check(app_state: SharedAppState) {
         Ok(apps) => {
             let _ = app_state.apps.set_apps(&apps).await;
             tracing::info!("Found {} apps", app_state.apps.len().await);
-            broadcast_message(
-                &app_state,
-                crate::api::message::WebSocketMessage::AppListUpdated,
-            )
-            .await;
+            app_state
+                .messenger
+                .broadcast_to_all(scotty_core::websocket::message::WebSocketMessage::AppListUpdated)
+                .await;
         }
         Err(e) => {
             tracing::error!("Error while checking running apps: {:?}", e);

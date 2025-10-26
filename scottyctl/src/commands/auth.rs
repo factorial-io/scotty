@@ -1,13 +1,23 @@
 use crate::auth::{
+    cache::CachedTokenManager,
     config::{get_server_info, server_info_to_oauth_config},
     device_flow::DeviceFlowClient,
-    storage::TokenStorage,
     AuthError, AuthMethod,
 };
 use crate::cli::AuthLoginCommand;
 use crate::context::AppContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use std::sync::OnceLock;
+
+// Global cached token manager
+static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
+
+fn get_cached_token_manager() -> &'static CachedTokenManager {
+    CACHED_TOKEN_MANAGER.get_or_init(|| {
+        CachedTokenManager::new().expect("Failed to initialize cached token manager")
+    })
+}
 
 pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Result<()> {
     app_context
@@ -90,7 +100,7 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
         .await?;
 
     // 5. Save token
-    TokenStorage::new()?.save(stored_token.clone())?;
+    get_cached_token_manager().save(stored_token.clone())?;
 
     app_context.ui().success(format!(
         "Successfully authenticated as {} <{}>",
@@ -106,7 +116,7 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
 }
 
 pub async fn auth_logout(app_context: &AppContext) -> Result<()> {
-    TokenStorage::new()?.clear_for_server(&app_context.server().server)?;
+    get_cached_token_manager().clear_for_server(&app_context.server().server)?;
     app_context.ui().success(format!(
         "Logged out from server: {}",
         app_context.server().server.bright_blue()
@@ -192,7 +202,7 @@ async fn get_current_auth_method(app_context: &AppContext) -> Result<AuthMethod>
     tracing::debug!("Checking auth for server: {}", server_url);
 
     // 1. Try stored OAuth token first
-    if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(server_url) {
+    if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(server_url) {
         tracing::debug!(
             "Found stored OAuth token for user: {}",
             stored_token.user_email

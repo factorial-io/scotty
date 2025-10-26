@@ -7,7 +7,8 @@ use crate::{
     app_state::SharedAppState,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
+        task_completion_handler::TaskCompletionHandler,
+        update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
 };
@@ -22,6 +23,7 @@ pub(crate) enum StopAppStates {
     RunDockerCompose,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 #[instrument]
@@ -31,6 +33,7 @@ pub async fn stop_app_prepare(
     info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(StopAppStates::RunDockerCompose, StopAppStates::Done);
+    sm.set_error_state(StopAppStates::SetFailed);
 
     sm.add_handler(
         StopAppStates::RunDockerCompose,
@@ -48,10 +51,14 @@ pub async fn stop_app_prepare(
     );
     sm.add_handler(
         StopAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<StopAppStates> {
-            next_state: StopAppStates::Done,
-            notification: Some(Message::new(MessageType::AppStopped, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            StopAppStates::Done,
+            Some(Message::new(MessageType::AppStopped, app)),
+        )),
+    );
+    sm.add_handler(
+        StopAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(StopAppStates::Done, None)),
     );
 
     Ok(sm)

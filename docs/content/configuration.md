@@ -61,7 +61,7 @@ api:
     deployment: "placeholder-will-be-overridden"
   create_app_max_size: "50M"
   auth_mode: "bearer"  # "dev", "oauth", or "bearer"
-  dev_user_email: "dev@localhost"
+  dev_user_email: "dev:system:internal"
   dev_user_name: "Dev User"
   oauth:
     oidc_issuer_url: "https://gitlab.com"
@@ -138,16 +138,38 @@ roles:
     created_at: "2023-12-01T00:00:00Z"
 
 # User/token assignments to roles within scopes
+# Assignment key format depends on authentication mode:
+#
+# OAuth Mode (auth_mode: "oauth"):
+#   - Use email addresses directly: "user@example.com"
+#   - Email is extracted from OIDC token claims during authentication
+#
+# Bearer Mode (auth_mode: "bearer"):
+#   - Use identifier prefix: "identifier:token_name"
+#   - Maps to configured bearer_tokens (api.bearer_tokens.token_name)
+#
+# Dev Mode (auth_mode: "dev"):
+#   - Uses fixed dev user from api.dev_user_* configuration
+#   - Authorization assignments are not applicable
 assignments:
+  # OAuth user assignments (when auth_mode: "oauth")
   "alice@example.com":
     - role: "admin"
-      scopes: ["*"]  # Global access
+      scopes: ["*"]  # Global access to all scopes
+  "stephan@factorial.io":
+    - role: "admin"
+      scopes: ["*"]  # Global admin access
   "bob@example.com":
     - role: "developer"
       scopes: ["frontend", "backend"]
+
+  # Bearer token assignments (when auth_mode: "bearer")
   "identifier:deployment":  # Maps to bearer_tokens.deployment
     - role: "developer"
       scopes: ["staging"]
+  "identifier:admin":       # Maps to bearer_tokens.admin
+    - role: "admin"
+      scopes: ["*"]
 
 # App scope mappings (managed automatically from .scotty.yml)
 apps:

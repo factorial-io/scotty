@@ -8,7 +8,8 @@ use crate::{
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
-        run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
+        run_post_actions_handler::RunPostActionsHandler,
+        task_completion_handler::TaskCompletionHandler,
         update_app_data_handler::UpdateAppDataHandler,
         wait_for_all_containers_handler::WaitForAllContainersHandler,
     },
@@ -29,6 +30,7 @@ enum RunAppStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 #[instrument()]
@@ -36,6 +38,7 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
     info!("Running app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(RunAppStates::RunDockerLogin, RunAppStates::Done);
+    sm.set_error_state(RunAppStates::SetFailed);
 
     sm.add_handler(
         RunAppStates::RunDockerLogin,
@@ -76,10 +79,14 @@ async fn run_app_prepare(app: &AppData) -> anyhow::Result<StateMachine<RunAppSta
     );
     sm.add_handler(
         RunAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<RunAppStates> {
-            next_state: RunAppStates::Done,
-            notification: Some(Message::new(MessageType::AppStarted, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            RunAppStates::Done,
+            Some(Message::new(MessageType::AppStarted, app)),
+        )),
+    );
+    sm.add_handler(
+        RunAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(RunAppStates::Done, None)),
     );
 
     Ok(sm)
@@ -95,5 +102,16 @@ pub async fn run_app(
     }
 
     let sm = run_app_prepare(app).await?;
-    run_sm(app_state, app, sm).await
+    let result = run_sm(app_state.clone(), app, sm).await;
+
+    match &result {
+        Ok(_) => {
+            info!("Successfully started app '{}'", app.name);
+        }
+        Err(e) => {
+            info!("Failed to start app '{}': {}", app.name, e);
+        }
+    }
+
+    result
 }

@@ -4,46 +4,30 @@ use serde_json::Value;
 use tokio::time::sleep;
 use tracing::{error, info};
 
+use crate::auth::cache::CachedTokenManager;
 use crate::auth::config::get_server_info;
-use crate::auth::storage::TokenStorage;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
 use scotty_core::http::{HttpClient, RetryError};
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
-use scotty_core::tasks::task_details::{State, TaskDetails};
+use scotty_core::tasks::task_details::State;
 use scotty_core::version::VersionManager;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 const MAX_RETRIES: u8 = 3;
 const INITIAL_RETRY_DELAY_MS: u64 = 100;
 const MAX_RETRY_DELAY_MS: u64 = 2000;
 
-async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
-    // 1. Check server auth mode to determine if OAuth tokens should be used
-    let server_supports_oauth = match get_server_info(server).await {
-        Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
-        Err(_) => false, // If we can't check, assume OAuth is not supported
-    };
+// Global cached token manager
+static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
 
-    // 2. Try stored OAuth token only if server supports OAuth
-    if server_supports_oauth {
-        if let Ok(Some(stored_token)) = TokenStorage::new()?.load_for_server(&server.server) {
-            // TODO: Check if token is expired and refresh if needed
-            return Ok(stored_token.access_token);
-        }
-    }
-
-    // 3. Fall back to environment variable or command line token
-    if let Some(token) = &server.access_token {
-        return Ok(token.clone());
-    }
-
-    Err(anyhow::anyhow!(
-        "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
-    ))
+fn get_cached_token_manager() -> &'static CachedTokenManager {
+    CACHED_TOKEN_MANAGER.get_or_init(|| {
+        CachedTokenManager::new().expect("Failed to initialize cached token manager")
+    })
 }
 
 fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
@@ -81,6 +65,7 @@ fn normalize_url(base_url: &str, path: &str) -> String {
 }
 
 /// Helper function to determine if an error is retriable
+#[allow(dead_code)]
 fn is_retriable_error(err: &reqwest::Error) -> bool {
     err.is_timeout()
         || err.is_connect()
@@ -88,10 +73,10 @@ fn is_retriable_error(err: &reqwest::Error) -> bool {
         || err.status().is_some_and(|s| s.is_server_error())
 }
 
-/// Helper function to execute a future with retry logic
+/// Helper function to retry async operations with exponential backoff
 async fn with_retry<F, Fut, T>(f: F) -> anyhow::Result<T>
 where
-    F: Fn() -> Fut + Clone,
+    F: Fn() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<T>>,
 {
     let mut retry_count = 0;
@@ -133,6 +118,31 @@ where
             }
         }
     }
+}
+
+pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
+    // 1. Check server auth mode to determine if OAuth tokens should be used
+    let server_supports_oauth = match get_server_info(server).await {
+        Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
+        Err(_) => false, // If we can't check, assume OAuth is not supported
+    };
+
+    // 2. Try stored OAuth token only if server supports OAuth
+    if server_supports_oauth {
+        if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(&server.server) {
+            // TODO: Check if token is expired and refresh if needed
+            return Ok(stored_token.access_token);
+        }
+    }
+
+    // 3. Fall back to environment variable or command line token
+    if let Some(token) = &server.access_token {
+        return Ok(token.clone());
+    }
+
+    Err(anyhow::anyhow!(
+        "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
+    ))
 }
 
 pub async fn get_or_post(
@@ -225,54 +235,174 @@ pub async fn wait_for_task(
     context: &RunningAppContext,
     ui: &Arc<Ui>,
 ) -> anyhow::Result<()> {
-    let mut done = false;
-    let mut last_position = 0;
-    let mut last_err_position = 0;
+    use crate::utils::status_line::Status;
+    use crate::websocket::AuthenticatedWebSocket;
+    use futures_util::{SinkExt, StreamExt};
+    use scotty_core::tasks::task_details::TaskDetails;
+    use scotty_core::websocket::message::WebSocketMessage;
+    use scotty_types::TaskOutputData;
+    use tokio_tungstenite::tungstenite::Message;
 
-    while !done {
-        let result = get(server, &format!("task/{}", &context.task.id)).await?;
+    // Try to connect to WebSocket for output streaming (optional enhancement)
+    let ws_connection = AuthenticatedWebSocket::connect(server).await.ok();
 
-        let task: TaskDetails = serde_json::from_value(result).context("Failed to parse task")?;
+    // If WebSocket connected, request task output stream
+    if let Some(mut ws) = ws_connection {
+        let start_message = WebSocketMessage::StartTaskOutputStream {
+            task_id: context.task.id,
+            from_beginning: true, // Get all output from the beginning
+        };
 
-        // Handle stderr
-        {
-            let stderr = &task.stderr[last_err_position..];
-            if let Some(last_newline_pos) = stderr.rfind('\n') {
-                let mut partial_output = stderr[..=last_newline_pos].to_string();
-                last_err_position += last_newline_pos + 1;
+        // Send the request but don't fail if it doesn't work
+        let _ = ws.send(start_message).await;
 
-                // Remove the newline before printing
-                partial_output.pop();
-                ui.eprintln(partial_output.blue().to_string());
+        // Split WebSocket into sender and receiver
+        let (mut ws_sender, mut ws_receiver) = ws.split();
+
+        // Spawn a task to handle WebSocket messages
+        let ui_clone = ui.clone();
+        let ws_handle = tokio::spawn(async move {
+            while let Some(message) = ws_receiver.next().await {
+                match message {
+                    Ok(Message::Text(text)) => {
+                        if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
+                            match ws_message {
+                                WebSocketMessage::TaskOutputData(TaskOutputData {
+                                    lines, ..
+                                }) => {
+                                    for line in lines {
+                                        display_task_output_line(&line, &ui_clone);
+                                    }
+                                }
+                                WebSocketMessage::TaskOutputStreamEnded { .. } => {
+                                    break; // Stop listening when stream ends
+                                }
+                                _ => {} // Ignore other message types
+                            }
+                        }
+                    }
+                    Ok(Message::Close(_)) | Err(_) => break,
+                    _ => {}
+                }
+            }
+            // ws_receiver is dropped here which is fine
+        });
+
+        // Poll for task completion status
+        let mut done = false;
+        while !done {
+            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let task: TaskDetails =
+                serde_json::from_value(result).context("Failed to parse task")?;
+
+            // Check if task is done
+            done = task.state != State::Running;
+
+            if done {
+                // Abort the WebSocket handler since task is done
+                ws_handle.abort();
+
+                match task.state {
+                    State::Finished => {
+                        if task.last_exit_code.is_none() || task.last_exit_code == Some(0) {
+                            ui.set_status("Task completed successfully", Status::Succeeded);
+                        } else {
+                            ui.set_status("Task failed", Status::Failed);
+                            if let Some(exit_code) = task.last_exit_code {
+                                ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                            }
+                        }
+                    }
+                    State::Failed => {
+                        ui.set_status("Task failed", Status::Failed);
+                        if let Some(exit_code) = task.last_exit_code {
+                            ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                        }
+                    }
+                    State::Running => {} // Should not happen since we check above
+                }
+
+                // Return error if task failed
+                if let Some(exit_code) = task.last_exit_code {
+                    if exit_code != 0 {
+                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+                    }
+                }
+            } else {
+                // Poll every 500ms
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
         }
-        // Handle stdout
-        {
-            let stdout = &task.stdout[last_position..];
-            if let Some(last_newline_pos) = stdout.rfind('\n') {
-                let mut partial_output = stdout[..=last_newline_pos].to_string();
-                last_position += last_newline_pos + 1;
 
-                // Remove the newline before printing
-                partial_output.pop();
-                ui.println(partial_output.blue().to_string());
-            }
-        }
+        // Clean up WebSocket connection
+        let _ = ws_sender.close().await;
+    } else {
+        // Fallback to simple polling without WebSocket output
+        tracing::debug!("WebSocket connection failed, using polling only");
 
-        // Check if task is done
-        done = task.state != State::Running;
-        if !done {
-            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-        }
+        let mut done = false;
+        while !done {
+            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let task: TaskDetails =
+                serde_json::from_value(result).context("Failed to parse task")?;
 
-        if let Some(exit_code) = task.last_exit_code {
-            if done && exit_code != 0 {
-                return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+            done = task.state != State::Running;
+
+            if done {
+                match task.state {
+                    State::Finished => {
+                        if task.last_exit_code.is_none() || task.last_exit_code == Some(0) {
+                            ui.set_status("Task completed successfully", Status::Succeeded);
+                        } else {
+                            ui.set_status("Task failed", Status::Failed);
+                            if let Some(exit_code) = task.last_exit_code {
+                                ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                            }
+                        }
+                    }
+                    State::Failed => {
+                        ui.set_status("Task failed", Status::Failed);
+                        if let Some(exit_code) = task.last_exit_code {
+                            ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
+                        }
+                    }
+                    State::Running => {} // Should not happen
+                }
+
+                if let Some(exit_code) = task.last_exit_code {
+                    if exit_code != 0 {
+                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
+                    }
+                }
+            } else {
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
         }
     }
 
     Ok(())
+}
+
+fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
+    use scotty_types::OutputStreamType;
+
+    // Trim trailing newline since ui.println adds one
+    let content = line.content.trim_end_matches('\n');
+
+    let formatted_line = if ui.is_terminal() {
+        match line.stream {
+            OutputStreamType::Stdout => content.to_string(),
+            OutputStreamType::Stderr => content.red().to_string(),
+            OutputStreamType::Status => format!("[STATUS] {}", content.green()),
+            OutputStreamType::StatusError => format!("[ERROR] {}", content.red().bold()),
+            OutputStreamType::Progress => format!("[PROGRESS] {}", content.blue()),
+            OutputStreamType::Info => format!("[INFO] {}", content.cyan()),
+        }
+    } else {
+        content.to_string()
+    };
+
+    ui.println(formatted_line);
 }
 
 #[cfg(test)]

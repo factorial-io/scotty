@@ -47,7 +47,11 @@ impl CasbinManager {
 
                 // Add user permissions for each scope (direct user-scope-permission policies)
                 if let Some(role_config) = config.roles.get(&assignment.role) {
-                    for scope in &assignment.scopes {
+                    // Expand wildcard scopes to actual scopes
+                    let expanded_scopes =
+                        Self::expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+
+                    for scope in &expanded_scopes {
                         for permission in &role_config.permissions {
                             Self::add_permission_policies(enforcer, user, scope, permission)
                                 .await?;
@@ -60,6 +64,18 @@ impl CasbinManager {
         info!("Casbin policy synchronization completed");
 
         Ok(())
+    }
+
+    /// Helper method to expand wildcard scopes to actual scope names
+    fn expand_wildcard_scopes(
+        scopes: &[String],
+        available_scopes: &std::collections::HashMap<String, super::types::ScopeConfig>,
+    ) -> Vec<String> {
+        if scopes.contains(&"*".to_string()) {
+            available_scopes.keys().cloned().collect()
+        } else {
+            scopes.to_vec()
+        }
     }
 
     /// Add permission policies for a user-scope combination

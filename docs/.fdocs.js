@@ -28,8 +28,10 @@ export default function (defaultConfig) {
             "architecture",
             "installation",
             "configuration",
+            "observability",
             "cli",
             "oauth-authentication",
+            "authorization",
             "changelog",
         ],
     });

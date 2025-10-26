@@ -2,11 +2,15 @@
 	import logo from '$lib/assets/scotty.svg';
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
+	import { authService } from '../../lib/authService';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let password = '';
 	let loading = true;
 	let authMode = 'bearer';
 	let message = '';
+	let error = '';
 
 	onMount(async () => {
 		setTitle('Login');
@@ -15,49 +19,23 @@
 
 	async function checkAuthMode() {
 		try {
-			// First check if we have a stored token and validate it
-			const storedToken = localStorage.getItem('token');
-			if (storedToken) {
-				const validateResponse = await fetch('/api/v1/authenticated/validate-token', {
-					method: 'POST',
-					headers: {
-						Authorization: `Bearer ${storedToken}`
-					},
-					credentials: 'include'
-				});
+			const result = await authService.checkAuthMode();
+			authMode = result.authMode;
+			message = result.message || '';
 
-				if (validateResponse.ok) {
-					// Already authenticated, redirect to dashboard
-					window.location.href = '/dashboard';
-					return;
-				} else {
-					// Token is invalid, remove it
-					localStorage.removeItem('token');
-				}
+			// Handle dev mode - redirect directly to dashboard
+			if (authMode === 'dev') {
+				await goto(resolve('/dashboard'));
+				return;
 			}
 
-			// Not authenticated, get auth mode info
-			const response = await fetch('/api/v1/login', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ password: '' }),
-				credentials: 'include'
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				authMode = result.auth_mode || 'bearer';
-				message = result.message || '';
-
-				// Handle dev mode only - OAuth and bearer require explicit login
-				if (authMode === 'dev') {
-					// Development mode - redirect directly to dashboard
-					window.location.href = '/dashboard';
-					return;
-				}
+			// Check if already authenticated and redirect
+			if (authService.isAuthenticated()) {
+				await goto(resolve('/dashboard'));
+				return;
 			}
-		} catch (error) {
-			console.warn('Failed to check auth mode:', error);
+		} catch (err) {
+			console.warn('Failed to check auth mode:', err);
 			authMode = 'bearer'; // fallback
 		}
 		loading = false;
@@ -65,33 +43,33 @@
 
 	async function login() {
 		if (authMode === 'oauth') {
-			// Redirect to Scotty's native OAuth flow
-			window.location.href = '/oauth/authorize';
+			// Redirect to OAuth flow
+			authService.initiateOAuthFlow();
 			return;
 		}
 
-		const response = await fetch('/api/v1/login', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ password }),
-			credentials: 'include'
-		});
+		// Handle bearer token login
+		loading = true;
+		error = '';
 
-		if (response.ok) {
-			const result = await response.json();
-			if (result.status === 'success') {
-				if (result.token) {
-					localStorage.setItem('token', result.token);
+		try {
+			const result = await authService.loginWithPassword(password);
+
+			if (result.success) {
+				if (result.redirectUrl) {
+					window.location.href = result.redirectUrl;
+				} else {
+					await goto(resolve('/dashboard'));
 				}
-				window.location.href = '/dashboard';
-			} else if (result.status === 'redirect') {
-				window.location.href = result.redirect_url;
+			} else {
+				error = result.error || 'Login failed';
 			}
-		} else {
-			alert('Login failed');
+		} catch (err) {
+			error = 'An unexpected error occurred';
+			console.error('Login error:', err);
 		}
+
+		loading = false;
 	}
 </script>
 
@@ -120,6 +98,12 @@
 						{/if}
 					</h2>
 
+					{#if error}
+						<div class="alert alert-error mb-4">
+							<span>{error}</span>
+						</div>
+					{/if}
+
 					{#if message}
 						<p class="text-sm text-gray-600">{message}</p>
 					{:else if authMode === 'oauth'}
@@ -136,12 +120,16 @@
 								bind:value={password}
 								placeholder="Enter your password"
 								required
+								disabled={loading}
 							/>
 						</div>
 					{/if}
 				</div>
 				<div class="card-actions justify-end">
-					<button type="submit" class="btn btn-primary">
+					<button type="submit" class="btn btn-primary" disabled={loading}>
+						{#if loading}
+							<span class="loading loading-spinner loading-sm"></span>
+						{/if}
 						{#if authMode === 'oauth'}
 							Continue with OAuth
 						{:else}

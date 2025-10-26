@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
-	import type { TokenResponse, OAuthErrorResponse } from '../../../types';
-	import { authStore } from '../../../stores/userStore';
+	import { authService } from '../../../lib/authService';
 
 	let loading = true;
 	let error: string | null = null;
@@ -26,7 +26,7 @@
 				return;
 			}
 
-			// Get session ID from the new OAuth flow
+			// Get session ID from the OAuth flow
 			const sessionId = urlParams.get('session_id');
 
 			if (!sessionId) {
@@ -35,49 +35,20 @@
 				return;
 			}
 
-			// Exchange session for token using the new endpoint
-			const response = await fetch('/oauth/exchange', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					session_id: sessionId
-				})
-			});
+			// Handle OAuth callback using AuthService
+			const result = await authService.handleOAuthCallback(sessionId);
 
-			if (!response.ok) {
-				const errorData: OAuthErrorResponse = await response.json();
-				error = `Authentication failed: ${errorData.error_description || errorData.error}`;
+			if (result.success) {
+				// Load permissions
+				const { loadUserPermissions } = await import('../../../stores/permissionStore');
+				await loadUserPermissions();
+
+				// Redirect to dashboard
+				await goto(resolve('/dashboard'));
+			} else {
+				error = result.error || 'Authentication failed';
 				loading = false;
-				return;
 			}
-
-			const tokenData: TokenResponse = await response.json();
-
-			const userInfo = {
-				id: tokenData.user_id,
-				name: tokenData.user_name,
-				email: tokenData.user_email,
-				picture: tokenData.user_picture
-			};
-
-			// Store token and user info in localStorage
-			localStorage.setItem('oauth_token', tokenData.access_token);
-			localStorage.setItem('user_info', JSON.stringify(userInfo));
-
-			// Clear any old bearer tokens
-			localStorage.removeItem('token');
-
-			// Update the reactive store immediately
-			authStore.setUserInfo(userInfo);
-
-			// Load permissions
-			const { loadUserPermissions } = await import('../../../stores/permissionStore');
-			await loadUserPermissions();
-
-			// Redirect to dashboard
-			await goto('/dashboard');
 		} catch (err) {
 			console.error('OAuth callback error:', err);
 			error = err instanceof Error ? err.message : 'An unexpected error occurred';

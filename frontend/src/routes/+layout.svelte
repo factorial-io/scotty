@@ -1,12 +1,13 @@
 <script lang="ts">
 	import '../app.css';
 	import logo from '$lib/assets/scotty.svg';
-	import { publicApiCall, checkIfLoggedIn } from '$lib';
+	import { publicApiCall, initializeAuth } from '$lib';
 	import { onMount } from 'svelte';
-	import { setupWsListener } from '$lib/ws';
+	import { resolve } from '$app/paths';
 	import title from '../stores/titleStore';
 	import UserInfo from '../components/user-info.svelte';
-	import { authStore } from '../stores/userStore';
+	import WebSocketStatus from '../components/websocket-status.svelte';
+	import { webSocketStore } from '../stores/webSocketStore';
 
 	type SiteInfo = {
 		domain: string;
@@ -19,12 +20,13 @@
 	};
 
 	onMount(async () => {
-		setupWsListener('/ws');
+		// Initialize authentication system
+		await initializeAuth();
 
-		// Initialize the auth store first
-		await authStore.init();
+		// Initialize WebSocket store (will connect when user logs in)
+		webSocketStore.initialize();
 
-		checkIfLoggedIn();
+		// Load site info
 		site_info = (await publicApiCall('info')) as SiteInfo;
 	});
 </script>
@@ -42,18 +44,20 @@
 						<img alt="Scotty Logo" src={logo} />
 					</div>
 				</div>
-				<a href="/dashboard" class="text-xl ml-4 font-bold">scotty @ {site_info.domain}</a>
+				<a href={resolve('/dashboard')} class="text-xl ml-4 font-bold"
+					>scotty @ {site_info.domain}</a
+				>
 			</div>
 			<div class="flex-none">
 				<ul class="menu menu-horizontal px-1">
 					<li>
-						<a href="/dashboard">Apps</a>
+						<a href={resolve('/dashboard')}>Apps</a>
 					</li>
 					<li>
-						<a href="/tasks">Tasks</a>
+						<a href={resolve('/tasks')}>Tasks</a>
 					</li>
 					<li>
-						<a href="/rapidoc" target="_blank" rel="noopener noreferrer"
+						<a href={resolve('/rapidoc')} target="_blank" rel="noopener noreferrer"
 							>API Documentation</a
 						>
 					</li>
@@ -66,7 +70,7 @@
 			<slot />
 		</div>
 	</div>
-	<footer class="px-4 pb-4 flex justify-between">
+	<footer class="px-4 pb-4 flex justify-between items-center">
 		<p class="text-sm text-gray-500">
 			Scotty <a
 				class="link link-secondary"
@@ -74,10 +78,13 @@
 				>v{site_info.version}</a
 			>
 		</p>
-		<p class="text-sm text-gray-500">
-			Brought to you by <a class="link link-secondary" href="https://factorial.io/"
-				>Factorial.io</a
-			>
-		</p>
+		<div class="flex items-center space-x-4">
+			<WebSocketStatus />
+			<p class="text-sm text-gray-500">
+				Brought to you by <a class="link link-secondary" href="https://factorial.io/"
+					>Factorial.io</a
+				>
+			</p>
+		</div>
 	</footer>
 </div>

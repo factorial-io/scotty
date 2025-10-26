@@ -17,6 +17,9 @@ clap = ["dep:clap"]
 utoipa = ["dep:utoipa"]
 
 [dependencies]
+# Import shared types from scotty-types
+scotty-types = { path = "../scotty-types", features = ["utoipa"] }
+
 async-trait.workspace = true
 anyhow.workspace = true
 serde.workspace = true

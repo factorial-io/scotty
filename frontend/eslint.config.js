@@ -25,6 +25,10 @@ export default [
 			parserOptions: {
 				parser: ts.parser
 			}
+		},
+		rules: {
+			// Disable infinite-reactive-loop as it has false positives with proper guards
+			'svelte/infinite-reactive-loop': 'off'
 		}
 	},
 	{

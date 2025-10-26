@@ -1,23 +1,10 @@
 <script lang="ts">
-	import { authStore, userInfo, authMode } from '../stores/userStore';
+	import { authMode, userInfo } from '../stores/sessionStore';
+	import { authService } from '../lib/authService';
 	import UserAvatar from './user-avatar.svelte';
 
-	function logout() {
-		const currentAuthMode = $authMode;
-
-		// Clear localStorage
-		if (currentAuthMode === 'oauth') {
-			localStorage.removeItem('oauth_token');
-			localStorage.removeItem('user_info');
-		} else if (currentAuthMode === 'bearer') {
-			localStorage.removeItem('token');
-		}
-
-		// Update the store
-		authStore.logout();
-
-		// Redirect to login
-		window.location.href = '/login';
+	async function logout() {
+		await authService.logout('/login');
 	}
 </script>
 
@@ -33,6 +20,7 @@
 		</div>
 		<ul
 			tabindex="0"
+			role="menu"
 			class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-64 p-2 shadow"
 		>
 			<li class="px-2 py-3">
@@ -87,6 +75,7 @@
 		</div>
 		<ul
 			tabindex="0"
+			role="menu"
 			class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
 		>
 			<li>

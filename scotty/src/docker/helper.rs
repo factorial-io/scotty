@@ -27,13 +27,21 @@ where
     {
         let context = context.write().await;
         let task = context.task.clone();
+        let task_id = task.read().await.id;
         context
             .app_state
             .task_manager
-            .add_task(&task.read().await.id, task.clone(), None)
+            .add_task(&task_id, task.clone(), None)
+            .await;
+
+        // Add initial status message for the app operation
+        context
+            .app_state
+            .task_manager
+            .add_task_status(&task_id, format!("Starting app '{}'", app.name))
             .await;
     }
-    let _handle = sm.spawn(context.clone());
+    let _handle = sm.spawn(context.clone()).await;
 
     Ok(context.clone().read().await.as_running_app_context().await)
 }

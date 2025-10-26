@@ -10,7 +10,7 @@ use crate::{
         state_machine_handlers::{
             context::Context, run_docker_login_handler::RunDockerLoginHandler,
             run_post_actions_handler::RunPostActionsHandler,
-            set_finished_handler::SetFinishedHandler,
+            task_completion_handler::TaskCompletionHandler,
             update_app_data_handler::UpdateAppDataHandler,
         },
     },
@@ -30,6 +30,7 @@ pub(crate) enum RunAppCustomActionStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -85,6 +86,7 @@ pub async fn run_app_custom_action_prepare(
         RunAppCustomActionStates::RunDockerLogin,
         RunAppCustomActionStates::Done,
     );
+    sm.set_error_state(RunAppCustomActionStates::SetFailed);
 
     sm.add_handler(
         RunAppCustomActionStates::RunDockerLogin,
@@ -110,13 +112,20 @@ pub async fn run_app_custom_action_prepare(
     );
     sm.add_handler(
         RunAppCustomActionStates::SetFinished,
-        Arc::new(SetFinishedHandler::<RunAppCustomActionStates> {
-            next_state: RunAppCustomActionStates::Done,
-            notification: Some(Message::new(
+        Arc::new(TaskCompletionHandler::success(
+            RunAppCustomActionStates::Done,
+            Some(Message::new(
                 MessageType::AppCustomActionCompleted(action.clone()),
                 app,
             )),
-        }),
+        )),
+    );
+    sm.add_handler(
+        RunAppCustomActionStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(
+            RunAppCustomActionStates::Done,
+            None,
+        )),
     );
 
     Ok(sm)
