@@ -23,7 +23,7 @@ RUN cargo run --package scotty-ts-generator
 # Frontend build stage
 FROM oven/bun:1 AS frontend-builder
 WORKDIR /app
-COPY frontend/package.json frontend/bun.lockb ./
+COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 # Install all potential Rollup platform binaries as optional dependencies
 # This ensures the build works across different target platforms
