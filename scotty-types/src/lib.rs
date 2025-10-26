@@ -177,7 +177,7 @@ impl TaskOutput {
         self.current_sequence += 1;
         self.total_lines_processed += 1;
 
-        // Truncate line if too long
+        // Truncate line if too long (UTF-8 safe)
         let mut line = line;
         if line.content.len() > self.limits.max_line_length {
             let truncation_marker = "...[truncated]";
@@ -185,8 +185,15 @@ impl TaskOutput {
                 .limits
                 .max_line_length
                 .saturating_sub(truncation_marker.len());
-            line.content.truncate(available_chars);
-            line.content.push_str(truncation_marker);
+
+            // Use char_indices to find UTF-8 safe truncation point
+            let truncate_pos = line
+                .content
+                .char_indices()
+                .nth(available_chars)
+                .map(|(pos, _)| pos)
+                .unwrap_or(line.content.len());
+            line.content = format!("{}...[truncated]", &line.content[..truncate_pos]);
         }
 
         self.lines.push(line);
@@ -659,5 +666,38 @@ mod tests {
             stored_line.content,
             stored_line.content.len()
         );
+    }
+
+    #[test]
+    fn test_task_output_utf8_safety() {
+        let mut output = TaskOutput::with_limits(OutputLimits {
+            max_lines: 10,
+            max_line_length: 30,
+        });
+
+        // Test with emoji (4-byte UTF-8 characters)
+        let emoji_line = "Hello 😀😃😄😁😆😅🤣😂".to_string();
+        output.add_stdout(emoji_line);
+
+        let stored_line = output.lines.last().unwrap();
+        assert!(stored_line.content.ends_with("...[truncated]"));
+        // Verify string is valid UTF-8 (this would panic if slicing was done incorrectly)
+        assert!(stored_line.content.is_ascii() || stored_line.content.chars().count() > 0);
+
+        // Test with CJK characters (3-byte UTF-8)
+        let cjk_line = "你好世界這是一個很長的中文測試字串".to_string();
+        output.add_stdout(cjk_line);
+
+        let stored_line = output.lines.last().unwrap();
+        assert!(stored_line.content.ends_with("...[truncated]"));
+        assert!(stored_line.content.chars().count() > 0);
+
+        // Test mixed ASCII and multi-byte
+        let mixed_line = "Start 😀 Middle 你好 End ".repeat(5);
+        output.add_stdout(mixed_line);
+
+        let stored_line = output.lines.last().unwrap();
+        assert!(stored_line.content.ends_with("...[truncated]"));
+        assert!(stored_line.content.chars().count() > 0);
     }
 }
