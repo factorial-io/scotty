@@ -39,6 +39,12 @@
 		isLoading = true;
 
 		try {
+			// Check if app settings exist
+			if (!app.settings) {
+				console.warn('App settings not available');
+				return;
+			}
+
 			// Fetch all blueprints and filter for the one we need
 			const result = (await authenticatedApiCall('blueprints')) as BlueprintsResponse;
 			if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
@@ -103,8 +109,8 @@
 	}
 
 	// Check if the app is in a supported state for custom actions
-	function isSupported() {
-		return app.status === 'Running' && app.settings?.app_blueprint;
+	function isSupported(): boolean {
+		return app.status === 'Running' && !!app.settings?.app_blueprint;
 	}
 
 	// Update the exported hasActions variable reactively
@@ -128,6 +134,7 @@
 			{/if}
 		</div>
 		<ul
+			role="menu"
 			tabindex="0"
 			class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm"
 		>

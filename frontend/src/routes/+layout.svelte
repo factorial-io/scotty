@@ -57,7 +57,8 @@
 						<a href={resolve('/tasks')}>Tasks</a>
 					</li>
 					<li>
-						<a href={resolve('/rapidoc')} target="_blank" rel="noopener noreferrer"
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+						<a href="/rapidoc" target="_blank" rel="noopener noreferrer"
 							>API Documentation</a
 						>
 					</li>

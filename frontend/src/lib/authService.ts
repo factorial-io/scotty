@@ -136,6 +136,7 @@ export class AuthService {
 	 */
 	async logout(redirectTo: string = '/login'): Promise<void> {
 		sessionStore.logout();
+		// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
 		await goto(resolve(redirectTo));
 	}
 

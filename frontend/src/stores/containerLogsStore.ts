@@ -107,6 +107,14 @@ export function setContainerLogsError(appName: string, serviceName: string, erro
 }
 
 /**
+ * Find the store key for a given stream ID
+ */
+function findKeyByStreamId(store: ContainerLogsStore, streamId: string): string | null {
+	const entry = Object.entries(store).find(([, state]) => state.streamId === streamId);
+	return entry ? entry[0] : null;
+}
+
+/**
  * Add log lines to a container
  *
  * Performance: Lines are already in chronological order with monotonically
@@ -116,13 +124,13 @@ export function setContainerLogsError(appName: string, serviceName: string, erro
 export function addContainerLogLines(streamId: string, newLines: OutputLine[]) {
 	// Find the container by stream ID
 	containerLogs.update((store) => {
-		const entry = Object.entries(store).find(([, state]) => state.streamId === streamId);
-		if (!entry) {
+		const key = findKeyByStreamId(store, streamId);
+		if (!key) {
 			console.warn('No container found for stream ID:', streamId);
 			return store;
 		}
 
-		const [key, currentState] = entry;
+		const currentState = store[key];
 
 		// Simply append - lines are already in order with increasing sequences
 		return {
@@ -174,18 +182,25 @@ export function handleContainerLogsMessage(message: WebSocketMessage) {
 		addContainerLogLines(stream_id, lines);
 	} else if (isLogsStreamEnded(message)) {
 		console.log('Log stream ended:', message.data);
-		const { stream_id, app_name, service_name } = message.data;
-		const key = getLogKey(app_name, service_name);
+		const { stream_id } = message.data;
 
-		containerLogs.update((store) => ({
-			...store,
-			[key]: {
-				...store[key],
-				loading: false,
-				streaming: false,
-				streamId: null
+		containerLogs.update((store) => {
+			const key = findKeyByStreamId(store, stream_id);
+			if (!key) {
+				console.warn('No container found for stream ID:', stream_id);
+				return store;
 			}
-		}));
+
+			return {
+				...store,
+				[key]: {
+					...store[key],
+					loading: false,
+					streaming: false,
+					streamId: null
+				}
+			};
+		});
 
 		activeLogStreams.update((streams) => {
 			const newStreams = new Set(streams);
@@ -194,19 +209,26 @@ export function handleContainerLogsMessage(message: WebSocketMessage) {
 		});
 	} else if (isLogsStreamError(message)) {
 		console.error('Log stream error:', message.data);
-		const { stream_id, app_name, service_name, error } = message.data;
-		const key = getLogKey(app_name, service_name);
+		const { stream_id, error } = message.data;
 
-		containerLogs.update((store) => ({
-			...store,
-			[key]: {
-				...store[key],
-				error,
-				loading: false,
-				streaming: false,
-				streamId: null
+		containerLogs.update((store) => {
+			const key = findKeyByStreamId(store, stream_id);
+			if (!key) {
+				console.warn('No container found for stream ID:', stream_id);
+				return store;
 			}
-		}));
+
+			return {
+				...store,
+				[key]: {
+					...store[key],
+					error,
+					loading: false,
+					streaming: false,
+					streamId: null
+				}
+			};
+		});
 
 		activeLogStreams.update((streams) => {
 			const newStreams = new Set(streams);
