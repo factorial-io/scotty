@@ -23,7 +23,7 @@ impl ConfigManager {
             .await
             .context("Failed to read authorization config")?;
 
-        serde_yml::from_str(&content).context("Failed to parse authorization config")
+        serde_norway::from_str(&content).context("Failed to parse authorization config")
     }
 
     /// Save configuration to file (excluding apps which are managed dynamically)
@@ -35,7 +35,7 @@ impl ConfigManager {
             assignments: config.assignments.clone(),
         };
 
-        let yaml = serde_yml::to_string(&save_config)?;
+        let yaml = serde_norway::to_string(&save_config)?;
         tokio::fs::write(config_path, yaml)
             .await
             .context("Failed to save authorization config")?;

@@ -108,7 +108,7 @@
 	}
 
 	// Update the exported hasActions variable reactively
-	$: hasActions = Boolean(!isLoading && customActions.length > 0 && canManage && isSupported());
+	$: hasActions = !isLoading && customActions.length > 0 && canManage && isSupported();
 </script>
 
 {#if hasActions}
