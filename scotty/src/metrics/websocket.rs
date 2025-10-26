@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 ///
 /// These functions provide a clean API for recording WebSocket metrics
 /// without cluttering the business logic with metrics implementation details.
-
+///
 /// Track active WebSocket connections in memory
 static ACTIVE_CONNECTIONS: AtomicI64 = AtomicI64::new(0);
 

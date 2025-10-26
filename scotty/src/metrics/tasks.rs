@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 ///
 /// These functions provide a clean API for recording task metrics
 /// without cluttering the business logic with metrics implementation details.
-
+///
 /// Track active task output streams in memory
 static ACTIVE_TASK_STREAMS: AtomicI64 = AtomicI64::new(0);
 
@@ -34,6 +34,7 @@ pub fn record_output_lines(count: u64) {
 }
 
 /// Record a task failure/error
+#[allow(dead_code)]
 pub fn record_task_failure() {
     if let Some(m) = super::get_metrics() {
         m.task_failures.add(1, &[]);
