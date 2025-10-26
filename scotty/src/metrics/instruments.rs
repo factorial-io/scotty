@@ -49,6 +49,12 @@ pub struct ScottyMetrics {
     pub http_requests_total: Counter<u64>,
     pub http_request_duration: Histogram<f64>,
     pub http_requests_active: UpDownCounter<i64>,
+
+    // AppList metrics
+    pub apps_total: Gauge<u64>,
+    pub apps_by_status: Gauge<u64>,
+    pub app_services_count: Histogram<f64>,
+    pub app_last_check_age_seconds: Histogram<f64>,
 }
 
 impl ScottyMetrics {
@@ -214,6 +220,28 @@ impl ScottyMetrics {
             http_requests_active: meter
                 .i64_up_down_counter("scotty.http.requests.active")
                 .with_description("Active HTTP requests")
+                .build(),
+
+            // AppList
+            apps_total: meter
+                .u64_gauge("scotty.apps.total")
+                .with_description("Total number of managed applications")
+                .build(),
+
+            apps_by_status: meter
+                .u64_gauge("scotty.apps.by_status")
+                .with_description("Number of apps by status")
+                .build(),
+
+            app_services_count: meter
+                .f64_histogram("scotty.app.services.count")
+                .with_description("Number of services per application")
+                .build(),
+
+            app_last_check_age_seconds: meter
+                .f64_histogram("scotty.app.last_check.age")
+                .with_description("Time since last health check")
+                .with_unit("s")
                 .build(),
         }
     }

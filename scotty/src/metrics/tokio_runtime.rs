@@ -28,7 +28,7 @@ pub async fn sample_tokio_metrics() {
     let mut intervals = monitor.intervals();
 
     if let Some(metrics) = intervals.next() {
-        tracing::info!(
+        tracing::debug!(
             "Tokio metrics sample - active_tasks={}, dropped={}, polls={}, slow_polls={}, scheduled={}, poll_duration={:?}, idle_duration={:?}",
             metrics.instrumented_count,
             metrics.dropped_count,

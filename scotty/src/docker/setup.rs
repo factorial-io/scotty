@@ -83,6 +83,18 @@ pub async fn setup_docker_integration(
                 crate::metrics::sample_tokio_metrics().await;
             });
     }
+    {
+        // Sample AppList metrics every 30 seconds
+        let app_state = app_state.clone();
+        scheduler
+            .every(clokwerk::Interval::Seconds(30))
+            .run(move || {
+                let app_state = app_state.clone();
+                async move {
+                    crate::metrics::sample_app_list_metrics(app_state).await;
+                }
+            });
+    }
     // Handle the scheduler in a separate task.
     let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();

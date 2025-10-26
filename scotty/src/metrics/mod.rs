@@ -2,6 +2,7 @@
 //!
 //! This module provides metrics instrumentation for the unified output system.
 
+mod app_list;
 mod http;
 mod init;
 mod instruments;
@@ -10,6 +11,7 @@ mod tokio_runtime;
 
 use std::sync::OnceLock;
 
+pub use app_list::sample_app_list_metrics;
 pub use http::http_metrics_middleware;
 pub use init::init_metrics;
 pub use instruments::ScottyMetrics;
