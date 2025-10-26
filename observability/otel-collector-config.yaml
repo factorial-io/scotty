@@ -1,0 +1,81 @@
+# OpenTelemetry Collector Configuration for Scotty
+#
+# This collector receives OTLP traces and metrics from Scotty and routes them
+# to the appropriate backends:
+# - Traces → Jaeger (for distributed tracing)
+# - Metrics → VictoriaMetrics (for time-series metrics)
+#
+# Architecture:
+#   Scotty → OTLP → This Collector → Jaeger (traces)
+#                                  → VictoriaMetrics (metrics)
+
+receivers:
+  # OTLP receiver for traces and metrics from Scotty
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch processor to group spans/metrics for efficiency
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+exporters:
+  # Jaeger exporter for traces
+  # Uses gRPC to send traces to Jaeger backend
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # VictoriaMetrics exporter for metrics
+  # Uses Prometheus Remote Write protocol
+  prometheusremotewrite:
+    endpoint: http://victoriametrics:8428/api/v1/write
+    tls:
+      insecure: true
+    # Resource attributes become labels
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Debug/logging exporter for troubleshooting
+  # Set loglevel to 'debug' to see traces/metrics in collector logs
+  logging:
+    loglevel: info
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  # Telemetry configuration for the collector itself
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    # Trace pipeline: OTLP → Batch → Jaeger
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger, logging]
+
+    # Metrics pipeline: OTLP → Batch → VictoriaMetrics
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheusremotewrite, logging]
+
+  # Extensions for health checks and monitoring
+  extensions: []

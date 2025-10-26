@@ -236,6 +236,9 @@ impl ShellService {
             sessions.insert(session_id, session.clone());
         }
 
+        // Record session started
+        crate::metrics::shell::record_session_started();
+
         // Clone values we need to move into the spawned task
         let app_name_clone = app_data.name.clone();
         let service_name_clone = service_name.to_string();
@@ -262,7 +265,7 @@ impl ShellService {
         let active_sessions = self.active_sessions.clone();
         let session_ttl = self.shell_settings.session_ttl();
 
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
             info!(
                 "Starting shell session {} for container {}",
                 session_id, container_id_clone
@@ -280,6 +283,8 @@ impl ShellService {
                             // Check for TTL timeout
                             _ = tokio::time::sleep_until(session_start + session_ttl) => {
                                 info!("Shell session {} expired after TTL", session_id);
+                                let duration_secs = session_start.elapsed().as_secs_f64();
+                                crate::metrics::shell::record_session_timeout(duration_secs);
                                 app_state.messenger.broadcast_to_all(
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
@@ -296,6 +301,8 @@ impl ShellService {
                                     ShellCommand::Input(data) => {
                                         if let Err(e) = input.write_all(data.as_bytes()).await {
                                             error!("Failed to write to shell {}: {}", session_id, e);
+                                            let duration_secs = session_start.elapsed().as_secs_f64();
+                                            crate::metrics::shell::record_session_error(duration_secs);
                                             app_state.messenger.broadcast_to_all(
                                                 WebSocketMessage::ShellSessionError(ShellSessionError {
                                                     session_id,
@@ -319,6 +326,8 @@ impl ShellService {
                                     }
                                     ShellCommand::Terminate => {
                                         info!("Terminating shell session {} by request", session_id);
+                                        let duration_secs = session_start.elapsed().as_secs_f64();
+                                        crate::metrics::shell::record_session_ended(duration_secs);
                                         app_state.messenger.broadcast_to_all(
                                             WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                                 session_id,
@@ -357,6 +366,8 @@ impl ShellService {
                                     }
                                     Err(e) => {
                                         error!("Failed to read from shell stream {}: {}", session_id, e);
+                                        let duration_secs = session_start.elapsed().as_secs_f64();
+                                        crate::metrics::shell::record_session_error(duration_secs);
                                         app_state.messenger.broadcast_to_all(
                                             WebSocketMessage::ShellSessionError(ShellSessionError {
                                                 session_id,
@@ -370,6 +381,8 @@ impl ShellService {
                             // Stream ended
                             else => {
                                 info!("Shell session {} ended (stream closed)", session_id);
+                                let duration_secs = session_start.elapsed().as_secs_f64();
+                                crate::metrics::shell::record_session_ended(duration_secs);
                                 app_state.messenger.broadcast_to_all(
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
@@ -387,6 +400,7 @@ impl ShellService {
                         "Shell session {} started in detached mode (unexpected)",
                         session_id
                     );
+                    crate::metrics::shell::record_session_error(0.0);
                     app_state
                         .messenger
                         .broadcast_to_all(WebSocketMessage::ShellSessionError(ShellSessionError {
@@ -404,7 +418,7 @@ impl ShellService {
             }
 
             info!("Shell session {} cleaned up", session_id);
-        });
+        }).await;
 
         Ok(session_id)
     }

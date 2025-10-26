@@ -91,7 +91,8 @@ impl TaskOutputStreamingService {
         let output_collection_active = task_details.output_collection_active;
 
         // Start the streaming task
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
+            crate::metrics::tasks::record_stream_started();
             info!(
                 "Task output streaming task started for task {} (output_collection_active: {})",
                 task_id, output_collection_active
@@ -119,6 +120,7 @@ impl TaskOutputStreamingService {
 
                         for (i, chunk) in chunks.enumerate() {
                             let is_last_batch = i == total_chunks - 1;
+                            let chunk_len = chunk.len() as u64;
                             let _ = app_state
                                 .messenger
                                 .send_to_client(
@@ -131,6 +133,7 @@ impl TaskOutputStreamingService {
                                     }),
                                 )
                                 .await;
+                            crate::metrics::tasks::record_output_lines(chunk_len);
                         }
 
                         // Update last sent sequence to the last historical line
@@ -158,6 +161,7 @@ impl TaskOutputStreamingService {
                         },
                     )
                     .await;
+                crate::metrics::tasks::record_stream_ended();
                 return;
             }
 
@@ -202,6 +206,7 @@ impl TaskOutputStreamingService {
                                         has_more: false,
                                     }),
                                 ).await;
+                                crate::metrics::tasks::record_output_lines(lines_count as u64);
                             }
                         }
                     }
@@ -251,6 +256,7 @@ impl TaskOutputStreamingService {
                                     // Send immediately if buffer should flush
                                     if buffer.should_flush() {
                                         let lines_to_send = buffer.flush();
+                                        let lines_count = lines_to_send.len() as u64;
                                         let _ = app_state.messenger.send_to_client(
                                             client_id,
                                             WebSocketMessage::TaskOutputData(TaskOutputData {
@@ -260,6 +266,7 @@ impl TaskOutputStreamingService {
                                                 has_more: false,
                                             }),
                                         ).await;
+                                        crate::metrics::tasks::record_output_lines(lines_count);
                                     }
                                 }
                             }
@@ -270,18 +277,21 @@ impl TaskOutputStreamingService {
 
             // Send any remaining buffered lines
             if buffer.has_data() {
+                let lines_to_send = buffer.flush();
+                let lines_count = lines_to_send.len() as u64;
                 let _ = app_state
                     .messenger
                     .send_to_client(
                         client_id,
                         WebSocketMessage::TaskOutputData(TaskOutputData {
                             task_id,
-                            lines: buffer.flush(),
+                            lines: lines_to_send,
                             is_historical: false,
                             has_more: false,
                         }),
                     )
                     .await;
+                crate::metrics::tasks::record_output_lines(lines_count);
             }
 
             // Send stream ended message
@@ -296,11 +306,12 @@ impl TaskOutputStreamingService {
                 )
                 .await;
 
+            crate::metrics::tasks::record_stream_ended();
             info!(
                 "Task output stream for task {} ended and cleaned up",
                 task_id
             );
-        });
+        }).await;
 
         Ok(())
     }

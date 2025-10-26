@@ -24,6 +24,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
 
     {
         info!("New WebSocket connection");
+        crate::metrics::websocket::record_connection_opened();
         let client = crate::app_state::WebSocketClient::new(tx.clone());
         state.messenger.add_client(client_id, client).await;
     }
@@ -55,7 +56,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
 
     // Don't send initial ping - wait for authentication first
 
-    tokio::spawn(async move {
+    crate::metrics::spawn_instrumented(async move {
         info!("Started WebSocket forwarding task for client {}", client_id);
         loop {
             match rx.recv().await {
@@ -82,12 +83,13 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
             }
         }
         info!("WebSocket forwarding task ended for client {}", client_id);
-    });
+    }).await;
 
     while let Some(Ok(msg)) = receiver.next().await {
         info!("Received message: {:?}", msg);
         match msg {
             Message::Text(text) => {
+                crate::metrics::websocket::record_message_received();
                 if let Ok(parsed_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
                     handle_websocket_message(&state, client_id, &parsed_msg).await;
                 } else {
@@ -116,6 +118,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
         // Remove client from the list
         state.messenger.remove_client(client_id).await;
 
+        crate::metrics::websocket::record_connection_closed();
         info!("WebSocket client {} cleanup completed", client_id);
     }
 }

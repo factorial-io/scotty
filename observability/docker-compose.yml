@@ -1,0 +1,76 @@
+#ddev-generated
+services:
+    # Jaeger - Distributed tracing backend
+    jaeger:
+        image: jaegertracing/all-in-one:${JAEGER_VERSION:-latest}
+        expose:
+            - "16686:16686" # Jaeger UI
+            - "14250:14250" # gRPC receiver from OTel Collector
+        environment:
+            - LOG_LEVEL=debug
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.jaeger.rule=Host(`jaeger.ddev.site`)"
+            - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
+
+    # OpenTelemetry Collector - Unified telemetry pipeline
+    # Receives OTLP traces and metrics from Scotty, routes to backends
+    otel-collector:
+        image: otel/opentelemetry-collector:0.95.0
+        command: ["--config=/etc/otel-collector-config.yaml"]
+        volumes:
+            - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+        ports:
+            - "4317:4317" # OTLP gRPC receiver
+            - "4318:4318" # OTLP HTTP receiver
+            - "8888:8888" # Prometheus metrics (collector itself)
+        depends_on:
+            - jaeger
+            - victoriametrics
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=false"
+
+    # VictoriaMetrics - Lightweight time-series database
+    # 10x more efficient than Prometheus
+    victoriametrics:
+        image: victoriametrics/victoria-metrics:latest
+        expose:
+            - "8428:8428"
+        volumes:
+            - vm-data:/victoria-metrics-data
+        command:
+            - "--storageDataPath=/victoria-metrics-data"
+            - "--retentionPeriod=30d"
+            - "--httpListenAddr=:8428"
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.victoriametrics.rule=Host(`vm.ddev.site`)"
+            - "traefik.http.services.victoriametrics.loadbalancer.server.port=8428"
+
+    # Grafana - Visualization and dashboards
+    grafana:
+        image: grafana/grafana:latest
+        expose:
+            - "3000:3000"
+        environment:
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+            - GF_USERS_ALLOW_SIGN_UP=false
+            - GF_SERVER_ROOT_URL=http://grafana.ddev.site
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ./grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+        depends_on:
+            - victoriametrics
+            - jaeger
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.grafana.rule=Host(`grafana.ddev.site`)"
+            - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+volumes:
+    vm-data:
+    grafana-data:

@@ -49,6 +49,7 @@ impl WebSocketMessenger {
                 .send(Message::Text(serialized.into()))
                 .map_err(|e| WebSocketError::SendError(client_id, e.to_string()))?;
 
+            crate::metrics::websocket::record_message_sent();
             Ok(())
         } else {
             Err(WebSocketError::ClientNotFound(client_id))
@@ -69,12 +70,17 @@ impl WebSocketMessenger {
         };
 
         let mut failed_clients = Vec::new();
+        let mut sent_count = 0;
         for (&client_id, client) in clients.iter() {
             if let Err(e) = client.sender.send(Message::Text(serialized.clone().into())) {
                 warn!("Failed to broadcast to client {}: {}", client_id, e);
                 failed_clients.push(client_id);
+            } else {
+                sent_count += 1;
             }
         }
+
+        crate::metrics::websocket::record_messages_sent(sent_count);
 
         if !failed_clients.is_empty() {
             debug!("Broadcast failed for {} clients", failed_clients.len());

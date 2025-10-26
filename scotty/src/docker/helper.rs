@@ -41,7 +41,7 @@ where
             .add_task_status(&task_id, format!("Starting app '{}'", app.name))
             .await;
     }
-    let _handle = sm.spawn(context.clone());
+    let _handle = sm.spawn(context.clone()).await;
 
     Ok(context.clone().read().await.as_running_app_context().await)
 }

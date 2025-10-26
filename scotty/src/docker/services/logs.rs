@@ -10,6 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
+use crate::metrics;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{
@@ -17,6 +18,36 @@ use scotty_types::{
 };
 
 use thiserror::Error;
+
+/// Record metrics when a log stream is started
+fn record_stream_started_metrics(active_count: usize) {
+    if let Some(m) = metrics::get_metrics() {
+        m.log_streams_active.record(active_count as i64, &[]);
+        m.log_streams_total.add(1, &[]);
+    }
+}
+
+/// Record metrics when a log line is received
+fn record_log_line_received_metrics() {
+    if let Some(m) = metrics::get_metrics() {
+        m.log_lines_received.add(1, &[]);
+    }
+}
+
+/// Record metrics when a log stream encounters an error
+fn record_stream_error_metrics() {
+    if let Some(m) = metrics::get_metrics() {
+        m.log_stream_errors.add(1, &[]);
+    }
+}
+
+/// Record metrics when a log stream ends
+fn record_stream_ended_metrics(active_count: usize, duration_secs: f64) {
+    if let Some(m) = metrics::get_metrics() {
+        m.log_streams_active.record(active_count as i64, &[]);
+        m.log_stream_duration.record(duration_secs, &[]);
+    }
+}
 
 /// Error types for log streaming operations
 #[derive(Error, Debug, Clone, utoipa::ToSchema)]
@@ -216,10 +247,13 @@ impl LogStreamingService {
         };
 
         // Store session
-        {
+        let active_count = {
             let mut streams = self.active_streams.write().await;
             streams.insert(stream_id, session.clone());
-        }
+            streams.len()
+        };
+
+        record_stream_started_metrics(active_count);
 
         // Send stream started message to the specific client
         if let Some(client_id) = client_id {
@@ -245,7 +279,10 @@ impl LogStreamingService {
         let app_name = app_data.name.clone();
         let service_name = service_name.to_string();
 
-        tokio::spawn(async move {
+        crate::metrics::spawn_instrumented(async move {
+            // Track stream duration
+            let stream_start = std::time::Instant::now();
+
             info!(
                 "Starting log stream {} for container {} (app: '{}', service: '{}', follow: {})",
                 stream_id, container_id, app_name, service_name, follow
@@ -334,6 +371,8 @@ impl LogStreamingService {
                                     last_log_time = tokio::time::Instant::now(); // Reset idle timer
                                     buffer.push(output_line);
 
+                                    record_log_line_received_metrics();
+
                                     // Send buffered lines if we should flush
                                     if buffer.should_flush() && buffer.has_data() {
                                         if let Some(client_id) = client_id {
@@ -352,6 +391,9 @@ impl LogStreamingService {
                             }
                             Err(e) => {
                                 error!("Error reading logs for stream {}: {}", stream_id, e);
+
+                                record_stream_error_metrics();
+
                                 if let Some(client_id) = client_id {
                                     let _ = app_state.messenger.send_to_client(
                                         client_id,
@@ -390,10 +432,14 @@ impl LogStreamingService {
             }
 
             // Clean up and send end message
-            {
+            let active_count = {
                 let mut streams = active_streams.write().await;
                 streams.remove(&stream_id);
-            }
+                streams.len()
+            };
+
+            let duration_secs = stream_start.elapsed().as_secs_f64();
+            record_stream_ended_metrics(active_count, duration_secs);
 
             if let Some(client_id) = client_id {
                 info!(
@@ -421,7 +467,7 @@ impl LogStreamingService {
                 "Log stream {} cleaned up and removed from active streams",
                 stream_id
             );
-        });
+        }).await;
 
         Ok(stream_id)
     }

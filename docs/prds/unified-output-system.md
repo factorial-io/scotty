@@ -296,120 +296,82 @@ SCOTTY__OUTPUT__MAX_LOG_LINES_STREAMING=2000
 
 ## Implementation Status
 
-**Current Status: Backend Complete, Frontend Partial** 🎯
-
-The unified output system backend is fully functional with significant performance and infrastructure improvements. Current state:
-
-**✅ FULLY COMPLETED:**
-- **Backend Infrastructure**: All services, APIs, and WebSocket handlers implemented and tested
-- **CLI Logs Command**: `app:logs` fully functional with real-time streaming
-- **Task Output UI**: Unified output viewer in frontend with WebSocket integration
-- **Performance & Reliability**: Deadlock fixes, batching, security improvements
-- **Breaking Changes**: Removed stdout/stderr from TaskDetails, WebSocket-only streaming
-
-**🚧 PARTIALLY COMPLETED:**
-- **CLI Shell Command**: Backend ready, CLI command NOT implemented
-- **Frontend Integration**: Task output viewer done, container logs/shell UI NOT implemented
-
-**Completed Features:**
-- ✅ **BREAKING CHANGE IMPLEMENTED**: Removed stdout/stderr from TaskDetails, now uses WebSocket-only task output streaming
-- ✅ Full WebSocket-based authenticated log streaming backend with REST API endpoints
-- ✅ `app:logs` CLI command with follow, timestamps, line limits, and time filters
-- ✅ Interactive shell backend service (ShellService) with WebSocket handlers
-- ✅ Real-time task output streaming via TaskOutputData messages with unified-output component
-- ✅ WebSocketMessenger architecture for centralized client management
-- ✅ Resolved deadlock and lock contention issues (20-100x performance improvement)
-- ✅ TimedBuffer batching system for efficient output handling
-- ✅ Proper resource cleanup and subscription management
-- ✅ Comprehensive test coverage (16 tests) and CI integration
-- ✅ Consolidated WebSocket message types in scotty-types crate
-- ✅ **Live task output during all app operations** - unified OutputLine format with timestamps and sequence numbers
-- ✅ **Build System Optimization** - TypeScript generation optimized from 27s to 6s
-- ✅ **Type System Consolidation** - Eliminated all type duplication with scotty-types crate
-- ✅ **Frontend Build Optimization** - Migrated to bun for 62% faster builds
-- ✅ **Platform-Agnostic Docker Builds** - Multi-platform support with consolidated Rollup binaries
-- ✅ **MaskedSecret/SecretHashMap** - Memory-safe secret handling
-
-**Next Steps**:
-- Phase 3 Completion: Implement `app:shell` CLI command
-- Phase 4 Completion: Add container log viewer and shell UI to frontend
-
----
+See beads issues for current implementation status and remaining work. The core design is complete and the backend infrastructure is implemented.
 
 ## Implementation Plan
 
-### Phase 1: Core Infrastructure ✅ COMPLETED
-1. ✅ **Unified Output Data Model**: Implement OutputLine and StreamingTaskOutput structures
-2. ✅ **Bollard Integration**: Research and implement bollard container logs and exec APIs
-3. ✅ **WebSocket Protocol**: Extend message types for logs and shell data
-4. ✅ **Configuration System**: Add new configuration options with validation
+### Phase 1: Core Infrastructure
+1. **Unified Output Data Model**: Implement OutputLine and StreamingTaskOutput structures
+2. **Bollard Integration**: Research and implement bollard container logs and exec APIs
+3. **WebSocket Protocol**: Extend message types for logs and shell data
+4. **Configuration System**: Add new configuration options with validation
 
-### Phase 2: Log Streaming ✅ COMPLETED
-1. ✅ **Backend Log API**: Implement REST endpoints and WebSocket handlers for log streaming
-2. ✅ **CLI Logs Command**: Implement `app:logs` with WebSocket integration
-3. ✅ **Permission Integration**: Add authorization checks for logs access
-4. ✅ **Testing**: Unit and integration tests for log streaming
+### Phase 2: Log Streaming
+1. **Backend Log API**: Implement REST endpoints and WebSocket handlers for log streaming
+2. **CLI Logs Command**: Implement `app:logs` with WebSocket integration
+3. **Permission Integration**: Add authorization checks for logs access
+4. **Testing**: Unit and integration tests for log streaming
 
-### Phase 3: CLI Commands 🚧 PARTIALLY COMPLETED
-1. ✅ **CLI Logs Command**: Fully implemented `app:logs` with WebSocket integration, follow mode, timestamps, line limits
-2. ✅ **Permission Integration**: Authorization checks for logs access
-3. ✅ **Authentication Enhancement**: Centralized auth system for WebSocket connections
-4. ✅ **Stream Cleanup**: Proactive client disconnect cleanup for proper resource management
-5. ✅ **User Experience**: Improved completion timing and removed duplicate messages
-6. ✅ **Shell Backend**: Complete ShellService implementation with session management, REST/WebSocket APIs
-7. ❌ **CLI Shell Command**: NOT IMPLEMENTED - `app:shell` command missing from scottyctl (backend ready)
+### Phase 3: CLI Commands
+1. **CLI Logs Command**: Implement `app:logs` with WebSocket integration, follow mode, timestamps, line limits
+2. **Permission Integration**: Authorization checks for logs access
+3. **Authentication Enhancement**: Centralized auth system for WebSocket connections
+4. **Stream Cleanup**: Proactive client disconnect cleanup for proper resource management
+5. **User Experience**: Improved completion timing and removed duplicate messages
+6. **Shell Backend**: Complete ShellService implementation with session management, REST/WebSocket APIs
+7. **CLI Shell Command**: Implement `app:shell` command in scottyctl (backend ready)
 
-### Phase 3.5: WebSocket Message Consolidation ✅ COMPLETED
-1. ✅ **Message Type Consolidation**: Moved all WebSocket message types to `scotty-core/src/websocket/message.rs`
-2. ✅ **Code Deduplication**: Eliminated ~70 lines of duplicate message definitions from scottyctl
-3. ✅ **Type Consistency**: Server and client now guaranteed to use identical message types
-4. ✅ **Import Updates**: Updated 18 files across server and client to use consolidated types
-5. ✅ **Testing**: Verified all tests pass with new consolidated message structure
-6. ✅ **Single Source of Truth**: All WebSocket communication types defined once and shared
+### Phase 3.5: WebSocket Message Consolidation
+1. **Message Type Consolidation**: Move all WebSocket message types to `scotty-core/src/websocket/message.rs`
+2. **Code Deduplication**: Eliminate duplicate message definitions from scottyctl
+3. **Type Consistency**: Server and client use identical message types
+4. **Import Updates**: Update files across server and client to use consolidated types
+5. **Testing**: Verify all tests pass with new consolidated message structure
+6. **Single Source of Truth**: All WebSocket communication types defined once and shared
 
-### Phase 3.6: Task Output WebSocket Streaming ✅ COMPLETED
-1. ✅ **Hybrid WebSocket Implementation**: Updated `wait_for_task` function to use REST polling for task status + WebSocket for real-time output
-2. ✅ **WebSocketMessenger Architecture**: Created centralized abstraction for WebSocket client management and message broadcasting
-3. ✅ **Task Output Display**: Implemented unified output display with colored stderr output during task execution
-4. ✅ **Real-time Feedback**: Shows task progress with live stdout/stderr output during app operations
-5. ✅ **Stack Overflow Resolution**: Fixed circular reference issues in TaskManager data structures
-6. ✅ **Resource Management**: Proper WebSocket subscription cleanup and client management
-7. ✅ **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
-8. ✅ **Status Integration**: Uses `set_status` for proper UI status updates
+### Phase 3.6: Task Output WebSocket Streaming
+1. **Hybrid WebSocket Implementation**: Update `wait_for_task` function to use REST polling for task status + WebSocket for real-time output
+2. **WebSocketMessenger Architecture**: Create centralized abstraction for WebSocket client management and message broadcasting
+3. **Task Output Display**: Implement unified output display with colored stderr output during task execution
+4. **Real-time Feedback**: Show task progress with live stdout/stderr output during app operations
+5. **Stack Overflow Resolution**: Fix circular reference issues in TaskManager data structures
+6. **Resource Management**: Proper WebSocket subscription cleanup and client management
+7. **Unified Experience**: Consistent streaming experience across logs, shell, and task operations
+8. **Status Integration**: Use `set_status` for proper UI status updates
 
-### Phase 3.7: Infrastructure Optimization ✅ COMPLETED
-1. ✅ **TypeScript Generation Optimization**: Created standalone `ts-generator` crate reducing build time from 27s to 6s
-2. ✅ **Type System Consolidation**: Moved all shared types to `scotty-types` crate as single source of truth
-3. ✅ **Import Cleanup**: Updated all files to use direct imports from `scotty-types` instead of re-exports
-4. ✅ **Frontend Build Migration**: Switched from npm to bun for 62% faster frontend builds (3.2s vs 5.2s)
-5. ✅ **Docker Build Optimization**: Implemented platform-agnostic Docker builds with multi-platform Rollup binaries
-6. ✅ **Workspace Integration**: Added new crates to workspace for better tooling and dependency management
-7. ✅ **Legacy Cleanup**: Removed duplicate dependencies, old package manager files, and unused code
-8. ✅ **Multi-Platform Support**: Docker builds now work on ARM64, x86_64, and different libc implementations
+### Phase 3.7: Infrastructure Optimization
+1. **TypeScript Generation Optimization**: Create standalone `ts-generator` crate reducing build time from 27s to 6s
+2. **Type System Consolidation**: Move all shared types to `scotty-types` crate as single source of truth
+3. **Import Cleanup**: Update all files to use direct imports from `scotty-types` instead of re-exports
+4. **Frontend Build Migration**: Switch from npm to bun for 62% faster frontend builds (3.2s vs 5.2s)
+5. **Docker Build Optimization**: Implement platform-agnostic Docker builds with multi-platform Rollup binaries
+6. **Workspace Integration**: Add new crates to workspace for better tooling and dependency management
+7. **Legacy Cleanup**: Remove duplicate dependencies, old package manager files, and unused code
+8. **Multi-Platform Support**: Docker builds work on ARM64, x86_64, and different libc implementations
 
-### Phase 4: Frontend Integration 🚧 PARTIALLY COMPLETED
-1. ✅ **Unified Output Viewer**: Created `unified-output.svelte` component with chronological display
-2. ✅ **WebSocket-Only Streaming**: Task output uses WebSocket streaming (TaskOutputData messages)
-3. ✅ **Real-time Updates**: Live task output streaming during execution via WebSocket
-4. ✅ **Task Output Store**: Implemented taskOutputStore.ts for managing streaming data
-5. ✅ **WebSocket Store**: Connection management and message handling in webSocketStore.ts
-6. ✅ **Task Detail Page**: Enhanced with real-time output streaming and WebSocket status indicator
-7. ❌ **Container Log Viewer UI**: NOT IMPLEMENTED - No frontend UI for viewing service logs
-8. ❌ **Interactive Shell UI**: NOT IMPLEMENTED - No xterm.js or shell UI in frontend
+### Phase 4: Frontend Integration
+1. **Unified Output Viewer**: Create `unified-output.svelte` component with chronological display
+2. **WebSocket-Only Streaming**: Task output uses WebSocket streaming (TaskOutputData messages)
+3. **Real-time Updates**: Live task output streaming during execution via WebSocket
+4. **Task Output Store**: Implement taskOutputStore.ts for managing streaming data
+5. **WebSocket Store**: Connection management and message handling in webSocketStore.ts
+6. **Task Detail Page**: Enhanced with real-time output streaming and WebSocket status indicator
+7. **Container Log Viewer UI**: Frontend UI for viewing service logs
+8. **Interactive Shell UI**: xterm.js or shell UI in frontend
 
-### Phase 5: Performance and Reliability ✅ COMPLETED
-1. ✅ **Deadlock Resolution**: Fixed critical lock contention causing API hangs (commit 160375a2)
-2. ✅ **Performance Optimization**: Reduced write lock frequency 20-100x (1000/sec → 10-50/sec)
-3. ✅ **TimedBuffer System**: Generic batching utility with configurable size and time thresholds
-4. ✅ **Memory Management**: Proper output limits, cleanup intervals, and resource management
-5. ✅ **Lock Pattern Improvements**: Helper methods to ensure consistent, minimal lock holding times
-6. ✅ **Security Enhancements**: MaskedSecret and SecretHashMap for memory-safe secret handling
-7. ✅ **Error Handling**: Robust error handling with enum-based errors (LogStreamError, ShellServiceError)
-8. ✅ **Test Coverage**: 16 comprehensive tests with CI-friendly Docker handling
-9. 🚧 **Monitoring**: Metrics and logging for the new system (partial - basic logging in place)
-10. 🚧 **Documentation**: User and developer documentation (this PRD complete, end-user docs pending)
+### Phase 5: Performance and Reliability
+1. **Deadlock Resolution**: Fix critical lock contention causing API hangs
+2. **Performance Optimization**: Reduce write lock frequency 20-100x (1000/sec → 10-50/sec)
+3. **TimedBuffer System**: Generic batching utility with configurable size and time thresholds
+4. **Memory Management**: Proper output limits, cleanup intervals, and resource management
+5. **Lock Pattern Improvements**: Helper methods to ensure consistent, minimal lock holding times
+6. **Security Enhancements**: MaskedSecret and SecretHashMap for memory-safe secret handling
+7. **Error Handling**: Robust error handling with enum-based errors (LogStreamError, ShellServiceError)
+8. **Test Coverage**: Comprehensive tests with CI-friendly Docker handling
+9. **Monitoring**: Metrics and logging for the new system
+10. **Documentation**: User and developer documentation
 
-### Phase 6: Remaining Features (Future Work)
+### Phase 6: Remaining Features
 1. **CLI Shell Command**: Implement `app:shell` command in scottyctl with terminal integration
    - Add ShellCommand struct to cli.rs
    - Implement WebSocket-based shell handler

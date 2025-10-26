@@ -12,6 +12,7 @@ pub async fn handle_authentication(state: &SharedAppState, client_id: Uuid, toke
         Ok(user) => user,
         Err(e) => {
             warn!("Authentication failed for client {}: {}", client_id, e);
+            crate::metrics::websocket::record_auth_failure();
             state
                 .messenger
                 .send_auth_failure(client_id, "Invalid or expired token".to_string())
