@@ -28,9 +28,7 @@ pub async fn sample_app_list_metrics(app_state: SharedAppState) {
             let now = Local::now();
             let age_seconds = (now - last_checked).num_seconds() as f64;
             if let Some(metrics) = super::get_metrics() {
-                metrics
-                    .app_last_check_age_seconds
-                    .record(age_seconds, &[]);
+                metrics.app_last_check_age_seconds.record(age_seconds, &[]);
             }
         }
     }

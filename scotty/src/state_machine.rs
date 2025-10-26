@@ -103,7 +103,8 @@ where
                     "State machine execution failed"
                 );
             }
-        }).await
+        })
+        .await
     }
 }
 #[cfg(test)]

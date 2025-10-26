@@ -1,8 +1,4 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use opentelemetry::KeyValue;
 use std::time::Instant;
 

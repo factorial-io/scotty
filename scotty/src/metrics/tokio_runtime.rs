@@ -72,8 +72,7 @@ pub async fn sample_tokio_metrics() {
             // First poll delay
             let first_poll_delay_secs = metrics.total_first_poll_delay.as_secs_f64();
             if first_poll_delay_secs > 0.0 {
-                m.tokio_first_poll_delay
-                    .record(first_poll_delay_secs, &[]);
+                m.tokio_first_poll_delay.record(first_poll_delay_secs, &[]);
             }
         }
     }

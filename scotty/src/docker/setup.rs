@@ -106,7 +106,8 @@ pub async fn setup_docker_integration(
 
             Ok(())
         }
-    }).await;
+    })
+    .await;
 
     Ok(handle)
 }
