@@ -65,8 +65,7 @@ jobs:
 
             # Generate TypeScript types from Rust code
             - name: Generate TypeScript types
-              run: cargo run
-              working-directory: ts-generator
+              run: cargo run --package scotty-ts-generator
 
             - uses: oven-sh/setup-bun@v2
 
