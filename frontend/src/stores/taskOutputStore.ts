@@ -1,6 +1,6 @@
 import { writable, derived, type Writable } from 'svelte/store';
 import type { OutputLine, WebSocketMessage } from '../types';
-import { isTaskOutputData, isTaskOutputStreamStarted, isTaskOutputStreamEnded } from '../generated';
+import { isTaskOutputData, isTaskOutputStreamStarted, isTaskOutputStreamEnded } from '$generated';
 
 interface TaskOutputState {
 	lines: OutputLine[];

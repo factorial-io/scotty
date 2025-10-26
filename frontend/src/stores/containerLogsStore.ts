@@ -5,7 +5,7 @@ import {
 	isLogsStreamData,
 	isLogsStreamEnded,
 	isLogsStreamError
-} from '../generated';
+} from '$generated';
 
 interface ContainerLogState {
 	streamId: string | null;
