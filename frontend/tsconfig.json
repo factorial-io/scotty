@@ -10,19 +10,11 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler"
-	},
+	}
 	// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias
 	// except $lib which is handled by https://kit.svelte.dev/docs/configuration#files
 	//
-	// Exclude auto-generated TypeScript files from ts-rs
-	"exclude": [
-		"node_modules/**",
-		"src/service-worker.js",
-		"src/service-worker/**/*.js",
-		"src/service-worker.ts",
-		"src/service-worker/**/*.ts",
-		"src/service-worker.d.ts",
-		"src/service-worker/**/*.d.ts",
-		"src/generated/**"
-	]
+	// Note: Generated files in src/generated/ are excluded from linting via
+	// eslint.config.js and .prettierignore, but TypeScript still checks them
+	// (which is fine - they're valid, properly typed code from ts-rs)
 }
