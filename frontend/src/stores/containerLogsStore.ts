@@ -1,11 +1,31 @@
 import { writable, derived, type Writable } from 'svelte/store';
-import type { OutputLine, WebSocketMessage } from '../types';
-import {
-	isLogsStreamStarted,
-	isLogsStreamData,
-	isLogsStreamEnded,
-	isLogsStreamError
-} from '$generated';
+import type { OutputLine } from '../types';
+import type { WebSocketMessage } from '../generated/WebSocketMessage';
+
+// Inline type guards for log stream messages
+function isLogsStreamStarted(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'LogsStreamStarted' }> {
+	return msg.type === 'LogsStreamStarted';
+}
+
+function isLogsStreamData(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'LogsStreamData' }> {
+	return msg.type === 'LogsStreamData';
+}
+
+function isLogsStreamEnded(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'LogsStreamEnded' }> {
+	return msg.type === 'LogsStreamEnded';
+}
+
+function isLogsStreamError(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'LogsStreamError' }> {
+	return msg.type === 'LogsStreamError';
+}
 
 interface ContainerLogState {
 	streamId: string | null;

@@ -12,9 +12,6 @@ const config = {
 	},
 
 	kit: {
-		alias: {
-			$generated: 'src/generated/index.ts'
-		},
 		prerender: {
 			handleHttpError: ({ path, message }) => {
 				// ignore deliberate link to shiny 404 page

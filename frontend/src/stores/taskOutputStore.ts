@@ -1,6 +1,25 @@
 import { writable, derived, type Writable } from 'svelte/store';
-import type { OutputLine, WebSocketMessage } from '../types';
-import { isTaskOutputData, isTaskOutputStreamStarted, isTaskOutputStreamEnded } from '$generated';
+import type { OutputLine } from '../types';
+import type { WebSocketMessage } from '../generated/WebSocketMessage';
+
+// Inline type guards for task output messages
+function isTaskOutputStreamStarted(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'TaskOutputStreamStarted' }> {
+	return msg.type === 'TaskOutputStreamStarted';
+}
+
+function isTaskOutputData(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'TaskOutputData' }> {
+	return msg.type === 'TaskOutputData';
+}
+
+function isTaskOutputStreamEnded(
+	msg: WebSocketMessage
+): msg is Extract<WebSocketMessage, { type: 'TaskOutputStreamEnded' }> {
+	return msg.type === 'TaskOutputStreamEnded';
+}
 
 interface TaskOutputState {
 	lines: OutputLine[];
