@@ -4,11 +4,11 @@ api:
     auth_mode: bearer
     create_app_max_size: "50M"
     bearer_tokens:
-        admin: "gFW5k1fdvYw8iB2xCxw5qZXj5pkP9dga"
-        client-a: "j3Xq973L67JVAsQpU4PfZAMKdMsfdXsu"
-        client-b: "mPFMijuZeEAaus94hWApEHzD8JMhrcRk"
-        hello-world: "mv7UuZddtVpAM5c6tWCFejCp1vizuSlX"
-        test-bearer-token-123: "9oWZsLsUzFvC01nPqB6nzZpDK6Zlv3KR"
+        admin: "admin-bearer-token"
+        client-a: "client-a-bearer-token"
+        client-b: "client-b-bearet-token"
+        hello-world: "hello-world-bearer-token"
+        test-bearer-token-123: "test-bearer-123-token"
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
 scheduler:

@@ -59,6 +59,22 @@ pub struct ScottyMetrics {
     pub apps_by_status: Gauge<u64>,
     pub app_services_count: Histogram<f64>,
     pub app_last_check_age_seconds: Histogram<f64>,
+
+    // OAuth session metrics
+    pub oauth_device_flow_sessions_active: Gauge<i64>,
+    pub oauth_web_flow_sessions_active: Gauge<i64>,
+    pub oauth_sessions_active: Gauge<i64>,
+    pub oauth_sessions_expired_cleaned: Counter<u64>,
+
+    // OAuth flow metrics
+    pub oauth_device_flows_total: Counter<u64>,
+    pub oauth_web_flows_total: Counter<u64>,
+    pub oauth_flow_failures: Counter<u64>,
+
+    // OAuth token validation metrics
+    pub oauth_token_validations_total: Counter<u64>,
+    pub oauth_token_validation_duration: Histogram<f64>,
+    pub oauth_token_validation_failures: Counter<u64>,
 }
 
 impl ScottyMetrics {
@@ -266,6 +282,60 @@ impl ScottyMetrics {
                 .f64_histogram("scotty.app.last_check.age")
                 .with_description("Time since last health check")
                 .with_unit("s")
+                .build(),
+
+            // OAuth sessions
+            oauth_device_flow_sessions_active: meter
+                .i64_gauge("scotty.oauth.device_flow_sessions.active")
+                .with_description("Active OAuth device flow sessions")
+                .build(),
+
+            oauth_web_flow_sessions_active: meter
+                .i64_gauge("scotty.oauth.web_flow_sessions.active")
+                .with_description("Active OAuth web flow sessions")
+                .build(),
+
+            oauth_sessions_active: meter
+                .i64_gauge("scotty.oauth.sessions.active")
+                .with_description("Active OAuth sessions")
+                .build(),
+
+            oauth_sessions_expired_cleaned: meter
+                .u64_counter("scotty.oauth.sessions.expired_cleaned")
+                .with_description("Expired OAuth sessions cleaned up")
+                .build(),
+
+            // OAuth flows
+            oauth_device_flows_total: meter
+                .u64_counter("scotty.oauth.device_flows.total")
+                .with_description("Total OAuth device flows started")
+                .build(),
+
+            oauth_web_flows_total: meter
+                .u64_counter("scotty.oauth.web_flows.total")
+                .with_description("Total OAuth web flows started")
+                .build(),
+
+            oauth_flow_failures: meter
+                .u64_counter("scotty.oauth.flows.failures")
+                .with_description("Failed OAuth flows")
+                .build(),
+
+            // OAuth token validation
+            oauth_token_validations_total: meter
+                .u64_counter("scotty.oauth.token_validations.total")
+                .with_description("Total OAuth token validations")
+                .build(),
+
+            oauth_token_validation_duration: meter
+                .f64_histogram("scotty.oauth.token_validation.duration")
+                .with_description("OAuth token validation duration")
+                .with_unit("s")
+                .build(),
+
+            oauth_token_validation_failures: meter
+                .u64_counter("scotty.oauth.token_validations.failures")
+                .with_description("Failed OAuth token validations")
                 .build(),
         }
     }
