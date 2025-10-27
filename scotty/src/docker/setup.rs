@@ -95,6 +95,46 @@ pub async fn setup_docker_integration(
                 }
             });
     }
+    {
+        // Clean up expired OAuth sessions every 5 minutes
+        let app_state = app_state.clone();
+        scheduler
+            .every(clokwerk::Interval::Minutes(5))
+            .run(move || {
+                let app_state = app_state.clone();
+                async move {
+                    if let Some(oauth_state) = &app_state.oauth_state {
+                        crate::oauth::cleanup::cleanup_device_flow_sessions(
+                            oauth_state.device_flow_store.clone(),
+                        );
+                        crate::oauth::cleanup::cleanup_web_flow_sessions(
+                            oauth_state.web_flow_store.clone(),
+                        );
+                        crate::oauth::cleanup::cleanup_oauth_sessions(
+                            oauth_state.session_store.clone(),
+                        );
+                    }
+                }
+            });
+    }
+    {
+        // Sample OAuth session counts every 30 seconds
+        let app_state = app_state.clone();
+        scheduler
+            .every(clokwerk::Interval::Seconds(30))
+            .run(move || {
+                let app_state = app_state.clone();
+                async move {
+                    if let Some(oauth_state) = &app_state.oauth_state {
+                        crate::oauth::cleanup::sample_oauth_session_metrics(
+                            oauth_state.device_flow_store.clone(),
+                            oauth_state.web_flow_store.clone(),
+                            oauth_state.session_store.clone(),
+                        );
+                    }
+                }
+            });
+    }
     // Handle the scheduler in a separate task.
     let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();

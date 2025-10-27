@@ -9,6 +9,8 @@ impl OAuthClient {
         &self,
         store: DeviceFlowStore,
     ) -> Result<DeviceFlowSession, OAuthError> {
+        super::metrics::record_device_flow_start();
+
         info!("Starting device flow with OIDC provider");
         debug!("OIDC Issuer URL: {}", self.oidc_issuer_url);
 
@@ -219,6 +221,7 @@ impl OAuthClient {
     }
 
     pub async fn validate_oidc_token(&self, access_token: &str) -> Result<OidcUser, OAuthError> {
+        let start = std::time::Instant::now();
         debug!("Validating OIDC token");
 
         let user_url = format!("{}/oauth/userinfo", self.oidc_issuer_url);
@@ -234,10 +237,12 @@ impl OAuthClient {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             error!("OIDC token validation failed: {} - {}", status, error_text);
-            return Err(OAuthError::Http(format!(
+            let err = Err(OAuthError::Http(format!(
                 "OIDC token validation failed: {} - {}",
                 status, error_text
             )));
+            super::metrics::record_token_validation(start, &err);
+            return err;
         }
 
         let response_text = response.text().await?;
@@ -252,7 +257,9 @@ impl OAuthClient {
             user.custom_claims
         );
 
-        Ok(user)
+        let result = Ok(user);
+        super::metrics::record_token_validation(start, &result);
+        result
     }
 }
 

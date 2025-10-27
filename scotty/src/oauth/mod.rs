@@ -1,6 +1,8 @@
+pub mod cleanup;
 pub mod client;
 pub mod device_flow;
 pub mod handlers;
+pub mod metrics;
 
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,

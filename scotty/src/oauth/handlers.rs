@@ -169,6 +169,7 @@ pub async fn start_authorization_flow(
     State(app_state): State<SharedAppState>,
     Query(params): Query<AuthorizeQuery>,
 ) -> impl IntoResponse {
+    super::metrics::record_web_flow_start();
     debug!("Starting OAuth authorization flow");
 
     let oauth_state = match &app_state.oauth_state {
