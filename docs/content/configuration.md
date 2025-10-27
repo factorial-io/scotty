@@ -65,9 +65,10 @@ api:
   dev_user_name: "Dev User"
   oauth:
     oidc_issuer_url: "https://gitlab.com"
-    client_id: "your_client_id" 
+    client_id: "your_client_id"
     client_secret: "your_client_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
+    frontend_base_url: "http://localhost:21342"
 ```
 
 * `bind_address`: The address and port the server listens on.
@@ -84,8 +85,9 @@ api:
 * `oauth`: OAuth configuration section (used when `auth_mode` is "oauth")
   * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
   * `client_id`: OAuth application client ID from your OIDC provider
-  * `client_secret`: OAuth application client secret from your OIDC provider  
-  * `redirect_url`: OAuth callback URL - must match your provider's configuration
+  * `client_secret`: OAuth application client secret from your OIDC provider
+  * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
+  * `frontend_base_url`: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")
 
 ### Authorization settings
 
@@ -608,6 +610,7 @@ underscores and prefix the key with `SCOTTY__`.
 | `api.oauth.client_id`                             | `SCOTTY__API__OAUTH__CLIENT_ID`                          |
 | `api.oauth.client_secret`                         | `SCOTTY__API__OAUTH__CLIENT_SECRET`                      |
 | `api.oauth.redirect_url`                          | `SCOTTY__API__OAUTH__REDIRECT_URL`                       |
+| `api.oauth.frontend_base_url`                     | `SCOTTY__API__OAUTH__FRONTEND_BASE_URL`                  |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |
