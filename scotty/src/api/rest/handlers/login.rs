@@ -1,4 +1,5 @@
 use axum::{debug_handler, extract::State, response::IntoResponse, Json};
+use subtle::ConstantTimeEq;
 use tracing::debug;
 
 use crate::app_state::SharedAppState;
@@ -49,9 +50,15 @@ pub async fn login_handler(
 
             // First, check if the provided token matches any configured bearer tokens
             // by doing a reverse lookup to find the identifier
+            // Use constant-time comparison to prevent timing attacks
             let mut token_valid = false;
             for (identifier, configured_token) in &state.settings.api.bearer_tokens {
-                if configured_token == &form.password {
+                if form
+                    .password
+                    .as_bytes()
+                    .ct_eq(configured_token.as_bytes())
+                    .into()
+                {
                     // Found matching token, now check if this identifier has assignments
                     let auth_service = &state.auth_service;
                     let user_id = format!("identifier:{}", identifier);
