@@ -1,3 +1,4 @@
+use subtle::ConstantTimeEq;
 use tracing::{debug, warn};
 
 use crate::app_state::SharedAppState;
@@ -170,10 +171,14 @@ pub async fn authorize_oauth_user_native(
 }
 
 /// Find the token identifier by reverse-looking up the actual token
+///
+/// Uses constant-time comparison to prevent timing attacks that could reveal
+/// valid tokens through response time measurements.
 fn find_token_identifier(shared_app_state: &SharedAppState, token: &str) -> Option<String> {
     // Search through configured bearer tokens to find matching identifier
     for (identifier, configured_token) in &shared_app_state.settings.api.bearer_tokens {
-        if configured_token == token {
+        // Use constant-time comparison to prevent timing attacks
+        if token.as_bytes().ct_eq(configured_token.as_bytes()).into() {
             return Some(identifier.clone());
         }
     }
