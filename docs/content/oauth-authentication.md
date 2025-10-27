@@ -72,6 +72,7 @@ api:
     client_id: "your_oidc_application_id"
     client_secret: "your_oidc_application_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
+    frontend_base_url: "http://localhost:21342"  # Base URL for frontend redirects (default: http://localhost:21342)
 ```
 
 **Provider-specific examples:**
@@ -109,7 +110,35 @@ SCOTTY__API__OAUTH__CLIENT_SECRET=your_oidc_application_secret
 # OAuth configuration
 SCOTTY__API__OAUTH__OIDC_ISSUER_URL=https://gitlab.com
 SCOTTY__API__OAUTH__REDIRECT_URL=http://localhost:21342/api/oauth/callback
+SCOTTY__API__OAUTH__FRONTEND_BASE_URL=http://localhost:21342
 ```
+
+### Understanding OAuth URLs
+
+Scotty uses two different URL configurations for OAuth:
+
+#### `redirect_url` - Backend OAuth Callback
+- **Purpose**: The OAuth callback endpoint where the OIDC provider redirects after user authentication
+- **Used by**: OIDC provider (GitLab, Auth0, etc.)
+- **Must match**: The redirect URI configured in your OIDC provider's OAuth application settings
+- **Example**: `http://localhost:21342/api/oauth/callback`
+- **Format**: Full URL to Scotty's backend `/api/oauth/callback` endpoint
+
+#### `frontend_base_url` - Frontend Application Base URL
+- **Purpose**: The base URL of your frontend application where users are redirected after OAuth completes
+- **Used by**: Scotty backend to redirect users back to the frontend with session ID
+- **Must match**: The actual URL where your users access Scotty's web interface
+- **Example**: `http://localhost:21342` (development) or `https://scotty.example.com` (production)
+- **Format**: Base URL only (no path) - Scotty appends `/oauth/callback?session_id=xyz`
+
+**Production Example:**
+```yaml
+oauth:
+  redirect_url: "https://scotty.example.com/api/oauth/callback"
+  frontend_base_url: "https://scotty.example.com"
+```
+
+**Important**: Both URLs must match your production domain. Using `localhost` in production will break the OAuth flow.
 
 ## OAuth Endpoints
 
