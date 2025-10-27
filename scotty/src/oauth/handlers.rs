@@ -452,10 +452,10 @@ pub async fn handle_oauth_callback(
                         if let Some(frontend_callback) = &session.frontend_callback_url {
                             format!("{}?session_id={}", frontend_callback, oauth_session_id)
                         } else {
-                            // Fallback to frontend OAuth callback page if no frontend callback specified
+                            // Fallback to configured frontend base URL
                             format!(
-                                "http://localhost:21342/oauth/callback?session_id={}",
-                                oauth_session_id
+                                "{}/oauth/callback?session_id={}",
+                                app_state.settings.api.oauth.frontend_base_url, oauth_session_id
                             )
                         };
 

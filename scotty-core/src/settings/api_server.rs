@@ -30,6 +30,10 @@ pub struct OAuthSettings {
     pub client_secret: Option<String>,
     #[serde(default = "default_device_flow_enabled")]
     pub device_flow_enabled: bool,
+    /// Frontend base URL for OAuth callback redirects
+    /// Example: "http://localhost:21342" or "https://scotty.example.com"
+    #[serde(default = "default_frontend_base_url")]
+    pub frontend_base_url: String,
 }
 
 impl Default for OAuthSettings {
@@ -41,6 +45,7 @@ impl Default for OAuthSettings {
             client_id: None,
             client_secret: None,
             device_flow_enabled: default_device_flow_enabled(),
+            frontend_base_url: default_frontend_base_url(),
         }
     }
 }
@@ -69,6 +74,10 @@ fn default_oauth_redirect_url() -> String {
 
 fn default_device_flow_enabled() -> bool {
     true
+}
+
+fn default_frontend_base_url() -> String {
+    "http://localhost:21342".to_string()
 }
 
 impl Default for ApiServer {
