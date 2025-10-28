@@ -2,6 +2,7 @@ use crate::api::router::ApiRoutes;
 use crate::app_state::AppState;
 use axum_test::TestServer;
 use config::Config;
+use scotty_core::utils::secret::MaskedSecret;
 use std::sync::Arc;
 use wiremock::{
     matchers::{body_string_contains, method, path},
@@ -585,8 +586,8 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
             web_store.insert(
                 csrf_token.to_string(),
                 crate::oauth::WebFlowSession {
-                    csrf_token: csrf_token.to_string(),
-                    pkce_verifier: code_verifier.to_string(),
+                    csrf_token: MaskedSecret::new(csrf_token.to_string()),
+                    pkce_verifier: MaskedSecret::new(code_verifier.to_string()),
                     redirect_url: "http://localhost:21342/api/oauth/callback".to_string(),
                     frontend_callback_url: Some("http://localhost:3000/auth/callback".to_string()),
                     expires_at: SystemTime::now() + Duration::from_secs(300), // 5 minutes

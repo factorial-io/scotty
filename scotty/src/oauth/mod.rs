@@ -9,6 +9,7 @@ use oauth2::{
     DeviceAuthorizationUrl, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse,
     TokenUrl,
 };
+use scotty_core::utils::secret::MaskedSecret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -42,9 +43,9 @@ pub type DeviceFlowStore = Arc<Mutex<HashMap<String, DeviceFlowSession>>>;
 // Web flow session for PKCE storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebFlowSession {
-    pub csrf_token: String,
-    pub pkce_verifier: String,                 // Base64 encoded for storage
-    pub redirect_url: String,                  // OAuth redirect URL for GitLab token exchange
+    pub csrf_token: MaskedSecret,              // Protected CSRF token
+    pub pkce_verifier: MaskedSecret, // Protected PKCE verifier (Base64 encoded for storage)
+    pub redirect_url: String,        // OAuth redirect URL for GitLab token exchange
     pub frontend_callback_url: Option<String>, // Frontend callback URL for final redirect
     pub expires_at: SystemTime,
 }
