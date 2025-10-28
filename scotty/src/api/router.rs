@@ -425,9 +425,9 @@ impl ApiRoutes {
                 .layer(create_authenticated_limiter(
                     &rate_limit_config.authenticated,
                 ))
-                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new(
-                    "authenticated",
-                ));
+                .layer(
+                    super::rate_limiting::middleware::RateLimitMetricsLayer::new("authenticated"),
+                );
         }
 
         // Build login router (public auth tier)
@@ -444,9 +444,7 @@ impl ApiRoutes {
             );
             login_router = login_router
                 .layer(create_public_auth_limiter(&rate_limit_config.public_auth))
-                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new(
-                    "public_auth",
-                ));
+                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new("public_auth"));
         }
 
         // Build OAuth router

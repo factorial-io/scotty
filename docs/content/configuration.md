@@ -89,6 +89,79 @@ api:
   * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
   * `frontend_base_url`: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")
 
+### Rate Limiting
+
+Scotty includes comprehensive rate limiting to protect API endpoints from abuse and ensure fair resource usage. Rate limiting is configured per-tier with independent limits for different endpoint types.
+
+**Rate limiting is disabled by default** and must be explicitly enabled via configuration.
+
+#### Configuration
+
+Rate limiting is configured in the `api.rate_limiting` section:
+
+```yaml
+api:
+  rate_limiting:
+    enabled: true
+    public_auth:
+      requests_per_minute: 60
+      burst_size: 10
+    oauth:
+      requests_per_minute: 120
+      burst_size: 20
+    authenticated:
+      requests_per_minute: 300
+      burst_size: 50
+```
+
+#### Configuration Options
+
+* `enabled`: Global toggle for all rate limiting (default: `false`)
+* `public_auth`: Rate limits for login endpoints
+  * `requests_per_minute`: Maximum requests allowed per minute
+  * `burst_size`: Number of requests allowed in a short burst
+* `oauth`: Rate limits for OAuth flow endpoints
+  * `requests_per_minute`: Maximum requests allowed per minute
+  * `burst_size`: Number of requests allowed in a short burst
+* `authenticated`: Rate limits for authenticated API endpoints
+  * `requests_per_minute`: Maximum requests allowed per minute
+  * `burst_size`: Number of requests allowed per minute
+
+#### Rate Limiting Tiers
+
+Scotty implements three independent rate limiting tiers:
+
+1. **Public Auth** (`public_auth`) - Protects login endpoints from brute force attacks
+   * Rate limited by client IP address
+   * Applies to: `/api/v1/login`
+   * Recommended: 60 requests/minute with burst of 10
+
+2. **OAuth** (`oauth`) - Prevents OAuth flow abuse and session exhaustion
+   * Rate limited by client IP address
+   * Applies to: `/oauth/device`, `/oauth/authorize`, `/oauth/device/token`, etc.
+   * Recommended: 120 requests/minute with burst of 20
+
+3. **Authenticated** (`authenticated`) - Ensures fair resource usage per user
+   * Rate limited by bearer token (per-user limits)
+   * Applies to: All `/api/v1/authenticated/*` endpoints
+   * Recommended: 300 requests/minute with burst of 50
+
+#### Monitoring
+
+Rate limiting metrics are automatically exported to your observability stack:
+
+* `scotty.rate_limit.hits.total` - Total rate limit hits across all tiers
+* `scotty.rate_limit.hits.by_tier{tier="..."}` - Hits per tier (authenticated, public_auth, oauth)
+
+These metrics are visualized in the Grafana dashboard under the "Rate Limiting" section.
+
+#### Behavior
+
+When a client exceeds their rate limit:
+* HTTP 429 (Too Many Requests) status code is returned
+* The response includes a `Retry-After` header indicating when to retry
+* Metrics are recorded for monitoring and alerting
+
 ### Authorization settings
 
 Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.

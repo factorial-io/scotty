@@ -7,10 +7,10 @@
 
 #[cfg(test)]
 mod integration_tests {
+    use crate::api::router::ApiRoutes;
+    use crate::app_state::AppState;
     use axum::http::StatusCode;
     use axum_test::TestServer;
-    use crate::app_state::AppState;
-    use crate::api::router::ApiRoutes;
     use std::sync::Arc;
 
     fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
@@ -29,13 +29,35 @@ mod integration_tests {
         // Start with base test config and override rate limiting settings
         let builder = Config::builder()
             .add_source(config::File::with_name("tests/test_bearer_auth"))
-            .set_override("api.rate_limiting.enabled", enabled).unwrap()
-            .set_override("api.rate_limiting.public_auth.requests_per_minute", requests_per_minute as i64).unwrap()
-            .set_override("api.rate_limiting.public_auth.burst_size", burst_size as i64).unwrap()
-            .set_override("api.rate_limiting.oauth.requests_per_minute", requests_per_minute as i64).unwrap()
-            .set_override("api.rate_limiting.oauth.burst_size", burst_size as i64).unwrap()
-            .set_override("api.rate_limiting.authenticated.requests_per_minute", requests_per_minute as i64).unwrap()
-            .set_override("api.rate_limiting.authenticated.burst_size", burst_size as i64).unwrap();
+            .set_override("api.rate_limiting.enabled", enabled)
+            .unwrap()
+            .set_override(
+                "api.rate_limiting.public_auth.requests_per_minute",
+                requests_per_minute as i64,
+            )
+            .unwrap()
+            .set_override(
+                "api.rate_limiting.public_auth.burst_size",
+                burst_size as i64,
+            )
+            .unwrap()
+            .set_override(
+                "api.rate_limiting.oauth.requests_per_minute",
+                requests_per_minute as i64,
+            )
+            .unwrap()
+            .set_override("api.rate_limiting.oauth.burst_size", burst_size as i64)
+            .unwrap()
+            .set_override(
+                "api.rate_limiting.authenticated.requests_per_minute",
+                requests_per_minute as i64,
+            )
+            .unwrap()
+            .set_override(
+                "api.rate_limiting.authenticated.burst_size",
+                burst_size as i64,
+            )
+            .unwrap();
 
         let config = builder.build().unwrap();
         let settings: crate::settings::config::Settings = config.try_deserialize().unwrap();
@@ -68,7 +90,8 @@ mod integration_tests {
 
         // Should be able to make many requests without hitting limit
         for _ in 0..20 {
-            let response = server.post("/api/v1/login")
+            let response = server
+                .post("/api/v1/login")
                 .json(&serde_json::json!({
                     "username": "test",
                     "password": "test"
@@ -86,7 +109,8 @@ mod integration_tests {
         let server = create_test_app_with_rate_limiting(true, 60, 1).await;
 
         // First request should succeed
-        let response1 = server.post("/api/v1/login")
+        let response1 = server
+            .post("/api/v1/login")
             .json(&serde_json::json!({
                 "username": "test",
                 "password": "test"
@@ -95,14 +119,18 @@ mod integration_tests {
         assert_ne!(response1.status_code(), StatusCode::TOO_MANY_REQUESTS);
 
         // Second request immediately after should be rate limited
-        let response2 = server.post("/api/v1/login")
+        let response2 = server
+            .post("/api/v1/login")
             .json(&serde_json::json!({
                 "username": "test",
                 "password": "test"
             }))
             .await;
-        assert_eq!(response2.status_code(), StatusCode::TOO_MANY_REQUESTS,
-            "Second request should be rate limited");
+        assert_eq!(
+            response2.status_code(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "Second request should be rate limited"
+        );
     }
 
     #[tokio::test]
@@ -110,7 +138,8 @@ mod integration_tests {
         let server = create_test_app_with_rate_limiting(true, 60, 1).await;
 
         // First request should succeed
-        let response1 = server.post("/oauth/device")
+        let response1 = server
+            .post("/oauth/device")
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
@@ -118,13 +147,17 @@ mod integration_tests {
         assert_ne!(response1.status_code(), StatusCode::TOO_MANY_REQUESTS);
 
         // Second request immediately after should be rate limited
-        let response2 = server.post("/oauth/device")
+        let response2 = server
+            .post("/oauth/device")
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
             .await;
-        assert_eq!(response2.status_code(), StatusCode::TOO_MANY_REQUESTS,
-            "Second OAuth request should be rate limited");
+        assert_eq!(
+            response2.status_code(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "Second OAuth request should be rate limited"
+        );
     }
 
     #[tokio::test]
@@ -137,7 +170,8 @@ mod integration_tests {
 
         // Exhaust token1's quota
         for _ in 0..3 {
-            server.get("/api/v1/authenticated/apps/list")
+            server
+                .get("/api/v1/authenticated/apps/list")
                 .add_header(
                     axum::http::header::AUTHORIZATION,
                     axum::http::HeaderValue::from_str(&format!("Bearer {}", token1)).unwrap(),
@@ -146,7 +180,8 @@ mod integration_tests {
         }
 
         // Token1 should now be rate limited
-        let response1 = server.get("/api/v1/authenticated/apps/list")
+        let response1 = server
+            .get("/api/v1/authenticated/apps/list")
             .add_header(
                 axum::http::header::AUTHORIZATION,
                 axum::http::HeaderValue::from_str(&format!("Bearer {}", token1)).unwrap(),
@@ -155,7 +190,8 @@ mod integration_tests {
         assert_eq!(response1.status_code(), StatusCode::TOO_MANY_REQUESTS);
 
         // Token2 should still work (independent quota)
-        let response2 = server.get("/api/v1/authenticated/apps/list")
+        let response2 = server
+            .get("/api/v1/authenticated/apps/list")
             .add_header(
                 axum::http::header::AUTHORIZATION,
                 axum::http::HeaderValue::from_str(&format!("Bearer {}", token2)).unwrap(),
@@ -169,7 +205,8 @@ mod integration_tests {
         let server = create_test_app_with_rate_limiting(true, 60, 1).await;
 
         // Exhaust quota
-        server.post("/api/v1/login")
+        server
+            .post("/api/v1/login")
             .json(&serde_json::json!({
                 "username": "test",
                 "password": "test"
@@ -177,7 +214,8 @@ mod integration_tests {
             .await;
 
         // Next request should be rate limited
-        let response = server.post("/api/v1/login")
+        let response = server
+            .post("/api/v1/login")
             .json(&serde_json::json!({
                 "username": "test",
                 "password": "test"
@@ -196,7 +234,8 @@ mod integration_tests {
 
         // Exhaust login quota
         for _ in 0..3 {
-            server.post("/api/v1/login")
+            server
+                .post("/api/v1/login")
                 .json(&serde_json::json!({
                     "username": "test",
                     "password": "test"
@@ -205,13 +244,17 @@ mod integration_tests {
         }
 
         // OAuth endpoints should still work (different tier)
-        let oauth_response = server.post("/oauth/device")
+        let oauth_response = server
+            .post("/oauth/device")
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
             .await;
 
-        assert_ne!(oauth_response.status_code(), StatusCode::TOO_MANY_REQUESTS,
-            "OAuth should have independent rate limit from login");
+        assert_ne!(
+            oauth_response.status_code(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "OAuth should have independent rate limit from login"
+        );
     }
 }
