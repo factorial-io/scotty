@@ -44,8 +44,8 @@ pub type DeviceFlowStore = Arc<Mutex<HashMap<String, DeviceFlowSession>>>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebFlowSession {
     pub csrf_token: MaskedSecret,              // Protected CSRF token
-    pub pkce_verifier: MaskedSecret, // Protected PKCE verifier (Base64 encoded for storage)
-    pub redirect_url: String,        // OAuth redirect URL for GitLab token exchange
+    pub pkce_verifier: MaskedSecret,           // Protected PKCE verifier
+    pub redirect_url: String,                  // OAuth redirect URL for GitLab token exchange
     pub frontend_callback_url: Option<String>, // Frontend callback URL for final redirect
     pub expires_at: SystemTime,
 }
@@ -164,3 +164,47 @@ pub fn create_oauth_session_store() -> OAuthSessionStore {
 
 // Use OAuthError from scotty-core
 pub use scotty_core::auth::OAuthError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_web_flow_session_debug_masks_secrets() {
+        let session = WebFlowSession {
+            csrf_token: MaskedSecret::new("csrf-secret-token-12345".to_string()),
+            pkce_verifier: MaskedSecret::new("pkce-verifier-abcdefghijk".to_string()),
+            redirect_url: "https://example.com/oauth/callback".to_string(),
+            frontend_callback_url: Some("https://app.example.com/callback".to_string()),
+            expires_at: SystemTime::now() + std::time::Duration::from_secs(600),
+        };
+
+        let debug_output = format!("{:?}", session);
+
+        // Verify full secrets are NOT in debug output
+        assert!(
+            !debug_output.contains("csrf-secret-token-12345"),
+            "CSRF token should be masked in debug output"
+        );
+        assert!(
+            !debug_output.contains("pkce-verifier-abcdefghijk"),
+            "PKCE verifier should be masked in debug output"
+        );
+
+        // Verify output contains masked indicators (asterisks)
+        assert!(
+            debug_output.contains("***"),
+            "Debug output should contain masking indicators"
+        );
+
+        // Verify last few characters are visible for debugging (MaskedSecret shows last 4 chars)
+        assert!(
+            debug_output.contains("2345") || debug_output.contains("345"),
+            "Debug output should show last few characters for debugging"
+        );
+        assert!(
+            debug_output.contains("hijk") || debug_output.contains("ijk"),
+            "Debug output should show last few characters for debugging"
+        );
+    }
+}

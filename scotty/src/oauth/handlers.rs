@@ -8,7 +8,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Redirect},
 };
-use base64::{engine::general_purpose, Engine as _};
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeVerifier};
 use scotty_core::utils::secret::MaskedSecret;
 use serde::Deserialize;
@@ -202,9 +201,7 @@ pub async fn start_authorization_flow(
             // Store session for later verification
             let session = WebFlowSession {
                 csrf_token: MaskedSecret::new(csrf_token_raw.secret().clone()), // Store only the raw CSRF token part (protected)
-                pkce_verifier: MaskedSecret::new(
-                    general_purpose::STANDARD.encode(pkce_verifier.secret()),
-                ), // Store PKCE verifier (protected)
+                pkce_verifier: MaskedSecret::new(pkce_verifier.secret().to_string()), // Store PKCE verifier (protected)
                 redirect_url: redirect_url.clone(), // OAuth redirect URL for token exchange
                 frontend_callback_url,              // Frontend callback URL
                 expires_at: SystemTime::now() + Duration::from_secs(600), // 10 minutes
@@ -387,32 +384,7 @@ pub async fn handle_oauth_callback(
     }
 
     // Exchange code for token
-    let pkce_verifier =
-        match general_purpose::STANDARD.decode(session.pkce_verifier.expose_secret()) {
-            Ok(bytes) => match String::from_utf8(bytes) {
-                Ok(verifier_str) => PkceCodeVerifier::new(verifier_str),
-                Err(e) => {
-                    error!("Failed to decode PKCE verifier: {}", e);
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ErrorResponse::from(OAuthError::ServerError(
-                            "Invalid PKCE verifier".to_string(),
-                        ))),
-                    )
-                        .into_response();
-                }
-            },
-            Err(e) => {
-                error!("Failed to decode PKCE verifier: {}", e);
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse::from(OAuthError::ServerError(
-                        "Invalid PKCE verifier".to_string(),
-                    ))),
-                )
-                    .into_response();
-            }
-        };
+    let pkce_verifier = PkceCodeVerifier::new(session.pkce_verifier.expose_secret().to_string());
 
     debug!(
         "Using redirect URL for token exchange: {}",
