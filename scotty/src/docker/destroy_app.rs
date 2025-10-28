@@ -17,7 +17,7 @@ use super::purge_app::purge_app_prepare;
 use super::purge_app::PurgeAppMethod;
 use super::state_machine_handlers::context::Context;
 use super::state_machine_handlers::remove_directory_handler::RemoveDirectoryHandler;
-use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
+use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
 
 struct RunDockerComposeDownHandler<S> {
@@ -33,7 +33,7 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<DestroyAppStates> {
         let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
-        let handle = sm.spawn(context.clone());
+        let handle = sm.spawn(context.clone()).await;
         let _ = handle.await;
 
         Ok(self.next_state)
@@ -66,6 +66,7 @@ enum DestroyAppStates {
     RemoveFilesAndDirectories,
     RemoveAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -76,6 +77,7 @@ async fn destroy_app_prepare(
         DestroyAppStates::RemoveDockerContainers,
         DestroyAppStates::Done,
     );
+    sm.set_error_state(DestroyAppStates::SetFailed);
 
     sm.add_handler(
         DestroyAppStates::RemoveDockerContainers,
@@ -109,10 +111,14 @@ async fn destroy_app_prepare(
 
     sm.add_handler(
         DestroyAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<DestroyAppStates> {
-            next_state: DestroyAppStates::Done,
-            notification: Some(Message::new(MessageType::AppDestroyed, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            DestroyAppStates::Done,
+            Some(Message::new(MessageType::AppDestroyed, app)),
+        )),
+    );
+    sm.add_handler(
+        DestroyAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(DestroyAppStates::Done, None)),
     );
     Ok(sm)
 }

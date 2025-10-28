@@ -11,7 +11,8 @@ use crate::{
         context::Context, create_load_balancer_config::CreateLoadBalancerConfig,
         run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
-        run_post_actions_handler::RunPostActionsHandler, set_finished_handler::SetFinishedHandler,
+        run_post_actions_handler::RunPostActionsHandler,
+        task_completion_handler::TaskCompletionHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
@@ -33,6 +34,7 @@ pub enum RebuildAppStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -56,6 +58,7 @@ pub async fn rebuild_app_prepare(
         },
         RebuildAppStates::Done,
     );
+    sm.set_error_state(RebuildAppStates::SetFailed);
 
     if start_with_recreate {
         sm.add_handler(
@@ -129,10 +132,14 @@ pub async fn rebuild_app_prepare(
     );
     sm.add_handler(
         RebuildAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::Done,
-            notification: Some(Message::new(MessageType::AppRebuilt, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            RebuildAppStates::Done,
+            Some(Message::new(MessageType::AppRebuilt, app)),
+        )),
+    );
+    sm.add_handler(
+        RebuildAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(RebuildAppStates::Done, None)),
     );
     Ok(sm)
 }

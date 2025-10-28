@@ -1,57 +1,131 @@
-import { loadApps } from '../stores/appsStore';
-import { updateTask, requestAllTasks } from '../stores/tasksStore';
+/**
+ * WebSocket Utilities - Simplified with SessionStore integration
+ *
+ * This module provides WebSocket authentication and management using the
+ * centralized SessionStore, eliminating the previous duplication of token logic.
+ */
 
-export function getWsurl(relativeUrl: string) {
-	const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-	const host = window.location.host;
+import { sessionStore } from '../stores/sessionStore';
 
-	return `${protocol}://${host}${relativeUrl}`;
+/**
+ * WebSocket message types for authentication and communication
+ */
+export interface WebSocketAuthMessage {
+	type: 'Authenticate';
+	data: { token: string };
 }
 
-export function setupWsListener(relativeUrl: string) {
-	// Connect to WebSocket
-	const url = getWsurl(relativeUrl);
-	console.log('Connecting to ws at ', url);
+export interface WebSocketMessage {
+	type: string;
+	data?: Record<string, unknown>;
+}
+
+/**
+ * Authenticate WebSocket connection using SessionStore
+ */
+export function authenticateWebSocket(socket: WebSocket): void {
+	const token = sessionStore.getAuthToken();
+
+	if (token) {
+		console.log(
+			'Authenticating WebSocket with token (first 8 chars):',
+			token.substring(0, 8) + '...'
+		);
+
+		const authMessage: WebSocketAuthMessage = {
+			type: 'Authenticate',
+			data: { token: token }
+		};
+
+		socket.send(JSON.stringify(authMessage));
+	} else {
+		console.warn('No authentication token found for WebSocket authentication');
+
+		if (typeof window !== 'undefined') {
+			const debugInfo = sessionStore.getDebugInfo();
+			console.warn('Session debug info:', debugInfo);
+		}
+	}
+}
+
+/**
+ * Create authenticated WebSocket connection
+ */
+export function createAuthenticatedWebSocket(url: string): WebSocket {
 	const socket = new WebSocket(url);
 
-	socket.addEventListener('message', async (event) => {
-		const message = JSON.parse(event.data);
-		let messageType, payload;
-		if (typeof message === 'string') {
-			messageType = message;
-			payload = null;
-		} else if (typeof message === 'object' && message !== null) {
-			const keys = Object.keys(message);
-			if (keys.length > 0) {
-				messageType = keys[0];
-				payload = message[keys[0]];
-			}
-		}
-
-		console.log({ MessageType: messageType, payload: payload });
-		switch (messageType) {
-			case 'AppListUpdated':
-				await loadApps();
-				break;
-			case 'TaskListUpdated':
-				await requestAllTasks();
-				break;
-			case 'TaskInfoUpdated':
-				updateTask(payload.id, payload);
-				break;
-		}
-	});
-
+	// Authenticate once connection is open
 	socket.addEventListener('open', () => {
-		console.log('WebSocket connection established');
+		authenticateWebSocket(socket);
 	});
 
-	socket.addEventListener('close', () => {
-		console.log('WebSocket connection closed');
+	// Handle authentication response
+	socket.addEventListener('message', (event) => {
+		try {
+			const message = JSON.parse(event.data);
+
+			if (message.type === 'AuthenticationResult') {
+				if (message.data.success) {
+					console.log('WebSocket authentication successful');
+				} else {
+					console.error('WebSocket authentication failed:', message.data.error);
+				}
+			}
+		} catch {
+			// Not a JSON message, ignore
+		}
 	});
 
-	socket.addEventListener('error', (error) => {
-		console.error('WebSocket error', error);
-	});
 	return socket;
+}
+
+/**
+ * Send message through WebSocket with proper formatting
+ */
+export function sendWebSocketMessage(socket: WebSocket, message: WebSocketMessage): void {
+	if (socket.readyState === WebSocket.OPEN) {
+		socket.send(JSON.stringify(message));
+	} else {
+		console.warn('WebSocket is not open, cannot send message:', message);
+	}
+}
+
+/**
+ * Create WebSocket URL with proper protocol
+ */
+export function createWebSocketUrl(path: string): string {
+	if (typeof window === 'undefined') {
+		return '';
+	}
+
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	const host = window.location.host;
+
+	return `${protocol}//${host}${path}`;
+}
+
+/**
+ * WebSocket connection states
+ */
+export enum WebSocketState {
+	CONNECTING = 0,
+	OPEN = 1,
+	CLOSING = 2,
+	CLOSED = 3
+}
+
+/**
+ * Check if WebSocket is connected and authenticated
+ */
+export function isWebSocketReady(socket: WebSocket): boolean {
+	return socket.readyState === WebSocket.OPEN;
+}
+
+/**
+ * Close WebSocket connection gracefully
+ */
+export function closeWebSocket(socket: WebSocket): void {
+	if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+		socket.close(1000, 'Normal closure');
+	}
 }

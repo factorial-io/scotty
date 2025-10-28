@@ -1,9 +1,16 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import PageHeader from '../../../components/page-header.svelte';
 	import AppStatusPill from '../../../components/app-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
+	import {
+		getAppPermissions,
+		permissionsLoaded,
+		permissionsLoading,
+		loadUserPermissions
+	} from '../../../stores/permissionStore';
 	import type { App, AppTtl, TaskDetail } from '../../../types';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
@@ -19,17 +26,58 @@
 	/** @type {import('./$types').PageData} */
 	export let data: App;
 
-	onMount(() => {
+	onMount(async () => {
 		setTitle(`App: ${data.name}`);
+
+		// Ensure permissions are loaded when page is accessed directly
+		if (!$permissionsLoaded) {
+			try {
+				await loadUserPermissions();
+			} catch (error) {
+				console.error('Failed to load permissions:', error);
+			}
+		}
 	});
 
-	let actions = ['Run', 'Stop', 'Purge', 'Rebuild'];
-	if (data.settings) {
-		actions.push('Destroy');
+	$: permissions = $permissionsLoaded
+		? getAppPermissions(data.name, ['view', 'manage', 'destroy', 'shell', 'logs'])
+		: { view: false, manage: false, destroy: false, shell: false, logs: false };
+
+	$: isLoadingPermissions = $permissionsLoading || !$permissionsLoaded;
+
+	// Calculate available actions after permissions are loaded
+	$: availableActions = (() => {
+		let actions: string[] = [];
+
+		if (permissions.manage) {
+			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
+		}
+
+		if (permissions.destroy && data.settings) {
+			actions.push('Destroy');
+		}
+
+		return actions;
+	})();
+
+	// Debug logging
+	$: {
+		console.log('App detail page - Permission state:', {
+			permissionsLoaded: $permissionsLoaded,
+			permissionsLoading: $permissionsLoading,
+			isLoadingPermissions,
+			permissions,
+			'permissions.manage': permissions.manage,
+			'permissions.destroy': permissions.destroy,
+			'data.settings': !!data.settings,
+			availableActions,
+			'availableActions.length': availableActions.length
+		});
 	}
+
 	let current_task: string | null = null;
 	let current_action: string | null = null;
-	let hasCustomActions = false;
+	let customActionsAvailable: boolean = false;
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
@@ -92,24 +140,40 @@
 	</div>
 </PageHeader>
 
-<h3 class="text-xl mt-16 mb-4">Available Actions</h3>
+<!-- Breadcrumb Navigation -->
+<div class="text-sm breadcrumbs mb-4">
+	<ul>
+		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
+		<li>{data.name}</li>
+	</ul>
+</div>
+
+<h3 class="text-xl mt-8 mb-4">Available Actions</h3>
 <div class="flex flex-wrap items-center gap-2">
-	<div class="join">
-		{#each actions as action (action)}
-			<button
-				disabled={current_task !== null || !isSupported()}
-				class="btn btn-sm join-item"
-				on:click={() => handleClick(action)}
-				>{#if action === current_action}
-					<span class="loading loading-spinner"></span>
-				{/if}{action}</button
-			>
-		{/each}
-	</div>
-	{#if isSupported() && hasCustomActions}
-		<div class="divider divider-horizontal mx-0"></div>
+	{#if isLoadingPermissions}
+		<div class="btn btn-sm join-item loading">Loading permissions...</div>
+	{:else}
+		<div class="join">
+			{#each availableActions as action (action)}
+				<button
+					disabled={current_task !== null || !isSupported()}
+					class="btn btn-sm join-item"
+					on:click={() => handleClick(action)}
+					>{#if action === current_action}
+						<span class="loading loading-spinner"></span>
+					{/if}{action}</button
+				>
+			{/each}
+		</div>
+		{#if customActionsAvailable && availableActions.length > 0}
+			<div class="divider divider-horizontal mx-0"></div>
+		{/if}
+		<CustomActionsDropdown
+			app={data}
+			canManage={permissions.manage}
+			bind:hasActions={customActionsAvailable}
+		/>
 	{/if}
-	<CustomActionsDropdown app={data} bind:hasActions={hasCustomActions} />
 </div>
 <h3 class="text-xl mt-16 mb-4">Available Services</h3>
 <table class="table">
@@ -124,7 +188,18 @@
 	<tbody>
 		{#each data.services as service (service.service)}
 			<tr>
-				<td>{service.service}</td>
+				<td>
+					{#if permissions.logs}
+						<a
+							href={resolve(`/dashboard/${data.name}/${service.service}`)}
+							class="link link-primary"
+						>
+							{service.service}
+						</a>
+					{:else}
+						{service.service}
+					{/if}
+				</td>
 				<td><AppStatusPill status={service.status || 'unknown'} /></td>
 				<td
 					>{#if service.domains && service.domains.length > 0}

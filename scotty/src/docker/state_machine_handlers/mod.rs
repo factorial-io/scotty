@@ -8,6 +8,6 @@ pub mod run_post_actions_handler;
 pub mod run_task_and_wait;
 pub mod save_files_handler;
 pub mod save_settings_handler;
-pub mod set_finished_handler;
+pub mod task_completion_handler;
 pub mod update_app_data_handler;
 pub mod wait_for_all_containers_handler;

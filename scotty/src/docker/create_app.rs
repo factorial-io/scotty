@@ -23,7 +23,7 @@ use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalanc
 use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
 use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
-use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
+use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
 use super::validation::validate_docker_compose_content;
 
@@ -41,7 +41,7 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
     ) -> anyhow::Result<CreateAppStates> {
         let app_state = &context.read().await.app_state;
         let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
-        let handle = sm.spawn(context.clone());
+        let handle = sm.spawn(context.clone()).await;
         let _ = handle.await;
 
         Ok(self.next_state)
@@ -58,6 +58,7 @@ enum CreateAppStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -68,6 +69,7 @@ async fn create_app_prepare(
     files: &FileList,
 ) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
     let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
+    sm.set_error_state(CreateAppStates::SetFailed);
     sm.add_handler(
         CreateAppStates::CreateDirectory,
         Arc::new(CreateDirectoryHandler::<CreateAppStates> {
@@ -123,15 +125,19 @@ async fn create_app_prepare(
 
     sm.add_handler(
         CreateAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<CreateAppStates> {
-            next_state: CreateAppStates::Done,
-            notification: Some(Message::new(MessageType::AppCreated, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            CreateAppStates::Done,
+            Some(Message::new(MessageType::AppCreated, app)),
+        )),
+    );
+    sm.add_handler(
+        CreateAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(CreateAppStates::Done, None)),
     );
     Ok(sm)
 }
 
-fn validate_app(
+async fn validate_app(
     app_state: SharedAppState,
     settings: &AppSettings,
     files: &FileList,
@@ -195,6 +201,15 @@ fn validate_app(
         }
     }
 
+    // Validate that all specified groups exist in the authorization system
+    if let Err(missing_scopes) = app_state
+        .auth_service
+        .validate_scopes(&settings.scopes)
+        .await
+    {
+        return Err(AppError::ScopesNotFound(missing_scopes).into());
+    }
+
     Ok(docker_compose_file.unwrap().clone())
 }
 
@@ -219,7 +234,7 @@ pub async fn create_app(
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
-    let candidate = validate_app(app_state.clone(), settings, files)?;
+    let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");

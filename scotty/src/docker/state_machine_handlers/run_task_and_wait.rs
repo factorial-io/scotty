@@ -3,7 +3,7 @@ use std::path::Path;
 use scotty_core::utils::secret::SecretHashMap;
 use tracing::{debug, error, info};
 
-use crate::{api::ws::broadcast_message, docker::docker_compose::run_task};
+use crate::docker::docker_compose::run_task;
 
 use super::context::Context;
 
@@ -22,6 +22,8 @@ pub async fn run_task_and_wait(
         "Starting task: {}", msg
     );
 
+    let task_id = context.task.read().await.id;
+
     let task_details = run_task(
         &context.app_state,
         docker_compose_path,
@@ -31,11 +33,15 @@ pub async fn run_task_and_wait(
         context.task.clone(),
     )
     .await?;
-    broadcast_message(
-        &context.app_state,
-        crate::api::message::WebSocketMessage::TaskInfoUpdated(task_details.clone()),
-    )
-    .await;
+    context
+        .app_state
+        .messenger
+        .broadcast_to_all(
+            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
+                task_details.clone(),
+            ),
+        )
+        .await;
 
     let handle = context
         .app_state
@@ -54,11 +60,13 @@ pub async fn run_task_and_wait(
             .await
             .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
 
-        broadcast_message(
-            &context.app_state,
-            crate::api::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
-        )
-        .await;
+        context
+            .app_state
+            .messenger
+            .broadcast_to_all(
+                scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+            )
+            .await;
     }
 
     let task = context
@@ -67,43 +75,54 @@ pub async fn run_task_and_wait(
         .get_task_details(&task_details.id)
         .await
         .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
+
+    // Add completion status based on exit code
     if let Some(last_exit_code) = task.last_exit_code {
         if last_exit_code != 0 {
-            // Get the last 20 lines of stderr for better error context
-            let stderr_lines: Vec<&str> = task.stderr.lines().collect();
-            let stderr_tail = if stderr_lines.len() > 20 {
-                stderr_lines[stderr_lines.len() - 20..].join("\n")
-            } else {
-                task.stderr.clone()
-            };
+            context
+                .app_state
+                .task_manager
+                .add_task_status_error(
+                    &task_id,
+                    format!("Failed: {} (exit code {})", msg, last_exit_code),
+                )
+                .await;
 
             error!(
                 app_name = %context.app_data.name,
                 command = %command,
                 args = ?args,
                 exit_code = last_exit_code,
-                stderr = %stderr_tail,
                 "Task failed: {}", msg
             );
 
             return Err(anyhow::anyhow!(
-                "{} failed with exit code {}\nStderr:\n{}",
+                "{} failed with exit code {}",
                 msg,
-                last_exit_code,
-                stderr_tail
+                last_exit_code
             ));
         }
     }
+
+    context
+        .app_state
+        .task_manager
+        .add_task_status(&task_id, format!("Completed: {}", msg))
+        .await;
+
     info!(
         app_name = %context.app_data.name,
         command = %command,
         "Task completed successfully: {}", msg
     );
-    broadcast_message(
-        &context.app_state,
-        crate::api::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
-    )
-    .await;
+
+    context
+        .app_state
+        .messenger
+        .broadcast_to_all(
+            scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(task.clone()),
+        )
+        .await;
 
     Ok(())
 }

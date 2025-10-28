@@ -1,0 +1,12 @@
+[package]
+name = "scotty-ts-generator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "TypeScript type generator for Scotty WebSocket messages"
+
+[dependencies]
+# Use the minimal types-only crate for fast compilation
+scotty-types = { path = "../scotty-types" }
