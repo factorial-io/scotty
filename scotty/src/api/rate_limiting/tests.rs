@@ -108,12 +108,15 @@ mod integration_tests {
         // Very strict limit: 60 requests per minute = 1/sec, burst 1
         let server = create_test_app_with_rate_limiting(true, 60, 1).await;
 
-        // First request should succeed
+        // First request should succeed (or fail auth, but not rate limited)
         let response1 = server
             .post("/api/v1/login")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.1"),
+            )
             .json(&serde_json::json!({
-                "username": "test",
-                "password": "test"
+                "password": "test-bearer-token-123"
             }))
             .await;
         assert_ne!(response1.status_code(), StatusCode::TOO_MANY_REQUESTS);
@@ -121,9 +124,12 @@ mod integration_tests {
         // Second request immediately after should be rate limited
         let response2 = server
             .post("/api/v1/login")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.1"),
+            )
             .json(&serde_json::json!({
-                "username": "test",
-                "password": "test"
+                "password": "test-bearer-token-123"
             }))
             .await;
         assert_eq!(
@@ -140,6 +146,10 @@ mod integration_tests {
         // First request should succeed
         let response1 = server
             .post("/oauth/device")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.2"),
+            )
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
@@ -149,6 +159,10 @@ mod integration_tests {
         // Second request immediately after should be rate limited
         let response2 = server
             .post("/oauth/device")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.2"),
+            )
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
@@ -207,18 +221,24 @@ mod integration_tests {
         // Exhaust quota
         server
             .post("/api/v1/login")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.3"),
+            )
             .json(&serde_json::json!({
-                "username": "test",
-                "password": "test"
+                "password": "test-bearer-token-123"
             }))
             .await;
 
         // Next request should be rate limited
         let response = server
             .post("/api/v1/login")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.3"),
+            )
             .json(&serde_json::json!({
-                "username": "test",
-                "password": "test"
+                "password": "test-bearer-token-123"
             }))
             .await;
 
@@ -236,9 +256,12 @@ mod integration_tests {
         for _ in 0..3 {
             server
                 .post("/api/v1/login")
+                .add_header(
+                    axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                    axum::http::HeaderValue::from_static("192.168.1.4"),
+                )
                 .json(&serde_json::json!({
-                    "username": "test",
-                    "password": "test"
+                    "password": "test-bearer-token-123"
                 }))
                 .await;
         }
@@ -246,6 +269,10 @@ mod integration_tests {
         // OAuth endpoints should still work (different tier)
         let oauth_response = server
             .post("/oauth/device")
+            .add_header(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                axum::http::HeaderValue::from_static("192.168.1.4"),
+            )
             .json(&serde_json::json!({
                 "client_id": "test"
             }))
