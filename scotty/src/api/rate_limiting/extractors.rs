@@ -30,7 +30,11 @@ impl KeyExtractor for BearerTokenExtractor {
                 // Convert to hex string (64 characters)
                 format!("{:x}", hash)
             })
-            .ok_or(GovernorError::UnableToExtractKey)
+            .ok_or_else(|| {
+                // Record extraction error metric
+                super::metrics::record_extractor_error();
+                GovernorError::UnableToExtractKey
+            })
     }
 }
 

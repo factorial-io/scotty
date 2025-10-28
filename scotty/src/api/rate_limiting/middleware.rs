@@ -59,9 +59,11 @@ where
         Box::pin(async move {
             let response = inner.call(req).await?;
 
-            // Record metric if rate limited
+            // Record metrics for allowed and denied requests
             if response.status() == StatusCode::TOO_MANY_REQUESTS {
-                super::metrics::record_rate_limit_hit(tier_name);
+                super::metrics::record_denied_request(tier_name);
+            } else {
+                super::metrics::record_allowed_request(tier_name);
             }
 
             Ok(response)

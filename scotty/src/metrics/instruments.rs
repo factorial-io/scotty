@@ -77,8 +77,8 @@ pub struct ScottyMetrics {
     pub oauth_token_validation_failures: Counter<u64>,
 
     // Rate limiting metrics
-    pub rate_limit_hits_total: Counter<u64>,
-    pub rate_limit_hits_by_tier: Counter<u64>,
+    pub rate_limit_requests_total: Counter<u64>,
+    pub rate_limit_extractor_errors: Counter<u64>,
 }
 
 impl ScottyMetrics {
@@ -343,14 +343,14 @@ impl ScottyMetrics {
                 .build(),
 
             // Rate limiting
-            rate_limit_hits_total: meter
-                .u64_counter("scotty.rate_limit.hits.total")
-                .with_description("Total rate limit hits")
+            rate_limit_requests_total: meter
+                .u64_counter("scotty.rate_limit.requests.total")
+                .with_description("Total rate limit requests (allowed and denied)")
                 .build(),
 
-            rate_limit_hits_by_tier: meter
-                .u64_counter("scotty.rate_limit.hits.by_tier")
-                .with_description("Rate limit hits by tier")
+            rate_limit_extractor_errors: meter
+                .u64_counter("scotty.rate_limit.extractor.errors")
+                .with_description("Rate limit key extraction failures")
                 .build(),
         }
     }
