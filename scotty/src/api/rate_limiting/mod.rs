@@ -47,12 +47,13 @@ pub fn create_oauth_limiter(
 pub fn create_authenticated_limiter(
     config: &TierConfig,
 ) -> GovernorLayer<BearerTokenExtractor, NoOpMiddleware, axum::body::Body> {
-    // Calculate per_second rate, ensuring at least 1 per minute (avoid division by zero)
-    let per_second = std::cmp::max(1, config.requests_per_minute / 60);
+    // Use per_nanosecond for precise rate limiting without precision loss
+    // Convert requests_per_minute to nanoseconds per request
+    let nanos_per_request = (60_000_000_000u64) / config.requests_per_minute;
 
     let governor_config = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(per_second)
+            .per_nanosecond(nanos_per_request)
             .burst_size(config.burst_size)
             .key_extractor(BearerTokenExtractor)
             .finish()
@@ -66,12 +67,13 @@ pub fn create_authenticated_limiter(
 fn create_ip_limiter(
     config: &TierConfig,
 ) -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, axum::body::Body> {
-    // Calculate per_second rate, ensuring at least 1 per minute (avoid division by zero)
-    let per_second = std::cmp::max(1, config.requests_per_minute / 60);
+    // Use per_nanosecond for precise rate limiting without precision loss
+    // Convert requests_per_minute to nanoseconds per request
+    let nanos_per_request = (60_000_000_000u64) / config.requests_per_minute;
 
     let governor_config = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(per_second)
+            .per_nanosecond(nanos_per_request)
             .burst_size(config.burst_size)
             .key_extractor(SmartIpKeyExtractor)
             .finish()

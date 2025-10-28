@@ -138,6 +138,14 @@ impl Settings {
                 )
             })?
             .to_string();
+
+        // Validate rate limiting configuration
+        settings
+            .api
+            .rate_limiting
+            .validate()
+            .map_err(|e| ConfigError::Message(e.to_string()))?;
+
         Ok(settings)
     }
 
