@@ -2,6 +2,7 @@ pub mod auth_core;
 pub mod basic_auth;
 pub mod error;
 pub mod middleware;
+pub mod rate_limiting;
 pub mod rest;
 pub mod router;
 pub mod secure_response;
