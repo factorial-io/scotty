@@ -5,6 +5,9 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use tracing::{debug, info};
 
+#[cfg(test)]
+use scotty_core::utils::secret::MaskedSecret;
+
 /// Trait for sessions that can expire
 pub trait ExpirableSession {
     fn expires_at(&self) -> SystemTime;
@@ -166,8 +169,8 @@ mod tests {
             sessions.insert(
                 "expired_session_id".to_string(),
                 WebFlowSession {
-                    csrf_token: "expired_csrf".to_string(),
-                    pkce_verifier: "expired_verifier".to_string(),
+                    csrf_token: MaskedSecret::new("expired_csrf".to_string()),
+                    pkce_verifier: MaskedSecret::new("expired_verifier".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
                     frontend_callback_url: None,
                     expires_at: SystemTime::now() - Duration::from_secs(60),
@@ -181,8 +184,8 @@ mod tests {
             sessions.insert(
                 "valid_session_id".to_string(),
                 WebFlowSession {
-                    csrf_token: "valid_csrf".to_string(),
-                    pkce_verifier: "valid_verifier".to_string(),
+                    csrf_token: MaskedSecret::new("valid_csrf".to_string()),
+                    pkce_verifier: MaskedSecret::new("valid_verifier".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
                     frontend_callback_url: None,
                     expires_at: SystemTime::now() + Duration::from_secs(600),
