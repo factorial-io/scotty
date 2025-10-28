@@ -9,6 +9,10 @@
 
 pub mod config;
 pub mod extractors;
+pub mod metrics;
+pub mod middleware;
+#[cfg(test)]
+mod tests;
 
 pub use config::TierConfig;
 use extractors::BearerTokenExtractor;
@@ -43,9 +47,12 @@ pub fn create_oauth_limiter(
 pub fn create_authenticated_limiter(
     config: &TierConfig,
 ) -> GovernorLayer<BearerTokenExtractor, NoOpMiddleware, axum::body::Body> {
+    // Calculate per_second rate, ensuring at least 1 per minute (avoid division by zero)
+    let per_second = std::cmp::max(1, config.requests_per_minute / 60);
+
     let governor_config = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(config.requests_per_minute / 60)
+            .per_second(per_second)
             .burst_size(config.burst_size)
             .key_extractor(BearerTokenExtractor)
             .finish()
@@ -59,9 +66,12 @@ pub fn create_authenticated_limiter(
 fn create_ip_limiter(
     config: &TierConfig,
 ) -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, axum::body::Body> {
+    // Calculate per_second rate, ensuring at least 1 per minute (avoid division by zero)
+    let per_second = std::cmp::max(1, config.requests_per_minute / 60);
+
     let governor_config = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(config.requests_per_minute / 60)
+            .per_second(per_second)
             .burst_size(config.burst_size)
             .key_extractor(SmartIpKeyExtractor)
             .finish()

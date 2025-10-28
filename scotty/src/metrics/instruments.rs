@@ -75,6 +75,10 @@ pub struct ScottyMetrics {
     pub oauth_token_validations_total: Counter<u64>,
     pub oauth_token_validation_duration: Histogram<f64>,
     pub oauth_token_validation_failures: Counter<u64>,
+
+    // Rate limiting metrics
+    pub rate_limit_hits_total: Counter<u64>,
+    pub rate_limit_hits_by_tier: Counter<u64>,
 }
 
 impl ScottyMetrics {
@@ -336,6 +340,17 @@ impl ScottyMetrics {
             oauth_token_validation_failures: meter
                 .u64_counter("scotty.oauth.token_validations.failures")
                 .with_description("Failed OAuth token validations")
+                .build(),
+
+            // Rate limiting
+            rate_limit_hits_total: meter
+                .u64_counter("scotty.rate_limit.hits.total")
+                .with_description("Total rate limit hits")
+                .build(),
+
+            rate_limit_hits_by_tier: meter
+                .u64_counter("scotty.rate_limit.hits.by_tier")
+                .with_description("Rate limit hits by tier")
                 .build(),
         }
     }

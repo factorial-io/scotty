@@ -421,9 +421,13 @@ impl ApiRoutes {
                 rate_limit_config.authenticated.requests_per_minute,
                 rate_limit_config.authenticated.burst_size
             );
-            authenticated_router = authenticated_router.layer(create_authenticated_limiter(
-                &rate_limit_config.authenticated,
-            ));
+            authenticated_router = authenticated_router
+                .layer(create_authenticated_limiter(
+                    &rate_limit_config.authenticated,
+                ))
+                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new(
+                    "authenticated",
+                ));
         }
 
         // Build login router (public auth tier)
@@ -438,8 +442,11 @@ impl ApiRoutes {
                 rate_limit_config.public_auth.requests_per_minute,
                 rate_limit_config.public_auth.burst_size
             );
-            login_router =
-                login_router.layer(create_public_auth_limiter(&rate_limit_config.public_auth));
+            login_router = login_router
+                .layer(create_public_auth_limiter(&rate_limit_config.public_auth))
+                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new(
+                    "public_auth",
+                ));
         }
 
         // Build OAuth router
@@ -458,7 +465,9 @@ impl ApiRoutes {
                 rate_limit_config.oauth.requests_per_minute,
                 rate_limit_config.oauth.burst_size
             );
-            oauth_router = oauth_router.layer(create_oauth_limiter(&rate_limit_config.oauth));
+            oauth_router = oauth_router
+                .layer(create_oauth_limiter(&rate_limit_config.oauth))
+                .layer(super::rate_limiting::middleware::RateLimitMetricsLayer::new("oauth"));
         }
 
         // Build unprotected public router (no rate limiting)

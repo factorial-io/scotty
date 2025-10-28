@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_bearer_token_extractor_success() {
-        let mut req = Request::builder()
+        let req = Request::builder()
             .header(
                 "authorization",
                 "Bearer my-super-secret-token-12345678901234567890",
