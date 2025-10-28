@@ -82,6 +82,9 @@ use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
 use super::middleware::authorization::{authorization_middleware, require_permission};
+use super::rate_limiting::{
+    create_authenticated_limiter, create_oauth_limiter, create_public_auth_limiter,
+};
 use super::rest::handlers::admin::assignments::{
     create_assignment_handler, list_assignments_handler, remove_assignment_handler,
 };
@@ -219,7 +222,10 @@ pub struct ApiRoutes;
 impl ApiRoutes {
     pub fn create(state: SharedAppState) -> Router {
         let api = ApiDoc::openapi();
-        let authenticated_router = Router::new()
+        let rate_limit_config = &state.settings.api.rate_limiting;
+
+        // Build authenticated router with conditional rate limiting
+        let mut authenticated_router = Router::new()
             // Routes that require specific permissions
             .route("/api/v1/authenticated/apps/list", get(list_apps_handler))
             .route(
@@ -408,15 +414,57 @@ impl ApiRoutes {
             ))
             .route_layer(middleware::from_fn_with_state(state.clone(), auth));
 
-        let public_router = Router::new()
+        // Apply rate limiting to authenticated endpoints if enabled
+        if rate_limit_config.enabled && rate_limit_config.authenticated.is_enabled() {
+            tracing::info!(
+                "Rate limiting enabled for authenticated endpoints: {} req/min, burst: {}",
+                rate_limit_config.authenticated.requests_per_minute,
+                rate_limit_config.authenticated.burst_size
+            );
+            authenticated_router = authenticated_router.layer(create_authenticated_limiter(
+                &rate_limit_config.authenticated,
+            ));
+        }
+
+        // Build login router (public auth tier)
+        let mut login_router = Router::new()
             .route("/api/v1/login", post(login_handler))
-            .route("/api/v1/health", get(health_checker_handler))
-            .route("/api/v1/info", get(info_handler))
+            .with_state(state.clone());
+
+        // Apply rate limiting to login endpoints if enabled
+        if rate_limit_config.enabled && rate_limit_config.public_auth.is_enabled() {
+            tracing::info!(
+                "Rate limiting enabled for public auth endpoints: {} req/min, burst: {}",
+                rate_limit_config.public_auth.requests_per_minute,
+                rate_limit_config.public_auth.burst_size
+            );
+            login_router =
+                login_router.layer(create_public_auth_limiter(&rate_limit_config.public_auth));
+        }
+
+        // Build OAuth router
+        let mut oauth_router = Router::new()
             .route("/oauth/device", post(start_device_flow))
             .route("/oauth/device/token", post(poll_device_token))
             .route("/oauth/authorize", get(start_authorization_flow))
             .route("/api/oauth/callback", get(handle_oauth_callback))
             .route("/oauth/exchange", post(exchange_session_for_token))
+            .with_state(state.clone());
+
+        // Apply rate limiting to OAuth endpoints if enabled
+        if rate_limit_config.enabled && rate_limit_config.oauth.is_enabled() {
+            tracing::info!(
+                "Rate limiting enabled for OAuth endpoints: {} req/min, burst: {}",
+                rate_limit_config.oauth.requests_per_minute,
+                rate_limit_config.oauth.burst_size
+            );
+            oauth_router = oauth_router.layer(create_oauth_limiter(&rate_limit_config.oauth));
+        }
+
+        // Build unprotected public router (no rate limiting)
+        let public_router = Router::new()
+            .route("/api/v1/health", get(health_checker_handler))
+            .route("/api/v1/info", get(info_handler))
             .route("/ws", get(ws_handler))
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
             .merge(Redoc::with_url("/redoc", api.clone()))
@@ -425,6 +473,8 @@ impl ApiRoutes {
 
         let router = Router::new()
             .merge(authenticated_router)
+            .merge(login_router)
+            .merge(oauth_router)
             .merge(public_router)
             .with_state(state.clone());
 

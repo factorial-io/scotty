@@ -1,3 +1,4 @@
+use super::rate_limiting::RateLimitingConfig;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
@@ -66,6 +67,8 @@ pub struct ApiServer {
     pub oauth: OAuthSettings,
     #[serde(default)]
     pub bearer_tokens: HashMap<String, String>,
+    #[serde(default)]
+    pub rate_limiting: RateLimitingConfig,
 }
 
 fn default_oauth_redirect_url() -> String {
@@ -91,6 +94,7 @@ impl Default for ApiServer {
             dev_user_name: Some("Dev User".to_string()),
             oauth: OAuthSettings::default(),
             bearer_tokens: HashMap::new(),
+            rate_limiting: RateLimitingConfig::default(),
         }
     }
 }
