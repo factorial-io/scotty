@@ -159,8 +159,95 @@ These metrics are visualized in the Grafana dashboard under the "Rate Limiting" 
 
 When a client exceeds their rate limit:
 * HTTP 429 (Too Many Requests) status code is returned
-* The response includes a `Retry-After` header indicating when to retry
+* Response headers include:
+  - `Retry-After`: Seconds until the client can retry (RFC 6585)
+  - `X-RateLimit-After`: Same information in alternate format
 * Metrics are recorded for monitoring and alerting
+
+**Note:** The current implementation does not include additional RFC 6585 headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`). These may be added in future versions for enhanced client-side rate limit awareness.
+
+#### Deployment Considerations
+
+**Single Instance Deployments**
+
+The current rate limiting implementation uses in-memory token bucket counters. For single-instance deployments, this provides:
+* Fast, efficient rate limiting with O(1) lookups
+* No external dependencies (Redis, database, etc.)
+* Zero latency for rate limit checks
+
+**Multi-Instance Deployments**
+
+For deployments with multiple Scotty instances (horizontal scaling), be aware:
+
+* **Rate limits are per-instance**, not global
+  - Each instance maintains its own rate limit counters
+  - Example: With 3 instances and 60 req/min limit, effective limit is ~180 req/min
+
+* **Recommended Solutions for Distributed Deployments:**
+  1. **External Load Balancer Rate Limiting** (Recommended)
+     - Use Nginx, Traefik, or cloud load balancer rate limiting
+     - Provides global rate limits across all instances
+     - Example: Traefik `RateLimit` middleware, Nginx `limit_req_zone`
+
+  2. **API Gateway**
+     - Use AWS API Gateway, Kong, or similar
+     - Centralized rate limiting with additional features
+
+  3. **Session Affinity / Sticky Sessions**
+     - Route same client IP to same instance
+     - Provides consistent rate limiting per client
+     - Less effective for distributed attacks
+
+**Future Enhancements**
+
+For distributed rate limiting support, future versions may add:
+* Redis-backed rate limiting for shared state
+* Configurable rate limit storage backend
+* Rate limit synchronization across instances
+
+#### IPv6 Support
+
+**IP-Based Rate Limiting (Public Auth & OAuth Tiers)**
+
+The `SmartIpKeyExtractor` used for IP-based rate limiting supports both IPv4 and IPv6:
+
+* IPv6 addresses are extracted and used as rate limit keys
+* Supports standard IPv6 notation (e.g., `2001:db8::1`)
+* Handles IPv4-mapped IPv6 addresses (e.g., `::ffff:192.0.2.1`)
+
+**Important IPv6 Considerations:**
+
+1. **Prefix-Based Attacks**
+   - IPv6 allows easy generation of many addresses from single /64 prefix
+   - Consider implementing prefix-based rate limiting at load balancer level
+   - Example: Rate limit entire /64 subnet instead of individual addresses
+
+2. **Proxy Detection**
+   - Ensure `X-Forwarded-For` headers are properly handled
+   - Configure trusted proxy addresses in your load balancer
+   - See [Traefik ForwardedHeaders](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) or [Nginx real_ip_module](http://nginx.org/en/docs/http/ngx_http_realip_module.html)
+
+3. **Testing**
+   - Test rate limiting with both IPv4 and IPv6 clients
+   - Verify proxy header forwarding in your deployment
+
+**Example Nginx Configuration for IPv6 Rate Limiting:**
+
+```nginx
+# Define rate limit zone supporting both IPv4 and IPv6
+limit_req_zone $binary_remote_addr zone=scotty_limit:10m rate=60r/m;
+
+server {
+    listen 80;
+    listen [::]:80;  # IPv6 support
+
+    location /api/v1/login {
+        limit_req zone=scotty_limit burst=10;
+        proxy_pass http://scotty_backend;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
 
 ### Authorization settings
 

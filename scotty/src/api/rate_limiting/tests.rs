@@ -244,8 +244,24 @@ mod integration_tests {
 
         assert_eq!(response.status_code(), StatusCode::TOO_MANY_REQUESTS);
 
-        // Check for retry-after header (tower-governor should add this)
-        // Note: Exact header format depends on tower-governor version
+        // Verify tower-governor adds rate limit headers
+        let headers = response.headers();
+
+        // tower-governor v0.8 provides:
+        assert!(
+            headers.contains_key("retry-after"),
+            "Should have Retry-After header"
+        );
+        assert!(
+            headers.contains_key("x-ratelimit-after"),
+            "Should have X-RateLimit-After header"
+        );
+
+        // Note: tower-governor does not provide full RFC 6585 headers
+        // Missing headers (could be added in future):
+        // - X-RateLimit-Limit (the rate limit ceiling)
+        // - X-RateLimit-Remaining (requests left in window)
+        // - X-RateLimit-Reset (unix timestamp for reset)
     }
 
     #[tokio::test]
