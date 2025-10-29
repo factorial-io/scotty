@@ -1,5 +1,5 @@
 # First build the frontend
-FROM node:22 as frontend-builder
+FROM node:24 as frontend-builder
 WORKDIR /app
 COPY ./frontend /app
 RUN yarn install && yarn build
