@@ -77,6 +77,9 @@ pub enum Commands {
     /// View logs for an app service
     #[command(name = "app:logs")]
     Logs(LogsCommand),
+    /// Open interactive shell for an app service
+    #[command(name = "app:shell")]
+    Shell(ShellCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -318,6 +321,31 @@ pub struct LogsCommand {
     /// Show timestamps in log output
     #[arg(short = 't', long = "timestamps")]
     pub timestamps: bool,
+}
+
+#[derive(Debug, Parser)]
+pub struct ShellCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the service
+    pub service_name: String,
+
+    /// Command to execute instead of interactive shell
+    #[arg(short = 'c', long = "command")]
+    pub command: Option<String>,
+
+    /// Shell to use (default: /bin/bash)
+    #[arg(long = "shell")]
+    pub shell: Option<String>,
+
+    // /// User to run shell as (default: container default)
+    // #[arg(short = 'u', long = "user")]
+    // pub user: Option<String>,
+
+    /// Working directory (default: container default)
+    #[arg(short = 'w', long = "workdir")]
+    pub workdir: Option<String>,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {
