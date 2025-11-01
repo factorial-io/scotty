@@ -1,11 +1,17 @@
 use anyhow::Context;
+use crossterm::{
+    event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
 use futures_util::StreamExt;
-use owo_colors::OwoColorize;
+use std::io::{stdout, Write};
+use tokio::select;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{error, warn};
+use tracing::{debug, error};
 
 use crate::{api::post, cli::ShellCommand, context::AppContext};
 use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{ShellDataType, ShellSessionData};
 use uuid::Uuid;
 
 /// Open an interactive shell for an app service
@@ -75,80 +81,238 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
 
     // Connect to WebSocket
     ui.new_status_line("Connecting to WebSocket...");
-    let mut ws = AuthenticatedWebSocket::connect(context.server())
+    let ws = AuthenticatedWebSocket::connect(context.server())
         .await
         .context("Failed to connect to WebSocket")?;
 
     ui.success("🔐 WebSocket authenticated");
 
-    // TODO: Implement terminal raw mode and bidirectional I/O
-    ui.println(format!(
-        "{}",
-        "Interactive shell not yet fully implemented".yellow()
-    ));
-    ui.println(format!(
-        "Session ID: {} - waiting for messages...",
-        session_id
-    ));
+    // If running a single command, just wait for output and exit
+    if cmd.command.is_some() {
+        return run_command_mode(ws, session_id).await;
+    }
 
-    // For now, just listen to messages
+    // Otherwise, run interactive mode
+    run_interactive_mode(ws, session_id, ui).await
+}
+
+/// Run a single command and exit (non-interactive mode)
+async fn run_command_mode(mut ws: crate::websocket::AuthenticatedWebSocket, _session_id: Uuid) -> anyhow::Result<()> {
+    // Just listen for output and print it
     while let Some(message) = ws.receiver.next().await {
         match message {
             Ok(Message::Text(text)) => {
                 if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
                     match ws_message {
-                        WebSocketMessage::ShellSessionCreated(info) => {
-                            ui.println(format!(
-                                "Shell session confirmed: {} on {}/{}",
-                                info.session_id, info.app_name, info.service_name
-                            ));
-                        }
                         WebSocketMessage::ShellSessionData(data) => {
-                            // Print shell output
+                            // Print shell output directly
                             print!("{}", data.data);
+                            let _ = stdout().flush();
                         }
-                        WebSocketMessage::ShellSessionEnded(end) => {
-                            ui.println(
-                                format!("Shell session ended: {}", end.reason)
-                                    .yellow()
-                                    .to_string(),
-                            );
+                        WebSocketMessage::ShellSessionEnded(_end) => {
                             break;
                         }
                         WebSocketMessage::ShellSessionError(error) => {
-                            ui.println(
-                                format!("Shell error: {}", error.error).red().to_string(),
-                            );
+                            eprintln!("Shell error: {}", error.error);
                             break;
                         }
-                        WebSocketMessage::Error(msg) => {
-                            ui.println(
-                                format!("WebSocket error: {}", msg).red().to_string(),
-                            );
-                            break;
-                        }
-                        _ => {
-                            // Ignore other message types
-                        }
+                        _ => {}
                     }
                 }
             }
-            Ok(Message::Close(_)) => {
-                warn!("WebSocket connection closed");
-                break;
-            }
+            Ok(Message::Close(_)) => break,
             Err(e) => {
                 error!("WebSocket error: {}", e);
                 break;
             }
-            _ => {
-                // Ignore other message types
+            _ => {}
+        }
+    }
+
+    let _ = ws.close().await;
+    Ok(())
+}
+
+/// Run interactive shell mode with raw terminal
+async fn run_interactive_mode(
+    mut ws: crate::websocket::AuthenticatedWebSocket,
+    session_id: Uuid,
+    _ui: &crate::utils::ui::Ui,
+) -> anyhow::Result<()> {
+    // Enable raw mode for terminal
+    enable_raw_mode().context("Failed to enable raw mode")?;
+
+    // Ensure we disable raw mode on exit
+    let result = run_interactive_loop(&mut ws, session_id).await;
+
+    disable_raw_mode().context("Failed to disable raw mode")?;
+
+    // Close WebSocket
+    let _ = ws.close().await;
+
+    result
+}
+
+/// Main interactive loop handling bidirectional I/O
+async fn run_interactive_loop(
+    ws: &mut crate::websocket::AuthenticatedWebSocket,
+    session_id: Uuid,
+) -> anyhow::Result<()> {
+    let mut event_stream = EventStream::new();
+    let mut should_exit = false;
+
+    while !should_exit {
+        select! {
+            // Handle keyboard events
+            maybe_event = event_stream.next() => {
+                match maybe_event {
+                    Some(Ok(event)) => {
+                        if let Some(exit) = handle_terminal_event(event, ws, session_id).await? {
+                            should_exit = exit;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        error!("Error reading terminal event: {}", e);
+                        break;
+                    }
+                    None => break,
+                }
+            }
+
+            // Handle WebSocket messages
+            maybe_message = ws.receiver.next() => {
+                match maybe_message {
+                    Some(Ok(Message::Text(text))) => {
+                        if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
+                            if let Some(exit) = handle_websocket_message(ws_message).await? {
+                                should_exit = exit;
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => {
+                        debug!("WebSocket closed by server");
+                        break;
+                    }
+                    Some(Err(e)) => {
+                        error!("WebSocket error: {}", e);
+                        break;
+                    }
+                    None => break,
+                    _ => {}
+                }
             }
         }
     }
 
-    // Close the WebSocket connection
-    let _ = ws.close().await;
-
     Ok(())
+}
+
+/// Handle terminal input events
+async fn handle_terminal_event(
+    event: Event,
+    ws: &mut crate::websocket::AuthenticatedWebSocket,
+    session_id: Uuid,
+) -> anyhow::Result<Option<bool>> {
+    match event {
+        Event::Key(KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers::CONTROL,
+            ..
+        }) => {
+            // Ctrl+C - send interrupt to shell
+            debug!("Ctrl+C pressed");
+            let input_data = ShellSessionData {
+                session_id,
+                data_type: ShellDataType::Input,
+                data: "\x03".to_string(), // Send Ctrl+C as raw byte
+            };
+            let message = WebSocketMessage::ShellSessionData(input_data);
+            ws.send(message).await?;
+            Ok(None)
+        }
+        Event::Key(KeyEvent {
+            code: KeyCode::Char('d'),
+            modifiers: KeyModifiers::CONTROL,
+            ..
+        }) => {
+            // Ctrl+D - exit interactive mode
+            debug!("Ctrl+D pressed, exiting");
+            Ok(Some(true))
+        }
+        Event::Key(KeyEvent { code, modifiers, .. }) => {
+            // Convert key event to string and send to shell
+            if let Some(input) = key_to_string(code, modifiers) {
+                let input_data = ShellSessionData {
+                    session_id,
+                    data_type: ShellDataType::Input,
+                    data: input,
+                };
+                let message = WebSocketMessage::ShellSessionData(input_data);
+                ws.send(message).await?;
+            }
+            Ok(None)
+        }
+        Event::Resize(width, height) => {
+            // Send terminal resize event
+            debug!("Terminal resized to {}x{}", width, height);
+            // TODO: Send resize message to server
+            // For now, we'll skip this as it requires additional WebSocket message types
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+/// Handle WebSocket messages from server
+async fn handle_websocket_message(message: WebSocketMessage) -> anyhow::Result<Option<bool>> {
+    match message {
+        WebSocketMessage::ShellSessionData(data) => {
+            // Print shell output directly to stdout
+            print!("{}", data.data);
+            let _ = stdout().flush();
+            Ok(None)
+        }
+        WebSocketMessage::ShellSessionEnded(end) => {
+            println!("\r\nShell session ended: {}", end.reason);
+            Ok(Some(true))
+        }
+        WebSocketMessage::ShellSessionError(error) => {
+            eprintln!("\r\nShell error: {}", error.error);
+            Ok(Some(true))
+        }
+        WebSocketMessage::Error(msg) => {
+            eprintln!("\r\nWebSocket error: {}", msg);
+            Ok(Some(true))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// Convert crossterm key codes to string input
+fn key_to_string(code: KeyCode, modifiers: KeyModifiers) -> Option<String> {
+    match code {
+        KeyCode::Char(c) => {
+            if modifiers.contains(KeyModifiers::CONTROL) {
+                // Handle other Ctrl combinations if needed
+                None
+            } else {
+                Some(c.to_string())
+            }
+        }
+        KeyCode::Enter => Some("\r".to_string()),
+        KeyCode::Backspace => Some("\x7f".to_string()),
+        KeyCode::Tab => Some("\t".to_string()),
+        KeyCode::Esc => Some("\x1b".to_string()),
+        KeyCode::Up => Some("\x1b[A".to_string()),
+        KeyCode::Down => Some("\x1b[B".to_string()),
+        KeyCode::Right => Some("\x1b[C".to_string()),
+        KeyCode::Left => Some("\x1b[D".to_string()),
+        KeyCode::Home => Some("\x1b[H".to_string()),
+        KeyCode::End => Some("\x1b[F".to_string()),
+        KeyCode::PageUp => Some("\x1b[5~".to_string()),
+        KeyCode::PageDown => Some("\x1b[6~".to_string()),
+        KeyCode::Delete => Some("\x1b[3~".to_string()),
+        KeyCode::Insert => Some("\x1b[2~".to_string()),
+        _ => None,
+    }
 }
