@@ -889,10 +889,10 @@ cssesc@^3.0.0:
   resolved "https://registry.npmjs.org/cssesc/-/cssesc-3.0.0.tgz"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
-daisyui@^5.0.0:
-  version "5.3.10"
-  resolved "https://registry.npmjs.org/daisyui/-/daisyui-5.3.10.tgz"
-  integrity sha512-vmjyPmm0hvFhA95KB6uiGmWakziB2pBv6CUcs5Ka/3iMBMn9S+C3SZYx9G9l2JrgTZ1EFn61F/HrPcwaUm2kLQ==
+daisyui@^5.3.11:
+  version "5.3.11"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.3.11.tgz#bd6d8fc97c213070a0fa60d6e0144adbf62ccdca"
+  integrity sha512-+nhksucbX08o5zjS3XAaeInY0qg2VvR8FexfDaTx6CR3jo33tCHO7ab/LCyqBOfe7Ov+UjGSOy0R/TiAHWs0Vw==
 
 debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@^4.4.1:
   version "4.4.1"
@@ -1187,7 +1187,7 @@ globals@^14.0.0:
   resolved "https://registry.npmjs.org/globals/-/globals-14.0.0.tgz"
   integrity sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==
 
-globals@^16.0.0, globals@^16.5.0:
+globals@^16.0.0:
   version "16.5.0"
   resolved "https://registry.npmjs.org/globals/-/globals-16.5.0.tgz"
   integrity sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==
