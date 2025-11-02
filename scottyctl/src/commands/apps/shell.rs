@@ -44,11 +44,14 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
 
     ui.success("🔐 WebSocket authenticated");
 
-    // Build shell command: either custom shell, or bash -c "command", or just bash
-    let shell_command = if let Some(command) = &cmd.command {
-        let shell = cmd.shell.as_deref().unwrap_or("/bin/bash");
-        Some(format!("{} -c '{}'", shell, command.replace('\'', "'\\''")))
+    // Build shell command:
+    // - If command is provided, just pass it (server will wrap with sh -c)
+    // - If no command, pass the custom shell for interactive mode
+    let shell_command = if cmd.command.is_some() {
+        // For command mode, just pass the command - server will wrap it
+        cmd.command.clone()
     } else {
+        // For interactive mode, pass custom shell or use default
         cmd.shell.clone()
     };
 
