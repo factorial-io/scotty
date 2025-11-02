@@ -1,6 +1,6 @@
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::{delete, get, post};
+use axum::routing::{get, post};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
@@ -39,10 +39,6 @@ use crate::api::rest::handlers::apps::run::__path_purge_app_handler;
 use crate::api::rest::handlers::apps::run::__path_rebuild_app_handler;
 use crate::api::rest::handlers::apps::run::__path_run_app_handler;
 use crate::api::rest::handlers::apps::run::__path_stop_app_handler;
-use crate::api::rest::handlers::apps::shell::__path_create_shell_handler;
-use crate::api::rest::handlers::apps::shell::__path_resize_tty_handler;
-use crate::api::rest::handlers::apps::shell::__path_shell_input_handler;
-use crate::api::rest::handlers::apps::shell::__path_terminate_shell_handler;
 use crate::api::rest::handlers::health::__path_health_checker_handler;
 use crate::api::rest::handlers::info::__path_info_handler;
 use crate::api::rest::handlers::login::__path_login_handler;
@@ -104,9 +100,6 @@ use super::rest::handlers::apps::run::purge_app_handler;
 use super::rest::handlers::apps::run::rebuild_app_handler;
 use super::rest::handlers::apps::run::run_app_handler;
 use super::rest::handlers::apps::run::stop_app_handler;
-use super::rest::handlers::apps::shell::{
-    create_shell_handler, resize_tty_handler, shell_input_handler, terminate_shell_handler,
-};
 use super::rest::handlers::blueprints::blueprints_handler;
 use super::rest::handlers::info::info_handler;
 use super::rest::handlers::login::login_handler;
@@ -116,11 +109,6 @@ use super::rest::handlers::scopes::list::{
 };
 use super::rest::handlers::tasks::task_detail_handler;
 use super::rest::handlers::tasks::task_list_handler;
-use crate::api::rest::handlers::apps::shell::{
-    CreateShellRequest, CreateShellResponse, ResizeTtyRequest, ResizeTtyResponse,
-    ShellInputRequest, ShellInputResponse, TerminateShellResponse,
-};
-use crate::docker::services::shell::ShellServiceError;
 use crate::services::authorization::types::Assignment;
 use crate::services::authorization::Permission;
 use scotty_core::admin::{
@@ -154,11 +142,6 @@ use scotty_core::admin::{
         remove_notification_handler,
         adopt_app_handler,
         run_custom_action_handler,
-        // Shell endpoints
-        create_shell_handler,
-        shell_input_handler,
-        resize_tty_handler,
-        terminate_shell_handler,
         // Admin endpoints
         list_scopes_handler,
         create_scope_handler,
@@ -184,10 +167,7 @@ use scotty_core::admin::{
             RoleInfo, RolesListResponse, CreateRoleRequest, CreateRoleResponse,
             AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
             RemoveAssignmentRequest, RemoveAssignmentResponse, Assignment,
-            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse,
-            // Shell API schemas
-            CreateShellRequest, CreateShellResponse, ShellInputRequest, ShellInputResponse,
-            ResizeTtyRequest, ResizeTtyResponse, TerminateShellResponse, ShellServiceError
+            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse
         )
     ),
     tags(
@@ -308,35 +288,6 @@ impl ApiRoutes {
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
                 post(run_custom_action_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
-            )
-            // Shell API routes
-            .route(
-                "/api/v1/authenticated/apps/{app_id}/services/{service_name}/shell",
-                post(create_shell_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
-            )
-            .route(
-                "/api/v1/authenticated/shell/sessions/{session_id}/input",
-                post(shell_input_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
-            )
-            .route(
-                "/api/v1/authenticated/shell/sessions/{session_id}/resize",
-                post(resize_tty_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
-            )
-            .route(
-                "/api/v1/authenticated/shell/sessions/{session_id}",
-                delete(terminate_shell_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::Manage),
                 )),

@@ -398,6 +398,32 @@ impl std::fmt::Display for LogsStreamError {
 // Shell session types
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
+pub struct ShellSessionRequest {
+    pub app_name: String,
+    pub service_name: String,
+    pub shell_command: Option<String>, // Optional, uses default shell if None
+}
+
+impl ShellSessionRequest {
+    pub fn new(app_name: String, service_name: String) -> Self {
+        Self {
+            app_name,
+            service_name,
+            shell_command: None,
+        }
+    }
+
+    pub fn with_command(app_name: String, service_name: String, shell_command: String) -> Self {
+        Self {
+            app_name,
+            service_name,
+            shell_command: Some(shell_command),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum ShellDataType {
     Input,  // Data from client to shell
     Output, // Data from shell to client
@@ -493,7 +519,20 @@ pub enum WebSocketMessage {
     LogsStreamEnded(LogsStreamEnd),
     LogsStreamError(LogsStreamError),
 
-    // Shell session messages
+    // Shell session request messages (client → server)
+    CreateShellSession(ShellSessionRequest),
+    ResizeShellTty {
+        #[ts(type = "string")]
+        session_id: Uuid,
+        width: u16,
+        height: u16,
+    },
+    TerminateShellSession {
+        #[ts(type = "string")]
+        session_id: Uuid,
+    },
+
+    // Shell session response messages (server → client)
     ShellSessionCreated(ShellSessionInfo),
     ShellSessionData(ShellSessionData),
     ShellSessionEnded(ShellSessionEnd),
@@ -575,6 +614,23 @@ impl fmt::Display for WebSocketMessage {
             }
             WebSocketMessage::LogsStreamError(error) => {
                 write!(f, "Log stream {} error: {}", error.stream_id, error.error)
+            }
+            WebSocketMessage::CreateShellSession(request) => {
+                write!(
+                    f,
+                    "Create shell session for {}/{}",
+                    request.app_name, request.service_name
+                )
+            }
+            WebSocketMessage::ResizeShellTty {
+                session_id,
+                width,
+                height,
+            } => {
+                write!(f, "Resize shell TTY {} to {}x{}", session_id, width, height)
+            }
+            WebSocketMessage::TerminateShellSession { session_id } => {
+                write!(f, "Terminate shell session {}", session_id)
             }
             WebSocketMessage::ShellSessionCreated(info) => {
                 write!(
