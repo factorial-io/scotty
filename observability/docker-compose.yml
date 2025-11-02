@@ -41,8 +41,9 @@ services:
             - vm-data:/victoria-metrics-data
         command:
             - "--storageDataPath=/victoria-metrics-data"
-            - "--retentionPeriod=30d"
+            - "--retentionPeriod=7d"
             - "--httpListenAddr=:8428"
+            - "--storage.minFreeDiskSpaceBytes=1GB"
         restart: unless-stopped
         labels:
             - "traefik.enable=true"
