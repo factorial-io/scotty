@@ -1,204 +1,207 @@
-# AGENTS.md
-
-BEFORE ANYTHING ELSE: run 'bd onboard' and follow the instructions
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-Scotty is a Rust-based Micro-PaaS (Platform as a Service) that provides an API to manage Docker Compose-based applications. It consists of three main components:
+Scotty is a micro Platform-as-a-Service (PaaS) for managing Docker Compose-based applications. The codebase consists of:
 
-- **scotty**: HTTP server providing REST API and web UI for managing applications
-- **scottyctl**: CLI application for interacting with the Scotty server
-- **scotty-core**: Core library containing shared data structures and settings
-
-## Architecture
-
-Scotty manages applications by:
-1. Scanning a configurable apps directory for folders containing `docker-compose.yml` files
-2. Reading optional `.scotty.yml` configuration files for app-specific settings
-3. Generating `docker-compose.override.yml` files with load balancer configurations (Traefik or HAProxy)
-4. Managing app lifecycle (create, start, stop, destroy) with TTL-based auto-cleanup
-5. Supporting app blueprints for common deployment patterns
-
-### Authentication Modes
-
-Scotty supports three authentication modes (configured via `auth_mode`):
-- **Development**: No authentication required, uses fixed dev user
-- **OAuth**: Authentication via oauth2-proxy with GitLab OIDC integration
-- **Bearer**: Traditional token-based authentication
-
-Authentication is handled by the `basic_auth.rs` middleware which extracts user information based on the configured mode.
+- **scotty**: HTTP server providing REST API and WebSocket support for managing Docker Compose applications
+- **scottyctl**: CLI application for interacting with the scotty server
+- **scotty-core**: Shared business logic and utilities
+- **scotty-types**: Shared type definitions (TypeScript-compatible via ts-rs)
+- **frontend**: SvelteKit-based web interface (tightly coupled with the API - no backwards compatibility required)
 
 ## Development Commands
 
-### Building and Running
-
+### Running Tests
 ```bash
-# Build all workspace members
-cargo build
+# Run all tests
+cargo test
 
-# Run the scotty server
-cargo run --bin scotty
+# Run specific test with output
+cargo test test_name -- --nocapture
 
-# Run the scottyctl CLI
-cargo run --bin scottyctl -- help
+# Run with backtrace
+RUST_BACKTRACE=1 cargo test test_name -- --nocapture
 
-# Run with specific configuration
+# Run with debug logging
+RUST_LOG=debug cargo test test_name -p scotty -- --nocapture
+```
+
+### Running the Server
+```bash
+# Development mode (no authentication required)
 SCOTTY__API__AUTH_MODE=dev cargo run --bin scotty
+
+# With info logging
+RUST_LOG=info cargo run --bin scotty
+
+# With telemetry enabled
+SCOTTY__TELEMETRY=metrics,traces cargo run --bin scotty
+
+# View current configuration
+cargo run --bin scotty -- config
+```
+
+### Running scottyctl
+```bash
+# Basic command structure
+cargo run --bin scottyctl -- <command>
+
+# With server and auth (via command-line args)
+cargo run --bin scottyctl -- --server http://localhost:21342 --access-token <token> app:list
+
+# With server and auth (via environment variables)
+export SCOTTY_SERVER=http://localhost:21342
+export SCOTTY_ACCESS_TOKEN=<token>
+cargo run --bin scottyctl -- app:list
+
+# When server is running in dev mode (SCOTTY__API__AUTH_MODE=dev), no token needed
+cargo run --bin scottyctl -- app:list
 ```
 
 ### Frontend Development
-
-The frontend is a SvelteKit application with TypeScript:
-
 ```bash
 cd frontend
-
-# Install dependencies (use bun instead of npm)
-bun install
-
-# Run development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Lint and format
-bun run lint
-bun run format
+npm install
+npm run dev        # Development server
+npm run build      # Production build
+npm run check      # Type checking
 ```
 
-### Testing and Quality
-
+### Prerequisites
+Start Traefik (required for local development):
 ```bash
-# Run tests for all workspace members
-cargo test
-
-# Run tests for specific crate
-cargo test -p scotty-core
-
-# Check formatting
-cargo fmt --check
-
-# Run clippy linting
-cargo clippy --all-targets --all-features
+cd apps/traefik
+docker-compose up -d
 ```
 
-### Release Management
+## Architecture
+
+### Workspace Structure
+
+The project uses a Cargo workspace with the following members:
+- `scotty`: Main server binary and API implementation
+- `scottyctl`: CLI client
+- `scotty-core`: Shared business logic (Docker operations, settings, tasks)
+- `scotty-types`: Type definitions (uses ts-rs for TypeScript generation)
+- `ts-generator`: Utility for generating TypeScript bindings
+
+### Scotty Server Architecture
+
+**Entry Point**: `scotty/src/main.rs`
+- Initializes `AppState` with settings, Docker client, task manager
+- Sets up telemetry (OpenTelemetry for metrics and tracing)
+- Spawns HTTP server, Docker integration, and background tasks
+
+**Key Modules**:
+- `api/`: HTTP API layer
+  - `router.rs`: Axum router with OpenAPI documentation (utoipa)
+  - `rest/handlers/`: REST endpoint handlers organized by domain (apps, admin, tasks, etc.)
+  - `websocket/`: WebSocket handlers for real-time features (logs, shell, task output)
+  - `middleware/`: Authorization middleware using Casbin RBAC
+  - `rate_limiting/`: Rate limiting per authentication tier
+- `docker/`: Core Docker Compose orchestration
+  - `state_machine_handlers/`: Task execution steps (create directory, run compose, etc.)
+  - `services/`: Long-running services (log streaming, shell sessions)
+  - `loadbalancer/`: Traefik/HAProxy configuration generation
+- `services/authorization/`: Casbin-based RBAC with scopes, roles, and permissions
+- `oauth/`: OAuth 2.0 device flow and web flow implementation
+- `tasks/`: Task execution and output streaming
+- `notification/`: Webhook, Mattermost, GitLab notifications
+
+**State Management**:
+- `AppState` (shared via `Arc`) contains:
+  - Settings (loaded from config files and env vars)
+  - Docker client (Bollard)
+  - Task manager for async operations
+  - Authorization service
+  - Metrics collectors
+
+### Authorization System
+
+Uses Casbin for RBAC with three concepts:
+- **Scopes**: Logical groupings (e.g., `client-a`, `qa`, `default`)
+- **Roles**: Permission sets (e.g., `admin`, `developer`, `viewer`)
+- **Assignments**: Map users to roles+scopes
+
+Configuration: `config/casbin/policy.yaml`
+
+Permissions: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin:*`
+
+### scottyctl Architecture
+
+**Command Structure**: Commands are organized hierarchically:
+- `commands/`: Top-level command modules (apps, admin, auth)
+  - `apps/`: App management commands (create, destroy, shell, logs, etc.)
+  - `admin/`: Admin commands (scopes, roles, assignments)
+  - `auth/`: OAuth login/logout
+
+**Authentication**: Supports OAuth device flow and bearer tokens via environment variables or command-line args.
+
+### Frontend-Backend Coupling
+
+The Svelte frontend and Rust API are **tightly coupled** - breaking changes are acceptable. TypeScript types are generated from Rust using `ts-rs`. No API versioning or backwards compatibility needed.
+
+## Configuration
+
+### Server Configuration
+
+Settings are loaded via the `config` crate:
+1. Default values in code
+2. Config files (YAML/JSON)
+3. Environment variables (prefix: `SCOTTY__`)
+
+Key server environment variables:
+- `SCOTTY__API__AUTH_MODE`: Set to `dev` for local development (disables auth)
+- `SCOTTY__TELEMETRY`: Enable metrics/traces (`metrics,traces`)
+- `SCOTTY__API__BEARER_TOKENS__<NAME>`: Bearer token values (use env vars, not config files)
+
+### scottyctl Configuration
+
+scottyctl uses different environment variables:
+- `SCOTTY_SERVER`: Server URL (default: `http://localhost:21342`)
+- `SCOTTY_ACCESS_TOKEN`: Bearer token for authentication
+
+## Testing
+
+- Unit tests are colocated with implementation
+- Integration tests in `scotty/tests/`
+- Use `axum-test` for HTTP endpoint testing
+- Use `wiremock` for mocking external services
+
+## Observability
+
+Run the observability stack (Grafana, Jaeger, VictoriaMetrics):
+```bash
+cd observability
+docker-compose up -d
+```
+
+Access:
+- Grafana: http://grafana.ddev.site (admin/admin)
+- Jaeger: http://jaeger.ddev.site
+- VictoriaMetrics: http://vm.ddev.site
+
+Metrics include: log streaming, shell sessions, WebSocket connections, task execution, HTTP performance, memory usage.
+
+## Release Process
+
+Uses `cargo-release` and `git-cliff`:
 
 ```bash
-# Update changelog using git-cliff
+# Update changelog
 git cliff > CHANGELOG.md
 
-# Create new release (example for alpha)
+# Create new release (example)
 cargo release --no-publish alpha -x --tag-prefix ""
 ```
 
-## Configuration Structure
+Pre-push hook via `cargo-husky` runs automatically.
 
-### Main Configuration Files
-- `config/default.yaml`: Base configuration with all settings
-- `config/local.yaml`: Local overrides for development
-- `config/blueprints/`: App blueprint definitions (drupal-lagoon.yaml, nginx-lagoon.yaml)
+## Git Rules
 
-### OAuth Development Setup
-The `examples/oauth2-proxy/` directory contains a complete OAuth development environment:
-
-```bash
-cd examples/oauth2-proxy
-
-# Start in development mode (no auth)
-./start-dev.sh dev
-
-# Start with OAuth (requires GitLab app configuration)
-op run --env-file="./.env.1password" -- ./start-dev.sh oauth --build
-
-# Start in bearer token mode
-./start-dev.sh bearer
-```
-
-### Key Configuration Options
-
-- `auth_mode`: "dev", "oauth", or "bearer"
-- `bind_address`: Server bind address (default: "0.0.0.0:21342")
-- `apps.root_folder`: Directory to scan for applications
-- `load_balancer_type`: "Traefik" or "HaproxyConfig"
-- `traefik.network`: Docker network for Traefik integration
-- `docker.registries`: Private Docker registry configurations
-
-## App Management
-
-### App Types
-- **Owned**: Fully managed by Scotty, can be destroyed
-- **Supported**: Can be managed but not destroyed
-- **Unsupported**: Read-only, shown in UI but not manageable
-
-### App Structure
-```
-apps/
-├── my-app/
-│   ├── docker-compose.yml          # Required
-│   ├── .scotty.yml                 # Optional app settings
-│   ├── docker-compose.override.yml # Generated by Scotty
-│   └── ... (other app files)
-```
-
-### Blueprints
-Blueprints provide common deployment patterns and are referenced during app creation. They define lifecycle hooks that execute at specific events (create, run, destroy).
-
-## API and CLI Integration
-
-The API is self-documenting via OpenAPI/Swagger at `/rapidoc` endpoint. The CLI (`scottyctl`) communicates with the server via this REST API using bearer token authentication.
-
-Key environment variables for CLI:
-- `SCOTTY_SERVER`: Server URL
-- `SCOTTY_ACCESS_TOKEN`: Authentication token
-
-## Load Balancer Integration
-
-Scotty generates appropriate configurations for:
-
-### Traefik (Preferred)
-- Uses Docker labels for service discovery
-- Supports custom middlewares, basic auth, robots.txt prevention
-- Automatic SSL via Let's Encrypt integration
-
-### HAProxy-Config (Legacy)
-- Uses environment variables for configuration
-- Limited feature set compared to Traefik
-
-## Development Notes
-
-- Use workspace-level Cargo.toml for shared dependencies
-- Frontend uses Bun instead of npm for package management (62% faster builds)
-- TypeScript generation optimized with standalone `ts-generator` crate (6s vs 27s)
-- All shared types consolidated in `scotty-types` crate (single source of truth)
-- Docker builds support multiple platforms (ARM64, x86_64, glibc, musl)
-- Conventional commits are enforced via git-cliff
-- Pre-push hooks via cargo-husky perform quality checks
-- Container apps directory must have identical paths on host and container for bind mounts
-- Use conventional commit messages
-- **IMPORTANT**: Always run quality checks before committing:
-  - Rust code: `cargo fmt` and `cargo clippy`
-  - Frontend code: `cd frontend && bun run lint` (runs Prettier and ESLint)
-  - If linting fails, run `bun run format` to auto-fix formatting issues
-
-## Current Work in Progress
-
-### Unified Output System Implementation
-
-**Branch:** `feat/better-logs-and-shell`
-
-See beads issues (scotty-1 and children) for current implementation status and remaining work.
-
-**Reference Documents:**
-- `docs/prds/unified-output-system.md` - Complete PRD and technical specifications
-- `docs/technical-spike-bollard-findings.md` - Bollard API validation results
-
-**Key Notes:**
-- The build files of scotty_frontend will be embedded into scotty, so restart scotty after the frontend files got rebuilt
-- Backend log streaming and shell services are fully implemented and tested
-- CLI `app:logs` command is fully functional with real-time streaming
-- Frontend task output viewer uses WebSocket integration
-- Breaking change: TaskDetails no longer contains stdout/stderr fields (uses WebSocket streaming instead)
+- Never delete `frontend/build/.gitkeep` from git
+- No emojis in commit messages
+- Use conventional commits
