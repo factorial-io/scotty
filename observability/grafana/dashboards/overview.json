@@ -188,7 +188,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "scotty_websocket_connections_active",
+          "expr": "scotty_websocket_connections",
           "refId": "A"
         }
       ],
@@ -420,7 +420,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "process_resident_memory_bytes / 1024 / 1024",
+          "expr": "scotty_memory_rss_bytes / 1024 / 1024",
           "refId": "A"
         }
       ],
@@ -478,7 +478,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "tokio_worker_threads",
+          "expr": "scotty_tokio_workers_count",
           "refId": "A"
         }
       ],
