@@ -640,10 +640,16 @@ impl fmt::Display for WebSocketMessage {
                 )
             }
             WebSocketMessage::ShellSessionData(data) => {
+                // Trim data payload to first 50 chars for readability
+                let data_preview = if data.data.len() > 50 {
+                    format!("{}... ({} bytes)", &data.data[..50], data.data.len())
+                } else {
+                    format!("{} ({} bytes)", &data.data, data.data.len())
+                };
                 write!(
                     f,
-                    "Shell session {} data ({:?})",
-                    data.session_id, data.data_type
+                    "Shell session {} data ({:?}): {}",
+                    data.session_id, data.data_type, data_preview
                 )
             }
             WebSocketMessage::ShellSessionEnded(end) => {
