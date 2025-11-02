@@ -99,6 +99,41 @@ pub enum ShellCommand {
     Terminate,
 }
 
+/// Guard to ensure session cleanup even on panic
+///
+/// This guard uses RAII to guarantee that a session is removed from the active
+/// sessions map when it goes out of scope, even if the task panics.
+struct SessionGuard {
+    session_id: Uuid,
+    sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>,
+}
+
+impl SessionGuard {
+    fn new(session_id: Uuid, sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>) -> Self {
+        Self {
+            session_id,
+            sessions,
+        }
+    }
+}
+
+impl Drop for SessionGuard {
+    fn drop(&mut self) {
+        // Ensure session cleanup even on panic
+        // We need to block on the async operation since Drop is synchronous
+        let session_id = self.session_id;
+        let sessions = self.sessions.clone();
+
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async move {
+                let mut sessions = sessions.write().await;
+                sessions.remove(&session_id);
+                info!("SessionGuard: cleaned up session {}", session_id);
+            })
+        });
+    }
+}
+
 /// Service for managing container shell sessions
 #[derive(Debug, Clone)]
 pub struct ShellService {
@@ -278,6 +313,9 @@ impl ShellService {
         let session_ttl = self.shell_settings.session_ttl();
 
         crate::metrics::spawn_instrumented(async move {
+            // Create guard to ensure session cleanup even on panic
+            let _guard = SessionGuard::new(session_id, active_sessions.clone());
+
             info!(
                 "Starting shell session {} for container {}",
                 session_id, container_id_clone
@@ -484,13 +522,7 @@ impl ShellService {
                 }
             }
 
-            // Clean up session
-            {
-                let mut sessions = active_sessions.write().await;
-                sessions.remove(&session_id);
-            }
-
-            info!("Shell session {} cleaned up", session_id);
+            // Session cleanup is handled automatically by SessionGuard on drop
         }).await;
 
         Ok(session_id)
