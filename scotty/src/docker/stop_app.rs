@@ -26,6 +26,7 @@ pub(crate) enum StopAppStates {
     SetFailed,
     Done,
 }
+#[allow(private_interfaces)]
 #[instrument]
 pub async fn stop_app_prepare(
     app: &AppData,

@@ -39,6 +39,12 @@ pub struct TaskOutputStreamingService {
     // No persistent state needed - each stream is independent
 }
 
+impl Default for TaskOutputStreamingService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskOutputStreamingService {
     pub fn new() -> Self {
         Self {}
