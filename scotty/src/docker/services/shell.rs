@@ -134,6 +134,29 @@ impl Drop for SessionGuard {
     }
 }
 
+/// Helper to emit audit log for shell session termination
+fn audit_log_session_ended(
+    session_id: Uuid,
+    client_id: Uuid,
+    app_name: &str,
+    service_name: &str,
+    duration_secs: f64,
+    reason: &str,
+    exit_code: Option<i32>,
+) {
+    info!(
+        event = "shell_session_ended",
+        session_id = %session_id,
+        client_id = %client_id,
+        app_name = %app_name,
+        service_name = %service_name,
+        duration_seconds = duration_secs,
+        reason = %reason,
+        exit_code = ?exit_code,
+        "Shell session ended for compliance audit"
+    );
+}
+
 /// Service for managing container shell sessions
 #[derive(Debug, Clone)]
 pub struct ShellService {
@@ -278,6 +301,18 @@ impl ShellService {
         // Record session started
         crate::metrics::shell::record_session_started();
 
+        // Audit log: Shell session created
+        info!(
+            event = "shell_session_created",
+            session_id = %session_id,
+            client_id = %client_id,
+            app_name = %app_data.name,
+            service_name = %service_name,
+            container_id = %container_id,
+            shell_command = %shell_cmd,
+            "Shell session created for compliance audit"
+        );
+
         // Clone values we need to move into the spawned task
         let app_name_clone = app_data.name.clone();
         let service_name_clone = service_name.to_string();
@@ -337,6 +372,18 @@ impl ShellService {
                                 info!("Shell session {} expired after TTL", session_id);
                                 let duration_secs = session_start.elapsed().as_secs_f64();
                                 crate::metrics::shell::record_session_timeout(duration_secs);
+
+                                // Audit log session end
+                                audit_log_session_ended(
+                                    session_id,
+                                    client_id,
+                                    &app_name_clone,
+                                    &service_name_clone,
+                                    duration_secs,
+                                    "Session timeout",
+                                    None,
+                                );
+
                                 if let Err(e) = app_state.messenger.send_to_client(
                                     client_id,
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
@@ -360,6 +407,18 @@ impl ShellService {
                                                 let duration_secs = session_start.elapsed().as_secs_f64();
                                                 crate::metrics::shell::record_session_ended(duration_secs);
                                                 let exit_code = exec_info.exit_code.map(|c| c as i32);
+
+                                                // Audit log session end
+                                                audit_log_session_ended(
+                                                    session_id,
+                                                    client_id,
+                                                    &app_name_clone,
+                                                    &service_name_clone,
+                                                    duration_secs,
+                                                    "Shell exited",
+                                                    exit_code,
+                                                );
+
                                                 if let Err(e) = app_state.messenger.send_to_client(
                                                     client_id,
                                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
@@ -388,6 +447,18 @@ impl ShellService {
                                             error!("Failed to write to shell {}: {}", session_id, e);
                                             let duration_secs = session_start.elapsed().as_secs_f64();
                                             crate::metrics::shell::record_session_error(duration_secs);
+
+                                            // Audit log session end due to error
+                                            audit_log_session_ended(
+                                                session_id,
+                                                client_id,
+                                                &app_name_clone,
+                                                &service_name_clone,
+                                                duration_secs,
+                                                &format!("Error writing input: {}", e),
+                                                None,
+                                            );
+
                                             if let Err(send_err) = app_state.messenger.send_to_client(
                                                 client_id,
                                                 WebSocketMessage::ShellSessionError(ShellSessionError {
@@ -416,6 +487,18 @@ impl ShellService {
                                         info!("Terminating shell session {} by request", session_id);
                                         let duration_secs = session_start.elapsed().as_secs_f64();
                                         crate::metrics::shell::record_session_ended(duration_secs);
+
+                                        // Audit log session end
+                                        audit_log_session_ended(
+                                            session_id,
+                                            client_id,
+                                            &app_name_clone,
+                                            &service_name_clone,
+                                            duration_secs,
+                                            "Terminated by user",
+                                            None,
+                                        );
+
                                         if let Err(e) = app_state.messenger.send_to_client(
                                             client_id,
                                             WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
