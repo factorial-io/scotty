@@ -1,7 +1,7 @@
 use anyhow::Context;
 use crossterm::{
     event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size},
 };
 use futures_util::StreamExt;
 use std::io::{stdout, Write};
@@ -103,6 +103,20 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
     // If running a single command, just wait for output and exit
     if cmd.command.is_some() {
         return run_command_mode(ws, session_id).await;
+    }
+
+    // Send initial terminal size before entering interactive mode
+    if let Ok((cols, rows)) = terminal_size() {
+        debug!("Sending initial terminal size: {}x{}", cols, rows);
+        let resize_message = WebSocketMessage::ResizeShellTty {
+            session_id,
+            width: cols,
+            height: rows,
+        };
+        if let Err(e) = ws.send(resize_message).await {
+            error!("Failed to send initial terminal size: {}", e);
+            // Continue anyway - terminal might work without proper size
+        }
     }
 
     // Otherwise, run interactive mode
@@ -271,8 +285,12 @@ async fn handle_terminal_event(
         Event::Resize(width, height) => {
             // Send terminal resize event
             debug!("Terminal resized to {}x{}", width, height);
-            // TODO: Send resize message to server
-            // For now, we'll skip this as it requires additional WebSocket message types
+            let resize_message = WebSocketMessage::ResizeShellTty {
+                session_id,
+                width,
+                height,
+            };
+            ws.send(resize_message).await?;
             Ok(None)
         }
         _ => Ok(None),
