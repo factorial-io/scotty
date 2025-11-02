@@ -8,8 +8,8 @@ pub mod router;
 pub mod secure_response;
 pub mod websocket;
 
-#[cfg(test)]
-mod test_utils;
+// test_utils is public for integration tests
+pub mod test_utils;
 
 #[cfg(test)]
 mod secure_response_test;
