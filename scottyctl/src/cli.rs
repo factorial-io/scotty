@@ -338,13 +338,6 @@ pub struct ShellCommand {
     /// Shell to use (default: /bin/bash)
     #[arg(long = "shell")]
     pub shell: Option<String>,
-
-    // /// User to run shell as (default: container default)
-    // #[arg(short = 'u', long = "user")]
-    // pub user: Option<String>,
-    /// Working directory (default: container default)
-    #[arg(short = 'w', long = "workdir")]
-    pub workdir: Option<String>,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

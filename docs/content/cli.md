@@ -85,7 +85,6 @@ This command opens an interactive shell session inside a running container. This
 
 * `-c, --command <COMMAND>`: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.
 * `--shell <SHELL>`: Specify which shell to use (default: `/bin/bash`)
-* `-w, --workdir <WORKDIR>`: Set the working directory for the shell session
 
 ### Examples
 
@@ -104,9 +103,9 @@ Use a different shell:
 scottyctl app:shell my-app web --shell /bin/sh
 ```
 
-Execute a command in a specific directory:
+Change to a specific directory and run commands:
 ```shell
-scottyctl app:shell my-app web --command "pwd" --workdir /var/www
+scottyctl app:shell my-app web --command "cd /var/www && pwd && ls -la"
 ```
 
 Run a script and capture its exit code:
