@@ -11,6 +11,7 @@ use std::sync::Arc;
 /// Create test WebSocket messenger
 ///
 /// Creates a WebSocketMessenger with an empty client map for use in tests.
+#[allow(dead_code)]
 pub fn create_test_websocket_messenger() -> WebSocketMessenger {
     let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     WebSocketMessenger::new(clients)
@@ -24,6 +25,7 @@ pub fn create_test_websocket_messenger() -> WebSocketMessenger {
 ///
 /// # Returns
 /// Arc-wrapped AppState configured for testing
+#[allow(dead_code)]
 pub async fn create_test_app_state_with_config(
     config_file: &str,
     oauth_state: Option<crate::oauth::handlers::OAuthState>,
@@ -44,6 +46,7 @@ pub async fn create_test_app_state_with_config(
 ///
 /// # Returns
 /// Arc-wrapped AppState configured for testing
+#[allow(dead_code)]
 pub async fn create_test_app_state_with_settings(
     settings: crate::settings::config::Settings,
     oauth_state: Option<crate::oauth::handlers::OAuthState>,
