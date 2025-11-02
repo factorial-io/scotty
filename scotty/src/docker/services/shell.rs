@@ -264,7 +264,10 @@ impl ShellService {
             )
             .await
         {
-            warn!("Failed to send session created message to client {}: {}", client_id, e);
+            warn!(
+                "Failed to send session created message to client {}: {}",
+                client_id, e
+            );
             // Continue anyway - session is already created
         }
 

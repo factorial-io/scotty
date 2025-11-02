@@ -12,13 +12,9 @@ use uuid::Uuid;
 /// View logs for an app service
 pub async fn logs_app(context: &AppContext, cmd: &LogsCommand) -> anyhow::Result<()> {
     // Validate app and service using shared utility
-    let _app_data = super::validate_app_and_service(
-        context,
-        &cmd.app_name,
-        &cmd.service_name,
-        "app:logs",
-    )
-    .await?;
+    let _app_data =
+        super::validate_app_and_service(context, &cmd.app_name, &cmd.service_name, "app:logs")
+            .await?;
 
     // Use unified WebSocket approach for both historical and real-time logs
     stream_logs_websocket(context, cmd).await

@@ -17,13 +17,9 @@ use uuid::Uuid;
 /// Open an interactive shell for an app service
 pub async fn shell_app(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<()> {
     // Validate app and service using shared utility
-    let _app_data = super::validate_app_and_service(
-        context,
-        &cmd.app_name,
-        &cmd.service_name,
-        "app:shell",
-    )
-    .await?;
+    let _app_data =
+        super::validate_app_and_service(context, &cmd.app_name, &cmd.service_name, "app:shell")
+            .await?;
 
     // Create shell session and open interactive terminal
     open_shell(context, cmd).await
@@ -66,7 +62,8 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
 
     // Send CreateShellSession message
     let message = WebSocketMessage::CreateShellSession(request);
-    ws.send(message).await
+    ws.send(message)
+        .await
         .context("Failed to send shell session creation request")?;
 
     // Wait for ShellSessionCreated response
@@ -127,7 +124,10 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
 }
 
 /// Run a single command and exit (non-interactive mode)
-async fn run_command_mode(mut ws: crate::websocket::AuthenticatedWebSocket, _session_id: Uuid) -> anyhow::Result<()> {
+async fn run_command_mode(
+    mut ws: crate::websocket::AuthenticatedWebSocket,
+    _session_id: Uuid,
+) -> anyhow::Result<()> {
     // Just listen for output and print it
     while let Some(message) = ws.receiver.next().await {
         match message {
@@ -272,7 +272,9 @@ async fn handle_terminal_event(
             debug!("Ctrl+D pressed, exiting");
             Ok(Some(true))
         }
-        Event::Key(KeyEvent { code, modifiers, .. }) => {
+        Event::Key(KeyEvent {
+            code, modifiers, ..
+        }) => {
             // Convert key event to string and send to shell
             if let Some(input) = key_to_string(code, modifiers) {
                 let input_data = ShellSessionData {
@@ -500,7 +502,10 @@ mod tests {
 
         // Media keys should return None
         assert_eq!(
-            key_to_string(KeyCode::Media(crossterm::event::MediaKeyCode::Play), KeyModifiers::empty()),
+            key_to_string(
+                KeyCode::Media(crossterm::event::MediaKeyCode::Play),
+                KeyModifiers::empty()
+            ),
             None
         );
 

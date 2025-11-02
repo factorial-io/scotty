@@ -81,6 +81,7 @@ pub async fn list_apps_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::test_utils::create_test_websocket_messenger;
     use crate::{
         app_state::AppState, services::authorization::AuthorizationService,
         settings::config::Settings, stop_flag,
@@ -90,7 +91,6 @@ mod tests {
         app_data::{AppData, AppSettings, AppStatus},
         shared_app_list::{AppDataVec as CoreAppDataVec, SharedAppList},
     };
-    use crate::api::test_utils::create_test_websocket_messenger;
     use std::sync::Arc;
     use tempfile::tempdir;
     use tempfile::TempDir;
@@ -262,7 +262,10 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
-            shell_service: crate::docker::services::shell::ShellService::new(docker, settings.shell.clone()),
+            shell_service: crate::docker::services::shell::ShellService::new(
+                docker,
+                settings.shell.clone(),
+            ),
             task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
             settings,
         });

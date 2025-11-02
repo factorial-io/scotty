@@ -342,7 +342,6 @@ pub struct ShellCommand {
     // /// User to run shell as (default: container default)
     // #[arg(short = 'u', long = "user")]
     // pub user: Option<String>,
-
     /// Working directory (default: container default)
     #[arg(short = 'w', long = "workdir")]
     pub workdir: Option<String>,

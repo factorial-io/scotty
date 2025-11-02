@@ -63,7 +63,10 @@ pub async fn create_test_app_state_with_settings(
                 .expect("Failed to load RBAC config for test"),
         ),
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
-        shell_service: crate::docker::services::shell::ShellService::new(docker, settings.shell.clone()),
+        shell_service: crate::docker::services::shell::ShellService::new(
+            docker,
+            settings.shell.clone(),
+        ),
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         settings,
     })
