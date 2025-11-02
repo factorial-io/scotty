@@ -756,4 +756,161 @@ mod tests {
         assert!(stored_line.content.ends_with("...[truncated]"));
         assert!(stored_line.content.chars().count() > 0);
     }
+
+    // Shell-related type tests
+    #[test]
+    fn test_shell_session_request_serialization() {
+        let req = ShellSessionRequest {
+            app_name: "test-app".to_string(),
+            service_name: "web".to_string(),
+            shell_command: Some("/bin/bash".to_string()),
+        };
+
+        // Serialize to JSON
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("test-app"));
+        assert!(json.contains("web"));
+        assert!(json.contains("/bin/bash"));
+
+        // Deserialize back
+        let deserialized: ShellSessionRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.app_name, "test-app");
+        assert_eq!(deserialized.service_name, "web");
+        assert_eq!(deserialized.shell_command, Some("/bin/bash".to_string()));
+    }
+
+    #[test]
+    fn test_shell_session_request_constructors() {
+        // Test new() constructor (no command)
+        let req1 = ShellSessionRequest::new("app1".to_string(), "svc1".to_string());
+        assert_eq!(req1.app_name, "app1");
+        assert_eq!(req1.service_name, "svc1");
+        assert_eq!(req1.shell_command, None);
+
+        // Test with_command() constructor
+        let req2 = ShellSessionRequest::with_command(
+            "app2".to_string(),
+            "svc2".to_string(),
+            "/bin/sh".to_string(),
+        );
+        assert_eq!(req2.app_name, "app2");
+        assert_eq!(req2.service_name, "svc2");
+        assert_eq!(req2.shell_command, Some("/bin/sh".to_string()));
+    }
+
+    #[test]
+    fn test_shell_data_type_variants() {
+        // Test Input variant
+        let session_id = Uuid::new_v4();
+        let input = ShellSessionData {
+            session_id,
+            data_type: ShellDataType::Input,
+            data: "test command\n".to_string(),
+        };
+
+        assert!(matches!(input.data_type, ShellDataType::Input));
+        assert_eq!(input.data, "test command\n");
+
+        // Test Output variant
+        let output = ShellSessionData {
+            session_id,
+            data_type: ShellDataType::Output,
+            data: "command result\n".to_string(),
+        };
+
+        assert!(matches!(output.data_type, ShellDataType::Output));
+        assert_eq!(output.data, "command result\n");
+    }
+
+    #[test]
+    fn test_shell_session_data_serialization() {
+        let session_id = Uuid::new_v4();
+        let data = ShellSessionData {
+            session_id,
+            data_type: ShellDataType::Input,
+            data: "echo hello".to_string(),
+        };
+
+        // Serialize
+        let json = serde_json::to_string(&data).unwrap();
+
+        // Deserialize
+        let deserialized: ShellSessionData = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.session_id, session_id);
+        assert!(matches!(deserialized.data_type, ShellDataType::Input));
+        assert_eq!(deserialized.data, "echo hello");
+    }
+
+    #[test]
+    fn test_shell_session_end_with_exit_codes() {
+        let session_id = Uuid::new_v4();
+
+        // Test with successful exit (code 0)
+        let end_success = ShellSessionEnd {
+            session_id,
+            exit_code: Some(0),
+            reason: "Completed successfully".to_string(),
+        };
+        assert_eq!(end_success.exit_code, Some(0));
+
+        // Test with error exit (code 1)
+        let end_error = ShellSessionEnd {
+            session_id,
+            exit_code: Some(1),
+            reason: "Command failed".to_string(),
+        };
+        assert_eq!(end_error.exit_code, Some(1));
+
+        // Test with signal termination (code 130 = Ctrl+C)
+        let end_signal = ShellSessionEnd {
+            session_id,
+            exit_code: Some(130),
+            reason: "Interrupted".to_string(),
+        };
+        assert_eq!(end_signal.exit_code, Some(130));
+
+        // Test with no exit code (timeout/error)
+        let end_no_code = ShellSessionEnd {
+            session_id,
+            exit_code: None,
+            reason: "Session timeout".to_string(),
+        };
+        assert_eq!(end_no_code.exit_code, None);
+    }
+
+    #[test]
+    fn test_shell_session_info_construction() {
+        let session_id = Uuid::new_v4();
+        let info = ShellSessionInfo::new(
+            session_id,
+            "my-app".to_string(),
+            "web".to_string(),
+            "container-123".to_string(),
+            "/bin/sh".to_string(),
+        );
+
+        assert_eq!(info.session_id, session_id);
+        assert_eq!(info.app_name, "my-app");
+        assert_eq!(info.service_name, "web");
+        assert_eq!(info.container_id, "container-123");
+        assert_eq!(info.shell_command, "/bin/sh");
+    }
+
+    #[test]
+    fn test_shell_session_error_structure() {
+        let session_id = Uuid::new_v4();
+        let error = ShellSessionError {
+            session_id,
+            error: "Container not found".to_string(),
+        };
+
+        assert_eq!(error.session_id, session_id);
+        assert_eq!(error.error, "Container not found");
+
+        // Test serialization
+        let json = serde_json::to_string(&error).unwrap();
+        let deserialized: ShellSessionError = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.session_id, session_id);
+        assert_eq!(deserialized.error, "Container not found");
+    }
 }

@@ -3411,6 +3411,7 @@ version = "0.2.0-alpha.1"
 dependencies = [
  "chrono",
  "serde",
+ "serde_json",
  "ts-rs",
  "utoipa",
  "uuid",

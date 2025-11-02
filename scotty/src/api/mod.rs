@@ -9,6 +9,9 @@ pub mod secure_response;
 pub mod websocket;
 
 #[cfg(test)]
+mod test_utils;
+
+#[cfg(test)]
 mod secure_response_test;
 
 #[cfg(test)]

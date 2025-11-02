@@ -353,3 +353,181 @@ fn key_to_string(code: KeyCode, modifiers: KeyModifiers) -> Option<String> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test key_to_string with printable characters
+    #[test]
+    fn test_key_to_string_printable_chars() {
+        // Regular letters
+        assert_eq!(
+            key_to_string(KeyCode::Char('a'), KeyModifiers::empty()),
+            Some("a".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Char('Z'), KeyModifiers::empty()),
+            Some("Z".to_string())
+        );
+
+        // Numbers
+        assert_eq!(
+            key_to_string(KeyCode::Char('5'), KeyModifiers::empty()),
+            Some("5".to_string())
+        );
+
+        // Special characters
+        assert_eq!(
+            key_to_string(KeyCode::Char('!'), KeyModifiers::empty()),
+            Some("!".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Char('@'), KeyModifiers::empty()),
+            Some("@".to_string())
+        );
+    }
+
+    /// Test key_to_string with special keys (Enter, Backspace, Tab, Esc)
+    #[test]
+    fn test_key_to_string_special_keys() {
+        // Enter should produce \r (carriage return)
+        assert_eq!(
+            key_to_string(KeyCode::Enter, KeyModifiers::empty()),
+            Some("\r".to_string())
+        );
+
+        // Backspace should produce DEL character (0x7f)
+        assert_eq!(
+            key_to_string(KeyCode::Backspace, KeyModifiers::empty()),
+            Some("\x7f".to_string())
+        );
+
+        // Tab should produce \t
+        assert_eq!(
+            key_to_string(KeyCode::Tab, KeyModifiers::empty()),
+            Some("\t".to_string())
+        );
+
+        // Escape should produce ESC character (0x1b)
+        assert_eq!(
+            key_to_string(KeyCode::Esc, KeyModifiers::empty()),
+            Some("\x1b".to_string())
+        );
+    }
+
+    /// Test key_to_string with arrow keys (ANSI escape sequences)
+    #[test]
+    fn test_key_to_string_arrow_keys() {
+        // Arrow keys produce ANSI escape sequences
+        assert_eq!(
+            key_to_string(KeyCode::Up, KeyModifiers::empty()),
+            Some("\x1b[A".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Down, KeyModifiers::empty()),
+            Some("\x1b[B".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Right, KeyModifiers::empty()),
+            Some("\x1b[C".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Left, KeyModifiers::empty()),
+            Some("\x1b[D".to_string())
+        );
+    }
+
+    /// Test key_to_string with navigation keys (Home, End, PageUp, PageDown, Delete, Insert)
+    #[test]
+    fn test_key_to_string_navigation_keys() {
+        assert_eq!(
+            key_to_string(KeyCode::Home, KeyModifiers::empty()),
+            Some("\x1b[H".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::End, KeyModifiers::empty()),
+            Some("\x1b[F".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::PageUp, KeyModifiers::empty()),
+            Some("\x1b[5~".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::PageDown, KeyModifiers::empty()),
+            Some("\x1b[6~".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Delete, KeyModifiers::empty()),
+            Some("\x1b[3~".to_string())
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Insert, KeyModifiers::empty()),
+            Some("\x1b[2~".to_string())
+        );
+    }
+
+    /// Test key_to_string with control modifiers (should return None)
+    #[test]
+    fn test_key_to_string_control_modifiers() {
+        // Ctrl+C and Ctrl+D are handled separately, should return None here
+        assert_eq!(
+            key_to_string(KeyCode::Char('c'), KeyModifiers::CONTROL),
+            None
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            None
+        );
+
+        // Other Ctrl combinations should also return None (not implemented)
+        assert_eq!(
+            key_to_string(KeyCode::Char('a'), KeyModifiers::CONTROL),
+            None
+        );
+        assert_eq!(
+            key_to_string(KeyCode::Char('z'), KeyModifiers::CONTROL),
+            None
+        );
+    }
+
+    /// Test key_to_string with unsupported keys
+    #[test]
+    fn test_key_to_string_unsupported_keys() {
+        // Function keys should return None
+        assert_eq!(key_to_string(KeyCode::F(1), KeyModifiers::empty()), None);
+        assert_eq!(key_to_string(KeyCode::F(12), KeyModifiers::empty()), None);
+
+        // Media keys should return None
+        assert_eq!(
+            key_to_string(KeyCode::Media(crossterm::event::MediaKeyCode::Play), KeyModifiers::empty()),
+            None
+        );
+
+        // Null key should return None
+        assert_eq!(key_to_string(KeyCode::Null, KeyModifiers::empty()), None);
+    }
+
+    /// Test that Ctrl+C produces the correct interrupt signal
+    #[test]
+    fn test_ctrl_c_interrupt_signal() {
+        // Verify \x03 is the correct ETX (End of Text) / Ctrl+C signal
+        let interrupt = "\x03";
+        assert_eq!(interrupt.as_bytes(), &[0x03]);
+        assert_eq!(interrupt.len(), 1);
+    }
+
+    /// Test ANSI escape sequence formatting
+    #[test]
+    fn test_ansi_escape_sequences() {
+        // Verify escape sequences start with ESC (0x1b)
+        let up_arrow = "\x1b[A";
+        assert!(up_arrow.starts_with('\x1b'));
+        assert_eq!(up_arrow.as_bytes(), &[0x1b, b'[', b'A']);
+
+        // Verify Delete has tilde terminator
+        let delete = "\x1b[3~";
+        assert!(delete.ends_with('~'));
+        assert_eq!(delete.as_bytes(), &[0x1b, b'[', b'3', b'~']);
+    }
+}

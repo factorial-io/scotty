@@ -1,4 +1,5 @@
 use crate::api::router::ApiRoutes;
+use crate::api::test_utils::create_test_websocket_messenger;
 use crate::app_state::AppState;
 use axum_test::TestServer;
 use config::Config;
@@ -8,13 +9,6 @@ use wiremock::{
     matchers::{body_string_contains, method, path},
     Mock, MockServer, ResponseTemplate,
 };
-
-/// Helper function to create test WebSocket messenger
-fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
-    use crate::api::websocket::WebSocketMessenger;
-    let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-    WebSocketMessenger::new(clients)
-}
 
 /// Create test config for OAuth with dynamic mock server URL
 async fn create_oauth_config_with_mock_server(
@@ -47,9 +41,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
 
     let docker = bollard::Docker::connect_with_local_defaults().unwrap();
     let app_state = Arc::new(AppState {
-        settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
-
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
         task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
@@ -60,9 +52,11 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
             )
             .await,
         ),
-        logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+        logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
+        shell_service: crate::docker::services::shell::ShellService::new(docker, settings.shell.clone()),
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
+        settings,
     });
 
     ApiRoutes::create(app_state)
@@ -537,9 +531,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
 
     let docker = bollard::Docker::connect_with_local_defaults().unwrap();
     let app_state = Arc::new(AppState {
-        settings,
         stop_flag: crate::stop_flag::StopFlag::new(),
-
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
         task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
@@ -550,9 +542,11 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
             )
             .await,
         ),
-        logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+        logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
+        shell_service: crate::docker::services::shell::ShellService::new(docker, settings.shell.clone()),
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
+        settings,
     });
 
     let router = ApiRoutes::create(app_state.clone());

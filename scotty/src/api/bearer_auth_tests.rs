@@ -1,49 +1,11 @@
 use crate::api::router::ApiRoutes;
-use crate::app_state::AppState;
+use crate::api::test_utils::create_test_app_state_with_config;
 use axum_test::TestServer;
 use config::Config;
-use std::sync::Arc;
-
-/// Helper function to create test WebSocket messenger
-fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
-    use crate::api::websocket::WebSocketMessenger;
-    let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-    WebSocketMessenger::new(clients)
-}
-
-/// Helper function to create app state with specified config file and optional OAuth state
-async fn create_app_state_with_config(
-    config_file: &str,
-    oauth_state: Option<crate::oauth::handlers::OAuthState>,
-) -> Arc<AppState> {
-    // Load test configuration from file
-    let builder = Config::builder().add_source(config::File::with_name(config_file));
-    let config = builder.build().unwrap();
-    let settings: crate::settings::config::Settings = config.try_deserialize().unwrap();
-
-    // Create app state with test configuration
-    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
-    Arc::new(AppState {
-        settings,
-        stop_flag: crate::stop_flag::StopFlag::new(),
-        messenger: create_test_websocket_messenger(),
-        apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
-        oauth_state,
-        auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin")
-                .await
-                .expect("Failed to load RBAC config for test"),
-        ),
-        logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
-        task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
-    })
-}
 
 /// Create actual Scotty router for testing with bearer auth configuration
 async fn create_scotty_app_with_bearer_auth() -> axum::Router {
-    let app_state = create_app_state_with_config("tests/test_bearer_auth", None).await;
+    let app_state = create_test_app_state_with_config("tests/test_bearer_auth", None).await;
     ApiRoutes::create(app_state)
 }
 
@@ -90,7 +52,7 @@ async fn test_bearer_auth_invalid_token_blueprints() {
 
 /// Create Scotty router with actual authorization service (not fallback)
 async fn create_scotty_app_with_rbac_auth() -> axum::Router {
-    let app_state = create_app_state_with_config("tests/test_bearer_auth", None).await;
+    let app_state = create_test_app_state_with_config("tests/test_bearer_auth", None).await;
     ApiRoutes::create(app_state)
 }
 
@@ -214,7 +176,7 @@ async fn test_bearer_auth_apps_list_endpoint() {
 
 /// Create actual Scotty router for testing with OAuth configuration
 async fn create_scotty_app_with_oauth() -> axum::Router {
-    let app_state = create_app_state_with_config("tests/test_oauth_auth", None).await;
+    let app_state = create_test_app_state_with_config("tests/test_oauth_auth", None).await;
     ApiRoutes::create(app_state)
 }
 
@@ -286,7 +248,7 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
         _ => None, // OAuth client creation may fail with test config, that's OK
     };
 
-    let app_state = create_app_state_with_config("tests/test_oauth_auth", oauth_state).await;
+    let app_state = create_test_app_state_with_config("tests/test_oauth_auth", oauth_state).await;
     ApiRoutes::create(app_state)
 }
 

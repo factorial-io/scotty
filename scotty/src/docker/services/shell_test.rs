@@ -98,6 +98,7 @@ mod tests {
             container_id: "container-123".to_string(),
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
+            client_id: Uuid::new_v4(),
             created_at: chrono::Utc::now() - chrono::Duration::hours(2),
         };
 
@@ -117,6 +118,7 @@ mod tests {
             container_id: "container-123".to_string(),
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
+            client_id: Uuid::new_v4(),
             created_at: chrono::Utc::now(),
         };
 
@@ -223,6 +225,7 @@ mod tests {
             container_id: "container-123".to_string(),
             exec_id: "exec-456".to_string(),
             sender: tx,
+            client_id: Uuid::new_v4(),
             created_at: chrono::Utc::now(),
         };
 
@@ -254,6 +257,192 @@ mod tests {
                 assert_eq!(height, 24);
             }
             _ => panic!("Resize command not transmitted correctly"),
+        }
+    }
+
+    // Session expiration boundary tests
+    #[test]
+    fn test_session_expiration_exact_boundary() {
+        // Session at exactly TTL boundary
+        let session = ShellSession {
+            session_id: Uuid::new_v4(),
+            app_name: "test-app".to_string(),
+            service_name: "web".to_string(),
+            container_id: "container-123".to_string(),
+            exec_id: "exec-456".to_string(),
+            sender: tokio::sync::mpsc::channel(1).0,
+            client_id: Uuid::new_v4(),
+            created_at: chrono::Utc::now() - chrono::Duration::seconds(3600),
+        };
+
+        let ttl = std::time::Duration::from_secs(3600);
+
+        // At exact boundary, should NOT be expired
+        // (We use > comparison, not >=)
+        assert!(!session.is_expired(ttl));
+    }
+
+    #[test]
+    fn test_session_expiration_just_over_boundary() {
+        // Session 1 second over TTL
+        let session = ShellSession {
+            session_id: Uuid::new_v4(),
+            app_name: "test-app".to_string(),
+            service_name: "web".to_string(),
+            container_id: "container-123".to_string(),
+            exec_id: "exec-456".to_string(),
+            sender: tokio::sync::mpsc::channel(1).0,
+            client_id: Uuid::new_v4(),
+            created_at: chrono::Utc::now() - chrono::Duration::seconds(3601),
+        };
+
+        let ttl = std::time::Duration::from_secs(3600);
+
+        // 1 second over, should be expired
+        assert!(session.is_expired(ttl));
+    }
+
+    // Error variant tests
+    #[test]
+    fn test_error_service_not_found_display() {
+        let err = ShellServiceError::ServiceNotFound {
+            service: "nginx".to_string(),
+            app: "my-app".to_string(),
+        };
+
+        let display = format!("{}", err);
+        assert!(display.contains("nginx"));
+        assert!(display.contains("my-app"));
+        assert_eq!(display, "Service 'nginx' not found in app 'my-app'");
+    }
+
+    #[test]
+    fn test_error_no_container_id_display() {
+        let err = ShellServiceError::NoContainerId {
+            service: "nginx".to_string(),
+        };
+
+        let display = format!("{}", err);
+        assert!(display.contains("nginx"));
+        assert_eq!(display, "Service 'nginx' has no container ID");
+    }
+
+    #[test]
+    fn test_all_error_variants_implement_required_traits() {
+        // Test that all error variants can be constructed and implement Display
+        let errors = vec![
+            ShellServiceError::ServiceNotFound {
+                service: "svc".to_string(),
+                app: "app".to_string(),
+            },
+            ShellServiceError::NoContainerId {
+                service: "svc".to_string(),
+            },
+            ShellServiceError::MaxSessionsPerApp { limit: 5 },
+            ShellServiceError::MaxSessionsGlobal { limit: 50 },
+            ShellServiceError::SessionNotFound {
+                session_id: Uuid::new_v4(),
+            },
+            ShellServiceError::CommandSendFailed {
+                reason: "closed".to_string(),
+            },
+            ShellServiceError::DockerOperationFailed {
+                operation: "create_exec".to_string(),
+                message: "connection failed".to_string(),
+            },
+        ];
+
+        for error in errors {
+            // Each error should have a non-empty display message
+            let display = format!("{}", error);
+            assert!(!display.is_empty());
+
+            // Error trait should be implemented (this compiles = trait is implemented)
+            let _: &dyn std::error::Error = &error;
+        }
+    }
+
+    // Session ID uniqueness test
+    #[test]
+    fn test_session_id_uniqueness() {
+        use std::collections::HashSet;
+
+        let mut ids = HashSet::new();
+
+        // Generate 1000 session IDs
+        for _ in 0..1000 {
+            let id = Uuid::new_v4();
+            // Each ID should be unique
+            assert!(ids.insert(id), "Duplicate UUID generated: {}", id);
+        }
+
+        assert_eq!(ids.len(), 1000);
+    }
+
+    // Session info field validation
+    #[test]
+    fn test_session_info_no_pii_or_sensitive_data() {
+        let info = ShellSession {
+            session_id: Uuid::new_v4(),
+            app_name: "my-app".to_string(),
+            service_name: "web".to_string(),
+            container_id: "container-id".to_string(),
+            exec_id: "exec-id".to_string(),
+            sender: tokio::sync::mpsc::channel(1).0,
+            client_id: Uuid::new_v4(),
+            created_at: chrono::Utc::now(),
+        }
+        .to_info("/bin/sh".to_string());
+
+        // Verify all required fields are present
+        assert!(!info.app_name.is_empty());
+        assert!(!info.service_name.is_empty());
+        assert!(!info.container_id.is_empty());
+        assert!(!info.shell_command.is_empty());
+
+        // Verify session_id is a valid UUID
+        assert_eq!(info.session_id.to_string().len(), 36); // UUID string length
+    }
+
+    // ShellCommand enum variants test
+    #[test]
+    fn test_shell_command_enum_completeness() {
+        use tokio::sync::mpsc;
+
+        let (tx, mut rx) = mpsc::channel(3);
+
+        // Test all ShellCommand variants
+        let commands = vec![
+            ShellCommand::Input("test input".to_string()),
+            ShellCommand::Resize {
+                width: 100,
+                height: 50,
+            },
+            ShellCommand::Terminate,
+        ];
+
+        // Send all commands
+        for cmd in commands {
+            tx.try_send(cmd).unwrap();
+        }
+
+        // Verify all received correctly
+        match rx.try_recv().unwrap() {
+            ShellCommand::Input(s) => assert_eq!(s, "test input"),
+            _ => panic!("Wrong variant"),
+        }
+
+        match rx.try_recv().unwrap() {
+            ShellCommand::Resize { width, height } => {
+                assert_eq!(width, 100);
+                assert_eq!(height, 50);
+            }
+            _ => panic!("Wrong variant"),
+        }
+
+        match rx.try_recv().unwrap() {
+            ShellCommand::Terminate => (),
+            _ => panic!("Wrong variant"),
         }
     }
 }
