@@ -92,9 +92,15 @@ async fn extract_services_from_docker_compose(content: &str) -> anyhow::Result<V
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
+/// # use scotty::docker::find_apps::inspect_app;
+/// # async fn example() -> anyhow::Result<()> {
+/// # let app_state = todo!();
+/// # let docker_compose_path = todo!();
 /// let app_data = inspect_app(&app_state, &docker_compose_path).await?;
 /// assert_eq!(app_data.name, "my-app");
+/// # Ok(())
+/// # }
 /// ```
 pub async fn inspect_app(
     app_state: &SharedAppState,

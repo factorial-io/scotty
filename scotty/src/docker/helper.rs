@@ -63,8 +63,9 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use scotty::docker::helper::wait_for_containers_ready;
+/// use scotty::app_state::SharedAppState;
 ///
 /// async fn example(app_state: &SharedAppState) -> anyhow::Result<()> {
 ///     let container_ids = vec!["container1".to_string(), "container2".to_string()];

@@ -223,9 +223,15 @@ async fn validate_app(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
+/// # use scotty::docker::create_app::create_app;
+/// # async fn example() {
+/// # let app_state = todo!();
+/// # let settings = todo!();
+/// # let files = todo!();
 /// let result = create_app(app_state, "my-app", &settings, &files).await;
 /// assert!(result.is_ok());
+/// # }
 /// ```
 pub async fn create_app(
     app_state: SharedAppState,
