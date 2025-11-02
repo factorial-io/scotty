@@ -128,6 +128,9 @@ async fn run_command_mode(
     mut ws: crate::websocket::AuthenticatedWebSocket,
     _session_id: Uuid,
 ) -> anyhow::Result<()> {
+    // Track exit code to propagate to CLI
+    let mut exit_code: i32 = 0;
+
     // Just listen for output and print it
     while let Some(message) = ws.receiver.next().await {
         match message {
@@ -139,11 +142,14 @@ async fn run_command_mode(
                             print!("{}", data.data);
                             let _ = stdout().flush();
                         }
-                        WebSocketMessage::ShellSessionEnded(_end) => {
+                        WebSocketMessage::ShellSessionEnded(end) => {
+                            // Capture exit code from shell session
+                            exit_code = end.exit_code.unwrap_or(0);
                             break;
                         }
                         WebSocketMessage::ShellSessionError(error) => {
                             eprintln!("Shell error: {}", error.error);
+                            exit_code = 1;
                             break;
                         }
                         _ => {}
@@ -153,6 +159,7 @@ async fn run_command_mode(
             Ok(Message::Close(_)) => break,
             Err(e) => {
                 error!("WebSocket error: {}", e);
+                exit_code = 1;
                 break;
             }
             _ => {}
@@ -160,7 +167,9 @@ async fn run_command_mode(
     }
 
     let _ = ws.close().await;
-    Ok(())
+
+    // Exit with the shell's exit code
+    std::process::exit(exit_code);
 }
 
 /// Run interactive shell mode with raw terminal
