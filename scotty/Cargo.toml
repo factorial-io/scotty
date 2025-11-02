@@ -17,6 +17,7 @@ bollard.workspace = true
 clap.workspace = true
 chrono.workspace = true
 config.workspace = true
+dotenvy.workspace = true
 futures-util.workspace = true
 init-tracing-opentelemetry.workspace = true
 include_dir.workspace = true
