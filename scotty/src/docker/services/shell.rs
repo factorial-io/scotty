@@ -99,7 +99,7 @@ pub enum ShellCommand {
 }
 
 /// Service for managing container shell sessions
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ShellService {
     docker: Docker,
     active_sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>,

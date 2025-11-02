@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{
-    api::error::AppError, app_state::SharedAppState, docker::services::shell::ShellService,
-};
+use crate::{api::error::AppError, app_state::SharedAppState};
 use scotty_core::utils::slugify::slugify;
 
 #[derive(Deserialize, ToSchema)]
@@ -85,9 +83,8 @@ pub async fn create_shell_handler(
         .await
         .ok_or_else(|| AppError::AppNotFound(app_id.clone()))?;
 
-    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
-
-    let session_id = shell_service
+    let session_id = state
+        .shell_service
         .create_session(&state, &app_data, &service_name, request.shell_command)
         .await?;
 
@@ -119,9 +116,10 @@ pub async fn shell_input_handler(
     State(state): State<SharedAppState>,
     Json(request): Json<ShellInputRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
-
-    shell_service.send_input(session_id, request.input).await?;
+    state
+        .shell_service
+        .send_input(session_id, request.input)
+        .await?;
 
     Ok(axum::Json(ShellInputResponse {
         message: format!("Sent input to shell session {}", session_id),
@@ -150,9 +148,8 @@ pub async fn resize_tty_handler(
     State(state): State<SharedAppState>,
     Json(request): Json<ResizeTtyRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
-
-    shell_service
+    state
+        .shell_service
         .resize_tty(session_id, request.width, request.height)
         .await?;
 
@@ -181,9 +178,7 @@ pub async fn terminate_shell_handler(
     Path(session_id): Path<Uuid>,
     State(state): State<SharedAppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
-
-    shell_service.terminate_session(session_id).await?;
+    state.shell_service.terminate_session(session_id).await?;
 
     Ok(axum::Json(TerminateShellResponse {
         message: format!("Terminated shell session {}", session_id),

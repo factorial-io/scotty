@@ -2,7 +2,6 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
-use crate::docker::services::shell::ShellService;
 use scotty_types::{ShellDataType, ShellSessionData};
 
 /// Handle shell session data (input from client)
@@ -27,11 +26,9 @@ pub async fn handle_shell_session_data(
         data.data.len()
     );
 
-    // Create shell service
-    let shell_service = ShellService::new(state.docker.clone(), state.settings.shell.clone());
-
-    // Send input to the shell session
-    if let Err(e) = shell_service
+    // Send input to the shell session using shared shell service
+    if let Err(e) = state
+        .shell_service
         .send_input(data.session_id, data.data.clone())
         .await
     {

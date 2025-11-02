@@ -9,6 +9,7 @@ use tracing::{info, warn};
 use crate::api::basic_auth::CurrentUser;
 use crate::api::websocket::WebSocketMessenger;
 use crate::docker::services::logs::LogStreamingService;
+use crate::docker::services::shell::ShellService;
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{
     self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
@@ -50,6 +51,7 @@ pub struct AppState {
     pub oauth_state: Option<OAuthState>,
     pub auth_service: Arc<AuthorizationService>,
     pub logs_service: LogStreamingService,
+    pub shell_service: ShellService,
     pub task_output_service: TaskOutputStreamingService,
     pub messenger: WebSocketMessenger,
 }
@@ -71,6 +73,9 @@ impl AppState {
 
         // Initialize shared log streaming service
         let logs_service = LogStreamingService::new(docker.clone());
+
+        // Initialize shared shell service
+        let shell_service = ShellService::new(docker.clone(), settings.shell.clone());
 
         // Initialize OAuth if configured
         let oauth_state = match oauth::client::create_oauth_client(&settings.api.oauth) {
@@ -121,6 +126,7 @@ impl AppState {
             oauth_state,
             auth_service,
             logs_service,
+            shell_service,
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
         });
@@ -136,14 +142,15 @@ impl AppState {
         let messenger = WebSocketMessenger::new(clients.clone());
 
         Ok(Arc::new(AppState {
-            settings,
+            settings: settings.clone(),
             stop_flag: stop_flag::StopFlag::new(),
             apps: SharedAppList::new(),
             docker: docker.clone(),
             task_manager: manager::TaskManager::new(messenger.clone()),
             oauth_state: None,
             auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
-            logs_service: LogStreamingService::new(docker),
+            logs_service: LogStreamingService::new(docker.clone()),
+            shell_service: ShellService::new(docker, settings.shell.clone()),
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
         }))
