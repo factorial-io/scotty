@@ -9,7 +9,7 @@ use tokio::select;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error};
 
-use crate::{api::post, cli::ShellCommand, context::AppContext};
+use crate::{cli::ShellCommand, context::AppContext};
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{ShellDataType, ShellSessionData};
 use uuid::Uuid;
@@ -32,24 +32,17 @@ pub async fn shell_app(context: &AppContext, cmd: &ShellCommand) -> anyhow::Resu
 /// Create shell session and open interactive terminal
 async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<()> {
     use crate::websocket::AuthenticatedWebSocket;
-    use serde::{Deserialize, Serialize};
+    use scotty_types::ShellSessionRequest;
 
     let ui = context.ui();
 
-    ui.new_status_line("Creating shell session...");
+    // Connect to WebSocket first
+    ui.new_status_line("Connecting to WebSocket...");
+    let mut ws = AuthenticatedWebSocket::connect(context.server())
+        .await
+        .context("Failed to connect to WebSocket")?;
 
-    // Create the shell session via REST API
-    #[derive(Serialize)]
-    struct CreateShellRequest {
-        shell_command: Option<String>,
-    }
-
-    #[derive(Deserialize)]
-    struct CreateShellResponse {
-        session_id: Uuid,
-        #[allow(dead_code)]
-        message: String,
-    }
+    ui.success("🔐 WebSocket authenticated");
 
     // Build shell command: either custom shell, or bash -c "command", or just bash
     let shell_command = if let Some(command) = &cmd.command {
@@ -59,33 +52,53 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
         cmd.shell.clone()
     };
 
-    let request = CreateShellRequest { shell_command };
-    let request_value = serde_json::to_value(&request)?;
+    // Create shell session via WebSocket
+    ui.new_status_line("Creating shell session...");
 
-    let response_value = post(
-        context.server(),
-        &format!(
-            "apps/{}/services/{}/shell",
-            cmd.app_name, cmd.service_name
-        ),
-        request_value,
-    )
-    .await
-    .context("Failed to create shell session")?;
+    let request = ShellSessionRequest {
+        app_name: cmd.app_name.clone(),
+        service_name: cmd.service_name.clone(),
+        shell_command,
+    };
 
-    let response: CreateShellResponse = serde_json::from_value(response_value)
-        .context("Failed to parse shell session response")?;
+    // Send CreateShellSession message
+    let message = WebSocketMessage::CreateShellSession(request);
+    ws.send(message).await
+        .context("Failed to send shell session creation request")?;
 
-    let session_id = response.session_id;
-    ui.success(format!("Shell session created: {}", session_id));
-
-    // Connect to WebSocket
-    ui.new_status_line("Connecting to WebSocket...");
-    let ws = AuthenticatedWebSocket::connect(context.server())
-        .await
-        .context("Failed to connect to WebSocket")?;
-
-    ui.success("🔐 WebSocket authenticated");
+    // Wait for ShellSessionCreated response
+    use futures_util::StreamExt;
+    let session_id = loop {
+        match ws.receiver.next().await {
+            Some(Ok(Message::Text(text))) => {
+                if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
+                    match ws_message {
+                        WebSocketMessage::ShellSessionCreated(info) => {
+                            ui.success(format!("Shell session created: {}", info.session_id));
+                            break info.session_id;
+                        }
+                        WebSocketMessage::Error(err) => {
+                            anyhow::bail!("Failed to create shell session: {}", err);
+                        }
+                        _ => {
+                            // Ignore other messages while waiting for session creation
+                            continue;
+                        }
+                    }
+                }
+            }
+            Some(Ok(Message::Close(_))) => {
+                anyhow::bail!("WebSocket closed while waiting for session creation");
+            }
+            Some(Err(e)) => {
+                anyhow::bail!("WebSocket error: {}", e);
+            }
+            None => {
+                anyhow::bail!("WebSocket stream ended");
+            }
+            _ => continue,
+        }
+    };
 
     // If running a single command, just wait for output and exit
     if cmd.command.is_some() {
@@ -137,8 +150,11 @@ async fn run_command_mode(mut ws: crate::websocket::AuthenticatedWebSocket, _ses
 async fn run_interactive_mode(
     mut ws: crate::websocket::AuthenticatedWebSocket,
     session_id: Uuid,
-    _ui: &crate::utils::ui::Ui,
+    ui: &crate::utils::ui::Ui,
 ) -> anyhow::Result<()> {
+    // Clear the UI status line before entering raw mode
+    ui.clear();
+
     // Enable raw mode for terminal
     enable_raw_mode().context("Failed to enable raw mode")?;
 
