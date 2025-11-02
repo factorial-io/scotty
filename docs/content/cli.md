@@ -33,6 +33,88 @@ Example output:
 The command lists all services of a specific app and their status. The output
 also contains the enabled notification services for that app.
 
+## View logs from an app service
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:logs <APP> <SERVICE>
+```
+
+This command displays logs from a specific service within an app. By default, it shows all available logs and exits.
+
+### Options
+
+* `-f, --follow`: Follow log output in real-time (like `tail -f`)
+* `-n, --lines <LINES>`: Show only the last N lines
+* `--since <SINCE>`: Show logs since a timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
+* `--until <UNTIL>`: Show logs until a timestamp (e.g., "1h", "2023-01-01T11:00:00Z")
+* `-t, --timestamps`: Include timestamps in the log output
+
+### Examples
+
+View all logs:
+```shell
+scottyctl app:logs my-app web
+```
+
+Follow logs in real-time:
+```shell
+scottyctl app:logs my-app web --follow
+```
+
+Show last 100 lines with timestamps:
+```shell
+scottyctl app:logs my-app web --lines 100 --timestamps
+```
+
+Show logs from the last 2 hours:
+```shell
+scottyctl app:logs my-app web --since 2h --follow
+```
+
+## Open an interactive shell in an app service
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:shell <APP> <SERVICE>
+```
+
+This command opens an interactive shell session inside a running container. This is useful for debugging, inspecting files, or running commands inside the container environment.
+
+**Note:** The shell command requires the `shell` permission in the authorization system.
+
+### Options
+
+* `-c, --command <COMMAND>`: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.
+* `--shell <SHELL>`: Specify which shell to use (default: `/bin/bash`)
+* `-w, --workdir <WORKDIR>`: Set the working directory for the shell session
+
+### Examples
+
+Open an interactive shell:
+```shell
+scottyctl app:shell my-app web
+```
+
+Execute a single command:
+```shell
+scottyctl app:shell my-app web --command "ls -la /app"
+```
+
+Use a different shell:
+```shell
+scottyctl app:shell my-app web --shell /bin/sh
+```
+
+Execute a command in a specific directory:
+```shell
+scottyctl app:shell my-app web --command "pwd" --workdir /var/www
+```
+
+Run a script and capture its exit code:
+```shell
+scottyctl app:shell my-app web --command "/app/scripts/healthcheck.sh"
+echo "Exit code: $?"
+```
+
 ## Start/run an app
 
 ```shell
