@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod logs;
+pub mod shell;
 pub mod tasks;
 
 use tracing::{debug, info, instrument, warn};
@@ -136,6 +137,10 @@ pub async fn handle_websocket_message(
 
         WebSocketMessage::StopTaskOutputStream { task_id } => {
             tasks::handle_stop_task_output_stream(state, client_id, *task_id).await;
+        }
+
+        WebSocketMessage::ShellSessionData(data) => {
+            shell::handle_shell_session_data(state, client_id, data).await;
         }
 
         _ => {
