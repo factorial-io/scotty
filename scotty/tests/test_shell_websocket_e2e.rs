@@ -41,11 +41,9 @@ fn ws_url(base_url: &reqwest::Url) -> String {
 #[ignore]
 async fn test_shell_session_creation_and_termination() {
     // Start test server
-    let app_state = scotty::api::test_utils::create_test_app_state_with_config(
-        "tests/test_bearer_auth",
-        None,
-    )
-    .await;
+    let app_state =
+        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
+            .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
     let server = axum_test::TestServer::new(router).unwrap();
 
@@ -148,11 +146,9 @@ async fn test_shell_session_creation_and_termination() {
 #[ignore]
 async fn test_shell_command_execution_with_exit_code() {
     // Start test server
-    let app_state = scotty::api::test_utils::create_test_app_state_with_config(
-        "tests/test_bearer_auth",
-        None,
-    )
-    .await;
+    let app_state =
+        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
+            .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
     let server = axum_test::TestServer::new(router).unwrap();
 
@@ -232,11 +228,9 @@ async fn test_shell_command_execution_with_exit_code() {
 #[ignore]
 async fn test_shell_bidirectional_io() {
     // Start test server
-    let app_state = scotty::api::test_utils::create_test_app_state_with_config(
-        "tests/test_bearer_auth",
-        None,
-    )
-    .await;
+    let app_state =
+        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
+            .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
     let server = axum_test::TestServer::new(router).unwrap();
 
@@ -340,11 +334,9 @@ async fn test_shell_bidirectional_io() {
 #[ignore]
 async fn test_shell_tty_resize() {
     // Start test server
-    let app_state = scotty::api::test_utils::create_test_app_state_with_config(
-        "tests/test_bearer_auth",
-        None,
-    )
-    .await;
+    let app_state =
+        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
+            .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
     let server = axum_test::TestServer::new(router).unwrap();
 
@@ -376,11 +368,11 @@ async fn test_shell_tty_resize() {
     let mut session_id: Option<Uuid> = None;
     while let Some(msg) = read.next().await {
         if let Ok(Message::Text(text)) = msg {
-            if let Ok(ws_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
-                if let WebSocketMessage::ShellSessionCreated(info) = ws_msg {
-                    session_id = Some(info.session_id);
-                    break;
-                }
+            if let Ok(WebSocketMessage::ShellSessionCreated(info)) =
+                serde_json::from_str::<WebSocketMessage>(&text)
+            {
+                session_id = Some(info.session_id);
+                break;
             }
         }
     }
