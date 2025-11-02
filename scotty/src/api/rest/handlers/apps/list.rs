@@ -81,6 +81,7 @@ pub async fn list_apps_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::test_utils::create_test_websocket_messenger;
     use crate::{
         app_state::AppState, services::authorization::AuthorizationService,
         settings::config::Settings, stop_flag,
@@ -93,13 +94,6 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
     use tempfile::TempDir;
-
-    /// Helper function to create test WebSocket messenger
-    fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
-        use crate::api::websocket::WebSocketMessenger;
-        let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-        WebSocketMessenger::new(clients)
-    }
 
     async fn create_test_auth_service() -> (Arc<AuthorizationService>, TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
@@ -260,7 +254,6 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
 
         let docker = bollard::Docker::connect_with_local_defaults().unwrap();
         let app_state = Arc::new(AppState {
-            settings,
             stop_flag: stop_flag::StopFlag::new(),
             messenger: create_test_websocket_messenger(),
             apps: shared_app_list,
@@ -268,8 +261,13 @@ m = r.sub == p.sub && g2(r.app, p.group) && r.act == p.act
             task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
             oauth_state: None,
             auth_service,
-            logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
+            logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
+            shell_service: crate::docker::services::shell::ShellService::new(
+                docker,
+                settings.shell.clone(),
+            ),
             task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
+            settings,
         });
 
         (app_state, temp_dir)

@@ -17,6 +17,7 @@ bollard.workspace = true
 clap.workspace = true
 chrono.workspace = true
 config.workspace = true
+dotenvy.workspace = true
 futures-util.workspace = true
 init-tracing-opentelemetry.workspace = true
 include_dir.workspace = true
@@ -70,6 +71,7 @@ url = "2.0"
 axum-test = "18.1.0"
 tokio-test = "0.4.4"
 wiremock = "0.6"
+tokio-tungstenite.workspace = true
 
 [package.metadata.release]
 pre-release-hook = ["echo", "skipping"]

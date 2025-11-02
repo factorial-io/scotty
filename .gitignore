@@ -9,3 +9,5 @@ apps/test-nginx-creation
 /apps/test-nginx
 apps/cd-with-db/
 frontend/public
+/.beads/daemon.lock
+.env.local

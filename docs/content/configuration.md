@@ -755,6 +755,47 @@ you can set environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN`.
 Rule of thumb is: If you want to override a key, replace the dots with double
 underscores and prefix the key with `SCOTTY__`.
 
+#### Using .env files for configuration
+
+**Recommended for local development**: Scotty automatically loads `.env` and `.env.local` files on startup, making it easy to configure the server without managing environment variables manually.
+
+**Configuration precedence** (highest to lowest priority):
+
+1. **Environment variables** - Always take precedence over .env files
+2. **`.env.local`** - Local overrides, not committed to version control
+3. **`.env`** - Shared defaults, can be committed to version control
+
+**Example `.env` file:**
+
+```bash
+# Development mode configuration
+SCOTTY__API__AUTH_MODE=dev
+
+# Docker registry credentials
+SCOTTY__DOCKER__REGISTRIES__MYREGISTRY__PASSWORD=secret123
+
+# Bearer tokens (use strong tokens in production!)
+SCOTTY__API__BEARER_TOKENS__ADMIN=my-secure-admin-token
+```
+
+**Example `.env.local` file (overrides .env):**
+
+```bash
+# Override for local development only
+SCOTTY__API__AUTH_MODE=oauth
+SCOTTY__API__OAUTH__CLIENT_ID=my-local-client-id
+```
+
+**Best practices:**
+
+- ✅ Use `.env` for shared development defaults (can be committed)
+- ✅ Use `.env.local` for personal overrides (add to `.gitignore`)
+- ✅ Generate strong tokens for production (see security best practices above)
+- ❌ Never commit secrets to version control
+- ❌ Don't rely on .env files in production (use proper environment variables)
+
+**Note:** Both `.env` and `.env.local` files are optional - if they don't exist, the server will start normally using configuration files and environment variables.
+
 #### Example
 
 | name of value in the config file                  | environment variable                                     |

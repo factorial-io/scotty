@@ -15,6 +15,7 @@ pub mod lifecycle;
 pub mod list;
 pub mod logs;
 pub mod management;
+pub mod shell;
 
 // Re-export public functions to maintain backward compatibility
 pub use actions::*;
@@ -22,6 +23,7 @@ pub use lifecycle::*;
 pub use list::*;
 pub use logs::*;
 pub use management::*;
+pub use shell::*;
 
 /// Shared utility for calling apps API endpoints that return a RunningAppContext
 pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> anyhow::Result<()> {
@@ -52,6 +54,88 @@ pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> 
 pub async fn get_app_info(server: &ServerSettings, app_name: &str) -> anyhow::Result<AppData> {
     let app_data = get(server, &format!("apps/info/{app_name}")).await?;
     let app_data: AppData = serde_json::from_value(app_data).context("Failed to parse app data")?;
+
+    Ok(app_data)
+}
+
+/// Validate that an app and service exist, showing helpful error if not
+pub async fn validate_app_and_service(
+    context: &AppContext,
+    app_name: &str,
+    service_name: &str,
+    command_name: &str,
+) -> anyhow::Result<AppData> {
+    use owo_colors::OwoColorize;
+
+    let ui = context.ui();
+
+    // First validate that the app and service exist
+    ui.new_status_line(format!(
+        "Validating app {} and service {}...",
+        app_name.yellow(),
+        service_name.yellow()
+    ));
+
+    // Get app info and validate service exists
+    let app_data = match get_app_info(context.server(), app_name).await {
+        Ok(data) => data,
+        Err(e) => {
+            ui.failed(format!("Failed to get app information: {}", e));
+            return Err(e);
+        }
+    };
+
+    // Check if the requested service exists
+    let available_services: Vec<String> = app_data
+        .services
+        .iter()
+        .map(|s| s.service.clone())
+        .collect();
+
+    if !available_services.contains(&service_name.to_string()) {
+        ui.failed(format!(
+            "Service '{}' not found in app '{}'",
+            service_name.red(),
+            app_name.yellow()
+        ));
+
+        // Show available services in a nice format
+        ui.println("");
+        ui.println(format!("Available services in {}:", app_name.yellow()));
+
+        for service in &app_data.services {
+            let status_icon = if service.is_running() {
+                "✓".green().to_string()
+            } else {
+                "✗".red().to_string()
+            };
+            ui.println(format!(
+                "  {} {} ({})",
+                status_icon,
+                service.service.green(),
+                service.status.to_string().dimmed()
+            ));
+        }
+
+        ui.println("");
+        ui.println(format!(
+            "Usage: {} {} {} <service_name>",
+            "scottyctl".cyan(),
+            command_name,
+            app_name
+        ));
+
+        return Err(anyhow::anyhow!(
+            "Service '{}' not found. Please choose from the available services listed above.",
+            service_name
+        ));
+    }
+
+    ui.success(format!(
+        "Found service {} in app {}",
+        service_name.yellow(),
+        app_name.yellow()
+    ));
 
     Ok(app_data)
 }

@@ -56,6 +56,7 @@ pub struct ShellSession {
     pub container_id: String,
     pub exec_id: String,
     pub sender: mpsc::Sender<ShellCommand>,
+    pub client_id: Uuid, // WebSocket client that owns this session
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -98,8 +99,66 @@ pub enum ShellCommand {
     Terminate,
 }
 
+/// Guard to ensure session cleanup even on panic
+///
+/// This guard uses RAII to guarantee that a session is removed from the active
+/// sessions map when it goes out of scope, even if the task panics.
+struct SessionGuard {
+    session_id: Uuid,
+    sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>,
+}
+
+impl SessionGuard {
+    fn new(session_id: Uuid, sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>) -> Self {
+        Self {
+            session_id,
+            sessions,
+        }
+    }
+}
+
+impl Drop for SessionGuard {
+    fn drop(&mut self) {
+        // Ensure session cleanup even on panic
+        // We need to block on the async operation since Drop is synchronous
+        let session_id = self.session_id;
+        let sessions = self.sessions.clone();
+
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async move {
+                let mut sessions = sessions.write().await;
+                sessions.remove(&session_id);
+                info!("SessionGuard: cleaned up session {}", session_id);
+            })
+        });
+    }
+}
+
+/// Helper to emit audit log for shell session termination
+fn audit_log_session_ended(
+    session_id: Uuid,
+    client_id: Uuid,
+    app_name: &str,
+    service_name: &str,
+    duration_secs: f64,
+    reason: &str,
+    exit_code: Option<i32>,
+) {
+    info!(
+        event = "shell_session_ended",
+        session_id = %session_id,
+        client_id = %client_id,
+        app_name = %app_name,
+        service_name = %service_name,
+        duration_seconds = duration_secs,
+        reason = %reason,
+        exit_code = ?exit_code,
+        "Shell session ended for compliance audit"
+    );
+}
+
 /// Service for managing container shell sessions
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ShellService {
     docker: Docker,
     active_sessions: Arc<RwLock<HashMap<Uuid, ShellSession>>>,
@@ -122,6 +181,7 @@ impl ShellService {
         app_data: &AppData,
         service_name: &str,
         shell_command: Option<String>,
+        client_id: Uuid, // WebSocket client ID
     ) -> ShellServiceResult<Uuid> {
         // Check session limits
         {
@@ -176,12 +236,13 @@ impl ShellService {
         let env_refs: Vec<&str> = env_vars.iter().map(|s| s.as_str()).collect();
 
         // Create exec instance
+        // Always wrap the command with sh -c to properly handle shell syntax
         let exec_options = CreateExecOptions {
             attach_stdin: Some(true),
             attach_stdout: Some(true),
             attach_stderr: Some(true),
             tty: Some(true),
-            cmd: Some(vec![shell_cmd.as_str()]),
+            cmd: Some(vec!["sh", "-c", shell_cmd.as_str()]),
             env: if env_refs.is_empty() {
                 None
             } else {
@@ -227,6 +288,7 @@ impl ShellService {
             container_id: container_id.clone(),
             exec_id: exec_id.clone(),
             sender: tx,
+            client_id,
             created_at: chrono::Utc::now(),
         };
 
@@ -239,25 +301,45 @@ impl ShellService {
         // Record session started
         crate::metrics::shell::record_session_started();
 
+        // Audit log: Shell session created
+        info!(
+            event = "shell_session_created",
+            session_id = %session_id,
+            client_id = %client_id,
+            app_name = %app_data.name,
+            service_name = %service_name,
+            container_id = %container_id,
+            shell_command = %shell_cmd,
+            "Shell session created for compliance audit"
+        );
+
         // Clone values we need to move into the spawned task
         let app_name_clone = app_data.name.clone();
         let service_name_clone = service_name.to_string();
         let container_id_clone = container_id.clone();
         let shell_cmd_clone = shell_cmd.clone();
 
-        // Send session created message
-        app_state
+        // Send session created message to client
+        if let Err(e) = app_state
             .messenger
-            .broadcast_to_all(WebSocketMessage::ShellSessionCreated(
-                ShellSessionInfo::new(
+            .send_to_client(
+                client_id,
+                WebSocketMessage::ShellSessionCreated(ShellSessionInfo::new(
                     session_id,
                     app_name_clone.clone(),
                     service_name_clone.clone(),
                     container_id_clone.clone(),
                     shell_cmd_clone.clone(),
-                ),
-            ))
-            .await;
+                )),
+            )
+            .await
+        {
+            warn!(
+                "Failed to send session created message to client {}: {}",
+                client_id, e
+            );
+            // Continue anyway - session is already created
+        }
 
         // Start the shell session handler
         let docker = self.docker.clone();
@@ -266,6 +348,9 @@ impl ShellService {
         let session_ttl = self.shell_settings.session_ttl();
 
         crate::metrics::spawn_instrumented(async move {
+            // Create guard to ensure session cleanup even on panic
+            let _guard = SessionGuard::new(session_id, active_sessions.clone());
+
             info!(
                 "Starting shell session {} for container {}",
                 session_id, container_id_clone
@@ -277,6 +362,8 @@ impl ShellService {
                     mut output,
                 } => {
                     let session_start = tokio::time::Instant::now();
+                    let mut status_check_interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+                    status_check_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
                     loop {
                         tokio::select! {
@@ -285,14 +372,71 @@ impl ShellService {
                                 info!("Shell session {} expired after TTL", session_id);
                                 let duration_secs = session_start.elapsed().as_secs_f64();
                                 crate::metrics::shell::record_session_timeout(duration_secs);
-                                app_state.messenger.broadcast_to_all(
+
+                                // Audit log session end
+                                audit_log_session_ended(
+                                    session_id,
+                                    client_id,
+                                    &app_name_clone,
+                                    &service_name_clone,
+                                    duration_secs,
+                                    "Session timeout",
+                                    None,
+                                );
+
+                                if let Err(e) = app_state.messenger.send_to_client(
+                                    client_id,
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
                                         exit_code: None,
                                         reason: "Session timeout".to_string(),
                                     }),
-                                ).await;
+                                ).await {
+                                    warn!("Failed to send timeout message to client {}: {}", client_id, e);
+                                }
                                 break;
+                            }
+
+                            // Periodically check if exec is still running (important for TTY mode)
+                            _ = status_check_interval.tick() => {
+                                match docker.inspect_exec(&exec_id).await {
+                                    Ok(exec_info) => {
+                                        if let Some(running) = exec_info.running {
+                                            if !running {
+                                                info!("Shell session {} detected exec completion via status check", session_id);
+                                                let duration_secs = session_start.elapsed().as_secs_f64();
+                                                crate::metrics::shell::record_session_ended(duration_secs);
+                                                let exit_code = exec_info.exit_code.map(|c| c as i32);
+
+                                                // Audit log session end
+                                                audit_log_session_ended(
+                                                    session_id,
+                                                    client_id,
+                                                    &app_name_clone,
+                                                    &service_name_clone,
+                                                    duration_secs,
+                                                    "Shell exited",
+                                                    exit_code,
+                                                );
+
+                                                if let Err(e) = app_state.messenger.send_to_client(
+                                                    client_id,
+                                                    WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
+                                                        session_id,
+                                                        exit_code,
+                                                        reason: "Shell exited".to_string(),
+                                                    }),
+                                                ).await {
+                                                    warn!("Failed to send session end message to client {}: {}", client_id, e);
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("Failed to inspect exec {} for session {}: {}", exec_id, session_id, e);
+                                    }
+                                }
                             }
 
                             // Handle input commands
@@ -303,12 +447,27 @@ impl ShellService {
                                             error!("Failed to write to shell {}: {}", session_id, e);
                                             let duration_secs = session_start.elapsed().as_secs_f64();
                                             crate::metrics::shell::record_session_error(duration_secs);
-                                            app_state.messenger.broadcast_to_all(
+
+                                            // Audit log session end due to error
+                                            audit_log_session_ended(
+                                                session_id,
+                                                client_id,
+                                                &app_name_clone,
+                                                &service_name_clone,
+                                                duration_secs,
+                                                &format!("Error writing input: {}", e),
+                                                None,
+                                            );
+
+                                            if let Err(send_err) = app_state.messenger.send_to_client(
+                                                client_id,
                                                 WebSocketMessage::ShellSessionError(ShellSessionError {
                                                     session_id,
                                                     error: format!("Failed to write input: {}", e),
                                                 }),
-                                            ).await;
+                                            ).await {
+                                                warn!("Failed to send error message to client {}: {}", client_id, send_err);
+                                            }
                                             break;
                                         }
                                         if let Err(e) = input.flush().await {
@@ -328,13 +487,28 @@ impl ShellService {
                                         info!("Terminating shell session {} by request", session_id);
                                         let duration_secs = session_start.elapsed().as_secs_f64();
                                         crate::metrics::shell::record_session_ended(duration_secs);
-                                        app_state.messenger.broadcast_to_all(
+
+                                        // Audit log session end
+                                        audit_log_session_ended(
+                                            session_id,
+                                            client_id,
+                                            &app_name_clone,
+                                            &service_name_clone,
+                                            duration_secs,
+                                            "Terminated by user",
+                                            None,
+                                        );
+
+                                        if let Err(e) = app_state.messenger.send_to_client(
+                                            client_id,
                                             WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                                 session_id,
                                                 exit_code: None,
                                                 reason: "Terminated by user".to_string(),
                                             }),
-                                        ).await;
+                                        ).await {
+                                            warn!("Failed to send termination message to client {}: {}", client_id, e);
+                                        }
                                         break;
                                     }
                                 }
@@ -352,28 +526,39 @@ impl ShellService {
                                             LogOutput::StdErr { message } => {
                                                 String::from_utf8_lossy(&message).to_string()
                                             }
+                                            LogOutput::Console { message } => {
+                                                // TTY mode sends output as Console
+                                                String::from_utf8_lossy(&message).to_string()
+                                            }
                                             LogOutput::StdIn { .. } => continue, // Skip stdin
-                                            LogOutput::Console { .. } => continue, // Skip console
                                         };
 
-                                        app_state.messenger.broadcast_to_all(
+                                        // If we can't send output, client is gone - terminate session
+                                        if let Err(e) = app_state.messenger.send_to_client(
+                                            client_id,
                                             WebSocketMessage::ShellSessionData(ShellSessionData {
                                                 session_id,
                                                 data_type: ShellDataType::Output,
                                                 data: output_data,
                                             }),
-                                        ).await;
+                                        ).await {
+                                            warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
+                                            break;
+                                        }
                                     }
                                     Err(e) => {
                                         error!("Failed to read from shell stream {}: {}", session_id, e);
                                         let duration_secs = session_start.elapsed().as_secs_f64();
                                         crate::metrics::shell::record_session_error(duration_secs);
-                                        app_state.messenger.broadcast_to_all(
+                                        if let Err(send_err) = app_state.messenger.send_to_client(
+                                            client_id,
                                             WebSocketMessage::ShellSessionError(ShellSessionError {
                                                 session_id,
                                                 error: format!("Failed to read output: {}", e),
                                             }),
-                                        ).await;
+                                        ).await {
+                                            warn!("Failed to send error message to client {}: {}", client_id, send_err);
+                                        }
                                         break;
                                     }
                                 }
@@ -383,13 +568,16 @@ impl ShellService {
                                 info!("Shell session {} ended (stream closed)", session_id);
                                 let duration_secs = session_start.elapsed().as_secs_f64();
                                 crate::metrics::shell::record_session_ended(duration_secs);
-                                app_state.messenger.broadcast_to_all(
+                                if let Err(e) = app_state.messenger.send_to_client(
+                                    client_id,
                                     WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
                                         session_id,
                                         exit_code: Some(0),
                                         reason: "Shell exited".to_string(),
                                     }),
-                                ).await;
+                                ).await {
+                                    warn!("Failed to send session end message to client {}: {}", client_id, e);
+                                }
                                 break;
                             }
                         }
@@ -401,23 +589,23 @@ impl ShellService {
                         session_id
                     );
                     crate::metrics::shell::record_session_error(0.0);
-                    app_state
+                    if let Err(e) = app_state
                         .messenger
-                        .broadcast_to_all(WebSocketMessage::ShellSessionError(ShellSessionError {
-                            session_id,
-                            error: "Shell started in detached mode".to_string(),
-                        }))
-                        .await;
+                        .send_to_client(
+                            client_id,
+                            WebSocketMessage::ShellSessionError(ShellSessionError {
+                                session_id,
+                                error: "Shell started in detached mode".to_string(),
+                            }),
+                        )
+                        .await
+                    {
+                        warn!("Failed to send detached error message to client {}: {}", client_id, e);
+                    }
                 }
             }
 
-            // Clean up session
-            {
-                let mut sessions = active_sessions.write().await;
-                sessions.remove(&session_id);
-            }
-
-            info!("Shell session {} cleaned up", session_id);
+            // Session cleanup is handled automatically by SessionGuard on drop
         }).await;
 
         Ok(session_id)

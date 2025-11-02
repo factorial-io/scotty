@@ -34,6 +34,7 @@ pub(crate) enum RunAppCustomActionStates {
     Done,
 }
 
+#[allow(private_interfaces)]
 #[instrument(skip(state))]
 pub async fn run_app_custom_action_prepare(
     state: &SharedAppState,

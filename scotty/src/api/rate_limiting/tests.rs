@@ -8,16 +8,9 @@
 #[cfg(test)]
 mod integration_tests {
     use crate::api::router::ApiRoutes;
-    use crate::app_state::AppState;
+    use crate::api::test_utils::create_test_app_state_with_settings;
     use axum::http::StatusCode;
     use axum_test::TestServer;
-    use std::sync::Arc;
-
-    fn create_test_websocket_messenger() -> crate::api::websocket::WebSocketMessenger {
-        use crate::api::websocket::WebSocketMessenger;
-        let clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-        WebSocketMessenger::new(clients)
-    }
 
     async fn create_test_app_with_rate_limiting(
         enabled: bool,
@@ -62,23 +55,8 @@ mod integration_tests {
         let config = builder.build().unwrap();
         let settings: crate::settings::config::Settings = config.try_deserialize().unwrap();
 
-        let docker = bollard::Docker::connect_with_local_defaults().unwrap();
-        let state = Arc::new(AppState {
-            settings,
-            stop_flag: crate::stop_flag::StopFlag::new(),
-            messenger: create_test_websocket_messenger(),
-            apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-            docker: docker.clone(),
-            task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
-            oauth_state: None,
-            auth_service: Arc::new(
-                crate::services::AuthorizationService::new("../config/casbin")
-                    .await
-                    .expect("Failed to load RBAC config for test"),
-            ),
-            logs_service: crate::docker::services::logs::LogStreamingService::new(docker),
-            task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
-        });
+        // Use shared helper to create AppState with the configured settings
+        let state = create_test_app_state_with_settings(settings, None).await;
 
         let app = ApiRoutes::create(state);
         TestServer::new(app).unwrap()

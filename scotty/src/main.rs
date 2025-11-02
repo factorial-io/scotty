@@ -42,6 +42,13 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load .env files (silently ignore if they don't exist)
+    // Load in reverse order because dotenvy doesn't override existing vars
+    // Order: .env.local first (lower priority), then .env (won't override .env.local)
+    // Environment variables always take precedence over .env files
+    dotenvy::from_filename(".env.local").ok();
+    dotenvy::dotenv().ok();
+
     let cli = Cli::parse();
 
     match cli.command.as_ref().unwrap_or(&Commands::Run) {

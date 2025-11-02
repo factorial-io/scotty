@@ -4,98 +4,20 @@ use owo_colors::OwoColorize;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 
-use crate::{api::get, cli::LogsCommand, context::AppContext, utils::status_line::Status};
-use scotty_core::apps::app_data::AppData;
+use crate::{cli::LogsCommand, context::AppContext, utils::status_line::Status};
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{LogStreamRequest, OutputLine};
 use uuid::Uuid;
 
 /// View logs for an app service
 pub async fn logs_app(context: &AppContext, cmd: &LogsCommand) -> anyhow::Result<()> {
-    let ui = context.ui();
-
-    // First validate that the app and service exist
-    ui.new_status_line(format!(
-        "Validating app {} and service {}...",
-        cmd.app_name.yellow(),
-        cmd.service_name.yellow()
-    ));
-
-    // Get app info and validate service exists
-    let app_data = match get_app_data(context, &cmd.app_name).await {
-        Ok(data) => data,
-        Err(e) => {
-            ui.failed(format!("Failed to get app information: {}", e));
-            return Err(e);
-        }
-    };
-
-    // Check if the requested service exists
-    let available_services: Vec<String> = app_data
-        .services
-        .iter()
-        .map(|s| s.service.clone())
-        .collect();
-
-    if !available_services.contains(&cmd.service_name) {
-        ui.failed(format!(
-            "Service '{}' not found in app '{}'",
-            cmd.service_name.red(),
-            cmd.app_name.yellow()
-        ));
-
-        // Show available services in a nice format
-        ui.println("");
-        ui.println(format!("Available services in {}:", cmd.app_name.yellow()));
-
-        for service in &app_data.services {
-            let status_icon = if service.is_running() {
-                "✓".green().to_string()
-            } else {
-                "✗".red().to_string()
-            };
-            ui.println(format!(
-                "  {} {} ({})",
-                status_icon,
-                service.service.green(),
-                service.status.to_string().dimmed()
-            ));
-        }
-
-        ui.println("");
-        ui.println(format!(
-            "Usage: {} app:logs {} <service_name>",
-            "scottyctl".cyan(),
-            cmd.app_name
-        ));
-
-        return Err(anyhow::anyhow!(
-            "Service '{}' not found. Please choose from the available services listed above.",
-            cmd.service_name
-        ));
-    }
-
-    ui.success(format!(
-        "Found service {} in app {}",
-        cmd.service_name.yellow(),
-        cmd.app_name.yellow()
-    ));
+    // Validate app and service using shared utility
+    let _app_data =
+        super::validate_app_and_service(context, &cmd.app_name, &cmd.service_name, "app:logs")
+            .await?;
 
     // Use unified WebSocket approach for both historical and real-time logs
     stream_logs_websocket(context, cmd).await
-}
-
-/// Get app data for validation
-async fn get_app_data(context: &AppContext, app_name: &str) -> anyhow::Result<AppData> {
-    // Get app info to validate app exists and get available services
-    let result = get(context.server(), &format!("apps/info/{}", app_name))
-        .await
-        .with_context(|| format!("App '{}' not found or not accessible", app_name))?;
-
-    let app_data: AppData =
-        serde_json::from_value(result).context("Failed to parse app information")?;
-
-    Ok(app_data)
 }
 
 /// Stream logs using WebSocket-only approach for both historical and real-time logs
