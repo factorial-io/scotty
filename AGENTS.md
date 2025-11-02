@@ -34,6 +34,12 @@ RUST_LOG=debug cargo test test_name -p scotty -- --nocapture
 # Development mode (no authentication required)
 SCOTTY__API__AUTH_MODE=dev cargo run --bin scotty
 
+# Or use .env file for local configuration (recommended)
+# Create a .env file with:
+#   SCOTTY__API__AUTH_MODE=dev
+#   SCOTTY__DOCKER__REGISTRIES__MYREGISTRY__PASSWORD=secret
+cargo run --bin scotty
+
 # With info logging
 RUST_LOG=info cargo run --bin scotty
 
