@@ -78,56 +78,15 @@ where
             CompletionType::Failure => (State::Failed, "Operation failed for", true),
         };
 
-        // Clone data needed for messages and updates
-        let (app_name, task_id, updated_task_details) = {
-            let context = context.read().await;
-            let app_name = context.app_data.name.clone();
+        // Use the shared helper - single source of truth for task completion
+        let app_name = context.read().await.app_data.name.clone();
+        let status_msg = format!("{} operation for app '{}'", status_msg_prefix, app_name);
 
-            // Update task state and release write lock immediately
-            let task_id = {
-                let mut task_details = context.task.write().await;
-                let task_id = task_details.id;
-                task_details.state = target_state;
-                task_details.output_collection_active = false;
-                task_details.finish_time = Some(chrono::Utc::now());
-                task_id
-            };
-            // Write lock released here
-
-            // Now get updated details for broadcast (with separate read lock)
-            let task_details = context.task.read().await;
-            (app_name, task_id, task_details.clone())
-        };
-
-        // Add status message without holding any locks
-        {
-            let context_read = context.read().await;
-            let status_msg = format!("{} operation for app '{}'", status_msg_prefix, app_name);
-
-            if use_error_status {
-                context_read
-                    .app_state
-                    .task_manager
-                    .add_task_status_error(&task_id, status_msg)
-                    .await;
-            } else {
-                context_read
-                    .app_state
-                    .task_manager
-                    .add_task_status(&task_id, status_msg)
-                    .await;
-            }
-
-            context_read
-                .app_state
-                .messenger
-                .broadcast_to_all(
-                    scotty_core::websocket::message::WebSocketMessage::TaskInfoUpdated(
-                        updated_task_details,
-                    ),
-                )
-                .await;
-        }
+        context
+            .read()
+            .await
+            .complete_task(target_state, status_msg, use_error_status)
+            .await;
 
         // Send notifications in a dedicated thread (for both success and failure)
         if self.notification.is_some() {
