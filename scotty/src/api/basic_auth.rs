@@ -8,7 +8,6 @@ use tracing::{debug, warn};
 
 use crate::api::auth_core::{
     authenticate_dev_user, authorize_bearer_user, authorize_oauth_user_native,
-    is_bearer_token_configured,
 };
 use crate::app_state::SharedAppState;
 
@@ -45,17 +44,15 @@ pub async fn auth(
                 return Err(StatusCode::UNAUTHORIZED);
             };
 
-            // Extract token from "Bearer <token>" format for bearer token check
-            let token = auth_header.strip_prefix("Bearer ").unwrap_or("");
-
-            // Check if this is a configured bearer token first (fast HashMap lookup)
+            // Try bearer token authentication first (fast HashMap lookup)
             // This avoids network latency for service accounts
-            if !token.is_empty() && is_bearer_token_configured(&state, token) {
-                debug!("Token found in bearer_tokens config, using bearer token authentication");
-                authorize_bearer_user(state.clone(), auth_header).await
+            // Use debug-level logging since this is a fallback check before OAuth
+            if let Some(user) = authorize_bearer_user(state.clone(), auth_header, false).await {
+                debug!("Bearer token authentication successful");
+                Some(user)
             } else {
                 // Not a bearer token, try OAuth validation (network call to OIDC provider)
-                debug!("Token not in bearer_tokens config, attempting OAuth validation");
+                debug!("Not a bearer token, attempting OAuth validation");
                 match authorize_oauth_user_native(state.clone(), auth_header).await {
                     Some(user) => {
                         debug!("OAuth authentication successful");
@@ -91,7 +88,8 @@ pub async fn auth(
                 return Err(StatusCode::UNAUTHORIZED);
             };
 
-            authorize_bearer_user(state.clone(), auth_header).await
+            // Use warning-level logging for Bearer mode (failures are unexpected)
+            authorize_bearer_user(state.clone(), auth_header, true).await
         }
     };
 

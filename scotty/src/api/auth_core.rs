@@ -31,7 +31,8 @@ pub async fn authenticate_user_from_token(
                 &format!("Bearer {}", token)
             };
 
-            match authorize_bearer_user(state.clone(), clean_token).await {
+            // Use warning-level logging for Bearer mode (failures are unexpected)
+            match authorize_bearer_user(state.clone(), clean_token, true).await {
                 Some(user) => Ok(user),
                 None => Err(anyhow::anyhow!("Invalid bearer token")),
             }
@@ -76,16 +77,30 @@ pub fn authenticate_dev_user(state: &SharedAppState) -> CurrentUser {
 ///
 /// Performs reverse lookup to find token identifier, then looks up user assignments
 /// by identifier in the authorization service.
+///
+/// # Arguments
+/// * `shared_app_state` - Application state with settings and auth service
+/// * `auth_token` - Authorization header value (e.g., "Bearer <token>")
+/// * `log_failures_as_warnings` - If true, log failures as warnings. If false, use debug level.
+///   Set to true for Bearer auth mode, false for OAuth fallback mode.
 pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
     auth_token: &str,
+    log_failures_as_warnings: bool,
 ) -> Option<CurrentUser> {
     // Extract Bearer token
     let token = match auth_token.strip_prefix("Bearer ") {
         Some(token) => token,
         None => {
-            warn!("Bearer token authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
-                  auth_token.chars().take(20).collect::<String>());
+            if log_failures_as_warnings {
+                warn!("Bearer token authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
+                      auth_token.chars().take(20).collect::<String>());
+            } else {
+                debug!(
+                    "Invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
+                    auth_token.chars().take(20).collect::<String>()
+                );
+            }
             return None;
         }
     };
@@ -94,8 +109,15 @@ pub async fn authorize_bearer_user(
     let identifier = match find_token_identifier(&shared_app_state, token) {
         Some(id) => id,
         None => {
-            warn!("Bearer token authentication failed - token not found in bearer_tokens configuration (token starts with: {}...)",
-                  token.chars().take(8).collect::<String>());
+            if log_failures_as_warnings {
+                warn!("Bearer token authentication failed - token not found in bearer_tokens configuration (token starts with: {}...)",
+                      token.chars().take(8).collect::<String>());
+            } else {
+                debug!(
+                    "Token not found in bearer_tokens configuration (token starts with: {}...)",
+                    token.chars().take(8).collect::<String>()
+                );
+            }
             return None;
         }
     };
@@ -116,10 +138,14 @@ pub async fn authorize_bearer_user(
     }
 
     // Identifier not found in RBAC assignments
-    warn!(
-        "Bearer token authentication failed - identifier '{}' not found in RBAC assignments",
-        identifier
-    );
+    if log_failures_as_warnings {
+        warn!(
+            "Bearer token authentication failed - identifier '{}' not found in RBAC assignments",
+            identifier
+        );
+    } else {
+        debug!("Identifier '{}' not found in RBAC assignments", identifier);
+    }
     None
 }
 
@@ -168,15 +194,6 @@ pub async fn authorize_oauth_user_native(
             None
         }
     }
-}
-
-/// Check if a token exists in the configured bearer tokens
-///
-/// This is a fast check to determine if we should try bearer token authentication
-/// before attempting OAuth validation (which requires a network call).
-/// Uses constant-time comparison to prevent timing attacks.
-pub fn is_bearer_token_configured(shared_app_state: &SharedAppState, token: &str) -> bool {
-    find_token_identifier(shared_app_state, token).is_some()
 }
 
 /// Find the token identifier by reverse-looking up the actual token
