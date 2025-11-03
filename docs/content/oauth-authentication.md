@@ -254,7 +254,7 @@ api:
     redirect_url: "http://localhost:21342/api/oauth/callback"
     frontend_base_url: "http://localhost:21342"
 
-  # Bearer tokens for service accounts (fallback)
+  # Bearer tokens for service accounts (checked first for performance)
   bearer_tokens:
     ci-bot: "OVERRIDE_VIA_ENV_VAR"        # CI/CD pipeline
     monitoring: "OVERRIDE_VIA_ENV_VAR"    # Monitoring service
@@ -269,6 +269,7 @@ export SCOTTY__API__OAUTH__CLIENT_ID=your_client_id
 export SCOTTY__API__OAUTH__CLIENT_SECRET=your_client_secret
 
 # Set bearer tokens for service accounts (IMPORTANT: Use secure random tokens!)
+# Note: Hyphens in config keys (ci-bot) become underscores in env vars (CI_BOT)
 export SCOTTY__API__BEARER_TOKENS__CI_BOT=$(openssl rand -base64 32)
 export SCOTTY__API__BEARER_TOKENS__MONITORING=$(openssl rand -base64 32)
 export SCOTTY__API__BEARER_TOKENS__DEPLOYMENT=$(openssl rand -base64 32)
@@ -473,6 +474,13 @@ Error: 401 Unauthorized
    ```bash
    RUST_LOG=debug cargo run --bin scotty
    # Look for: "Bearer token authentication successful" or "OAuth authentication successful"
+   ```
+
+5. Verify expected behavior matches tests:
+   ```bash
+   # See test_oauth_bearer_token_fallback_with_valid_token in:
+   # scotty/src/api/bearer_auth_tests.rs:233-257
+   cargo test test_oauth_bearer_token_fallback_with_valid_token -- --nocapture
    ```
 
 **Issue: OAuth users can't authenticate**
