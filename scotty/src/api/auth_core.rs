@@ -170,6 +170,15 @@ pub async fn authorize_oauth_user_native(
     }
 }
 
+/// Check if a token exists in the configured bearer tokens
+///
+/// This is a fast check to determine if we should try bearer token authentication
+/// before attempting OAuth validation (which requires a network call).
+/// Uses constant-time comparison to prevent timing attacks.
+pub fn is_bearer_token_configured(shared_app_state: &SharedAppState, token: &str) -> bool {
+    find_token_identifier(shared_app_state, token).is_some()
+}
+
 /// Find the token identifier by reverse-looking up the actual token
 ///
 /// Uses constant-time comparison to prevent timing attacks that could reveal
