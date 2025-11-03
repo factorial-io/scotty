@@ -307,10 +307,7 @@ mod tests {
         assert_eq!(result.unwrap_err().to_string(), "Handler failed");
 
         // Error handler should have been called
-        assert_eq!(
-            context.read().await.output,
-            "Error handler called\n"
-        );
+        assert_eq!(context.read().await.output, "Error handler called\n");
     }
 
     /// Test that panics are caught by spawn() and returned as JoinError
