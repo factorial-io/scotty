@@ -1,0 +1,102 @@
+# Casbin RBAC Policy Configuration
+#
+# This file defines scopes, roles, and user/service account assignments
+# for the authorization system.
+#
+# IMPORTANT: Understanding Identifiers vs Tokens
+# ================================================
+# - This file contains IDENTIFIER NAMES (e.g., "admin", "ci-bot", "qa-service")
+# - Token VALUES are stored separately in default.yaml or environment variables
+# - The bearer_tokens configuration maps identifier → actual secret token
+#
+# Example Flow:
+#   1. Request arrives with: Authorization: Bearer abc123xyz
+#   2. Scotty checks bearer_tokens: { "ci-bot": "abc123xyz" } → identifier is "ci-bot"
+#   3. Scotty checks this file: identifier:ci-bot: has role "developer" in scope "production"
+#   4. Authorization decision is made based on role permissions
+#
+# Naming Convention:
+#   - OAuth users: Use email addresses (e.g., admin@example.com)
+#   - Service accounts: Use "identifier:" prefix (e.g., identifier:ci-bot:)
+#   - Wildcards: Use '*' for catch-all rules
+#
+# SECURITY NOTE:
+#   - NEVER put actual token values in this file
+#   - Use semantic, descriptive names for identifiers
+#   - Token values belong in environment variables or secure vaults
+
+scopes:
+  production:
+    description: Production environment
+    created_at: 2024-01-01T00:00:00Z
+
+  staging:
+    description: Staging environment
+    created_at: 2024-01-01T00:00:00Z
+
+  development:
+    description: Development environment
+    created_at: 2024-01-01T00:00:00Z
+
+  default:
+    description: Default scope for unassigned apps
+    created_at: 2024-01-01T00:00:00Z
+
+roles:
+  viewer:
+    permissions:
+    - view
+    description: Read-only access - can view app status and logs
+
+  developer:
+    permissions:
+    - view
+    - manage      # Start, stop, restart apps
+    - shell       # Interactive shell access
+    - logs        # View logs
+    - create      # Create new apps
+    description: Developer access - can manage apps but not destroy
+
+  operator:
+    permissions:
+    - view
+    - manage
+    - logs
+    description: Operations team - can manage apps but no shell or destroy
+
+  admin:
+    permissions:
+    - '*'
+    description: Full system access including destroy operations
+
+assignments:
+  # OAuth user example (email from OIDC provider)
+  admin@example.com:
+  - role: admin
+    scopes:
+    - '*'  # All scopes
+
+  # Service account examples (bearer token identifiers)
+  # These identifiers must match keys in bearer_tokens configuration
+  identifier:ci-bot:
+  - role: developer
+    scopes:
+    - staging
+    - development
+
+  identifier:monitoring-service:
+  - role: viewer
+    scopes:
+    - production
+    - staging
+
+  identifier:deployment-bot:
+  - role: operator
+    scopes:
+    - production
+
+  # Fallback: all authenticated users get viewer access to default scope
+  '*':
+  - role: viewer
+    scopes:
+    - default

@@ -73,7 +73,13 @@ RUN groupadd $APP_USER \
 
 COPY --from=builder /app/target/release/scotty ${APP}/scotty
 COPY --from=builder /app/target/release/scottyctl ${APP}/scottyctl
-COPY --from=builder /app/config ${APP}/config
+
+# Only copy non-sensitive config files (model and blueprints)
+# DO NOT copy default.yaml or policy.yaml - these should be mounted at runtime
+# to avoid baking secrets or deployment-specific configs into the image
+COPY --from=builder /app/config/casbin/model.conf ${APP}/config/casbin/model.conf
+COPY --from=builder /app/config/blueprints ${APP}/config/blueprints
+
 # We don't need to copy the frontend files separately anymore since they're embedded in the binary
 # RUN chown -R $APP_USER:$APP_USER ${APP}
 # USER $APP_USER

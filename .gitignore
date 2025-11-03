@@ -10,4 +10,16 @@ apps/test-nginx-creation
 apps/cd-with-db/
 frontend/public
 /.beads/daemon.lock
+
+# Environment files with secrets
+.env
 .env.local
+.env.production
+
+# Configuration files with sensitive data
+# Note: We keep config/default.yaml and config/casbin/policy.yaml tracked
+# for internal use, but document that secrets should use env vars.
+# For external users, they should copy from .example files.
+config/local.yaml
+config/production.yaml
+config/*.local.yaml

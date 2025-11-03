@@ -8,7 +8,7 @@ api:
         client-a: "client-a-bearer-token"
         client-b: "client-b-bearet-token"
         hello-world: "hello-world-bearer-token"
-        test-bearer-token-123: "test-bearer-123-token"
+        test-service: "test-bearer-123-token"
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
 scheduler:
