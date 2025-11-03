@@ -8,6 +8,7 @@ use tracing::{debug, warn};
 
 use crate::api::auth_core::{
     authenticate_dev_user, authorize_bearer_user, authorize_oauth_user_native,
+    is_bearer_token_configured,
 };
 use crate::app_state::SharedAppState;
 
@@ -44,14 +45,27 @@ pub async fn auth(
                 return Err(StatusCode::UNAUTHORIZED);
             };
 
-            // Try OAuth validation first
-            if let Some(user) = authorize_oauth_user_native(state.clone(), auth_header).await {
-                debug!("OAuth authentication successful");
-                Some(user)
-            } else {
-                // Fallback to bearer token for service accounts
-                debug!("OAuth validation failed, attempting bearer token authentication");
+            // Extract token from "Bearer <token>" format for bearer token check
+            let token = auth_header.strip_prefix("Bearer ").unwrap_or("");
+
+            // Check if this is a configured bearer token first (fast HashMap lookup)
+            // This avoids network latency for service accounts
+            if !token.is_empty() && is_bearer_token_configured(&state, token) {
+                debug!("Token found in bearer_tokens config, using bearer token authentication");
                 authorize_bearer_user(state.clone(), auth_header).await
+            } else {
+                // Not a bearer token, try OAuth validation (network call to OIDC provider)
+                debug!("Token not in bearer_tokens config, attempting OAuth validation");
+                match authorize_oauth_user_native(state.clone(), auth_header).await {
+                    Some(user) => {
+                        debug!("OAuth authentication successful");
+                        Some(user)
+                    }
+                    None => {
+                        warn!("Both bearer token and OAuth authentication failed");
+                        None
+                    }
+                }
             }
         }
         AuthMode::Bearer => {

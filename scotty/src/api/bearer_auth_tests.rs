@@ -235,8 +235,9 @@ async fn test_oauth_bearer_token_fallback_with_valid_token() {
     let router = create_scotty_app_with_oauth().await;
     let server = TestServer::new(router).unwrap();
 
-    // OAuth mode should accept configured bearer tokens as fallback
-    // test_oauth_auth config should have bearer_tokens configured
+    // OAuth mode should accept configured bearer tokens
+    // With the optimized flow, bearer tokens are checked FIRST (fast HashMap lookup)
+    // before attempting OAuth validation (network call), avoiding latency for service accounts
     let response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
@@ -245,7 +246,7 @@ async fn test_oauth_bearer_token_fallback_with_valid_token() {
         )
         .await;
 
-    // Should succeed with valid bearer token from config (fallback after OAuth validation fails)
+    // Should succeed with valid bearer token from config (checked before OAuth validation)
     assert_eq!(response.status_code(), 200);
     let body = response.text();
     assert!(
