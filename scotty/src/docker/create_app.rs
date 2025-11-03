@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use scotty_core::utils::slugify::slugify;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -42,7 +43,12 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
         let app_state = &context.read().await.app_state;
         let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
         let handle = sm.spawn(context.clone()).await;
-        let _ = handle.await;
+
+        // Gracefully handle both errors and panics from nested state machine
+        handle
+            .await
+            .map_err(|e| anyhow::anyhow!("Docker compose rebuild task panicked: {}", e))?
+            .context("Docker compose rebuild failed")?;
 
         Ok(self.next_state)
     }

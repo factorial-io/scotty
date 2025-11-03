@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use tokio::sync::RwLock;
 
 use crate::api::error::AppError;
@@ -34,7 +35,12 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
     ) -> anyhow::Result<DestroyAppStates> {
         let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
         let handle = sm.spawn(context.clone()).await;
-        let _ = handle.await;
+
+        // Gracefully handle both errors and panics from nested state machine
+        handle
+            .await
+            .map_err(|e| anyhow::anyhow!("Docker compose down task panicked: {}", e))?
+            .context("Docker compose down failed")?;
 
         Ok(self.next_state)
     }
