@@ -60,7 +60,7 @@ assignments:
   - role: developer
     scopes:
     - client-a
-  identifier:test-bearer-token-123:
+  identifier:test-service:
   - role: admin
     scopes:
     - client-a

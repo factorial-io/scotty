@@ -1,0 +1,65 @@
+debug: false
+api:
+    bind_address: "0.0.0.0:21342"
+    auth_mode: bearer  # Options: development, bearer, oauth
+    create_app_max_size: "50M"
+
+    # Bearer token authentication
+    # Maps identifier names to actual token values
+    # IMPORTANT: Identifiers (e.g., "admin", "ci-bot") are used in policy.yaml for RBAC
+    # Token values should be random, secure strings
+    #
+    # SECURITY: For production, use environment variables instead:
+    #   SCOTTY__API__BEARER_TOKENS__ADMIN=your-secure-random-token
+    #   SCOTTY__API__BEARER_TOKENS__CI_BOT=another-secure-token
+    bearer_tokens:
+        admin: "CHANGE-ME-generate-random-token"
+        ci-bot: "CHANGE-ME-generate-random-token"
+
+    # OAuth configuration (when auth_mode: oauth)
+    oauth:
+        oidc_issuer_url: "https://your-oidc-provider.example.com"
+        # Optional: client credentials for web flow
+        # client_id: "your-client-id"
+        # client_secret: "CHANGE-ME"  # Use env: SCOTTY__API__OAUTH__CLIENT_SECRET
+
+scheduler:
+    running_app_check: "15m"
+    ttl_check: "10m"
+    task_cleanup: "3m"
+
+# Telemetry options: None, "traces", "metrics", or "traces,metrics"
+telemetry: None
+
+apps:
+    domain_suffix: "your-domain.site"
+    root_folder: "./apps"  # Path where apps are deployed
+
+    # Optional: custom blueprints can be defined here or in separate files
+    # blueprints:
+    #     my-app:
+    #         name: "My Application"
+    #         description: "Custom application blueprint"
+    #         # ... see config/blueprints/ for examples
+
+docker:
+    connection: local  # Options: local, socket, http (see bollard docs)
+
+    # Docker registry credentials
+    # SECURITY: Use environment variables for passwords in production:
+    #   SCOTTY__DOCKER__REGISTRIES__MYREGISTRY__PASSWORD=your-registry-password
+    registries:
+        myregistry:
+            registry: https://registry.example.com
+            username: "deploybot"
+            password: "CHANGE-ME"  # Override with env var
+
+load_balancer_type: Traefik  # Options: Traefik, HaproxyConfig
+
+traefik:
+    network: "proxy"
+    use_tls: true
+    certresolver: "myresolver"
+
+haproxy:
+    use_tls: true

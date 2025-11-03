@@ -68,6 +68,50 @@ scottyctl --server https://localhost:21342 --access-token your_secure_bearer_tok
 
 **Security Note**: Server administrators should **never store actual bearer tokens in configuration files**. Instead, use placeholder values in config files and set actual secure tokens via environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`. See the [configuration documentation](docs/content/configuration.md) for security best practices.
 
+## Docker Deployment
+
+### Quick Start with Docker
+
+The Docker image includes only the binaries and non-sensitive configuration files (Casbin model, blueprints). Configuration with secrets must be provided at runtime.
+
+**Option 1: Mount configuration directory (recommended)**
+```bash
+docker run -d \
+  -v /path/to/your/config:/app/config:ro \
+  -v /path/to/apps:/app/apps \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 21342:21342 \
+  scotty:latest
+```
+
+**Option 2: Use environment variables**
+```bash
+docker run -d \
+  -e SCOTTY__API__AUTH_MODE=bearer \
+  -e SCOTTY__API__BEARER_TOKENS__ADMIN=your-secure-token \
+  -e SCOTTY__APPS__DOMAIN_SUFFIX=your-domain.site \
+  -p 21342:21342 \
+  scotty:latest
+```
+
+**Option 3: Docker Compose**
+```yaml
+services:
+  scotty:
+    image: scotty:latest
+    ports:
+      - "21342:21342"
+    volumes:
+      - ./config:/app/config:ro
+      - ./apps:/app/apps
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SCOTTY__API__BEARER_TOKENS__ADMIN=${ADMIN_TOKEN}
+    restart: unless-stopped
+```
+
+**Important**: Never commit secrets to git. Use environment variables or mount configuration files at runtime. See [config/README.md](config/README.md) for detailed configuration documentation.
+
 ## Observability
 
 Scotty includes a comprehensive observability stack with metrics, distributed tracing, and pre-built dashboards for monitoring application health and performance.

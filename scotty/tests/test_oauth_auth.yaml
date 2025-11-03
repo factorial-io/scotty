@@ -9,6 +9,8 @@ api:
         oidc_issuer_url: "https://test-oauth-provider.example.com"
         device_flow_enabled: true
     bearer_tokens:
+        # OAuth mode with bearer token fallback for service accounts
+        # Identifiers match those in config/casbin/policy.yaml
         admin: "test-bearer-token-123"
         client-a: "client-a-secure-token-456"
 scheduler:
