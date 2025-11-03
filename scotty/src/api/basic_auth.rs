@@ -31,7 +31,7 @@ pub async fn auth(
             Some(authenticate_dev_user(&state))
         }
         AuthMode::OAuth => {
-            debug!("Using OAuth auth mode with native tokens");
+            debug!("Using OAuth auth mode with bearer token fallback");
             let auth_header = req
                 .headers()
                 .get(http::header::AUTHORIZATION)
@@ -44,7 +44,15 @@ pub async fn auth(
                 return Err(StatusCode::UNAUTHORIZED);
             };
 
-            authorize_oauth_user_native(state.clone(), auth_header).await
+            // Try OAuth validation first
+            if let Some(user) = authorize_oauth_user_native(state.clone(), auth_header).await {
+                debug!("OAuth authentication successful");
+                Some(user)
+            } else {
+                // Fallback to bearer token for service accounts
+                debug!("OAuth validation failed, attempting bearer token authentication");
+                authorize_bearer_user(state.clone(), auth_header).await
+            }
         }
         AuthMode::Bearer => {
             debug!("Using bearer token auth mode with RBAC");

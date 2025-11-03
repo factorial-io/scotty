@@ -213,21 +213,46 @@ async fn test_oauth_public_endpoints_accessible() {
 }
 
 #[tokio::test]
-async fn test_oauth_bearer_token_not_accepted() {
+async fn test_oauth_invalid_bearer_token_rejected() {
     let router = create_scotty_app_with_oauth().await;
     let server = TestServer::new(router).unwrap();
 
-    // OAuth mode should not accept bearer tokens - only OAuth tokens
+    // OAuth mode with fallback should reject invalid bearer tokens
     let response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
             axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str("Bearer some-bearer-token").unwrap(),
+            axum::http::HeaderValue::from_str("Bearer invalid-bearer-token").unwrap(),
         )
         .await;
 
-    // Should return 401 since bearer tokens are not valid in OAuth mode
+    // Should return 401 since bearer token is not configured/valid
     assert_eq!(response.status_code(), 401);
+}
+
+#[tokio::test]
+async fn test_oauth_bearer_token_fallback_with_valid_token() {
+    let router = create_scotty_app_with_oauth().await;
+    let server = TestServer::new(router).unwrap();
+
+    // OAuth mode should accept configured bearer tokens as fallback
+    // test_oauth_auth config should have bearer_tokens configured
+    let response = server
+        .get("/api/v1/authenticated/blueprints")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            axum::http::HeaderValue::from_str("Bearer test-bearer-token-123").unwrap(),
+        )
+        .await;
+
+    // Should succeed with valid bearer token from config (fallback after OAuth validation fails)
+    assert_eq!(response.status_code(), 200);
+    let body = response.text();
+    assert!(
+        body.contains("test-oauth-blueprint"),
+        "Response should contain test-oauth-blueprint: {}",
+        body
+    );
 }
 
 /// Create Scotty app with properly initialized OAuth state for flow testing

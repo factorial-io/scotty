@@ -8,6 +8,9 @@ api:
         client_secret: "test_oauth_client_secret"
         oidc_issuer_url: "https://test-oauth-provider.example.com"
         device_flow_enabled: true
+    bearer_tokens:
+        admin: "test-bearer-token-123"
+        client-a: "client-a-secure-token-456"
 scheduler:
     running_app_check: "10m"
     ttl_check: "10m" 
