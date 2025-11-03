@@ -51,48 +51,33 @@ where
         }
         Ok(Err(e)) => {
             // State machine returned an error
-            // The error handler should have already marked task as Failed and set finish_time
+            // The error handler should have already marked task as Failed, but we use
+            // complete_task defensively to ensure consistency (it's idempotent)
             error!("State machine failed for app '{}': {}", app.name, e);
 
-            // Add additional error context to task output
-            let task_id = context.read().await.task.read().await.id;
+            // Use shared helper to ensure task is properly completed
             context
                 .read()
                 .await
-                .app_state
-                .task_manager
-                .add_task_status_error(&task_id, format!("Operation failed: {}", e))
+                .complete_task(State::Failed, format!("Operation failed: {}", e), true)
                 .await;
         }
         Err(join_err) => {
-            // Task panicked - this bypassed error handlers, so we need to manually mark task as Failed
+            // Task panicked - this bypassed error handlers
             error!(
                 "State machine task panicked for app '{}': {}",
                 app.name, join_err
             );
 
-            // Get task Arc first to avoid borrow checker issues
-            let (task_id, task_arc) = {
-                let ctx = context.read().await;
-                let task = ctx.task.clone();
-                let id = task.read().await.id;
-                (id, task)
-            };
-
-            // Manually mark task as Failed since panic bypassed error handlers
-            {
-                let mut task_details = task_arc.write().await;
-                task_details.state = State::Failed;
-                task_details.finish_time = Some(chrono::Utc::now());
-                task_details.output_collection_active = false;
-            }
-
+            // Use shared helper to mark task as Failed
             context
                 .read()
                 .await
-                .app_state
-                .task_manager
-                .add_task_status_error(&task_id, "Internal error: operation panicked".to_string())
+                .complete_task(
+                    State::Failed,
+                    "Internal error: operation panicked".to_string(),
+                    true,
+                )
                 .await;
         }
     }
