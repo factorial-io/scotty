@@ -78,7 +78,7 @@ api:
   bit smaller (by ~ 2/3)
 * `auth_mode`: Authentication mode. Options are:
   * `"dev"`: Development mode with no authentication (uses fixed dev user)
-  * `"oauth"`: Native OAuth authentication with OIDC providers
+  * `"oauth"`: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)
   * `"bearer"`: Traditional token-based authentication (default)
 * `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
 * `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
@@ -88,6 +88,13 @@ api:
   * `client_secret`: OAuth application client secret from your OIDC provider
   * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
   * `frontend_base_url`: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")
+
+**Hybrid Authentication:** When `auth_mode` is `oauth`, you can optionally configure `bearer_tokens` to enable service account access alongside OAuth for human users. This allows:
+- **Human users** authenticate via OAuth (web UI, CLI device flow)
+- **Service accounts** (CI/CD, monitoring, automation) authenticate via bearer tokens
+- **Zero OAuth latency** for service accounts (bearer tokens checked first)
+
+See [OAuth Authentication - Hybrid Mode](oauth-authentication.html#hybrid-authentication-oauth-bearer-tokens) for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.
 
 ### Rate Limiting
 

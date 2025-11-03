@@ -215,6 +215,312 @@ This bypasses OAuth and uses a fixed development user.
 4. **CORS configuration**: Ensure proper CORS settings for your domain
 5. **Session security**: Configure appropriate session timeouts
 
+## Hybrid Authentication: OAuth + Bearer Tokens
+
+**Use Case:** OAuth for human users + bearer tokens for service accounts (CI/CD, monitoring, automation).
+
+### Overview
+
+When `auth_mode` is set to `oauth`, Scotty supports an optional **bearer token fallback** for service accounts. This hybrid approach provides:
+
+- **OAuth authentication** for human users (web UI, CLI via device flow)
+- **Bearer token authentication** for service accounts (CI/CD pipelines, monitoring tools, automation scripts)
+- **Single authentication mode** - no need to switch between modes
+
+### How Hybrid Authentication Works
+
+**Authentication Flow (Optimized for Performance):**
+
+1. **Extract token** from `Authorization: Bearer <token>` header
+2. **Check bearer tokens FIRST** (fast HashMap lookup) → If found, authenticate as service account
+3. **Try OAuth validation** (network call to OIDC provider) → If bearer check fails
+4. **Return authentication result** or 401 Unauthorized
+
+This order ensures **service accounts experience zero OAuth latency** while still supporting OAuth for human users.
+
+### Configuration
+
+Enable hybrid authentication by configuring both OAuth and bearer tokens:
+
+```yaml
+api:
+  auth_mode: oauth  # Enable OAuth mode
+
+  # OAuth configuration for human users
+  oauth:
+    oidc_issuer_url: "https://gitlab.com"
+    client_id: "your_oidc_application_id"
+    client_secret: "your_oidc_application_secret"
+    redirect_url: "http://localhost:21342/api/oauth/callback"
+    frontend_base_url: "http://localhost:21342"
+
+  # Bearer tokens for service accounts (checked first for performance)
+  bearer_tokens:
+    ci-bot: "OVERRIDE_VIA_ENV_VAR"        # CI/CD pipeline
+    monitoring: "OVERRIDE_VIA_ENV_VAR"    # Monitoring service
+    deployment: "OVERRIDE_VIA_ENV_VAR"    # Deployment automation
+```
+
+**Environment Variable Configuration:**
+
+```bash
+# Set OAuth credentials
+export SCOTTY__API__OAUTH__CLIENT_ID=your_client_id
+export SCOTTY__API__OAUTH__CLIENT_SECRET=your_client_secret
+
+# Set bearer tokens for service accounts (IMPORTANT: Use secure random tokens!)
+# Note: Hyphens in config keys (ci-bot) become underscores in env vars (CI_BOT)
+export SCOTTY__API__BEARER_TOKENS__CI_BOT=$(openssl rand -base64 32)
+export SCOTTY__API__BEARER_TOKENS__MONITORING=$(openssl rand -base64 32)
+export SCOTTY__API__BEARER_TOKENS__DEPLOYMENT=$(openssl rand -base64 32)
+
+# Start Scotty
+cargo run --bin scotty
+```
+
+### RBAC Configuration for Service Accounts
+
+Configure authorization for bearer token identifiers in `config/casbin/policy.yaml`:
+
+```yaml
+# Scopes and roles definitions
+scopes:
+  production:
+    description: Production environment
+  staging:
+    description: Staging environment
+
+roles:
+  deployer:
+    permissions: [view, manage, create]
+  monitor:
+    permissions: [view, logs]
+
+# Authorization assignments
+assignments:
+  # OAuth users (human users)
+  "alice@example.com":
+    - role: admin
+      scopes: ["*"]
+
+  # Bearer token service accounts
+  # Format: identifier:<token_name> (matches bearer_tokens key)
+  "identifier:ci-bot":
+    - role: deployer
+      scopes: [staging, production]
+
+  "identifier:monitoring":
+    - role: monitor
+      scopes: ["*"]
+
+  "identifier:deployment":
+    - role: deployer
+      scopes: [production]
+```
+
+**Key Concept:** The `identifier:<name>` in policy.yaml maps to the key in `bearer_tokens` configuration, NOT the actual token value.
+
+**Example mapping:**
+- Configuration: `bearer_tokens.ci-bot: "secret-token-abc123"`
+- Policy: `identifier:ci-bot: [role: deployer, ...]`
+- API call: `Authorization: Bearer secret-token-abc123`
+- Scotty maps: token → identifier "ci-bot" → role "deployer"
+
+### Usage Examples
+
+**Human User (OAuth):**
+```bash
+# Web UI: Click "Login with OAuth" button
+# CLI: Use device flow
+scottyctl auth:login --server https://scotty.example.com
+
+# Use authenticated commands
+scottyctl app:list
+```
+
+**Service Account (Bearer Token):**
+```bash
+# CI/CD Pipeline
+export SCOTTY_ACCESS_TOKEN="${CI_BOT_TOKEN}"  # From CI/CD secrets
+scottyctl --server https://scotty.example.com app:create my-app
+
+# Monitoring Script
+curl -H "Authorization: Bearer ${MONITORING_TOKEN}" \
+  https://scotty.example.com/api/v1/authenticated/apps
+
+# Deployment Automation
+export SCOTTY_SERVER=https://scotty.example.com
+export SCOTTY_ACCESS_TOKEN="${DEPLOYMENT_TOKEN}"
+scottyctl app:restart production-app
+```
+
+### Security Best Practices
+
+1. **Generate Strong Tokens for Service Accounts**
+   ```bash
+   # Use cryptographically secure random tokens
+   openssl rand -base64 32
+   ```
+
+2. **Never Commit Tokens to Git**
+   - Use environment variables exclusively
+   - Store in CI/CD secret management
+   - Rotate regularly
+
+3. **Use Descriptive Identifiers**
+   ```yaml
+   # Good: Semantic, descriptive names
+   bearer_tokens:
+     ci-bot: "..."
+     monitoring-service: "..."
+     deployment-automation: "..."
+
+   # Bad: Confusing, token-like names
+   bearer_tokens:
+     test-bearer-token-123: "..."  # Looks like a token value!
+   ```
+
+4. **Apply Least Privilege via RBAC**
+   - CI/CD bot: `deployer` role (no destroy permission)
+   - Monitoring: `monitor` role (view and logs only)
+   - Deployment: Limited to specific scopes
+
+5. **Monitor and Audit**
+   - Track which authentication method is used (logs show "Bearer token authentication successful" vs "OAuth authentication successful")
+   - Monitor for suspicious activity
+   - Rotate tokens on compromise
+
+### Migration from Pure OAuth
+
+**Scenario:** You have an existing OAuth-only deployment and want to add service accounts.
+
+**Steps:**
+
+1. **Add bearer_tokens configuration** (without changing auth_mode)
+   ```yaml
+   api:
+     auth_mode: oauth  # Keep OAuth mode
+     oauth:
+       # ... existing OAuth config ...
+     bearer_tokens:  # ADD service account tokens
+       ci-bot: "OVERRIDE_VIA_ENV_VAR"
+   ```
+
+2. **Configure RBAC for service accounts** in `policy.yaml`
+   ```yaml
+   assignments:
+     "identifier:ci-bot":
+       - role: deployer
+         scopes: [staging]
+   ```
+
+3. **Set environment variables** for bearer tokens
+   ```bash
+   export SCOTTY__API__BEARER_TOKENS__CI_BOT=$(openssl rand -base64 32)
+   ```
+
+4. **Restart Scotty** - No breaking changes to existing OAuth users!
+
+5. **Update CI/CD pipelines** to use bearer tokens
+   ```yaml
+   # .gitlab-ci.yml example
+   deploy:
+     script:
+       - export SCOTTY_ACCESS_TOKEN="${CI_BOT_TOKEN}"
+       - scottyctl app:create ...
+   ```
+
+6. **Test both authentication paths**
+   ```bash
+   # Test OAuth (human)
+   scottyctl auth:login
+   scottyctl app:list
+
+   # Test bearer token (service account)
+   export SCOTTY_ACCESS_TOKEN="${CI_BOT_TOKEN}"
+   scottyctl app:list
+   ```
+
+**Zero Downtime:** Existing OAuth users continue working without any changes. Service accounts can be added incrementally.
+
+### Troubleshooting
+
+**Issue: Service account bearer token not working**
+```
+Error: 401 Unauthorized
+```
+
+**Diagnosis:**
+1. Check token is correctly set:
+   ```bash
+   echo $SCOTTY_ACCESS_TOKEN  # Should show token value
+   ```
+
+2. Check identifier exists in policy.yaml:
+   ```yaml
+   assignments:
+     "identifier:ci-bot":  # Must match bearer_tokens key
+       - role: deployer
+         scopes: [staging]
+   ```
+
+3. Check bearer_tokens configuration:
+   ```bash
+   # Verify token mapping
+   curl http://localhost:21342/api/v1/info  # Should not show token values
+   ```
+
+4. Check logs with debug mode:
+   ```bash
+   RUST_LOG=debug cargo run --bin scotty
+   # Look for: "Bearer token authentication successful" or "OAuth authentication successful"
+   ```
+
+5. Verify expected behavior matches tests:
+   ```bash
+   # See test_oauth_bearer_token_fallback_with_valid_token in:
+   # scotty/src/api/bearer_auth_tests.rs:233-257
+   cargo test test_oauth_bearer_token_fallback_with_valid_token -- --nocapture
+   ```
+
+**Issue: OAuth users can't authenticate**
+```
+Error: OAuth validation failed
+```
+
+**Diagnosis:**
+- Verify OAuth configuration is still correct (client_id, client_secret, etc.)
+- Check OIDC provider is accessible
+- Verify redirect URLs match
+
+**Issue: Unclear which authentication method was used**
+
+**Solution:** Check Scotty logs - authentication method is logged:
+```
+DEBUG Bearer token authentication successful
+DEBUG OAuth authentication successful
+```
+
+### When to Use Hybrid Authentication
+
+**Use Hybrid Mode When:**
+- ✅ You have both human users (web UI) and service accounts (CI/CD)
+- ✅ You want centralized authentication with OIDC
+- ✅ You need service accounts with zero OAuth latency
+- ✅ You want fine-grained RBAC for different actors
+
+**Use Pure OAuth When:**
+- ✅ Only human users access Scotty
+- ✅ All access is via web UI or CLI with device flow
+- ✅ No automation or service accounts needed
+
+**Use Pure Bearer Mode When:**
+- ✅ Only service accounts/automation access Scotty
+- ✅ No human interactive access needed
+- ✅ Simpler deployment without OAuth infrastructure
+
+See [Configuration Documentation](configuration.html) for complete configuration reference and [config/README.md](../../config/README.md) for detailed security best practices.
+
 ## Frontend Integration
 
 The Scotty frontend automatically detects OAuth mode and provides:
