@@ -2,8 +2,55 @@
 
 The CLI provides a thin wrapper to access the REST API of Scotty. It is
 written in Rust and provides a simple interface to list, create, update and
-destroy apps. You can get help by running `scottyctl --help` and
-`scottyctl --help <command>`.
+destroy apps, as well as manage authorization (scopes, roles, assignments).
+
+You can get help by running `scottyctl --help` and `scottyctl --help <command>`.
+
+## Authentication
+
+Scotty supports two authentication methods:
+
+### OAuth Authentication (Recommended)
+
+Use the device flow to authenticate interactively:
+
+```shell
+scottyctl --server https://scotty.example.com auth:login
+```
+
+This command will:
+1. Open your browser to authenticate with the OIDC provider
+2. Store the OAuth token securely for future commands
+3. Automatically refresh tokens when they expire
+
+**Managing OAuth sessions:**
+
+```shell
+# Check authentication status
+scottyctl auth:status
+
+# Refresh the token
+scottyctl auth:refresh
+
+# Logout and clear stored credentials
+scottyctl auth:logout
+```
+
+### Bearer Token Authentication
+
+For service accounts, CI/CD, or when OAuth is not available, use bearer tokens:
+
+```shell
+# Via command line argument
+scottyctl --server https://scotty.example.com --access-token <TOKEN> app:list
+
+# Via environment variable (recommended)
+export SCOTTY_SERVER=https://scotty.example.com
+export SCOTTY_ACCESS_TOKEN=<TOKEN>
+scottyctl app:list
+```
+
+**Note:** For the rest of this documentation, command examples use `--server` and `--access-token` for clarity, but you can always use OAuth via `auth:login` or environment variables instead.
 
 ## List all apps
 
@@ -330,6 +377,31 @@ scottyctl --server <SERVER> --access-token <TOKEN> blueprint:list
 
 This will list all available blueprints on the server.
 
+## Get blueprint details
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> blueprint:info <BLUEPRINT>
+```
+
+This command displays detailed information about a specific blueprint, including its configuration, services, and required parameters.
+
+## Run a custom action
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:action <APP> <ACTION>
+```
+
+Execute a custom action defined in the app's `.scotty.yml` file. Custom actions allow you to run predefined commands or scripts within your application containers.
+
+Example:
+```shell
+# Run a database migration action
+scottyctl app:action my-app db:migrate
+
+# Clear application cache
+scottyctl app:action my-app cache:clear
+```
+
 ## Add a notification service to an app
 
 ```shell
@@ -363,3 +435,147 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:info <APP>
 ```
 
 For more info, see the help for [`app:info`](http://localhost:8080/cli.html#get-info-about-an-app).
+
+## Authorization Management (Admin Commands)
+
+These commands require `admin_read` or `admin_write` permissions. See the [Authorization documentation](authorization.html) for more details.
+
+### Scopes Management
+
+**List all scopes:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:scopes:list
+```
+
+Lists all authorization scopes with their descriptions and creation timestamps.
+
+**Create a new scope:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:scopes:create <NAME> <DESCRIPTION>
+```
+
+Example:
+```shell
+scottyctl admin:scopes:create staging "Staging environment applications"
+```
+
+### Roles Management
+
+**List all roles:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:list
+```
+
+Lists all roles with their descriptions and associated permissions.
+
+**Create a new role:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:create <NAME> <DESCRIPTION> <PERMISSIONS>
+```
+
+Permissions should be comma-separated. Use `*` for all permissions.
+
+Example:
+```shell
+# Create a developer role with specific permissions
+scottyctl admin:roles:create developer "Developer access" view,manage,shell,logs,create
+
+# Create an admin role with all permissions
+scottyctl admin:roles:create admin "Full access" "*"
+```
+
+### Assignments Management
+
+**List all user assignments:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:list
+```
+
+Lists all user-to-role assignments with their assigned scopes.
+
+**Create a new assignment:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:create <USER> <ROLE> <SCOPES>
+```
+
+Scopes should be comma-separated. Use `*` for all scopes.
+
+Examples:
+```shell
+# Assign user to developer role in staging scope
+scottyctl admin:assignments:create alice@example.com developer staging
+
+# Assign bearer token to admin role across all scopes
+scottyctl admin:assignments:create identifier:ci-bot admin "*"
+
+# Assign user to multiple scopes
+scottyctl admin:assignments:create bob@example.com operator staging,production
+```
+
+**Remove an assignment:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:remove <USER> <ROLE> <SCOPES>
+```
+
+Example:
+```shell
+scottyctl admin:assignments:remove alice@example.com developer staging
+```
+
+### Permissions Management
+
+**List all available permissions:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:list
+```
+
+Lists all permissions that can be assigned to roles.
+
+**Test permission for a user:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:test <USER> <APP> <PERMISSION>
+```
+
+Tests whether a specific user has a particular permission on an app.
+
+Example:
+```shell
+scottyctl admin:permissions:test alice@example.com my-app manage
+```
+
+**Get all permissions for a user:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:user <USER>
+```
+
+Displays all effective permissions for a user across all scopes.
+
+Example:
+```shell
+scottyctl admin:permissions:user alice@example.com
+```
+
+## Shell Completion
+
+Generate shell completion scripts for bash, zsh, fish, or PowerShell:
+
+```shell
+scottyctl completion <SHELL>
+```
+
+Examples:
+```shell
+# Bash
+scottyctl completion bash > /etc/bash_completion.d/scottyctl
+
+# Zsh
+scottyctl completion zsh > ~/.zsh/completion/_scottyctl
+
+# Fish
+scottyctl completion fish > ~/.config/fish/completions/scottyctl.fish
+
+# PowerShell
+scottyctl completion powershell > scottyctl.ps1
+```
+
+After installing the completion script, restart your shell or source the completion file.
