@@ -40,6 +40,7 @@ semver.workspace = true
 thiserror.workspace = true
 secrecy.workspace = true
 zeroize.workspace = true
+flate2.workspace = true
 
 axum = { workspace = true }
 clap = { workspace = true, optional = true }

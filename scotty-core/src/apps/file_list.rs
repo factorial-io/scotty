@@ -5,6 +5,9 @@ pub struct File {
     pub name: String,
     #[schema(value_type = String, format = "Base64")]
     pub content: Vec<u8>,
+    /// Indicates if the content is gzip-compressed
+    #[serde(default)]
+    pub compressed: bool,
 }
 
 impl std::fmt::Debug for File {

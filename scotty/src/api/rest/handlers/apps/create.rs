@@ -8,6 +8,7 @@ use crate::{
 };
 use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
 use base64::prelude::*;
+use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
         create_app_request::CreateAppRequest,
@@ -16,6 +17,7 @@ use scotty_core::{
     settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
 };
+use std::io::Read;
 use tracing::error;
 
 #[utoipa::path(
@@ -68,15 +70,36 @@ pub async fn create_app_handler(
         .files
         .files
         .iter()
-        .filter_map(|f| match BASE64_STANDARD.decode(&f.content) {
-            Ok(decoded) => Some(File {
+        .filter_map(|f| {
+            // First decode base64
+            let decoded = match BASE64_STANDARD.decode(&f.content) {
+                Ok(d) => d,
+                Err(e) => {
+                    error!("Failed to decode base64 content for {}: {}", f.name, e);
+                    return None;
+                }
+            };
+
+            // Then decompress if needed
+            let content = if f.compressed {
+                let mut decoder = GzDecoder::new(&decoded[..]);
+                let mut decompressed = Vec::new();
+                match decoder.read_to_end(&mut decompressed) {
+                    Ok(_) => decompressed,
+                    Err(e) => {
+                        error!("Failed to decompress content for {}: {}", f.name, e);
+                        return None;
+                    }
+                }
+            } else {
+                decoded
+            };
+
+            Some(File {
                 name: f.name.clone(),
-                content: decoded,
-            }),
-            Err(e) => {
-                error!("Failed to decode base64 content: {}", e);
-                None
-            }
+                content,
+                compressed: false, // After decompression, content is uncompressed
+            })
         })
         .collect::<Vec<_>>();
 
@@ -114,5 +137,91 @@ pub async fn create_app_handler(
             error!("App create failed with: {:?}", e);
             Err(AppError::from(e))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    #[test]
+    fn test_decompress_compressed_file() {
+        // Original content
+        let original_content = b"Hello, World! This is a test file with some content.";
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Encode as base64
+        let base64_encoded = BASE64_STANDARD.encode(&compressed);
+
+        // Create a File with compressed flag
+        let file = File {
+            name: "test.txt".to_string(),
+            content: base64_encoded.into_bytes(),
+            compressed: true,
+        };
+
+        // Simulate the decompression logic from the handler
+        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let mut decoder = GzDecoder::new(&decoded[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+
+        // Verify decompressed content matches original
+        assert_eq!(decompressed, original_content);
+    }
+
+    #[test]
+    fn test_uncompressed_file_passthrough() {
+        // Original content
+        let original_content = b"Hello, World! This is not compressed.";
+
+        // Encode as base64 directly
+        let base64_encoded = BASE64_STANDARD.encode(original_content);
+
+        // Create a File without compression flag
+        let file = File {
+            name: "test.txt".to_string(),
+            content: base64_encoded.into_bytes(),
+            compressed: false,
+        };
+
+        // Simulate the passthrough logic from the handler
+        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+
+        // Verify decoded content matches original
+        assert_eq!(decoded, original_content);
+    }
+
+    #[test]
+    fn test_compression_saves_space() {
+        // Create content with repetition (compresses well)
+        let original_content = "Hello World! ".repeat(100);
+        let original_bytes = original_content.as_bytes();
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_bytes).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Verify compression actually reduces size
+        assert!(
+            compressed.len() < original_bytes.len(),
+            "Compressed size ({}) should be less than original size ({})",
+            compressed.len(),
+            original_bytes.len()
+        );
+
+        // Verify we can decompress back to original
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+        assert_eq!(decompressed, original_bytes);
     }
 }
