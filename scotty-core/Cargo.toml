@@ -35,7 +35,8 @@ uuid.workspace = true
 bollard.workspace = true
 deunicode.workspace = true
 url.workspace = true
-reqwest.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
+futures-util.workspace = true
 semver.workspace = true
 thiserror.workspace = true
 secrecy.workspace = true
@@ -47,6 +48,7 @@ clap = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3.20.0"
+wiremock.workspace = true
 
 [dev-dependencies.cargo-husky]
 version = "1"

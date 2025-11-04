@@ -99,6 +99,7 @@ sysinfo = "0.33"
 once_cell = "1.20"
 num_cpus = "1.16"
 flate2 = "1.0"
+wiremock = "0.6"
 
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]
