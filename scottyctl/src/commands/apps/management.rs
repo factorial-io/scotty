@@ -8,6 +8,8 @@ use crate::{
     utils::{files::collect_files, parsers::parse_env_file},
 };
 use base64::prelude::*;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use scotty_core::{
     apps::{
         app_data::AppSettings,
@@ -17,6 +19,7 @@ use scotty_core::{
     tasks::running_app_context::RunningAppContext,
     utils::secret::SecretHashMap,
 };
+use std::io::Write;
 
 use super::{format_app_info, get_app_info};
 
@@ -27,18 +30,51 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
     ui.run(async || {
         ui.new_status_line("Collecting files...");
         let file_list = collect_files(&cmd.docker_compose_path)?;
-        // Encode content base64
+
+        // Compress and encode files
+        let mut total_original_size = 0;
+        let mut total_compressed_size = 0;
+
         let file_list = FileList {
             files: file_list
                 .files
                 .iter()
-                .map(|f| File {
-                    name: f.name.clone(),
-                    content: BASE64_STANDARD.encode(&f.content).into(),
+                .map(|f| -> anyhow::Result<File> {
+                    total_original_size += f.content.len();
+
+                    // Compress with gzip
+                    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                    encoder
+                        .write_all(&f.content)
+                        .context(format!("Failed to compress file: {}", f.name))?;
+                    let compressed = encoder
+                        .finish()
+                        .context(format!("Failed to finish compression for: {}", f.name))?;
+
+                    total_compressed_size += compressed.len();
+
+                    Ok(File {
+                        name: f.name.clone(),
+                        content: BASE64_STANDARD.encode(&compressed).into(),
+                        compressed: true,
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
         };
-        ui.success(format!("{} files ready to beam.", file_list.files.len()));
+
+        let compression_ratio = if total_original_size > 0 {
+            (100.0 - (total_compressed_size as f64 / total_original_size as f64 * 100.0)) as u32
+        } else {
+            0
+        };
+
+        ui.success(format!(
+            "{} files ready to beam (compressed {}%, {} → {}).",
+            file_list.files.len(),
+            compression_ratio,
+            scotty_core::utils::format::format_bytes(total_original_size),
+            scotty_core::utils::format::format_bytes(total_compressed_size)
+        ));
 
         // Combine environment variables from env-file and command line
         let mut environment = cmd.env.clone();

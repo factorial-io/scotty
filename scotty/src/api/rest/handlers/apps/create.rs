@@ -8,6 +8,7 @@ use crate::{
 };
 use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
 use base64::prelude::*;
+use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
         create_app_request::CreateAppRequest,
@@ -16,6 +17,7 @@ use scotty_core::{
     settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
 };
+use std::io::Read;
 use tracing::error;
 
 #[utoipa::path(
@@ -64,21 +66,57 @@ pub async fn create_app_handler(
         return Err(AppError::CantCreateAppWithScottyYmlFile);
     }
 
-    let files = payload
+    let max_decompressed_size = state.settings.api.create_app_max_size;
+
+    let files: Result<Vec<File>, AppError> = payload
         .files
         .files
         .iter()
-        .filter_map(|f| match BASE64_STANDARD.decode(&f.content) {
-            Ok(decoded) => Some(File {
+        .map(|f| {
+            // First decode base64
+            let decoded = BASE64_STANDARD.decode(&f.content).map_err(|e| {
+                error!("Failed to decode base64 content for {}: {}", f.name, e);
+                AppError::FileContentDecodingError
+            })?;
+
+            // Then decompress if needed
+            let content = if f.compressed {
+                let decoder = GzDecoder::new(&decoded[..]);
+                let mut decompressed = Vec::new();
+
+                // Try to read max_size + 1 bytes to detect if file exceeds limit
+                let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+                let bytes_read = limited_reader.read_to_end(&mut decompressed).map_err(|e| {
+                    error!("Failed to decompress content for {}: {}", f.name, e);
+                    AppError::FileCompressionCorrupted(f.name.clone(), e.to_string())
+                })?;
+
+                // If we read more than the limit, the file is too large
+                if bytes_read > max_decompressed_size {
+                    error!(
+                        "File {} exceeds maximum decompressed size of {} bytes (actual: {} bytes)",
+                        f.name, max_decompressed_size, bytes_read
+                    );
+                    return Err(AppError::FileDecompressedSizeExceeded(
+                        f.name.clone(),
+                        max_decompressed_size,
+                    ));
+                }
+
+                decompressed
+            } else {
+                decoded
+            };
+
+            Ok(File {
                 name: f.name.clone(),
-                content: decoded,
-            }),
-            Err(e) => {
-                error!("Failed to decode base64 content: {}", e);
-                None
-            }
+                content,
+                compressed: false, // After decompression, content is uncompressed
+            })
         })
-        .collect::<Vec<_>>();
+        .collect();
+
+    let files = files?;
 
     let file_list = FileList { files };
 
@@ -114,5 +152,157 @@ pub async fn create_app_handler(
             error!("App create failed with: {:?}", e);
             Err(AppError::from(e))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    #[test]
+    fn test_decompress_compressed_file() {
+        // Original content
+        let original_content = b"Hello, World! This is a test file with some content.";
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Encode as base64
+        let base64_encoded = BASE64_STANDARD.encode(&compressed);
+
+        // Create a File with compressed flag
+        let file = File {
+            name: "test.txt".to_string(),
+            content: base64_encoded.into_bytes(),
+            compressed: true,
+        };
+
+        // Simulate the decompression logic from the handler
+        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let mut decoder = GzDecoder::new(&decoded[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+
+        // Verify decompressed content matches original
+        assert_eq!(decompressed, original_content);
+    }
+
+    #[test]
+    fn test_uncompressed_file_passthrough() {
+        // Original content
+        let original_content = b"Hello, World! This is not compressed.";
+
+        // Encode as base64 directly
+        let base64_encoded = BASE64_STANDARD.encode(original_content);
+
+        // Create a File without compression flag
+        let file = File {
+            name: "test.txt".to_string(),
+            content: base64_encoded.into_bytes(),
+            compressed: false,
+        };
+
+        // Simulate the passthrough logic from the handler
+        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+
+        // Verify decoded content matches original
+        assert_eq!(decoded, original_content);
+    }
+
+    #[test]
+    fn test_compression_saves_space() {
+        // Create content with repetition (compresses well)
+        let original_content = "Hello World! ".repeat(100);
+        let original_bytes = original_content.as_bytes();
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_bytes).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Verify compression actually reduces size
+        assert!(
+            compressed.len() < original_bytes.len(),
+            "Compressed size ({}) should be less than original size ({})",
+            compressed.len(),
+            original_bytes.len()
+        );
+
+        // Verify we can decompress back to original
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+        assert_eq!(decompressed, original_bytes);
+    }
+
+    #[test]
+    fn test_decompression_size_limit_check() {
+        // Create large content that will definitely exceed a small limit
+        let original_content = "This is a longer text that won't compress to nothing. ".repeat(100); // ~5.4KB
+        let original_bytes = original_content.as_bytes();
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_bytes).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Use a very small limit to ensure we exceed it
+        let max_decompressed_size = 100; // Only 100 bytes
+        let decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+
+        // Try to read max_size + 1 bytes
+        let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+        let bytes_read = limited_reader.read_to_end(&mut decompressed).unwrap();
+
+        // Should have read more than the limit (file was too large)
+        assert!(
+            bytes_read > max_decompressed_size,
+            "Should have read more than the limit ({} bytes), got {} bytes",
+            max_decompressed_size,
+            bytes_read
+        );
+        assert_eq!(
+            bytes_read,
+            max_decompressed_size + 1,
+            "Should have read exactly limit + 1 bytes"
+        );
+    }
+
+    #[test]
+    fn test_decompression_within_size_limit() {
+        // Create small content that won't exceed limit
+        let original_content = b"Hello, World!";
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Simulate checking with generous limit
+        let max_decompressed_size = 1024; // 1KB limit
+        let decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+
+        // Try to read max_size + 1 bytes
+        let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+        let bytes_read = limited_reader.read_to_end(&mut decompressed).unwrap();
+
+        // Should have read less than or equal to the limit (file was within limit)
+        assert!(
+            bytes_read <= max_decompressed_size,
+            "Should have read {} bytes or less, got {} bytes",
+            max_decompressed_size,
+            bytes_read
+        );
+        assert_eq!(
+            decompressed, original_content,
+            "Decompressed content should match original"
+        );
     }
 }

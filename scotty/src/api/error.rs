@@ -32,6 +32,12 @@ pub enum AppError {
     #[error("File content could not be decoded!")]
     FileContentDecodingError,
 
+    #[error("File compression corrupted for {0}: {1}")]
+    FileCompressionCorrupted(String, String),
+
+    #[error("File {0} exceeds maximum decompressed size of {1} bytes")]
+    FileDecompressedSizeExceeded(String, usize),
+
     #[error("Cant destroy an unmanaged app: {0}")]
     CantDestroyUnmanagedApp(String),
 
@@ -111,6 +117,8 @@ impl AppError {
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
+            AppError::FileCompressionCorrupted(_, _) => StatusCode::BAD_REQUEST,
+            AppError::FileDecompressedSizeExceeded(_, _) => StatusCode::BAD_REQUEST,
             AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
             AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
             AppError::AppNotRunning(_) => StatusCode::CONFLICT,
