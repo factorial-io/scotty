@@ -84,22 +84,23 @@ pub async fn create_app_handler(
                 let decoder = GzDecoder::new(&decoded[..]);
                 let mut decompressed = Vec::new();
 
-                // Limit decompression size to prevent decompression bombs
-                let bytes_read = decoder
-                    .take(max_decompressed_size as u64)
-                    .read_to_end(&mut decompressed)
-                    .map_err(|e| {
-                        error!("Failed to decompress content for {}: {}", f.name, e);
-                        AppError::FileContentDecodingError
-                    })?;
+                // Try to read max_size + 1 bytes to detect if file exceeds limit
+                let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+                let bytes_read = limited_reader.read_to_end(&mut decompressed).map_err(|e| {
+                    error!("Failed to decompress content for {}: {}", f.name, e);
+                    AppError::FileCompressionCorrupted(f.name.clone(), e.to_string())
+                })?;
 
-                // Check if we hit the size limit
-                if bytes_read >= max_decompressed_size {
+                // If we read more than the limit, the file is too large
+                if bytes_read > max_decompressed_size {
                     error!(
-                        "File {} exceeds maximum decompressed size of {} bytes",
-                        f.name, max_decompressed_size
+                        "File {} exceeds maximum decompressed size of {} bytes (actual: {} bytes)",
+                        f.name, max_decompressed_size, bytes_read
                     );
-                    return Err(AppError::FileContentDecodingError);
+                    return Err(AppError::FileDecompressedSizeExceeded(
+                        f.name.clone(),
+                        max_decompressed_size,
+                    ));
                 }
 
                 decompressed
@@ -237,5 +238,71 @@ mod tests {
         let mut decompressed = Vec::new();
         decoder.read_to_end(&mut decompressed).unwrap();
         assert_eq!(decompressed, original_bytes);
+    }
+
+    #[test]
+    fn test_decompression_size_limit_check() {
+        // Create large content that will definitely exceed a small limit
+        let original_content = "This is a longer text that won't compress to nothing. ".repeat(100); // ~5.4KB
+        let original_bytes = original_content.as_bytes();
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_bytes).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Use a very small limit to ensure we exceed it
+        let max_decompressed_size = 100; // Only 100 bytes
+        let decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+
+        // Try to read max_size + 1 bytes
+        let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+        let bytes_read = limited_reader.read_to_end(&mut decompressed).unwrap();
+
+        // Should have read more than the limit (file was too large)
+        assert!(
+            bytes_read > max_decompressed_size,
+            "Should have read more than the limit ({} bytes), got {} bytes",
+            max_decompressed_size,
+            bytes_read
+        );
+        assert_eq!(
+            bytes_read,
+            max_decompressed_size + 1,
+            "Should have read exactly limit + 1 bytes"
+        );
+    }
+
+    #[test]
+    fn test_decompression_within_size_limit() {
+        // Create small content that won't exceed limit
+        let original_content = b"Hello, World!";
+
+        // Compress it
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        // Simulate checking with generous limit
+        let max_decompressed_size = 1024; // 1KB limit
+        let decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+
+        // Try to read max_size + 1 bytes
+        let mut limited_reader = decoder.take((max_decompressed_size + 1) as u64);
+        let bytes_read = limited_reader.read_to_end(&mut decompressed).unwrap();
+
+        // Should have read less than or equal to the limit (file was within limit)
+        assert!(
+            bytes_read <= max_decompressed_size,
+            "Should have read {} bytes or less, got {} bytes",
+            max_decompressed_size,
+            bytes_read
+        );
+        assert_eq!(
+            decompressed, original_content,
+            "Decompressed content should match original"
+        );
     }
 }
