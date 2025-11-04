@@ -176,7 +176,7 @@ After successful OAuth authentication, Scotty provides OIDC-standard user inform
 - **Email**: User's email address (optional)
 - **Access Token**: OAuth access token for API calls
 
-This information is available to both the frontend (stored in localStorage) and backend (through authentication middleware).
+This information is available to both the frontend (stored in sessionStorage) and backend (through authentication middleware).
 
 ## Development vs Production
 
@@ -531,7 +531,7 @@ The Scotty frontend automatically detects OAuth mode and provides:
 - **User info component** displays authenticated user with logout option
 
 ### Token Management
-- **Automatic token storage** in browser localStorage
+- **Automatic token storage** in browser sessionStorage
 - **Token validation** on each API request
 - **Automatic logout** on token expiration or validation failure
 
@@ -547,7 +547,7 @@ scottyctl login --server http://localhost:21342
 
 ### Manual Token
 ```bash
-# Extract token from browser localStorage and use manually  
+# Extract token from browser sessionStorage and use manually
 export SCOTTY_ACCESS_TOKEN=your_oauth_token
 scottyctl --server http://localhost:21342 app:list
 ```
@@ -555,19 +555,23 @@ scottyctl --server http://localhost:21342 app:list
 ## Security Features
 
 ### PKCE (Proof Key for Code Exchange)
-- **Enhanced security** for public clients (SPAs)
-- **Code challenge/verifier** prevents code interception attacks
-- **SHA256 hashing** of random code verifier
+- **Enhanced security** for public clients (SPAs) - prevents authorization code interception attacks
+- **SHA256 code challenge** - cryptographically secure random verifier with SHA256 hashing
+- **Protected storage** - PKCE verifier stored in memory using `MaskedSecret` type (protected from memory dumps and logs)
+- **Single-use verification** - verifier is removed from session store after successful token exchange
 
-### CSRF Protection  
-- **State parameter** validation prevents CSRF attacks
-- **Session-based** state tracking
-- **Automatic cleanup** of expired sessions
+### CSRF Protection
+- **State parameter validation** - combines session ID and CSRF token (`session_id:csrf_token` format)
+- **Session-based tracking** - each OAuth flow gets a unique session with secure token storage
+- **Automatic cleanup** - expired sessions removed every 5 minutes by background task
+- **Time-limited sessions** - web flow sessions expire after 10 minutes, OAuth sessions after 5 minutes
 
 ### Token Security
-- **Short-lived tokens** with appropriate expiration
-- **Secure storage** recommendations for production
-- **Token validation** on each authenticated request
+- **Token validation on every request** - authentication middleware validates tokens before allowing access to protected endpoints
+- **OIDC provider validation** - OAuth tokens validated against OIDC provider's userinfo endpoint
+- **Session expiration** - OAuth sessions expire after 5 minutes of token exchange
+- **Memory protection** - CSRF tokens and PKCE verifiers stored using `MaskedSecret` type with automatic zeroization
+- **Secure storage** - tokens stored in browser sessionStorage (cleared when tab closes)
 
 ## Troubleshooting
 
@@ -631,15 +635,3 @@ RUST_LOG=debug cargo run --bin scotty
 - **OAuth Session Exchange**: http://localhost:21342/oauth/exchange
 - **API Documentation**: http://localhost:21342/rapidoc
 - **Health Check**: http://localhost:21342/api/v1/health (public)
-
-## Migration from oauth2-proxy
-
-If you're migrating from the previous oauth2-proxy setup:
-
-1. **Remove external dependencies**: No need for Traefik ForwardAuth or oauth2-proxy containers
-2. **Update configuration**: Switch from proxy-based to native OAuth configuration  
-3. **Update redirect URLs**: Change from `/oauth2/callback` to `/api/oauth/callback`
-4. **Update configuration keys**: Change `gitlab_url` to `oidc_issuer_url`
-5. **Test authentication flow**: Verify the complete OAuth flow works end-to-end
-
-The native OAuth implementation provides better integration, reduced complexity, and enhanced security while maintaining the same user experience.
