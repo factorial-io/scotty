@@ -146,6 +146,13 @@ Permissions: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin:*`
 
 **Authentication**: Supports OAuth device flow and bearer tokens via environment variables or command-line args.
 
+**File Upload (app:create)**:
+- File collection happens in `scottyctl/src/utils/files.rs:collect_files()`
+- Supports `.scottyignore` files using gitignore-style patterns (via the `ignore` crate)
+- Files are base64-encoded and sent to the server
+- Automatically excludes: `.DS_Store`, `.git/` directory
+- `.scottyignore` patterns: `*.log`, `target`, `!important.log`, `**/*.tmp`, etc.
+
 ### Frontend-Backend Coupling
 
 The Svelte frontend and Rust API are **tightly coupled** - breaking changes are acceptable. TypeScript types are generated from Rust using `ts-rs`. No API versioning or backwards compatibility needed.
