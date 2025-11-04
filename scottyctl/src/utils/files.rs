@@ -71,6 +71,8 @@ pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
                 }
 
                 // Also check if any parent directory is ignored
+                // Note: The ignore crate's matched() does NOT automatically handle parent directories
+                // for files, so we must explicitly check all ancestors
                 let mut should_ignore = false;
                 for ancestor in relative_path.ancestors() {
                     if ancestor == Path::new("") {
@@ -109,7 +111,14 @@ pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
 
 /// Check if file should be ignored by hardcoded rules
 fn is_hardcoded_ignore(file_name: &str, path: &Path) -> bool {
-    file_name == ".DS_Store" || path.to_str().unwrap_or("").contains("/.git/")
+    // Always ignore .DS_Store files (macOS system files)
+    if file_name == ".DS_Store" {
+        return true;
+    }
+
+    // Check if any path component is ".git" directory
+    // This correctly handles .git at any level including root
+    path.components().any(|c| c.as_os_str() == ".git")
 }
 
 #[cfg(test)]
@@ -242,5 +251,89 @@ mod tests {
         let files = collect_files(compose_path.to_str().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("cache.tmp")));
         assert!(files.files.iter().any(|f| f.name.contains("main.rs")));
+    }
+
+    #[test]
+    fn test_scottyignore_parent_directory_ignored() {
+        // Test to verify that files in ignored parent directories are excluded
+        let temp_dir = TempDir::new().unwrap();
+        let compose_path = temp_dir.path().join("docker-compose.yml");
+        fs::write(&compose_path, "version: '3'").unwrap();
+
+        // Create a deeply nested structure
+        let node_modules = temp_dir.path().join("node_modules");
+        let nested = node_modules.join("package").join("dist");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("index.js"), "// code").unwrap();
+        fs::write(temp_dir.path().join("app.js"), "// app").unwrap();
+
+        // Ignore node_modules directory
+        fs::write(temp_dir.path().join(".scottyignore"), "node_modules/").unwrap();
+
+        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        // Files inside node_modules should be ignored
+        assert!(!files.files.iter().any(|f| f.name.contains("node_modules")));
+        assert!(!files.files.iter().any(|f| f.name.contains("index.js")));
+        // app.js should still be included
+        assert!(files.files.iter().any(|f| f.name.contains("app.js")));
+    }
+
+    #[test]
+    fn test_hardcoded_ignore_git_at_root() {
+        // Test that .git directory at root level is ignored
+        let temp_dir = TempDir::new().unwrap();
+        let compose_path = temp_dir.path().join("docker-compose.yml");
+        fs::write(&compose_path, "version: '3'").unwrap();
+
+        // Create .git directory at root
+        let git_dir = temp_dir.path().join(".git");
+        fs::create_dir(&git_dir).unwrap();
+        fs::write(git_dir.join("config"), "git config").unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Project").unwrap();
+
+        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        // .git files should be ignored
+        assert!(!files.files.iter().any(|f| f.name.contains(".git")));
+        assert!(!files.files.iter().any(|f| f.name.contains("config")));
+        // README should be included
+        assert!(files.files.iter().any(|f| f.name.contains("README.md")));
+    }
+
+    #[test]
+    fn test_hardcoded_ignore_git_nested() {
+        // Test that .git directory in subdirectory is ignored
+        let temp_dir = TempDir::new().unwrap();
+        let compose_path = temp_dir.path().join("docker-compose.yml");
+        fs::write(&compose_path, "version: '3'").unwrap();
+
+        // Create nested .git directory
+        let submodule = temp_dir.path().join("libs").join("submodule");
+        let git_dir = submodule.join(".git");
+        fs::create_dir_all(&git_dir).unwrap();
+        fs::write(git_dir.join("HEAD"), "ref: refs/heads/main").unwrap();
+        fs::write(submodule.join("lib.rs"), "// lib").unwrap();
+
+        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        // .git files should be ignored
+        assert!(!files.files.iter().any(|f| f.name.contains(".git")));
+        assert!(!files.files.iter().any(|f| f.name.contains("HEAD")));
+        // lib.rs should be included
+        assert!(files.files.iter().any(|f| f.name.contains("lib.rs")));
+    }
+
+    #[test]
+    fn test_hardcoded_ignore_ds_store() {
+        // Test that .DS_Store files are always ignored
+        let temp_dir = TempDir::new().unwrap();
+        let compose_path = temp_dir.path().join("docker-compose.yml");
+        fs::write(&compose_path, "version: '3'").unwrap();
+        fs::write(temp_dir.path().join(".DS_Store"), "macOS metadata").unwrap();
+        fs::write(temp_dir.path().join("app.js"), "// app").unwrap();
+
+        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        // .DS_Store should be ignored
+        assert!(!files.files.iter().any(|f| f.name.contains(".DS_Store")));
+        // app.js should be included
+        assert!(files.files.iter().any(|f| f.name.contains("app.js")));
     }
 }
