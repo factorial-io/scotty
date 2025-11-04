@@ -19,6 +19,10 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
         &cmd.app_name.yellow()
     ));
     ui.run(async || {
+        // Connect WebSocket before starting the task
+        let ws_connection =
+            crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
+
         let payload = serde_json::json!({
             "action_name": cmd.action_name
         });
@@ -34,7 +38,7 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
 
-        wait_for_task(context.server(), &app_context, ui).await?;
+        wait_for_task(context.server(), &app_context, ui, ws_connection).await?;
 
         let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
 

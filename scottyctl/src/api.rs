@@ -234,20 +234,18 @@ pub async fn wait_for_task(
     server: &ServerSettings,
     context: &RunningAppContext,
     ui: &Arc<Ui>,
+    ws_connection: Result<crate::websocket::AuthenticatedWebSocket, anyhow::Error>,
 ) -> anyhow::Result<()> {
     use crate::utils::status_line::Status;
-    use crate::websocket::AuthenticatedWebSocket;
     use futures_util::{SinkExt, StreamExt};
     use scotty_core::tasks::task_details::TaskDetails;
     use scotty_core::websocket::message::WebSocketMessage;
     use scotty_types::TaskOutputData;
     use tokio_tungstenite::tungstenite::Message;
 
-    // Try to connect to WebSocket for output streaming (optional enhancement)
-    let ws_connection = AuthenticatedWebSocket::connect(server).await.ok();
-
-    // If WebSocket connected, request task output stream
-    if let Some(mut ws) = ws_connection {
+    // If WebSocket connected successfully, use it for real-time streaming
+    if let Ok(mut ws) = ws_connection {
+        tracing::debug!("Using WebSocket for real-time task output streaming");
         let start_message = WebSocketMessage::StartTaskOutputStream {
             task_id: context.task.id,
             from_beginning: true, // Get all output from the beginning
@@ -391,15 +389,23 @@ fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
 
     let formatted_line = if ui.is_terminal() {
         match line.stream {
-            OutputStreamType::Stdout => content.to_string(),
-            OutputStreamType::Stderr => content.red().to_string(),
-            OutputStreamType::Status => format!("[STATUS] {}", content.green()),
-            OutputStreamType::StatusError => format!("[ERROR] {}", content.red().bold()),
-            OutputStreamType::Progress => format!("[PROGRESS] {}", content.blue()),
-            OutputStreamType::Info => format!("[INFO] {}", content.cyan()),
+            OutputStreamType::Stdout => format!("    {}", content),
+            OutputStreamType::Stderr => format!("    {}", content.dimmed()),
+            OutputStreamType::Status => format!(" →  {}", content.blue()),
+            OutputStreamType::StatusError => format!(" ✗  {}", content.red().bold()),
+            OutputStreamType::Progress => format!(" ⋯  {}", content.yellow()),
+            OutputStreamType::Info => format!(" •  {}", content.cyan()),
         }
     } else {
-        content.to_string()
+        // Non-terminal output: use text prefixes without colors
+        match line.stream {
+            OutputStreamType::Stdout => format!("    {}", content),
+            OutputStreamType::Stderr => format!("    {}", content),
+            OutputStreamType::Status => format!(" >  {}", content),
+            OutputStreamType::StatusError => format!(" !  {}", content),
+            OutputStreamType::Progress => format!(" ~  {}", content),
+            OutputStreamType::Info => format!(" -  {}", content),
+        }
     };
 
     ui.println(formatted_line);
