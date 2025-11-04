@@ -48,10 +48,14 @@ pub async fn destroy_app(context: &AppContext, cmd: &DestroyCommand) -> anyhow::
     let ui = context.ui();
     ui.new_status_line(format!("Destroying app {}...", &cmd.app_name.yellow()));
     ui.run(async || {
+        // Connect WebSocket before starting the task
+        let ws_connection =
+            crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
+
         let result = get(context.server(), &format!("apps/destroy/{}", &cmd.app_name)).await?;
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
-        crate::api::wait_for_task(context.server(), &app_context, ui).await?;
+        crate::api::wait_for_task(context.server(), &app_context, ui, ws_connection).await?;
         ui.success(format!(
             "App {} destroyed successfully",
             &cmd.app_name.yellow()

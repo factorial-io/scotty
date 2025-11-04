@@ -4,7 +4,7 @@ use crossterm::{
     style::Print,
     terminal::{Clear, ClearType},
 };
-use std::io::stdout;
+use std::io::{stdout, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -95,12 +95,14 @@ impl StatusLine {
     pub fn println(&self, msg: &str) {
         self.clear_line();
         println!("{msg}");
+        let _ = stdout().flush();
         self.trigger_render();
     }
 
     pub fn eprintln(&self, msg: &str) {
         self.clear_line();
         eprintln!("{msg}");
+        let _ = std::io::stderr().flush();
         self.trigger_render();
     }
 

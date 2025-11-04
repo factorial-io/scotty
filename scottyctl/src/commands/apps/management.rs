@@ -131,6 +131,11 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
         let size = scotty_core::utils::format::format_bytes(payload.to_string().len());
+
+        // Connect WebSocket before starting the task
+        let ws_connection =
+            crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
+
         ui.new_status_line(format!(
             "Beaming your app {} up to {} ({})...",
             &cmd.app_name.yellow(),
@@ -152,7 +157,7 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
 
-        wait_for_task(context.server(), &app_context, ui).await?;
+        wait_for_task(context.server(), &app_context, ui, ws_connection).await?;
         let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
         ui.success(format!(
             "App {} started successfully!",

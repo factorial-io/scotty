@@ -4,7 +4,6 @@ use bollard::models::ContainerStateStatusEnum;
 use bollard::query_parameters::InspectContainerOptions;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::tasks::running_app_context::RunningAppContext;
-use scotty_core::tasks::task_details::State;
 use tracing::error;
 
 use super::state_machine_handlers::context::Context;
@@ -42,46 +41,14 @@ where
             .add_task_status(&task_id, format!("Starting app '{}'", app.name))
             .await;
     }
-    let handle = sm.spawn(context.clone()).await;
+    // TODO(scotty-f1dd): State machine handle is intentionally dropped here to allow immediate
+    // API response. This means we cannot detect panics in the state machine task.
+    // Errors are handled via TaskCompletionHandler, but panics are silently lost.
+    // Future refactoring should support multiple handles in TaskState to track both
+    // the state machine handle and any subprocess handles it spawns.
+    let _handle = sm.spawn(context.clone());
 
-    // Gracefully handle both errors and panics from state machine execution
-    match handle.await {
-        Ok(Ok(())) => {
-            // State machine completed successfully
-        }
-        Ok(Err(e)) => {
-            // State machine returned an error
-            // The error handler should have already marked task as Failed, but we use
-            // complete_task defensively to ensure consistency (it's idempotent)
-            error!("State machine failed for app '{}': {}", app.name, e);
-
-            // Use shared helper to ensure task is properly completed
-            context
-                .read()
-                .await
-                .complete_task(State::Failed, format!("Operation failed: {}", e), true)
-                .await;
-        }
-        Err(join_err) => {
-            // Task panicked - this bypassed error handlers
-            error!(
-                "State machine task panicked for app '{}': {}",
-                app.name, join_err
-            );
-
-            // Use shared helper to mark task as Failed
-            context
-                .read()
-                .await
-                .complete_task(
-                    State::Failed,
-                    "Internal error: operation panicked".to_string(),
-                    true,
-                )
-                .await;
-        }
-    }
-
+    // Return immediately with the context, task is running in background
     Ok(context.clone().read().await.as_running_app_context().await)
 }
 

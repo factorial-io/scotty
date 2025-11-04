@@ -83,7 +83,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
             }
         }
         info!("WebSocket forwarding task ended for client {}", client_id);
-    }).await;
+    });
 
     while let Some(Ok(msg)) = receiver.next().await {
         info!("Received message: {:?}", msg);

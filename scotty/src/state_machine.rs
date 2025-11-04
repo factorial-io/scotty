@@ -89,11 +89,10 @@ where
         Ok(())
     }
 
-    pub async fn spawn(
-        self,
-        context: Arc<RwLock<C>>,
-    ) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+    pub fn spawn(self, context: Arc<RwLock<C>>) -> tokio::task::JoinHandle<anyhow::Result<()>> {
         let cloned_self = Arc::new(RwLock::new(self));
+
+        // Spawn the main state machine task
         crate::metrics::spawn_instrumented(async move {
             let current_state = cloned_self.read().await.state;
             let result = cloned_self.write().await.run(context).await;
@@ -112,7 +111,6 @@ where
 
             result
         })
-        .await
     }
 }
 #[cfg(test)]
@@ -238,7 +236,7 @@ mod tests {
         state_machine.add_handler(TestState::Start, error_handler);
 
         let context = Arc::new(RwLock::new(Context::default()));
-        let handle = state_machine.spawn(context).await;
+        let handle = state_machine.spawn(context);
 
         // Wait for the task to complete
         let result = handle.await;
@@ -317,7 +315,7 @@ mod tests {
         state_machine.add_handler(TestState::Start, Arc::new(PanicHandler));
 
         let context = Arc::new(RwLock::new(Context::default()));
-        let handle = state_machine.spawn(context).await;
+        let handle = state_machine.spawn(context);
 
         // Wait for the task to complete
         let result = handle.await;
@@ -340,7 +338,7 @@ mod tests {
         state_machine.add_handler(TestState::Start, error_handler);
 
         let context = Arc::new(RwLock::new(Context::default()));
-        let handle = state_machine.spawn(context).await;
+        let handle = state_machine.spawn(context);
 
         // Test the idiomatic pattern: handle.await.map_err(...)??.context(...)?
         let result: anyhow::Result<()> = handle
@@ -364,7 +362,7 @@ mod tests {
         state_machine.add_handler(TestState::Start, Arc::new(PanicHandler));
 
         let context = Arc::new(RwLock::new(Context::default()));
-        let handle = state_machine.spawn(context).await;
+        let handle = state_machine.spawn(context);
 
         // Test the idiomatic pattern with panic
         let result: anyhow::Result<()> = handle

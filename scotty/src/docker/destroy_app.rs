@@ -34,7 +34,7 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<DestroyAppStates> {
         let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
-        let handle = sm.spawn(context.clone()).await;
+        let handle = sm.spawn(context.clone());
 
         // Gracefully handle both errors and panics from nested state machine
         handle

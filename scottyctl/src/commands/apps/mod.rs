@@ -35,10 +35,17 @@ pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> 
         context.server().server.yellow()
     ));
     ui.run(async || {
+        // Connect WebSocket before starting the task for better real-time streaming
+        let ws_connection =
+            crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
+
+        // Start the task
         let result = get(context.server(), &format!("apps/{verb}/{app_name}")).await?;
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
-        wait_for_task(context.server(), &app_context, ui).await?;
+
+        // Wait for task with pre-connected WebSocket
+        wait_for_task(context.server(), &app_context, ui, ws_connection).await?;
         let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
         ui.success(format!(
             "{} action for app {} has been successfully completed!",

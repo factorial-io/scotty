@@ -56,8 +56,7 @@ pub async fn setup_http_server(
             info!("HTTP server is down");
             Ok(())
         }
-    })
-    .await;
+    });
 
     Ok(handle)
 }

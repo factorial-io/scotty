@@ -317,7 +317,7 @@ impl TaskOutputStreamingService {
                 "Task output stream for task {} ended and cleaned up",
                 task_id
             );
-        }).await;
+        });
 
         Ok(())
     }
