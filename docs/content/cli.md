@@ -173,6 +173,48 @@ This command will create a new app on the server. The `--folder` argument is
 mandatory and should point to a folder containing at least a `docker-compose.yml`
 file. The complete folder will be uploaded to the server (size limits may apply).
 
+### Controlling File Uploads with .scottyignore
+
+You can control which files are uploaded by creating a `.scottyignore` file in your project folder. This file uses gitignore-style patterns to exclude files from being uploaded.
+
+**Pattern Examples:**
+
+```scottyignore
+# Ignore log files
+*.log
+
+# Ignore build artifacts
+target/
+node_modules/
+dist/
+
+# Ignore environment files
+.env
+.env.local
+
+# Re-include specific files using ! (negation)
+!important.log
+
+# Ignore files in any subdirectory
+**/*.tmp
+**/.cache/
+```
+
+**Common patterns:**
+
+| Pattern | Description |
+|---------|-------------|
+| `*.log` | Ignore all .log files in any directory |
+| `target` | Ignore the target directory and all its contents |
+| `!important.log` | Re-include important.log even if *.log is ignored |
+| `**/*.tmp` | Ignore .tmp files in any subdirectory |
+| `.env*` | Ignore .env, .env.local, etc. |
+| `# comment` | Comments (ignored) |
+
+**Note:** The following files are always ignored automatically:
+- `.DS_Store` (macOS system file)
+- `.git/` directory and its contents
+
 You either need to declare a public service via `--service` or use the
 `--app-blueprint` argument (You can get a list of available blueprints with
 `scottyctl blueprint:list`). When declaring a public service, you need to

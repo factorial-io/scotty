@@ -1,9 +1,14 @@
 use super::retry::{with_retry, RetryConfig, RetryError};
 use anyhow::Context;
+use futures_util::StreamExt;
 use reqwest::{header::HeaderMap, Method, Response};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::info;
+
+/// Maximum size of error response body to read (10KB)
+/// This prevents potential DoS attacks via large error response bodies
+const MAX_ERROR_BODY_SIZE: usize = 10 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct HttpClient {
@@ -82,6 +87,56 @@ impl HttpClient {
         Self::builder().with_timeout(timeout).build()
     }
 
+    /// Helper function to extract error message from response body
+    ///
+    /// Limits the body size to MAX_ERROR_BODY_SIZE to prevent DoS attacks
+    async fn extract_error_message(response: Response) -> String {
+        let status = response.status();
+
+        // Read response body with size limit to prevent DoS attacks
+        let mut body_bytes = Vec::new();
+        let mut stream = response.bytes_stream();
+
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    // Check if adding this chunk would exceed the limit
+                    if body_bytes.len() + chunk.len() > MAX_ERROR_BODY_SIZE {
+                        // Body too large, stop reading and return status only
+                        return format!("HTTP error: {}", status);
+                    }
+                    body_bytes.extend_from_slice(&chunk);
+                }
+                Err(_) => {
+                    // If we can't read the body, just return the status
+                    return format!("HTTP error: {}", status);
+                }
+            }
+        }
+
+        // Convert bytes to string
+        match String::from_utf8(body_bytes) {
+            Ok(body) => {
+                // Try to parse as JSON and extract the "message" field
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                    if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
+                        return format!("{}: {}", status, message);
+                    }
+                }
+                // If JSON parsing fails or no message field, return status + body
+                if !body.is_empty() && body.len() < 500 {
+                    return format!("{}: {}", status, body);
+                }
+                // Fallback to just status if body is too long or empty
+                format!("HTTP error: {}", status)
+            }
+            Err(_) => {
+                // If body is not valid UTF-8, just return the status
+                format!("HTTP error: {}", status)
+            }
+        }
+    }
+
     /// Make a GET request with retry logic
     pub async fn get(&self, url: &str) -> Result<Response, RetryError> {
         info!("GET request to {}", url);
@@ -115,7 +170,8 @@ impl HttpClient {
                     .context("Failed to send GET request")?;
 
                 if !response.status().is_success() {
-                    return Err(anyhow::anyhow!("HTTP error: {}", response.status()));
+                    let error_msg = Self::extract_error_message(response).await;
+                    return Err(anyhow::anyhow!("{}", error_msg));
                 }
 
                 let json = response
@@ -169,7 +225,8 @@ impl HttpClient {
                     .context("Failed to send POST request")?;
 
                 if !response.status().is_success() {
-                    return Err(anyhow::anyhow!("HTTP error: {}", response.status()));
+                    let error_msg = Self::extract_error_message(response).await;
+                    return Err(anyhow::anyhow!("{}", error_msg));
                 }
 
                 let json = response
@@ -240,5 +297,172 @@ impl HttpClient {
     /// Get the retry configuration
     pub fn retry_config(&self) -> &RetryConfig {
         &self.retry_config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_json() {
+        // Test JSON response with message field
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(
+                ResponseTemplate::new(400)
+                    .set_body_json(serde_json::json!({"message": "App name already exists"})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        assert_eq!(error_msg, "400 Bad Request: App name already exists");
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_plain_text() {
+        // Test plain text response (short body)
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(404).set_body_string("Resource not found"))
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        assert_eq!(error_msg, "404 Not Found: Resource not found");
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_long_body() {
+        // Test body longer than 500 characters but under MAX_ERROR_BODY_SIZE
+        let mock_server = MockServer::start().await;
+        let long_body = "x".repeat(600);
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(500).set_body_string(long_body))
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        assert_eq!(error_msg, "HTTP error: 500 Internal Server Error");
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_excessive_body() {
+        // Test body exceeding MAX_ERROR_BODY_SIZE (10KB)
+        let mock_server = MockServer::start().await;
+        let excessive_body = "x".repeat(15 * 1024); // 15KB
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(500).set_body_string(excessive_body))
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        // Should stop reading at the limit and return only status
+        assert_eq!(error_msg, "HTTP error: 500 Internal Server Error");
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_empty_body() {
+        // Test empty body
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(403).set_body_string(""))
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        assert_eq!(error_msg, "HTTP error: 403 Forbidden");
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_json_no_message_field() {
+        // Test JSON response without message field
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(
+                ResponseTemplate::new(422)
+                    .set_body_json(serde_json::json!({"error": "Validation failed", "code": 1001})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        // Should include the full JSON body
+        assert!(error_msg.starts_with("422 Unprocessable Entity:"));
+        assert!(error_msg.contains("Validation failed"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_error_message_with_malformed_json() {
+        // Test malformed JSON (falls back to plain text)
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(400).set_body_string("{invalid json"))
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let response = client
+            .get(&format!("{}/error", mock_server.uri()))
+            .await
+            .unwrap();
+
+        let error_msg = HttpClient::extract_error_message(response).await;
+        assert_eq!(error_msg, "400 Bad Request: {invalid json");
     }
 }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>.scottyignore Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        ul {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Scotty .scottyignore Demo</h1>
+
+    <div class="success">
+        ✅ This app was deployed using <code>.scottyignore</code> to filter files!
+    </div>
+
+    <h2>What is .scottyignore?</h2>
+    <p>
+        The <code>.scottyignore</code> file lets you control which files are uploaded
+        when creating a new app with <code>scottyctl app:create</code>.
+    </p>
+
+    <h2>Files in this example project:</h2>
+    <ul>
+        <li><strong>Uploaded:</strong> docker-compose.yml, html/, .scottyignore</li>
+        <li><strong>Ignored:</strong> *.log, .env, node_modules/, *.tmp (and more!)</li>
+    </ul>
+
+    <h2>Try it yourself:</h2>
+    <pre><code>cd examples/create/nginx-with-scottyignore
+scottyctl app:create my-demo ./docker-compose.yml --service web:80</code></pre>
+
+    <p>
+        Check the <code>.scottyignore</code> file in this directory to see all
+        supported patterns and examples!
+    </p>
+</body>
+</html>

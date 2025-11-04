@@ -20,6 +20,7 @@ owo-colors.workspace = true
 reqwest.workspace = true
 tabled.workspace = true
 walkdir.workspace = true
+ignore.workspace = true
 tracing.workspace = true
 scotty-core = { path = "../scotty-core", features = ["clap", "utoipa"] }
 scotty-types = { path = "../scotty-types" }
@@ -36,6 +37,9 @@ uuid = { workspace = true }
 [[bin]]
 name = "scottyctl"
 path = "src/main.rs"
+
+[dev-dependencies]
+tempfile = "3.23"
 
 [package.metadata.release]
 pre-release-hook = [
