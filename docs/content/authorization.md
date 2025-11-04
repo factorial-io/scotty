@@ -27,14 +27,19 @@ Apps can belong to multiple scopes simultaneously (e.g., an app could be in both
 
 ### Permissions
 
-Granular actions users can perform on applications:
+Granular actions users can perform on applications and the system:
 
+**App-Specific Permissions** (require app context):
 - `view` - See app status and information
 - `manage` - Start, stop, restart applications
-- `logs` - View application logs  
+- `logs` - View application logs
 - `shell` - Execute shell commands in containers
 - `create` - Create new apps in scope
 - `destroy` - Delete apps from scope
+
+**Global Permissions** (not tied to specific apps):
+- `admin_read` - Read authorization configuration (scopes, roles, assignments, permissions)
+- `admin_write` - Modify authorization configuration (create/update scopes, roles, assignments)
 
 ### Roles
 
@@ -44,6 +49,7 @@ Named collections of permissions for common access patterns:
 - **`developer`** - Full access except destroy: `[view, manage, shell, logs, create]`
 - **`operator`** - Operations without shell: `[view, manage, logs]`
 - **`viewer`** - Read-only access: `[view]`
+- **`system_admin`** - Authorization management: `[admin_read, admin_write]`
 
 ### Assignments
 
@@ -83,15 +89,15 @@ roles:
   admin:
     description: "Full administrative access"
     permissions: ["*"]
-    created_at: "2023-12-01T00:00:00Z"
   developer:
     description: "Full development access"
     permissions: ["view", "manage", "shell", "logs", "create"]
-    created_at: "2023-12-01T00:00:00Z"
   operator:
     description: "Operations access without shell"
     permissions: ["view", "manage", "logs"]
-    created_at: "2023-12-01T00:00:00Z"
+  system_admin:
+    description: "System administration access"
+    permissions: ["admin_read", "admin_write"]
 
 # User assignments
 assignments:
@@ -107,6 +113,9 @@ assignments:
   "admin@example.com":
     - role: "admin"
       scopes: ["*"]  # Global access
+  "system-admin@example.com":
+    - role: "system_admin"
+      scopes: ["*"]  # Can manage authorization but not apps
 
 # App scope mappings (managed automatically)
 apps:
@@ -174,10 +183,29 @@ assignments:
 
 All API endpoints are protected by permission checks:
 
+**App Management Endpoints:**
 - **App List**: `/api/v1/authenticated/apps/list` - Requires `view` permission, shows only accessible apps
 - **App Management**: Start/stop/restart operations - Requires `manage` permission
-- **Shell Access**: Future `app:shell` command - Requires `shell` permission
+- **App Creation**: `/api/v1/authenticated/apps` (POST) - Requires `create` permission
+- **Shell Access**: WebSocket shell sessions - Requires `shell` permission
 - **App Destruction**: Delete operations - Requires `destroy` permission
+
+**Admin API Endpoints** (require global permissions):
+- **Scopes**: `/api/v1/authenticated/admin/scopes`
+  - GET - Requires `admin_read` - List all scopes
+  - POST - Requires `admin_write` - Create new scope
+- **Roles**: `/api/v1/authenticated/admin/roles`
+  - GET - Requires `admin_read` - List all roles
+  - POST - Requires `admin_write` - Create new role
+- **Assignments**: `/api/v1/authenticated/admin/assignments`
+  - GET - Requires `admin_read` - List all assignments
+  - POST - Requires `admin_write` - Create new assignment
+  - DELETE - Requires `admin_write` - Remove assignment
+- **Permissions**: `/api/v1/authenticated/admin/permissions`
+  - GET - Requires `admin_read` - List available permissions
+  - POST `/test` - Requires `admin_read` - Test permission for user/app combination
+- **User Permissions**: `/api/v1/authenticated/admin/users/:user_id/permissions`
+  - GET - Requires `admin_read` - Get permissions for specific user
 
 ### Denied Access
 
@@ -223,6 +251,28 @@ assignments:
     - role: "admin"
       scopes: ["team-alpha", "team-beta"]
 ```
+
+### System Administration Example
+
+Separate authorization management from app management:
+
+```yaml
+assignments:
+  # System administrator - can manage authorization but NOT apps
+  "auth-admin@example.com":
+    - role: "system_admin"
+      scopes: ["*"]
+
+  # App administrator - can manage apps but NOT authorization
+  "app-admin@example.com":
+    - role: "admin"
+      scopes: ["production", "staging"]
+```
+
+This separation allows you to:
+- Grant authorization management (creating users/roles) without app access
+- Grant app management without ability to change authorization
+- Implement least privilege principle for admin roles
 
 ### Bearer Token Access
 
