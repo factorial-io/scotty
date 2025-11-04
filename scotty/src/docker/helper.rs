@@ -41,6 +41,11 @@ where
             .add_task_status(&task_id, format!("Starting app '{}'", app.name))
             .await;
     }
+    // TODO(scotty-f1dd): State machine handle is intentionally dropped here to allow immediate
+    // API response. This means we cannot detect panics in the state machine task.
+    // Errors are handled via TaskCompletionHandler, but panics are silently lost.
+    // Future refactoring should support multiple handles in TaskState to track both
+    // the state machine handle and any subprocess handles it spawns.
     let _handle = sm.spawn(context.clone());
 
     // Return immediately with the context, task is running in background

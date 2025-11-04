@@ -336,7 +336,12 @@ pub async fn wait_for_task(
         let _ = ws_sender.close().await;
     } else {
         // Fallback to simple polling without WebSocket output
-        tracing::debug!("WebSocket connection failed, using polling only");
+        if let Err(ref e) = ws_connection {
+            tracing::warn!(
+                "WebSocket connection failed, falling back to polling mode (real-time output unavailable): {}",
+                e
+            );
+        }
 
         let mut done = false;
         while !done {
