@@ -66,42 +66,56 @@ pub async fn create_app_handler(
         return Err(AppError::CantCreateAppWithScottyYmlFile);
     }
 
-    let files = payload
+    let max_decompressed_size = state.settings.api.create_app_max_size;
+
+    let files: Result<Vec<File>, AppError> = payload
         .files
         .files
         .iter()
-        .filter_map(|f| {
+        .map(|f| {
             // First decode base64
-            let decoded = match BASE64_STANDARD.decode(&f.content) {
-                Ok(d) => d,
-                Err(e) => {
-                    error!("Failed to decode base64 content for {}: {}", f.name, e);
-                    return None;
-                }
-            };
+            let decoded = BASE64_STANDARD.decode(&f.content).map_err(|e| {
+                error!("Failed to decode base64 content for {}: {}", f.name, e);
+                AppError::FileContentDecodingError
+            })?;
 
             // Then decompress if needed
             let content = if f.compressed {
-                let mut decoder = GzDecoder::new(&decoded[..]);
+                let decoder = GzDecoder::new(&decoded[..]);
                 let mut decompressed = Vec::new();
-                match decoder.read_to_end(&mut decompressed) {
-                    Ok(_) => decompressed,
-                    Err(e) => {
+
+                // Limit decompression size to prevent decompression bombs
+                let bytes_read = decoder
+                    .take(max_decompressed_size as u64)
+                    .read_to_end(&mut decompressed)
+                    .map_err(|e| {
                         error!("Failed to decompress content for {}: {}", f.name, e);
-                        return None;
-                    }
+                        AppError::FileContentDecodingError
+                    })?;
+
+                // Check if we hit the size limit
+                if bytes_read >= max_decompressed_size {
+                    error!(
+                        "File {} exceeds maximum decompressed size of {} bytes",
+                        f.name, max_decompressed_size
+                    );
+                    return Err(AppError::FileContentDecodingError);
                 }
+
+                decompressed
             } else {
                 decoded
             };
 
-            Some(File {
+            Ok(File {
                 name: f.name.clone(),
                 content,
                 compressed: false, // After decompression, content is uncompressed
             })
         })
-        .collect::<Vec<_>>();
+        .collect();
+
+    let files = files?;
 
     let file_list = FileList { files };
 

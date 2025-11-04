@@ -39,23 +39,27 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             files: file_list
                 .files
                 .iter()
-                .map(|f| {
+                .map(|f| -> anyhow::Result<File> {
                     total_original_size += f.content.len();
 
                     // Compress with gzip
                     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                    encoder.write_all(&f.content).unwrap();
-                    let compressed = encoder.finish().unwrap();
+                    encoder
+                        .write_all(&f.content)
+                        .context(format!("Failed to compress file: {}", f.name))?;
+                    let compressed = encoder
+                        .finish()
+                        .context(format!("Failed to finish compression for: {}", f.name))?;
 
                     total_compressed_size += compressed.len();
 
-                    File {
+                    Ok(File {
                         name: f.name.clone(),
                         content: BASE64_STANDARD.encode(&compressed).into(),
                         compressed: true,
-                    }
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
         };
 
         let compression_ratio = if total_original_size > 0 {
