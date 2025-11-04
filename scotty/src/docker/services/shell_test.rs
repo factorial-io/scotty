@@ -2,7 +2,6 @@
 mod tests {
     use super::super::shell::*;
     use bollard::Docker;
-    use scotty_core::apps::app_data::{AppData, AppStatus, ContainerState, ContainerStatus};
     use scotty_core::settings::shell::ShellSettings;
     use std::collections::HashMap;
     use uuid::Uuid;
@@ -35,28 +34,6 @@ mod tests {
             max_sessions_per_app: 5,
             max_sessions_global: 100,
             default_env: HashMap::new(),
-        }
-    }
-
-    fn create_test_app_data() -> AppData {
-        AppData {
-            name: "test-app".to_string(),
-            status: AppStatus::Running,
-            root_directory: "/apps/test-app".to_string(),
-            docker_compose_path: "/apps/test-app/docker-compose.yml".to_string(),
-            services: vec![ContainerState {
-                id: Some("container-123".to_string()),
-                service: "web".to_string(),
-                domains: vec![],
-                use_tls: false,
-                port: None,
-                status: ContainerStatus::Running,
-                started_at: Some(chrono::Local::now()),
-                used_registry: None,
-                basic_auth: None,
-            }],
-            settings: None,
-            last_checked: Some(chrono::Local::now()),
         }
     }
 

@@ -2,7 +2,6 @@
 mod tests {
     use super::super::logs::*;
     use bollard::Docker;
-    use scotty_core::apps::app_data::{AppData, AppStatus, ContainerState, ContainerStatus};
     use scotty_types::{OutputLine, OutputStreamType};
     use uuid::Uuid;
 
@@ -24,41 +23,6 @@ mod tests {
                 eprintln!("Docker not available");
                 None
             }
-        }
-    }
-
-    fn create_test_app_data() -> AppData {
-        AppData {
-            name: "test-app".to_string(),
-            status: AppStatus::Running,
-            root_directory: "/apps/test-app".to_string(),
-            docker_compose_path: "/apps/test-app/docker-compose.yml".to_string(),
-            services: vec![
-                ContainerState {
-                    id: Some("container-123".to_string()),
-                    service: "web".to_string(),
-                    domains: vec![],
-                    use_tls: false,
-                    port: None,
-                    status: ContainerStatus::Running,
-                    started_at: Some(chrono::Local::now()),
-                    used_registry: None,
-                    basic_auth: None,
-                },
-                ContainerState {
-                    id: Some("container-456".to_string()),
-                    service: "db".to_string(),
-                    domains: vec![],
-                    use_tls: false,
-                    port: None,
-                    status: ContainerStatus::Running,
-                    started_at: Some(chrono::Local::now()),
-                    used_registry: None,
-                    basic_auth: None,
-                },
-            ],
-            settings: None,
-            last_checked: Some(chrono::Local::now()),
         }
     }
 

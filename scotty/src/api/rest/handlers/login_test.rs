@@ -8,11 +8,6 @@ mod tests {
     use scotty_core::settings::api_server::AuthMode;
     use std::sync::Arc;
 
-    /// Helper function to create test WebSocket clients
-    fn create_test_websocket_clients() -> crate::api::websocket::messaging::WebSocketClients {
-        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()))
-    }
-
     /// Create a test AppState with mock settings for different auth modes
     async fn create_test_app_state(auth_mode: AuthMode) -> Arc<AppState> {
         // Use the test bearer auth config as base and override the auth mode
