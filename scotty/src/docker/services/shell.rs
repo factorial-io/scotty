@@ -362,8 +362,10 @@ impl ShellService {
                     mut output,
                 } => {
                     let session_start = tokio::time::Instant::now();
-                    let mut status_check_interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
-                    status_check_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                    let mut status_check_interval =
+                        tokio::time::interval(tokio::time::Duration::from_millis(500));
+                    status_check_interval
+                        .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
                     loop {
                         tokio::select! {
@@ -600,13 +602,16 @@ impl ShellService {
                         )
                         .await
                     {
-                        warn!("Failed to send detached error message to client {}: {}", client_id, e);
+                        warn!(
+                            "Failed to send detached error message to client {}: {}",
+                            client_id, e
+                        );
                     }
                 }
             }
 
             // Session cleanup is handled automatically by SessionGuard on drop
-        }).await;
+        });
 
         Ok(session_id)
     }

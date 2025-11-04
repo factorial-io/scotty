@@ -89,10 +89,7 @@ where
         Ok(())
     }
 
-    pub async fn spawn(
-        self,
-        context: Arc<RwLock<C>>,
-    ) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+    pub fn spawn(self, context: Arc<RwLock<C>>) -> tokio::task::JoinHandle<anyhow::Result<()>> {
         let cloned_self = Arc::new(RwLock::new(self));
 
         // Spawn the main state machine task
@@ -114,7 +111,6 @@ where
 
             result
         })
-        .await
     }
 }
 #[cfg(test)]

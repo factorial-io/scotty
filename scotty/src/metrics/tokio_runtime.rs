@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tokio_metrics::TaskMonitor;
 
 /// Global task monitor for tracking Tokio task metrics
@@ -10,12 +9,12 @@ static TASK_MONITOR: once_cell::sync::Lazy<Arc<RwLock<TaskMonitor>>> =
 ///
 /// This is a convenience wrapper around `tokio::spawn` that automatically
 /// instruments the task with our metrics TaskMonitor.
-pub async fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
+pub fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
 where
     F: std::future::Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    let monitor = TASK_MONITOR.read().await;
+    let monitor = TASK_MONITOR.read().expect("Task monitor lock poisoned");
     tokio::spawn(monitor.instrument(future))
 }
 
@@ -24,7 +23,7 @@ where
 /// Called periodically by the scheduler to track instrumented tasks and worker threads.
 /// Note: Only tasks that are instrumented with the TaskMonitor will be tracked.
 pub async fn sample_tokio_metrics() {
-    let monitor = TASK_MONITOR.read().await;
+    let monitor = TASK_MONITOR.read().expect("Task monitor lock poisoned");
     let mut intervals = monitor.intervals();
 
     if let Some(metrics) = intervals.next() {

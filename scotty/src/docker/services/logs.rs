@@ -467,7 +467,7 @@ impl LogStreamingService {
                 "Log stream {} cleaned up and removed from active streams",
                 stream_id
             );
-        }).await;
+        });
 
         Ok(stream_id)
     }

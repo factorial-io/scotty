@@ -42,7 +42,7 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
     ) -> anyhow::Result<CreateAppStates> {
         let app_state = &context.read().await.app_state;
         let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
-        let handle = sm.spawn(context.clone()).await;
+        let handle = sm.spawn(context.clone());
 
         // Gracefully handle both errors and panics from nested state machine
         handle
