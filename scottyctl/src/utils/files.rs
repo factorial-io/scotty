@@ -45,10 +45,7 @@ pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
             match builder.build() {
                 Ok(ignore) => Some(ignore),
                 Err(e) => {
-                    tracing::warn!(
-                        "Failed to parse .scottyignore, ignoring file: {}",
-                        e
-                    );
+                    tracing::warn!("Failed to parse .scottyignore, ignoring file: {}", e);
                     None
                 }
             }
@@ -177,10 +174,7 @@ mod tests {
 
         let files = collect_files(compose_path.to_str().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("debug.log")));
-        assert!(files
-            .files
-            .iter()
-            .any(|f| f.name.contains("important.log")));
+        assert!(files.files.iter().any(|f| f.name.contains("important.log")));
     }
 
     #[test]

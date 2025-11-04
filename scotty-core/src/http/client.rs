@@ -82,6 +82,33 @@ impl HttpClient {
         Self::builder().with_timeout(timeout).build()
     }
 
+    /// Helper function to extract error message from response body
+    async fn extract_error_message(response: Response) -> String {
+        let status = response.status();
+
+        // Try to read the response body
+        match response.text().await {
+            Ok(body) => {
+                // Try to parse as JSON and extract the "message" field
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                    if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
+                        return format!("{}: {}", status, message);
+                    }
+                }
+                // If JSON parsing fails or no message field, return status + body
+                if !body.is_empty() && body.len() < 500 {
+                    return format!("{}: {}", status, body);
+                }
+                // Fallback to just status if body is too long or empty
+                format!("HTTP error: {}", status)
+            }
+            Err(_) => {
+                // If we can't read the body, just return the status
+                format!("HTTP error: {}", status)
+            }
+        }
+    }
+
     /// Make a GET request with retry logic
     pub async fn get(&self, url: &str) -> Result<Response, RetryError> {
         info!("GET request to {}", url);
@@ -115,7 +142,8 @@ impl HttpClient {
                     .context("Failed to send GET request")?;
 
                 if !response.status().is_success() {
-                    return Err(anyhow::anyhow!("HTTP error: {}", response.status()));
+                    let error_msg = Self::extract_error_message(response).await;
+                    return Err(anyhow::anyhow!("{}", error_msg));
                 }
 
                 let json = response
@@ -169,7 +197,8 @@ impl HttpClient {
                     .context("Failed to send POST request")?;
 
                 if !response.status().is_success() {
-                    return Err(anyhow::anyhow!("HTTP error: {}", response.status()));
+                    let error_msg = Self::extract_error_message(response).await;
+                    return Err(anyhow::anyhow!("{}", error_msg));
                 }
 
                 let json = response
