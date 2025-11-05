@@ -151,7 +151,7 @@ async fn validate_app(
     let docker_compose_file = files
         .files
         .iter()
-        .find(|f| is_valid_docker_compose_file(&f.name));
+        .find(|f| scotty_core::utils::compose::is_valid_config_file(&f.name));
 
     if docker_compose_file.is_none() {
         return Err(AppError::NoDockerComposeFile.into());
@@ -263,25 +263,4 @@ pub async fn create_app(
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await
-}
-
-fn is_valid_docker_compose_file(file_path: &str) -> bool {
-    let file_name = std::path::Path::new(file_path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("");
-    file_name == "docker-compose.yml" || file_name == "docker-compose.yaml"
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_valid_docker_compose_file() {
-        assert!(is_valid_docker_compose_file("docker-compose.yml"));
-        assert!(is_valid_docker_compose_file("docker-compose.yaml"));
-        assert!(is_valid_docker_compose_file("./docker-compose.yaml"));
-        assert!(is_valid_docker_compose_file("./docker-compose.yml"));
-    }
 }

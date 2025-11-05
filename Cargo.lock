@@ -3440,6 +3440,7 @@ dependencies = [
  "url",
  "utoipa",
  "uuid",
+ "walkdir",
  "wiremock",
  "zeroize",
 ]
