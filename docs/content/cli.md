@@ -217,7 +217,7 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
 ```
 
 This command will create a new app on the server. The `--folder` argument is
-mandatory and should point to a folder containing at least a `docker-compose.yml`
+mandatory and should point to a folder containing at least a `compose.yml`
 file. The complete folder will be uploaded to the server (size limits may apply).
 
 ### Controlling File Uploads with .scottyignore
@@ -266,7 +266,7 @@ You either need to declare a public service via `--service` or use the
 `--app-blueprint` argument (You can get a list of available blueprints with
 `scottyctl blueprint:list`). When declaring a public service, you need to
 provide a service name and a port. The service name should match a service in the
-docker-compose.yml file. The port should be the port the service is listening on.
+compose.yml file. The port should be the port the service is listening on.
 
 The `--ttl` argument is optional and will set the lifetime of the app in hours,
 days or forever.
@@ -286,7 +286,7 @@ should contain key-value pairs separated by an equal sign.
 
 You can add custom domains to the app with the `--custom-domain` argument. The
 argument should contain a domain and a service name separated by a colon. The
-service name should match a service in the docker-compose.yml file.
+service name should match a service in the compose.yml file.
 
 The `--env-file` argument will load environment variables from a file. The file
 should contain key-value pairs separated by an equal sign.
