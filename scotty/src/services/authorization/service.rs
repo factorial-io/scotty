@@ -349,6 +349,7 @@ impl AuthorizationService {
 
     /// Validate domain assignment pattern (e.g., "@factorial.io")
     /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
+    #[allow(dead_code)] // Used in assignment creation API (task 4)
     fn validate_domain_assignment(user_id: &str) -> Result<()> {
         // Not a domain pattern - skip validation
         if !user_id.starts_with('@') {
