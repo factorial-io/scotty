@@ -349,8 +349,7 @@ impl AuthorizationService {
 
     /// Validate domain assignment pattern (e.g., "@factorial.io")
     /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
-    #[allow(dead_code)] // Used in assignment creation API (task 4)
-    fn validate_domain_assignment(user_id: &str) -> Result<()> {
+    pub fn validate_domain_assignment(user_id: &str) -> Result<()> {
         // Not a domain pattern - skip validation
         if !user_id.starts_with('@') {
             return Ok(());
@@ -780,5 +779,191 @@ impl std::fmt::Debug for AuthorizationService {
         f.debug_struct("AuthorizationService")
             .field("config_path", &self.config_path)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod domain_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_domain() {
+        // Valid emails
+        assert_eq!(
+            AuthorizationService::extract_domain("user@factorial.io"),
+            Some("factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user@sub.factorial.io"),
+            Some("sub.factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user.name@example.com"),
+            Some("example.com".to_string())
+        );
+
+        // Edge cases
+        assert_eq!(
+            AuthorizationService::extract_domain("user@host@domain.com"),
+            Some("domain.com".to_string()) // Last @ is used
+        );
+        assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
+        assert_eq!(AuthorizationService::extract_domain("user@"), None);
+        assert_eq!(AuthorizationService::extract_domain(""), None);
+    }
+
+    #[test]
+    fn test_validate_domain_assignment() {
+        // Valid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@sub.factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@example.co.uk").is_ok());
+
+        // Non-domain patterns (should pass - not validated)
+        assert!(AuthorizationService::validate_domain_assignment("user@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("identifier:admin").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("*").is_ok());
+
+        // Invalid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@").is_err()); // Empty domain
+        assert!(AuthorizationService::validate_domain_assignment("@factorial").is_err()); // No dot
+        assert!(AuthorizationService::validate_domain_assignment("@@factorial.io").is_err()); // Extra @
+        assert!(AuthorizationService::validate_domain_assignment("@facto@rial.io").is_err());
+        // @ in domain
+    }
+
+    #[test]
+    fn test_assignment_resolution_precedence() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Create a test service (we just need the method, not the full service)
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["exact-scope".to_string()],
+        }];
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["domain-scope".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["wildcard-scope".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment.clone());
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment.clone());
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment.clone());
+
+        // Create a minimal service for testing
+        let service = create_test_service_with_config(config.clone());
+
+        // Test 1: Exact match wins (+ wildcard, NOT domain)
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2); // exact + wildcard
+        assert!(result.iter().any(|a| a.role == "admin"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "developer")); // Domain NOT included
+
+        // Test 2: Domain match (+ wildcard, no exact)
+        let result = service.resolve_user_assignments("other@factorial.io", &config);
+        assert_eq!(result.len(), 2); // domain + wildcard
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "admin")); // Exact NOT included
+
+        // Test 3: Only wildcard (no exact, no domain)
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1); // only wildcard
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_domain_assignment_additive_wildcard() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["public".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // User with domain match should get BOTH domain AND wildcard
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+
+        // User without domain match should get ONLY wildcard
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    // Helper function to create a minimal test service (sync wrapper)
+    fn create_test_service_with_config(config: AuthConfig) -> AuthorizationService {
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        // Use tokio runtime to create async components
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            use casbin::prelude::*;
+
+            // Create a minimal in-memory enforcer (not used in these tests but required for struct)
+            let m = DefaultModel::from_str(
+                r#"
+[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+"#,
+            )
+            .await
+            .unwrap();
+
+            let a = MemoryAdapter::default();
+            let enforcer = CachedEnforcer::new(m, a).await.unwrap();
+
+            AuthorizationService {
+                enforcer: Arc::new(RwLock::new(enforcer)),
+                config: Arc::new(RwLock::new(config)),
+                config_path: "test".to_string(),
+            }
+        })
     }
 }

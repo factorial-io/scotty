@@ -116,6 +116,16 @@ pub async fn create_assignment_handler(
         }));
     }
 
+    // Validate domain assignment pattern (if applicable)
+    if let Err(e) = crate::services::authorization::AuthorizationService::validate_domain_assignment(
+        &request.user_id,
+    ) {
+        return Ok(Json(CreateAssignmentResponse {
+            success: false,
+            message: format!("Invalid user ID: {}", e),
+        }));
+    }
+
     if request.role.trim().is_empty() {
         return Ok(Json(CreateAssignmentResponse {
             success: false,

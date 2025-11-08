@@ -132,6 +132,41 @@ Uses Casbin for RBAC with three concepts:
 - **Roles**: Permission sets (e.g., `admin`, `developer`, `viewer`)
 - **Assignments**: Map users to roles+scopes
 
+**Assignment Types**:
+- **Exact email**: `user@factorial.io` - Specific user
+- **Domain pattern**: `@factorial.io` - All users from domain (NEW)
+- **Wildcard**: `*` - All users
+
+**Assignment Precedence**:
+1. Exact email match (highest priority)
+2. Domain match (fallback if no exact match)
+3. Wildcard (always added, regardless of exact/domain match)
+
+**Example** (`config/casbin/policy.yaml`):
+```yaml
+assignments:
+  # Exact email - takes precedence
+  stephan@factorial.io:
+    - role: admin
+      scopes: ['*']
+
+  # Domain - applies to all @factorial.io users without exact match
+  '@factorial.io':
+    - role: developer
+      scopes: ['client-a', 'qa']
+
+  # Wildcard - baseline for everyone
+  '*':
+    - role: viewer
+      scopes: ['default']
+```
+
+**Domain Validation Rules**:
+- Must start with `@`
+- Must have at least one character after `@`
+- Must contain at least one dot (e.g., `@factorial.io`)
+- Cannot contain additional `@` symbols
+
 Configuration: `config/casbin/policy.yaml`
 
 Permissions: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin:*`
