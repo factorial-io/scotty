@@ -205,20 +205,8 @@ impl AuthorizationService {
 
         let config = self.config.read().await;
 
-        // Get user assignments
-        let all_assignments = [
-            config
-                .assignments
-                .get(user)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-            config
-                .assignments
-                .get("*")
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-        ]
-        .concat();
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Check if user has the permission in any of their roles
         for assignment in &all_assignments {
@@ -265,20 +253,8 @@ impl AuthorizationService {
 
         let config = self.config.read().await;
 
-        // Get user assignments (both specific and wildcard)
-        let all_assignments = [
-            config
-                .assignments
-                .get(user)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-            config
-                .assignments
-                .get("*")
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-        ]
-        .concat();
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Check if user has the permission in any of their roles that overlap with target scopes
         for assignment in &all_assignments {
@@ -352,6 +328,80 @@ impl AuthorizationService {
         } else {
             scopes.to_vec()
         }
+    }
+
+    /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
+    /// Returns None if email has no '@' or domain is empty
+    fn extract_domain(email: &str) -> Option<String> {
+        // Find last '@' in case of edge cases
+        let at_pos = email.rfind('@')?;
+
+        // Everything after '@'
+        let domain = &email[at_pos + 1..];
+
+        // Return domain if non-empty
+        if domain.is_empty() {
+            None
+        } else {
+            Some(domain.to_string())
+        }
+    }
+
+    /// Validate domain assignment pattern (e.g., "@factorial.io")
+    /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
+    fn validate_domain_assignment(user_id: &str) -> Result<()> {
+        // Not a domain pattern - skip validation
+        if !user_id.starts_with('@') {
+            return Ok(());
+        }
+
+        let domain = &user_id[1..]; // Strip '@' prefix
+
+        // Must have at least one character after '@'
+        if domain.is_empty() {
+            anyhow::bail!("Domain cannot be empty (just '@')");
+        }
+
+        // Must contain at least one dot
+        if !domain.contains('.') {
+            anyhow::bail!(
+                "Invalid domain '{}': must contain a dot (e.g., '@example.com')",
+                user_id
+            );
+        }
+
+        // Reject multiple @ symbols
+        if domain.contains('@') {
+            anyhow::bail!("Invalid domain '{}': contains '@' character", user_id);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve user assignments with domain fallback support
+    /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
+        let mut result = Vec::new();
+
+        // Step 1: Check exact email match
+        if let Some(assignments) = config.assignments.get(user) {
+            result.extend_from_slice(assignments);
+        } else {
+            // Step 2: Check domain match (only if no exact match)
+            if let Some(domain) = Self::extract_domain(user) {
+                let domain_key = format!("@{}", domain);
+                if let Some(assignments) = config.assignments.get(&domain_key) {
+                    result.extend_from_slice(assignments);
+                }
+            }
+        }
+
+        // Step 3: Always add wildcard (additive)
+        if let Some(wildcard) = config.assignments.get("*") {
+            result.extend_from_slice(wildcard);
+        }
+
+        result
     }
 
     /// Check if authorization is enabled (has any assignments)
@@ -428,18 +478,8 @@ impl AuthorizationService {
         let config = self.config.read().await;
         let mut user_scopes = Vec::new();
 
-        // Collect assignments from both specific user and wildcard "*"
-        let mut all_assignments = Vec::new();
-
-        // Add wildcard assignments (everyone gets these)
-        if let Some(wildcard_assignments) = config.assignments.get("*") {
-            all_assignments.extend(wildcard_assignments.iter());
-        }
-
-        // Add user-specific assignments
-        if let Some(user_assignments) = config.assignments.get(user) {
-            all_assignments.extend(user_assignments.iter());
-        }
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Process all assignments
         for assignment in all_assignments {
@@ -677,18 +717,8 @@ impl AuthorizationService {
         let config = self.config.read().await;
         let mut all_permissions: HashMap<String, Vec<String>> = HashMap::new();
 
-        // Collect assignments from both specific user and wildcard "*"
-        let mut all_assignments = Vec::new();
-
-        // Add wildcard assignments (everyone gets these)
-        if let Some(wildcard_assignments) = config.assignments.get("*") {
-            all_assignments.extend(wildcard_assignments.iter());
-        }
-
-        // Add user-specific assignments
-        if let Some(user_assignments) = config.assignments.get(user) {
-            all_assignments.extend(user_assignments.iter());
-        }
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Process all assignments
         for assignment in all_assignments {
