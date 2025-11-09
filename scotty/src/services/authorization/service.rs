@@ -331,13 +331,18 @@ impl AuthorizationService {
     }
 
     /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
-    /// Returns None if email has no '@' or domain is empty
+    /// Returns None if email has no '@', domain is empty, or email has multiple '@' symbols
     fn extract_domain(email: &str) -> Option<String> {
-        // Find last '@' in case of edge cases
-        let at_pos = email.rfind('@')?;
+        // Use first '@' to match standard email format
+        let at_pos = email.find('@')?;
 
         // Everything after '@'
         let domain = &email[at_pos + 1..];
+
+        // Reject emails with multiple '@' symbols (security: prevent bypass via user@evil.com@factorial.io)
+        if domain.contains('@') {
+            return None;
+        }
 
         // Return domain if non-empty
         if domain.is_empty() {
@@ -803,13 +808,19 @@ mod domain_tests {
         );
 
         // Edge cases
-        assert_eq!(
-            AuthorizationService::extract_domain("user@host@domain.com"),
-            Some("domain.com".to_string()) // Last @ is used
-        );
         assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
         assert_eq!(AuthorizationService::extract_domain("user@"), None);
         assert_eq!(AuthorizationService::extract_domain(""), None);
+
+        // Security: Reject emails with multiple @ symbols to prevent bypass
+        assert_eq!(
+            AuthorizationService::extract_domain("user@evil.com@factorial.io"),
+            None
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("admin@attacker.com@trusted.io"),
+            None
+        );
     }
 
     #[test]
