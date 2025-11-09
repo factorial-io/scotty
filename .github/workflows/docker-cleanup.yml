@@ -11,6 +11,6 @@ jobs:
             - name: Cleanup registry
               uses: dataaxiom/ghcr-cleanup-action@v1
               with:
-                  dry-run: true
+                  dry-run: false
                   exclude-tags: main,next,v*
                   token: ${{ secrets.GITHUB_TOKEN }}
