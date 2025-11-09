@@ -385,15 +385,25 @@ impl AuthorizationService {
 
     /// Resolve user assignments with domain fallback support
     /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    ///
+    /// Email addresses are normalized to lowercase per RFC 5321 for case-insensitive matching
     fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
         let mut result = Vec::new();
 
+        // Normalize email to lowercase for case-insensitive matching (RFC 5321)
+        // Only normalize if it looks like an email (contains @), preserve identifiers like "identifier:admin"
+        let normalized_user = if user.contains('@') {
+            user.to_lowercase()
+        } else {
+            user.to_string()
+        };
+
         // Step 1: Check exact email match
-        if let Some(assignments) = config.assignments.get(user) {
+        if let Some(assignments) = config.assignments.get(&normalized_user) {
             result.extend_from_slice(assignments);
         } else {
             // Step 2: Check domain match (only if no exact match)
-            if let Some(domain) = Self::extract_domain(user) {
+            if let Some(domain) = Self::extract_domain(&normalized_user) {
                 let domain_key = format!("@{}", domain);
                 if let Some(assignments) = config.assignments.get(&domain_key) {
                     result.extend_from_slice(assignments);
@@ -936,6 +946,129 @@ mod domain_tests {
         let result = service.resolve_user_assignments("user@other.com", &config);
         assert_eq!(result.len(), 1);
         assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_case_insensitive_email_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase exact email
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["admin-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the exact assignment
+        let test_cases = vec![
+            "user@factorial.io", // exact lowercase
+            "User@factorial.io", // capitalized local
+            "USER@factorial.io", // uppercase local
+            "user@Factorial.io", // capitalized domain
+            "user@FACTORIAL.IO", // uppercase domain
+            "User@Factorial.Io", // mixed case
+            "USER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match exact assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "admin",
+                "Email '{}' should get admin role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_case_insensitive_domain_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase domain assignment
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the domain assignment
+        let test_cases = vec![
+            "newuser@factorial.io", // exact lowercase
+            "NewUser@factorial.io", // capitalized local
+            "newuser@Factorial.io", // capitalized domain
+            "newuser@FACTORIAL.IO", // uppercase domain
+            "NewUser@Factorial.Io", // mixed case
+            "NEWUSER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match domain assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "developer",
+                "Email '{}' should get developer role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_identifier_patterns_preserved() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has identifier-based assignments (not emails)
+        let identifier_assignment = vec![Assignment {
+            role: "service".to_string(),
+            scopes: vec!["service-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("identifier:my-service".to_string(), identifier_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Identifiers should NOT be normalized (case-sensitive)
+        let result = service.resolve_user_assignments("identifier:my-service", &config);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "service");
+
+        // Different case should NOT match (identifiers are case-sensitive)
+        let result = service.resolve_user_assignments("identifier:My-Service", &config);
+        assert_eq!(result.len(), 0, "Identifiers should be case-sensitive");
     }
 
     // Helper function to create a minimal test service (sync wrapper)
