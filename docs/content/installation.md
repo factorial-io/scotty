@@ -107,7 +107,7 @@ Do not forget to create the network with:
 docker network create proxy
 ```
 
-An example docker-compose.yml file:
+An example compose.yml file:
 
 ```yaml
 services:

@@ -561,7 +561,7 @@ haproxy:
   to use tls. The default is true.
 * `certresolver` The certresolver to use for the tls-certificate. The
   certresolver must be configured in traefik. The default is `myresolver` shown
-  also in the example `docker-compose.yml` from the [installation-documentation](installation.md)
+  also in the example `compose.yml` from the [installation-documentation](installation.md)
 
 #### Haproxy-config
 
@@ -695,7 +695,7 @@ scottyctl app:create test ... --env "DATABASE_PASSWORD=op://connect-instance-a/v
 
 Scotty will resolve the secret from the connect instance and inject the value
 when running an action on the app. Please note, that it won't resolve secrets
-from environment variables inside docker-compose.yml files.
+from environment variables inside compose.yml files.
 
 ### Notification settings
 

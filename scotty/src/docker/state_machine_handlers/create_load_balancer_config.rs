@@ -16,7 +16,7 @@ use crate::{
 
 use super::context::Context;
 
-/// Reads service names from a docker-compose.yml file
+/// Reads service names from a compose file
 async fn get_service_names_from_compose(
     compose_path: &std::path::Path,
 ) -> anyhow::Result<Vec<String>> {
@@ -80,8 +80,15 @@ where
             resolve_environment_variables(&context.app_state.settings, &self.settings.environment)
                 .await;
 
-        // Read all service names from docker-compose.yml
-        let compose_path = root_directory.join("docker-compose.yml");
+        // Find and read all service names from the compose file
+        let compose_path = scotty_core::utils::compose::find_config_file_in_dir(&root_directory)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Folder {} does not contain a Docker Compose standard config file, such as docker-compose.yaml or compose.yaml.",
+                    root_directory.display()
+                )
+            })?;
+
         let all_services = get_service_names_from_compose(&compose_path).await?;
 
         // Pass SecretHashMap - secrets will be exposed inside get_docker_compose_override
@@ -93,10 +100,18 @@ where
             &resolved_environment,
             &all_services,
         )?;
-        let path = root_directory.join("docker-compose.override.yml");
-        info!("Saving docker-compose.override.yml to {}", path.display());
+
+        let override_file = scotty_core::utils::compose::get_override_file(&compose_path)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Unable to determine override file path from compose file: {}",
+                    compose_path.display()
+                )
+            })?;
+
+        info!("Saving override file to {}", override_file.display());
         let yaml = serde_norway::to_string(&docker_compose_override)?;
-        tokio::fs::write(&path, yaml).await?;
+        tokio::fs::write(&override_file, yaml).await?;
 
         Ok(self.next_state.clone())
     }

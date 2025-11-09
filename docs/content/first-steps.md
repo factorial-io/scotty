@@ -26,7 +26,7 @@ this setup.
     mkdir apps
     ```
 
-2. Create a `docker-compose.yml` with the following content:
+2. Create a `compose.yml` with the following content:
 
 ```yaml
 services:
@@ -84,7 +84,7 @@ docker compose up -d
 ```
 
 The server should now be running and accessible at `http://scotty.localhost`. The password is
-`my-secret-token` and can be changed in the above `docker-compose.yml`-file by changing
+`my-secret-token` and can be changed in the above `compose.yml`-file by changing
 the env-var `SCOTTY__API__ACCESS_TOKEN`.
 
 
@@ -124,7 +124,7 @@ Let's create a simple nginx-based app to test our setup.
 mkdir my-nginx-app && cd my-nginx-app
 ```
 
-2. Create a `docker-compose.yml` file:
+2. Create a `compose.yml` file:
 
 ```yaml
 services:
@@ -153,7 +153,7 @@ scottyctl --server http://scotty.localhost --access-token my-secret-token \
 This command:
 - Connects to your Scotty server
 - Creates a new app named "my-nginx-test"
-- Uses your docker-compose.yml file and the html folder
+- Uses your compose.yml file and the html folder
 - Exposes the nginx service on port 80
 
 5. Your app should now be running and accessible at `http://nginx.my-nginx-test.localhost`

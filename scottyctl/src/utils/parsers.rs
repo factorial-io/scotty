@@ -77,18 +77,12 @@ pub fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
 
 pub fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
     let path = std::path::Path::new(s);
-    if path.is_dir() && (path.join("docker-compose.yml").exists()) {
-        Ok(path
-            .join("docker-compose.yml")
-            .to_string_lossy()
-            .to_string())
-    } else if path.is_dir() && (path.join("docker-compose.yaml").exists()) {
-        Ok(path
-            .join("docker-compose.yaml")
-            .to_string_lossy()
-            .to_string())
+    if path.is_dir() {
+        scotty_core::utils::compose::find_config_file_in_dir(path)
+            .map(|p| p.to_string_lossy().to_string())
+            .ok_or_else(|| "Folder does not contain a Docker Compose standard config file, such as docker-compose.yaml or compose.yaml.".to_string())
     } else {
-        Err("Folder does not contain a docker-compose.yml file".to_string())
+        Err("No Docker Compose config file found, path is not a directory".to_string())
     }
 }
 
