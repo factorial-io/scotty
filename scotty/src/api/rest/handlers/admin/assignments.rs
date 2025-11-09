@@ -116,6 +116,16 @@ pub async fn create_assignment_handler(
         }));
     }
 
+    // Validate domain assignment pattern (if applicable)
+    if let Err(e) = crate::services::authorization::AuthorizationService::validate_domain_assignment(
+        &request.user_id,
+    ) {
+        return Ok(Json(CreateAssignmentResponse {
+            success: false,
+            message: format!("Invalid user ID: {}", e),
+        }));
+    }
+
     if request.role.trim().is_empty() {
         return Ok(Json(CreateAssignmentResponse {
             success: false,
@@ -244,5 +254,55 @@ mod tests {
         // Verify assignment was created
         let assignments = auth_service.list_assignments().await;
         assert!(assignments.contains_key("test-user"));
+    }
+
+    #[tokio::test]
+    async fn test_create_assignment_with_identifier_pattern() {
+        let auth_service =
+            AuthorizationService::create_fallback_service(Some("test-token".to_string())).await;
+
+        // Test creating assignment with identifier pattern (should work - not a domain pattern)
+        let result = auth_service
+            .assign_user_role(
+                "identifier:my-service",
+                "admin",
+                vec!["default".to_string()],
+            )
+            .await;
+        assert!(result.is_ok(), "Identifier patterns should pass validation");
+
+        // Verify assignment was created
+        let assignments = auth_service.list_assignments().await;
+        assert!(assignments.contains_key("identifier:my-service"));
+
+        // Test wildcard pattern (should also work - use "admin" role which exists in fallback)
+        let result = auth_service
+            .assign_user_role("*", "admin", vec!["default".to_string()])
+            .await;
+        assert!(
+            result.is_ok(),
+            "Wildcard should pass validation: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_assignment_with_domain_pattern() {
+        let auth_service =
+            AuthorizationService::create_fallback_service(Some("test-token".to_string())).await;
+
+        // Test creating assignment with valid domain pattern (use "admin" role which exists in fallback)
+        let result = auth_service
+            .assign_user_role("@factorial.io", "admin", vec!["default".to_string()])
+            .await;
+        assert!(
+            result.is_ok(),
+            "Valid domain pattern should pass validation: {:?}",
+            result.err()
+        );
+
+        // Verify assignment was created
+        let assignments = auth_service.list_assignments().await;
+        assert!(assignments.contains_key("@factorial.io"));
     }
 }

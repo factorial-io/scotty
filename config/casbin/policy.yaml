@@ -56,6 +56,14 @@ assignments:
   - role: admin
     scopes:
     - '*'
+  # Domain-based assignments (new feature)
+  # All users from @factorial.io domain get developer access (unless exact email overrides)
+  '@factorial.io':
+  - role: developer
+    scopes:
+    - client-a
+    - client-b
+    - qa
   identifier:client-a:
   - role: developer
     scopes:

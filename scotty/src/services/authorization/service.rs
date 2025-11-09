@@ -205,20 +205,8 @@ impl AuthorizationService {
 
         let config = self.config.read().await;
 
-        // Get user assignments
-        let all_assignments = [
-            config
-                .assignments
-                .get(user)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-            config
-                .assignments
-                .get("*")
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-        ]
-        .concat();
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Check if user has the permission in any of their roles
         for assignment in &all_assignments {
@@ -265,20 +253,8 @@ impl AuthorizationService {
 
         let config = self.config.read().await;
 
-        // Get user assignments (both specific and wildcard)
-        let all_assignments = [
-            config
-                .assignments
-                .get(user)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-            config
-                .assignments
-                .get("*")
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]),
-        ]
-        .concat();
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Check if user has the permission in any of their roles that overlap with target scopes
         for assignment in &all_assignments {
@@ -352,6 +328,95 @@ impl AuthorizationService {
         } else {
             scopes.to_vec()
         }
+    }
+
+    /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
+    /// Returns None if email has no '@', domain is empty, or email has multiple '@' symbols
+    fn extract_domain(email: &str) -> Option<String> {
+        // Use first '@' to match standard email format
+        let at_pos = email.find('@')?;
+
+        // Everything after '@'
+        let domain = &email[at_pos + 1..];
+
+        // Reject emails with multiple '@' symbols (security: prevent bypass via user@evil.com@factorial.io)
+        if domain.contains('@') {
+            return None;
+        }
+
+        // Return domain if non-empty
+        if domain.is_empty() {
+            None
+        } else {
+            Some(domain.to_string())
+        }
+    }
+
+    /// Validate domain assignment pattern (e.g., "@factorial.io")
+    /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
+    pub fn validate_domain_assignment(user_id: &str) -> Result<()> {
+        // Not a domain pattern - skip validation
+        if !user_id.starts_with('@') {
+            return Ok(());
+        }
+
+        let domain = &user_id[1..]; // Strip '@' prefix
+
+        // Must have at least one character after '@'
+        if domain.is_empty() {
+            anyhow::bail!("Domain cannot be empty (just '@')");
+        }
+
+        // Must contain at least one dot
+        if !domain.contains('.') {
+            anyhow::bail!(
+                "Invalid domain '{}': must contain a dot (e.g., '@example.com')",
+                user_id
+            );
+        }
+
+        // Reject multiple @ symbols
+        if domain.contains('@') {
+            anyhow::bail!("Invalid domain '{}': contains '@' character", user_id);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve user assignments with domain fallback support
+    /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    ///
+    /// Email addresses are normalized to lowercase per RFC 5321 for case-insensitive matching
+    fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
+        let mut result = Vec::new();
+
+        // Normalize email to lowercase for case-insensitive matching (RFC 5321)
+        // Only normalize if it looks like an email (contains @), preserve identifiers like "identifier:admin"
+        let normalized_user = if user.contains('@') {
+            user.to_lowercase()
+        } else {
+            user.to_string()
+        };
+
+        // Step 1: Check exact email match
+        if let Some(assignments) = config.assignments.get(&normalized_user) {
+            result.extend_from_slice(assignments);
+        } else {
+            // Step 2: Check domain match (only if no exact match)
+            if let Some(domain) = Self::extract_domain(&normalized_user) {
+                let domain_key = format!("@{}", domain);
+                if let Some(assignments) = config.assignments.get(&domain_key) {
+                    result.extend_from_slice(assignments);
+                }
+            }
+        }
+
+        // Step 3: Always add wildcard (additive)
+        if let Some(wildcard) = config.assignments.get("*") {
+            result.extend_from_slice(wildcard);
+        }
+
+        result
     }
 
     /// Check if authorization is enabled (has any assignments)
@@ -428,18 +493,8 @@ impl AuthorizationService {
         let config = self.config.read().await;
         let mut user_scopes = Vec::new();
 
-        // Collect assignments from both specific user and wildcard "*"
-        let mut all_assignments = Vec::new();
-
-        // Add wildcard assignments (everyone gets these)
-        if let Some(wildcard_assignments) = config.assignments.get("*") {
-            all_assignments.extend(wildcard_assignments.iter());
-        }
-
-        // Add user-specific assignments
-        if let Some(user_assignments) = config.assignments.get(user) {
-            all_assignments.extend(user_assignments.iter());
-        }
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Process all assignments
         for assignment in all_assignments {
@@ -677,18 +732,8 @@ impl AuthorizationService {
         let config = self.config.read().await;
         let mut all_permissions: HashMap<String, Vec<String>> = HashMap::new();
 
-        // Collect assignments from both specific user and wildcard "*"
-        let mut all_assignments = Vec::new();
-
-        // Add wildcard assignments (everyone gets these)
-        if let Some(wildcard_assignments) = config.assignments.get("*") {
-            all_assignments.extend(wildcard_assignments.iter());
-        }
-
-        // Add user-specific assignments
-        if let Some(user_assignments) = config.assignments.get(user) {
-            all_assignments.extend(user_assignments.iter());
-        }
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
 
         // Process all assignments
         for assignment in all_assignments {
@@ -749,5 +794,320 @@ impl std::fmt::Debug for AuthorizationService {
         f.debug_struct("AuthorizationService")
             .field("config_path", &self.config_path)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod domain_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_domain() {
+        // Valid emails
+        assert_eq!(
+            AuthorizationService::extract_domain("user@factorial.io"),
+            Some("factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user@sub.factorial.io"),
+            Some("sub.factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user.name@example.com"),
+            Some("example.com".to_string())
+        );
+
+        // Edge cases
+        assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
+        assert_eq!(AuthorizationService::extract_domain("user@"), None);
+        assert_eq!(AuthorizationService::extract_domain(""), None);
+
+        // Security: Reject emails with multiple @ symbols to prevent bypass
+        assert_eq!(
+            AuthorizationService::extract_domain("user@evil.com@factorial.io"),
+            None
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("admin@attacker.com@trusted.io"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_validate_domain_assignment() {
+        // Valid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@sub.factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@example.co.uk").is_ok());
+
+        // Non-domain patterns (should pass - not validated)
+        assert!(AuthorizationService::validate_domain_assignment("user@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("identifier:admin").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("*").is_ok());
+
+        // Invalid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@").is_err()); // Empty domain
+        assert!(AuthorizationService::validate_domain_assignment("@factorial").is_err()); // No dot
+        assert!(AuthorizationService::validate_domain_assignment("@@factorial.io").is_err()); // Extra @
+        assert!(AuthorizationService::validate_domain_assignment("@facto@rial.io").is_err());
+        // @ in domain
+    }
+
+    #[test]
+    fn test_assignment_resolution_precedence() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Create a test service (we just need the method, not the full service)
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["exact-scope".to_string()],
+        }];
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["domain-scope".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["wildcard-scope".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment.clone());
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment.clone());
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment.clone());
+
+        // Create a minimal service for testing
+        let service = create_test_service_with_config(config.clone());
+
+        // Test 1: Exact match wins (+ wildcard, NOT domain)
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2); // exact + wildcard
+        assert!(result.iter().any(|a| a.role == "admin"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "developer")); // Domain NOT included
+
+        // Test 2: Domain match (+ wildcard, no exact)
+        let result = service.resolve_user_assignments("other@factorial.io", &config);
+        assert_eq!(result.len(), 2); // domain + wildcard
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "admin")); // Exact NOT included
+
+        // Test 3: Only wildcard (no exact, no domain)
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1); // only wildcard
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_domain_assignment_additive_wildcard() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["public".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // User with domain match should get BOTH domain AND wildcard
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+
+        // User without domain match should get ONLY wildcard
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_case_insensitive_email_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase exact email
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["admin-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the exact assignment
+        let test_cases = vec![
+            "user@factorial.io", // exact lowercase
+            "User@factorial.io", // capitalized local
+            "USER@factorial.io", // uppercase local
+            "user@Factorial.io", // capitalized domain
+            "user@FACTORIAL.IO", // uppercase domain
+            "User@Factorial.Io", // mixed case
+            "USER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match exact assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "admin",
+                "Email '{}' should get admin role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_case_insensitive_domain_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase domain assignment
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the domain assignment
+        let test_cases = vec![
+            "newuser@factorial.io", // exact lowercase
+            "NewUser@factorial.io", // capitalized local
+            "newuser@Factorial.io", // capitalized domain
+            "newuser@FACTORIAL.IO", // uppercase domain
+            "NewUser@Factorial.Io", // mixed case
+            "NEWUSER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match domain assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "developer",
+                "Email '{}' should get developer role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_identifier_patterns_preserved() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has identifier-based assignments (not emails)
+        let identifier_assignment = vec![Assignment {
+            role: "service".to_string(),
+            scopes: vec!["service-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("identifier:my-service".to_string(), identifier_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Identifiers should NOT be normalized (case-sensitive)
+        let result = service.resolve_user_assignments("identifier:my-service", &config);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "service");
+
+        // Different case should NOT match (identifiers are case-sensitive)
+        let result = service.resolve_user_assignments("identifier:My-Service", &config);
+        assert_eq!(result.len(), 0, "Identifiers should be case-sensitive");
+    }
+
+    // Helper function to create a minimal test service (sync wrapper)
+    fn create_test_service_with_config(config: AuthConfig) -> AuthorizationService {
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        // Use tokio runtime to create async components
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            use casbin::prelude::*;
+
+            // Create a minimal in-memory enforcer (not used in these tests but required for struct)
+            let m = DefaultModel::from_str(
+                r#"
+[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+"#,
+            )
+            .await
+            .unwrap();
+
+            let a = MemoryAdapter::default();
+            let enforcer = CachedEnforcer::new(m, a).await.unwrap();
+
+            AuthorizationService {
+                enforcer: Arc::new(RwLock::new(enforcer)),
+                config: Arc::new(RwLock::new(config)),
+                config_path: "test".to_string(),
+            }
+        })
     }
 }
