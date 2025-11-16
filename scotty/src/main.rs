@@ -18,6 +18,7 @@ mod utils;
 use docker::setup::setup_docker_integration;
 use http::setup_http_server;
 use scotty_core::settings::api_server::AuthMode;
+use std::io::IsTerminal;
 use tokio::time::sleep;
 use tracing::{info, warn};
 
@@ -48,6 +49,11 @@ async fn main() -> anyhow::Result<()> {
     // Environment variables always take precedence over .env files
     dotenvy::from_filename(".env.local").ok();
     dotenvy::dotenv().ok();
+
+    // Print logo if running in a terminal (before CLI parsing so --help shows it)
+    if std::io::stdout().is_terminal() {
+        scotty_core::logo::print_logo();
+    }
 
     let cli = Cli::parse();
 

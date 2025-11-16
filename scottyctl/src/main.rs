@@ -12,12 +12,18 @@ use cli::print_completions;
 use cli::{Cli, Commands};
 use context::{AppContext, ServerSettings};
 use preflight::PreflightChecker;
+use std::io::IsTerminal;
 use tracing::info;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use utils::tracing_layer::UiLayer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Print logo if running in a terminal (before CLI parsing so --help shows it)
+    if std::io::stdout().is_terminal() {
+        scotty_core::logo::print_logo();
+    }
+
     let cli = Cli::parse();
 
     // Create server settings from CLI parameters
