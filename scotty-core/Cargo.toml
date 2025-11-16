@@ -43,6 +43,7 @@ secrecy.workspace = true
 zeroize.workspace = true
 flate2.workspace = true
 walkdir.workspace = true
+owo-colors.workspace = true
 
 axum = { workspace = true }
 clap = { workspace = true, optional = true }
