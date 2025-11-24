@@ -3,6 +3,12 @@ class Scottyctl < Formula
   homepage "https://github.com/factorial-io/scotty"
   version "VERSION_PLACEHOLDER"
 
+  head do
+    url "https://github.com/factorial-io/scotty.git", branch: "next"
+  end
+
+  depends_on "rust" => :build
+
   on_macos do
     if Hardware::CPU.arm?
       url "URL_MAC_ARM"
@@ -19,7 +25,11 @@ class Scottyctl < Formula
   end
 
   def install
-    bin.install "scottyctl"
+    if build.head?
+      system "cargo", "install", "--path", ".", "--bin", "scottyctl", "--root", prefix
+    else
+      bin.install "scottyctl"
+    end
   end
 
   test do
