@@ -4,7 +4,15 @@
     "dependencies",
     "renovate"
   ],
+  "cargo": {
+    "rangeStrategy": "update-lockfile"
+  },
   "packageRules": [
+    {
+      "matchManagers": ["cargo"],
+      "rangeStrategy": "update-lockfile",
+      "enabled": true
+    },
     {
       "matchManagers": [
         "cargo"
