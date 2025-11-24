@@ -2,18 +2,100 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-11-24
+
+### Bug Fixes
+
+- Add Cargo workspace configuration for proper dependency updates ✔️
+- Add missing ShellSessionRequest type and generate index.ts ✔️
+
+### CI
+
+- Generate TypeScript bindings before frontend checks in pre-push hook ✔️
+
+### Dependencies
+
+- Update dependency svelte to v5.43.15 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update otel/opentelemetry-collector docker tag to v0.140.1 ✔️
+- Update rust crate tower-http to v0.6.7 (#583) ✔️
+
+### Documentation
+
+- Add readme to scotty-types ✔️
+- Update app:shell documentation to reflect implementation ✔️
+
+### Features
+
+- Add ASCII art logo with version and copyright ✔️
+
 ## [0.1.0] - 2025-11-24
 
 ### Bug Fixes
 
 - Correct cargo-release README.md path in workspace metadata ✔️
 - Increase registry cleanup rate to 100 images per run ✔️
+- Enable TLS support for wss:// connections ✔️
+- Implement case-insensitive email matching per RFC 5321 ✔️
+- Add allow dead_code attribute to validate_domain_assignment ✔️
+- Enable real-time task output streaming in scottyctl ✔️
+- Enable real-time task output streaming in scottyctl ✔️
+- Improve decompression error handling and size limit enforcement ✔️
+- Address PR feedback with proper error handling and security ✔️
+- Address PR feedback with tests and security improvements ✔️
+- Extract and display error messages from API responses ✔️
+- Propagate errors from handlers to tasks ✔️
+- Prevent secrets in Docker images and clarify identifier vs token distinction ✔️
+- Correct metric names in overview dashboard ✔️
+- Reduce VictoriaMetrics retention and disk space threshold ✔️
+- Set Y-axis minimum to 0 for memory panels ✔️
+- Remove non-functional --workdir option from app:shell command ✔️
+- Fix broken doctests after adding lib.rs ✔️
+- Suppress dead_code warnings for test utils ✔️
+- Resolve clippy warnings for pre-push hook ✔️
+- Remove double-wrapping of shell commands ✔️
+- Resolve critical TTY mode bugs for interactive shell ✔️
+- Add .env file loading support for server configuration ✔️
+- Use singleton ShellService across all handlers ✔️
+- Add handler for ShellSessionData input ✔️
+- Address critical rate limiting issues from PR review ✔️
+- Add IP headers to rate limiting integration tests ✔️
+- Protect PKCE verifier and CSRF token with MaskedSecret ✔️
+- Use placeholder tokens for bearer-tokens ✔️
+- Replace hardcoded localhost with configurable frontend base URL ✔️
+- Apply constant-time comparison to login handler ✔️
+- Replace hardcoded localhost with configurable frontend base URL ✔️
+- Apply constant-time comparison to login handler ✔️
+- Use constant-time comparison for bearer token validation ✔️
+- Apply constant-time comparison to login handler ✔️
+- Use constant-time comparison for bearer token validation ✔️
+- Replace hardcoded localhost with configurable frontend base URL ✔️
+- Generate index.ts with type guards and re-exports ✔️
+- Run TypeScript generator from workspace root ✔️
+- Run svelte-kit sync before build ✔️
+- Point $generated alias to index.ts file explicitly ✔️
+- Add $generated path alias for TypeScript generated files ✔️
+- Use absolute path from CARGO_MANIFEST_DIR for Docker compatibility ✔️
+- Update Dockerfile to use bun.lock instead of bun.lockb ✔️
+- Remove tsconfig exclude to fix CI warning ✔️
+- Prevent panic on UTF-8 character truncation ✔️
+- Normalize URLs to prevent double slashes in API calls (#470) ✔️
+- Resolve clippy linting errors in metrics modules ✔️
+- Enable HTTP metrics middleware when metrics telemetry is enabled ✔️
+- Correct OpenTelemetry metric names in Grafana dashboard ✔️
+- Remove resourcedetection processor from otel-collector config ✔️
+- Run TypeScript generator from correct working directory ✔️
+- Cleanup frontend task output ✔️
+- Resolve WebSocket dev mode authentication and security issues ✔️
+- Resolve custom actions dropdown reactivity issues ✔️
+- Resolve deadlock and lock contention in task management ✔️
 - Improve error reporting and fix env vars in custom actions ✔️
 - Restore custom actions dropdown functionality and divider visibility ✔️
 
 ### CI
 
 - Update docker-cleanup.yml to delete all tags ✔️
+- Add TypeScript generation step to frontend build ✔️
 
 ### Dependencies
 
@@ -65,21 +147,136 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Add version to readme ✔️
+- Update frontend README with Scotty-specific documentation ✔️
+- Complete CLI documentation with admin and auth commands ✔️
+- Complete authorization documentation with admin permissions ✔️
+- Clean up intermediate docs and fix OAuth authentication documentation ✔️
+- Document task handle behavior and add WebSocket fallback logging ✔️
+- Address PR feedback on hybrid auth documentation ✔️
+- Add comprehensive hybrid OAuth + bearer token authentication documentation ✔️
+- Add documentation for app:logs and app:shell commands ✔️
+- Document .env file support for configuration ✔️
+- Add comprehensive project documentation ✔️
+- Address PR review feedback for rate limiting ✔️
+- Add comprehensive rate limiting documentation ✔️
+- Document frontend_base_url configuration option ✔️
+- Add observability to documentation navigation menu ✔️
+- Condense Prometheus compatibility section ✔️
+- Add Prometheus compatibility and stack flexibility section ✔️
+- Add comprehensive observability documentation (scotty-14) ✔️
+- Research OpenTelemetry metrics with OTel Collector + VictoriaMetrics ✔️
+- Move progress tracking from docs to beads issues ✔️
+- Correct unified output system implementation status ✔️
+
+### Features
+
+- Add validation, tests, and documentation for domain assignments ✔️
+- Add domain-based role assignment support ✔️
+- Add gzip compression for file uploads in app:create ✔️
+- Add .scottyignore support for app:create ✔️
+- Support bearer token fallback when OAuth is enabled ✔️
+- Add structured audit logging for compliance ✔️
+- Propagate exit codes in command mode ✔️
+- Add terminal size support for interactive shell ✔️
+- Implement interactive shell with raw terminal mode ✔️
+- Add app:shell command and refactor service validation ✔️
+- Add comprehensive rate limiting metrics ✔️
+- Add rate limiting metrics and Grafana dashboard ✔️
+- Implement comprehensive API rate limiting ✔️
+- Implement session cleanup and comprehensive monitoring ✔️
+- Instrument shell service with metrics (scotty-10) ✔️
+- Add task output streaming metrics (scotty-16) ✔️
+- Add WebSocket metrics instrumentation (scotty-11) ✔️
+- Add AppList metrics for application monitoring (scotty-20) ✔️
+- Upgrade to OpenTelemetry 0.31 and implement custom HTTP metrics ✔️
+- Enhance metrics collection and add HTTP metrics infrastructure ✔️
+- Add Tokio runtime metrics to Grafana dashboard ✔️
+- Add stable Tokio task metrics tracking ✔️
+- Add task metrics and refactor to use dedicated helper functions ✔️
+- Add memory usage metrics (scotty-17) ✔️
+- Add Grafana dashboard for scotty metrics ✔️
+- Make OTLP endpoint configurable via environment variable ✔️
+- Instrument log streaming service with OpenTelemetry metrics ✔️
+- Add OpenTelemetry metrics module with ScottyMetrics struct ✔️
+- Add OpenTelemetry metrics infrastructure with OTel Collector + VictoriaMetrics ✔️
+- Implement container log viewer with navigation improvements ✔️
+
+### Performance
+
+- Check bearer tokens before OAuth to avoid network latency ✔️
+
+### Refactor
+
+- Extract task completion logic into shared helper ✔️
+- Streamline bearer token check and improve logging context ✔️
+- Split monolithic Grafana dashboard into dedicated metric group dashboards ✔️
+- Trim ShellSessionData payload in logs ✔️
+- Add SessionGuard for panic-safe cleanup ✔️
+- Migrate from REST to WebSocket-only implementation ✔️
+- Remove unnecessary base64 encoding from PKCE verifier ✔️
+- Replace barrel file with inline type guards ✔️
+- Update authorization config to use serde_norway ✔️
+- Move app metrics into dedicated dashboard row ✔️
+- Use spawn_instrumented for consistent Tokio metrics tracking ✔️
+- Reorganize observability stack into dedicated directory ✔️
+- Consolidate observability stack into main docker-compose.yml ✔️
+- Restructure task detail page for consistency ✔️
+- Improve log output styling, performance, and controls ✔️
+- Unify task completion handlers and fix state management ✔️
+- Fix ESLint errors and improve code quality ✔️
+
+### Security
+
+- Fix domain extraction to prevent bypass via multiple @ symbols ✔️
+
+### Styling
+
+- Apply cargo fmt and fix clippy warnings ✔️
+- Apply cargo fmt formatting ✔️
+- Apply cargo fmt formatting fixes ✔️
+
+### Testing
+
+- Add E2E WebSocket integration tests ✔️
+- Add comprehensive unit tests for shell feature ✔️
 
 ## [0.1.0-alpha.38] - 2025-10-23
 
 ### Bug Fixes
 
 - Sanitize service names in autogenerated environment variables ✔️
+- Resolve merge conflicts from main branch ✔️
 - Address code review feedback ✔️
 - Apply environment variables to all containers, not only public services ✔️
 - Normalize URLs to prevent double slashes in API calls (#470) ✔️
 - Update dependency @tailwindcss/typography to v0.5.18 ✔️
+- Prevent unwanted bindings directory creation ✔️
+- Resolve WebSocket integration and task output issues ✔️
+- Resolve wildcard scope expansion bug in authorization system ✔️
+- Update secure_response_test for removed TaskDetails fields ✔️
+- Show container status messages to clients via task output ✔️
 - Update npm dependencies auto-merge (patch) to v5.0.2 ✔️
 - Update rust crate tempfile to v3.22.0 ✔️
 - Update dependency @iconify/svelte to v5 ✔️
+- Fix code warning ✔️
+- Improve bearer token authentication and error logging ✔️
+- Align Casbin model matcher between test and production environments ✔️
+- Resolve frontend linting errors ✔️
+- Improve authorization security and robustness ✔️
+- Resolve clippy warnings and improve code quality ✔️
+- Resolve permission-based action button visibility race condition ✔️
+- Update OIDC test data and apply code formatting ✔️
+- Resolve clap panic in admin permissions test command ✔️
+- Centralize user ID logic and fix bearer token authorization ✔️
 - Update rust crate tempfile to v3.21.0 ✔️
+- Update rust crate tempfile to v3.21.0 ✔️
+- Scottyctl bearer token authentication with RBAC ✔️
+- Resolve RBAC authorization middleware issues ✔️
+- Remove unnecessary assert!(true) statements flagged by clippy ✔️
+- Fix task activity indicator animation ✔️
 - Fix UI issues and provide sort handler default ✔️
+- Resolve TypeScript lint errors and improve type safety ✔️
+- Resolve clippy warnings and format code ✔️
 - Remove unused CustomActionResponse struct ✔️
 - Correct method calls for table column modification ✔️
 - Correct function call for formatting services commands ✔️
@@ -89,6 +286,7 @@ All notable changes to this project will be documented in this file.
 
 ### CI
 
+- Trigger ci ✔️
 - Trigger ci ✔️
 - Increase retained container versions for cleanup ✔️
 - Update cleanup workflow to new action version ✔️
@@ -146,6 +344,11 @@ All notable changes to this project will be documented in this file.
 - Update npm dependencies auto-merge (patch) (#438) ✔️
 - Update rust crate clap to v4.5.46 (#439) ✔️
 - Update dependency typescript-eslint to v8.41.0 ✔️
+- Update rust crate tracing-subscriber to v0.3.20 [security] ✔️
+- Update rust crate config to v0.15.15 ✔️
+- Update npm dependencies auto-merge (patch) (#438) ✔️
+- Update rust crate clap to v4.5.46 (#439) ✔️
+- Update dependency typescript-eslint to v8.41.0 ✔️
 - Update rust crate regex to v1.11.2 (#435) ✔️
 - Update dependency @sveltejs/kit to v2.36.2 (#434) ✔️
 - Update dependency svelte to v5.38.3 (#433) ✔️
@@ -165,11 +368,11 @@ All notable changes to this project will be documented in this file.
 - Update rust crate uuid to v1.18.0 ✔️
 - Update npm dependencies auto-merge (patch) to v4.1.12 ✔️
 - Update rust crate thiserror to v2.0.15 ✔️
+- Update frontend dependencies to latest versions ✔️
 - Update rust crate async-trait to v0.1.89 (#413) ✔️
 - Update dependency @sveltejs/kit to v2.30.1 ✔️
 - Update dependency @sveltejs/kit to v2.30.0 ✔️
 - Update dependency @sveltejs/kit to v2.29.1 ✔️
-- Update frontend dependencies to latest versions ✔️
 - Update rust dependencies auto-merge (patch) (#407) ✔️
 - Update rust crate reqwest to v0.12.23 (#406) ✔️
 - Update dependency @sveltejs/kit to v2.28.0 ✔️
@@ -232,6 +435,21 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Document augmented environment variables for blueprint actions ✔️
+- Clarify TaskDetails breaking change implementation ✔️
+- Update documentation for Phase 3.7 infrastructure optimization ✔️
+- Improve OAuth assignments documentation ✔️
+- Update CLAUDE.md and PRD with Phase 3.6 completion details ✔️
+- Update PRD and CLAUDE.md for Phase 3.5 completion ✔️
+- Update PRD and CLAUDE.md to reflect Phase 3 completion ✔️
+- Update CLAUDE.md with Phase 2 completion status ✔️
+- Document Phase 1 completion and next steps ✔️
+- Add code quality reminder to CLAUDE.md ✔️
+- Add PRD for unified output system with logs and shell access ✔️
+- Enhance bearer token security documentation ✔️
+- Update authorization system terminology from groups to scopes ✔️
+- Update authorization documentation for RBAC changes ✔️
+- Fix CLI command format throughout documentation ✔️
+- Add OAuth authentication documentation and update configuration ✔️
 - Correct typo in middleware section ✔️
 - Update CLI documentation with new installation instructions and options ✔️
 - Update preferred CLI installation method ✔️
@@ -241,12 +459,70 @@ All notable changes to this project will be documented in this file.
 - Migrate core secrets to MaskedSecret (Phase 1) ✔️
 - Implement MaskedSecret and SecretHashMap for memory-safe secret handling ✔️
 - Replace serde_yml with serde_norway dependency ✔️
+- Add dedicated OutputStreamType variants for status messages ✔️
+- Implement real-time task output and WebSocket integration ✔️
+- Enhance message types for frontend integration ✔️
+- Add TypeScript bindings generation for WebSocket messages ✔️
+- Add Zed debug configuration for scotty server ✔️
+- Implement real-time task output streaming for Phase 3.6 ✔️
+- Implement unified task output streaming system ✔️
+- Improve log command UX and add terminal detection ✔️
+- Improve log command options for better UX ✔️
+- Simplify --timestamps flag to boolean behavior ✔️
+- Implement authenticated WebSocket log streaming with improved UX ✔️
+- Integrate logs and shell endpoints into API router ✔️
+- Implement logs and shell API endpoints ✔️
+- Integrate service errors with AppError ✔️
+- Add helper methods for container lookup in AppData ✔️
+- Implement bollard log streaming and shell services ✔️
+- Add WebSocket message types for logs and shell sessions ✔️
+- Refactor TaskDetails and TaskManager to use unified output ✔️
+- Add unified output system and configuration ✔️
+- Add bollard technical spike and findings documentation ✔️
+- Add permission-based visibility for custom actions ✔️
+- Implement comprehensive permission-based UI access control ✔️
+- Implement OIDC profile picture support in user avatars ✔️
+- Enhance OIDC user info capture and logging ✔️
+- Use email addresses as user identifiers for OAuth users ✔️
+- Implement shared admin types and enhance authentication logging ✔️
+- Add comprehensive admin API for authorization management ✔️
+- Implement comprehensive RBAC authorization system ✔️
+- Unify OAuth error handling system and fix device flow polling ✔️
+- Consolidate shared functionality and improve OAuth error handling ✔️
+- Implement version compatibility check between scottyctl and server ✔️
+- Add comprehensive authentication testing for scotty backend ✔️
+- Implement complete OAuth device flow for scottyctl ✔️
+- Refactor OAuth to OIDC-compliant provider-agnostic system with Gravatar support ✔️
+- Implement OAuth session exchange for secure frontend authentication ✔️
+- Optimize healthcheck configuration for faster startup ✔️
+- Improve OAuth login flow and authentication validation ✔️
 - Upgrade frontend to latest major versions ✔️
+- Implement comprehensive OAuth authentication system ✔️
+- Implement OAuth authentication system with hybrid auth modes ✔️
 - Add Traefik middleware support and examples ✔️
+
+### Performance
+
+- Implement token caching to reduce filesystem access ✔️
 
 ### Refactor
 
 - Migrate environment variables to SecretHashMap ✔️
+- Embed TaskOutput directly in TaskDetails for tight coupling ✔️
+- Reduce app state creation duplication in bearer_auth_tests ✔️
+- Optimize build system and eliminate type duplication ✔️
+- Centralize session management and eliminate token storage duplication ✔️
+- Improve messaging consistency and error handling ✔️
+- Consolidate message types in scotty-core ✔️
+- Restructure handlers into REST and WebSocket modules ✔️
+- Reorganize app commands into modular structure and add app:logs command ✔️
+- Improve error handling and add helper methods ✔️
+- Remove unused get_user_by_token method from AuthorizationService ✔️
+- Streamline admin CLI command error handling ✔️
+- Remove emojis from admin command success messages ✔️
+- Replace authorization groups terminology with scopes ✔️
+- Make RBAC configuration mandatory and improve logging ✔️
+- Update auth commands to use UI helper and reduce emoji usage ✔️
 - Simplify lifecycle action handling ✔️
 - Update import path for InspectContainerOptions ✔️
 
@@ -258,6 +534,7 @@ All notable changes to this project will be documented in this file.
 
 ### Testing
 
+- Add comprehensive tests for logs and shell services ✔️
 - Add serialization and deserialization tests for AppTtl ✔️
 
 ## [0.1.0-alpha.37] - 2025-06-05
