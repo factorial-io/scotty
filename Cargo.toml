@@ -41,7 +41,7 @@ opentelemetry_sdk = { version = "0.31", features = [
     "metrics",
 ], default-features = false }
 tracing-opentelemetry = "0.32"
-init-tracing-opentelemetry = { version = "0.32.1", features = [
+init-tracing-opentelemetry = { version = "0.34.0", features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
