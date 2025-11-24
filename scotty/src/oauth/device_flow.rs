@@ -1,6 +1,7 @@
 use super::{DeviceFlowSession, DeviceFlowStore, OAuthClient, OAuthError};
 use base64::{engine::general_purpose, Engine as _};
 use oauth2::Scope;
+use secrecy::ExposeSecret;
 use std::time::SystemTime;
 use tracing::{debug, error, info};
 
@@ -133,7 +134,11 @@ impl OAuthClient {
         // doesn't support form data with basic auth directly
         let auth_header = format!(
             "Basic {}",
-            general_purpose::STANDARD.encode(format!("{}:{}", self.client_id, self.client_secret))
+            general_purpose::STANDARD.encode(format!(
+                "{}:{}",
+                self.client_id,
+                self.client_secret.expose_secret()
+            ))
         );
 
         let response = self

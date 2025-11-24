@@ -1,4 +1,5 @@
 use super::rate_limiting::RateLimitingConfig;
+use secrecy::SecretString;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
@@ -28,7 +29,8 @@ pub struct OAuthSettings {
     pub oidc_issuer_url: Option<String>,
     pub oauth2_proxy_base_url: Option<String>,
     pub client_id: Option<String>,
-    pub client_secret: Option<String>,
+    #[serde(skip_serializing)]
+    pub client_secret: Option<SecretString>,
     #[serde(default = "default_device_flow_enabled")]
     pub device_flow_enabled: bool,
     /// Frontend base URL for OAuth callback redirects

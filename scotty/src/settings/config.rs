@@ -164,6 +164,7 @@ impl Settings {
 mod tests {
 
     use scotty_core::settings::app_blueprint::ActionName;
+    use secrecy::ExposeSecret;
 
     use super::*;
     use std::env;
@@ -262,8 +263,11 @@ mod tests {
         let oauth_config = &settings.api.oauth;
         assert_eq!(oauth_config.client_id, Some("test_client_id".to_string()));
         assert_eq!(
-            oauth_config.client_secret,
-            Some("test_client_secret".to_string())
+            oauth_config
+                .client_secret
+                .as_ref()
+                .map(|s| s.expose_secret()),
+            Some("test_client_secret")
         );
         assert_eq!(
             oauth_config.oidc_issuer_url,
@@ -295,8 +299,11 @@ mod tests {
         let oauth_config = &settings.api.oauth;
         assert_eq!(oauth_config.client_id, Some("env_client_id".to_string()));
         assert_eq!(
-            oauth_config.client_secret,
-            Some("env_client_secret".to_string())
+            oauth_config
+                .client_secret
+                .as_ref()
+                .map(|s| s.expose_secret()),
+            Some("env_client_secret")
         );
         assert_eq!(
             oauth_config.oidc_issuer_url,

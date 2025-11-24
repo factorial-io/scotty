@@ -10,18 +10,32 @@ use oauth2::{
     TokenUrl,
 };
 use scotty_core::utils::secret::MaskedSecret;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OAuthClient {
     pub client: BasicClient,
     pub oidc_issuer_url: String,
     pub client_id: String,
-    pub client_secret: String,
+    pub client_secret: SecretString,
     pub http_client: scotty_core::http::HttpClient,
+}
+
+// Custom Debug implementation to prevent leaking client_secret
+impl std::fmt::Debug for OAuthClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OAuthClient")
+            .field("client", &self.client)
+            .field("oidc_issuer_url", &self.oidc_issuer_url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"[REDACTED]")
+            .field("http_client", &self.http_client)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +81,7 @@ pub type OAuthSessionStore = Arc<Mutex<HashMap<String, OAuthSession>>>;
 impl OAuthClient {
     pub fn new(
         client_id: String,
-        client_secret: String,
+        client_secret: SecretString,
         oidc_issuer_url: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let auth_url = format!("{}/oauth/authorize", oidc_issuer_url);
@@ -76,7 +90,7 @@ impl OAuthClient {
 
         let client = BasicClient::new(
             ClientId::new(client_id.clone()),
-            Some(ClientSecret::new(client_secret.clone())),
+            Some(ClientSecret::new(client_secret.expose_secret().to_string())),
             AuthUrl::new(auth_url)?,
             Some(TokenUrl::new(token_url)?),
         )
