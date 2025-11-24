@@ -5,8 +5,6 @@
 
 ## About
 
-Current release: 0.1.0
-
 **scotty -- yet another micro platform as a service** is a Rust
 server providing an API to create, start, stop or destroy a
 Docker Compose-based application on your own hardware.
@@ -64,7 +62,7 @@ Bearer tokens are configured on the server with logical identifiers that map to 
 export SCOTTY_SERVER=https://localhost:21342
 export SCOTTY_ACCESS_TOKEN=your_secure_bearer_token
 
-# Via command-line arguments  
+# Via command-line arguments
 scottyctl --server https://localhost:21342 --access-token your_secure_bearer_token app:list
 ```
 

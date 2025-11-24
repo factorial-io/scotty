@@ -104,9 +104,7 @@ wiremock = "0.6"
 [workspace.metadata.release]
 pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]
 sign-tag = true
-pre-release-replacements = [
-    { file = "README.md", search = "Current release: [a-z0-9\\.-]+", replace = "Current release: {{version}}" },
-]
+pre-release-replacements = [ ]
 
 [workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
 pre-build = [
