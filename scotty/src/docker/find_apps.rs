@@ -12,7 +12,6 @@ use std::path::Path;
 use tokio::task;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info, instrument, Instrument};
-use walkdir::WalkDir;
 
 use crate::{app_state::SharedAppState, docker::docker_compose::run_docker_compose_now};
 
@@ -20,12 +19,13 @@ use super::{
     loadbalancer::factory::LoadBalancerFactory, validation::validate_docker_compose_content,
 };
 
-type PathBufVec = Vec<PathBuf>;
-
 #[instrument(skip(app_state))]
 pub async fn find_apps(app_state: &SharedAppState) -> anyhow::Result<AppDataVec> {
-    let mut paths = vec![];
-    traverse_directory(app_state, &mut paths).await?;
+    let settings = &app_state.settings.apps;
+    let paths = scotty_core::utils::compose::find_all_config_files(
+        Path::new(&settings.root_folder),
+        settings.max_depth,
+    );
 
     tracing::info!("Found {} potential app directories", paths.len());
     tracing::info!("{:?}", paths);
@@ -92,9 +92,15 @@ async fn extract_services_from_docker_compose(content: &str) -> anyhow::Result<V
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
+/// # use scotty::docker::find_apps::inspect_app;
+/// # async fn example() -> anyhow::Result<()> {
+/// # let app_state = todo!();
+/// # let docker_compose_path = todo!();
 /// let app_data = inspect_app(&app_state, &docker_compose_path).await?;
 /// assert_eq!(app_data.name, "my-app");
+/// # Ok(())
+/// # }
 /// ```
 pub async fn inspect_app(
     app_state: &SharedAppState,
@@ -144,6 +150,60 @@ pub async fn inspect_app(
     {
         app_data.status = AppStatus::Unsupported;
     }
+
+    // Sync app scopes to authorization service
+    if let Some(app_settings) = &app_data.settings {
+        // Validate groups exist before syncing
+        if let Err(missing_scopes) = app_state
+            .auth_service
+            .validate_scopes(&app_settings.scopes)
+            .await
+        {
+            error!(
+                "App '{}' references non-existent groups: {:?}. Assigning to 'default' scope instead.",
+                name, missing_scopes
+            );
+            // Fallback to default scope if specified groups don't exist
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_scopes(&app_data.name, vec!["default".to_string()])
+                .await
+            {
+                debug!("Failed to set default scope for {}: {}", app_data.name, e);
+            } else {
+                debug!(
+                    "Assigned app '{}' to default scope due to invalid scopes",
+                    app_data.name
+                );
+            }
+        } else {
+            // Groups are valid, proceed with sync
+            if let Err(e) = app_state
+                .auth_service
+                .set_app_scopes(&app_data.name, app_settings.scopes.clone())
+                .await
+            {
+                debug!("Failed to sync app scopes for {}: {}", app_data.name, e);
+            } else {
+                debug!(
+                    "Synced app '{}' to scopes: {:?}",
+                    app_data.name, app_settings.scopes
+                );
+            }
+        }
+    } else {
+        // No settings file, assign to default scope
+        if let Err(e) = app_state
+            .auth_service
+            .set_app_scopes(&app_data.name, vec!["default".to_string()])
+            .await
+        {
+            debug!("Failed to set default scope for {}: {}", name, e);
+        } else {
+            debug!("Assigned app '{}' to default scope", app_data.name);
+        }
+    }
+
     Ok(app_data)
 }
 
@@ -191,27 +251,6 @@ async fn get_running_services(
     info!("Services for app {}: {:?}", app_name, services);
 
     Ok(services)
-}
-
-#[instrument(skip(state, result))]
-async fn traverse_directory(state: &SharedAppState, result: &mut PathBufVec) -> anyhow::Result<()> {
-    let settings = &state.settings.apps;
-    info!("Starting directory traversal with settings: {:?}", settings);
-    for entry in WalkDir::new(&settings.root_folder).max_depth(settings.max_depth as usize) {
-        let entry = entry.unwrap();
-        if entry.file_type().is_file() {
-            let path = entry.path().to_path_buf();
-            match entry.file_name().to_str().unwrap() {
-                "docker-compose.yml" => result.push(path),
-                "docker-compose.yaml" => result.push(path),
-                _ => (),
-            }
-        }
-
-        debug!(path = %entry.path().display(), "Visited");
-    }
-
-    Ok(())
 }
 
 #[instrument(skip(state))]

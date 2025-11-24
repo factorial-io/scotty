@@ -5,6 +5,10 @@ use crate::utils::parsers::{
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use scotty_core::{
+    admin::{
+        CreateAssignmentRequest, CreateRoleRequest, CreateScopeRequest, GetUserPermissionsRequest,
+        RemoveAssignmentRequest, TestPermissionRequest,
+    },
     apps::app_data::{AppTtl, ServicePortMapping},
     apps::create_app_request::CustomDomainMapping,
     notification_types::NotificationReceiver,
@@ -23,6 +27,13 @@ pub struct Cli {
 
     #[arg(long, default_value = "false")]
     pub debug: bool,
+
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Bypass version compatibility check (not recommended)"
+    )]
+    pub bypass_version_check: bool,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -63,6 +74,12 @@ pub enum Commands {
     /// Run a custom action on an app
     #[command(name = "app:action")]
     Action(ActionCommand),
+    /// View logs for an app service
+    #[command(name = "app:logs")]
+    Logs(LogsCommand),
+    /// Open interactive shell for an app service
+    #[command(name = "app:shell")]
+    Shell(ShellCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -83,6 +100,62 @@ pub enum Commands {
     /// Show shell completion script.
     #[command(name = "completion")]
     Completion(CompletionCommand),
+
+    /// Authenticate with the Scotty server
+    #[command(name = "auth:login")]
+    AuthLogin(AuthLoginCommand),
+
+    /// Logout and clear stored authentication
+    #[command(name = "auth:logout")]
+    AuthLogout,
+
+    /// Show authentication status
+    #[command(name = "auth:status")]
+    AuthStatus,
+
+    /// Refresh authentication token
+    #[command(name = "auth:refresh")]
+    AuthRefresh,
+
+    /// List all authorization scopes
+    #[command(name = "admin:scopes:list")]
+    AdminScopesList,
+
+    /// Create a new authorization scope
+    #[command(name = "admin:scopes:create")]
+    AdminScopesCreate(CreateScopeRequest),
+
+    /// List all authorization roles
+    #[command(name = "admin:roles:list")]
+    AdminRolesList,
+
+    /// Create a new authorization role
+    #[command(name = "admin:roles:create")]
+    AdminRolesCreate(CreateRoleRequest),
+
+    /// List all user assignments
+    #[command(name = "admin:assignments:list")]
+    AdminAssignmentsList,
+
+    /// Create a new user assignment
+    #[command(name = "admin:assignments:create")]
+    AdminAssignmentsCreate(CreateAssignmentRequest),
+
+    /// Remove a user assignment
+    #[command(name = "admin:assignments:remove")]
+    AdminAssignmentsRemove(RemoveAssignmentRequest),
+
+    /// List all available permissions
+    #[command(name = "admin:permissions:list")]
+    AdminPermissionsList,
+
+    /// Test permission for a user on an app
+    #[command(name = "admin:permissions:test")]
+    AdminPermissionsTest(TestPermissionRequest),
+
+    /// Get permissions for a specific user
+    #[command(name = "admin:permissions:user")]
+    AdminPermissionsUser(GetUserPermissionsRequest),
 
     #[command(name = "test")]
     Test,
@@ -200,6 +273,71 @@ pub struct CreateCommand {
     /// Custom Traefik middlewares to apply to the app, can be specified multiple times
     #[arg(long, value_name = "MIDDLEWARE")]
     pub middleware: Vec<String>,
+
+    /// Scope(s) to create the app in, can be specified multiple times (defaults to 'default')
+    #[arg(long, value_name = "SCOPE")]
+    pub scope: Vec<String>,
+}
+
+#[derive(Debug, Parser)]
+pub struct AuthLoginCommand {
+    /// Use a specific OAuth provider URL
+    #[arg(long)]
+    pub provider_url: Option<String>,
+
+    /// Skip browser opening (just show URL)
+    #[arg(long, default_value = "false")]
+    pub no_browser: bool,
+
+    /// Timeout in seconds for device flow
+    #[arg(long, default_value = "300")]
+    pub timeout: u64,
+}
+
+#[derive(Debug, Parser)]
+pub struct LogsCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the service
+    pub service_name: String,
+
+    /// Follow log output (stream in real-time)
+    #[arg(short = 'f', long = "follow", default_value = "false")]
+    pub follow: bool,
+
+    /// Number of lines to show (if not specified, show all available logs)
+    #[arg(short = 'n', long = "lines")]
+    pub lines: Option<usize>,
+
+    /// Show logs since timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
+    #[arg(long = "since")]
+    pub since: Option<String>,
+
+    /// Show logs until timestamp (e.g., "1h", "2023-01-01T11:00:00Z")
+    #[arg(long = "until")]
+    pub until: Option<String>,
+
+    /// Show timestamps in log output
+    #[arg(short = 't', long = "timestamps")]
+    pub timestamps: bool,
+}
+
+#[derive(Debug, Parser)]
+pub struct ShellCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the service
+    pub service_name: String,
+
+    /// Command to execute instead of interactive shell
+    #[arg(short = 'c', long = "command")]
+    pub command: Option<String>,
+
+    /// Shell to use (default: /bin/bash)
+    #[arg(long = "shell")]
+    pub shell: Option<String>,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

@@ -7,7 +7,9 @@ use scotty_core::settings::{
     docker::{DockerConnectOptions, DockerSettings},
     loadbalancer::{HaproxyConfigSettings, LoadBalancerType, TraefikSettings},
     notification_services::NotificationServiceSettings,
+    output::OutputSettings,
     scheduler_interval::SchedulerInterval,
+    shell::ShellSettings,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, env};
@@ -44,6 +46,10 @@ pub struct Settings {
     pub onepassword: HashMap<String, OnePasswordSettings>,
     #[serde(default)]
     pub notification_services: NotificationServiceSettings,
+    #[serde(default)]
+    pub output: OutputSettings,
+    #[serde(default)]
+    pub shell: ShellSettings,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -69,6 +75,8 @@ impl Default for Settings {
             haproxy: HaproxyConfigSettings { use_tls: false },
             onepassword: HashMap::new(),
             notification_services: NotificationServiceSettings::default(),
+            output: OutputSettings::default(),
+            shell: ShellSettings::default(),
         }
     }
 }
@@ -130,6 +138,14 @@ impl Settings {
                 )
             })?
             .to_string();
+
+        // Validate rate limiting configuration
+        settings
+            .api
+            .rate_limiting
+            .validate()
+            .map_err(|e| ConfigError::Message(e.to_string()))?;
+
         Ok(settings)
     }
 
@@ -148,6 +164,7 @@ impl Settings {
 mod tests {
 
     use scotty_core::settings::app_blueprint::ActionName;
+    use secrecy::ExposeSecret;
 
     use super::*;
     use std::env;
@@ -225,5 +242,79 @@ mod tests {
             gitlab_settings.token.expose_secret(),
             "my-secret-gitlab-token"
         );
+    }
+
+    #[test]
+    fn test_oauth_configuration() {
+        // Test that OAuth configuration is loaded correctly from config file
+        // Don't use environment variables at all to avoid interference
+        let builder = Config::builder().add_source(config::File::with_name(
+            "tests/test_docker_registry_password.yaml",
+        ));
+        // Removed environment source to test config file only
+
+        let settings: Settings = builder.build().unwrap().try_deserialize().unwrap();
+
+        // Check auth mode
+        use scotty_core::settings::api_server::AuthMode;
+        assert!(matches!(settings.api.auth_mode, AuthMode::OAuth));
+
+        // Check OAuth configuration
+        let oauth_config = &settings.api.oauth;
+        assert_eq!(oauth_config.client_id, Some("test_client_id".to_string()));
+        assert_eq!(
+            oauth_config
+                .client_secret
+                .as_ref()
+                .map(|s| s.expose_secret()),
+            Some("test_client_secret")
+        );
+        assert_eq!(
+            oauth_config.oidc_issuer_url,
+            Some("https://source.factorial.io".to_string())
+        );
+        assert!(oauth_config.device_flow_enabled);
+    }
+
+    #[test]
+    fn test_oauth_configuration_with_env_vars() {
+        // Test that OAuth configuration can be overridden with environment variables
+        env::set_var("SCOTTY__API__OAUTH__CLIENT_ID", "env_client_id");
+        env::set_var("SCOTTY__API__OAUTH__CLIENT_SECRET", "env_client_secret");
+        env::set_var(
+            "SCOTTY__API__OAUTH__OIDC_ISSUER_URL",
+            "https://gitlab.env.example.com",
+        );
+        env::set_var("SCOTTY__API__OAUTH__DEVICE_FLOW_ENABLED", "false");
+
+        let builder = Config::builder()
+            .add_source(config::File::with_name(
+                "tests/test_docker_registry_password.yaml",
+            ))
+            .add_source(Settings::get_environment());
+
+        let settings: Settings = builder.build().unwrap().try_deserialize().unwrap();
+
+        // Check OAuth configuration from environment variables
+        let oauth_config = &settings.api.oauth;
+        assert_eq!(oauth_config.client_id, Some("env_client_id".to_string()));
+        assert_eq!(
+            oauth_config
+                .client_secret
+                .as_ref()
+                .map(|s| s.expose_secret()),
+            Some("env_client_secret")
+        );
+        assert_eq!(
+            oauth_config.oidc_issuer_url,
+            Some("https://gitlab.env.example.com".to_string())
+        );
+        assert!(!oauth_config.device_flow_enabled);
+
+        // Clean up environment variables
+        env::remove_var("SCOTTY__API__OAUTH__CLIENT_ID");
+        env::remove_var("SCOTTY__API__OAUTH__CLIENT_SECRET");
+        env::remove_var("SCOTTY__API__OAUTH__OIDC_ISSUER_URL");
+        env::remove_var("SCOTTY__API__OAUTH__DEVICE_FLOW_ENABLED");
     }
 }

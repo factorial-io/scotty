@@ -1,11 +1,21 @@
+pub mod auth_core;
 pub mod basic_auth;
 pub mod error;
-pub mod handlers;
-pub mod message;
-pub mod message_handler;
+pub mod middleware;
+pub mod rate_limiting;
+pub mod rest;
 pub mod router;
 pub mod secure_response;
-pub mod ws;
+pub mod websocket;
+
+// test_utils is public for integration tests
+pub mod test_utils;
 
 #[cfg(test)]
 mod secure_response_test;
+
+#[cfg(test)]
+mod bearer_auth_tests;
+
+#[cfg(test)]
+mod oauth_flow_tests;

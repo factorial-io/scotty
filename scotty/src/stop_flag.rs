@@ -12,6 +12,12 @@ pub struct StopFlag {
     notify: Arc<Notify>,
 }
 
+impl Default for StopFlag {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StopFlag {
     pub fn new() -> Self {
         StopFlag {

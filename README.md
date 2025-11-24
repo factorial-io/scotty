@@ -43,12 +43,119 @@ your shell, see [here](docs/content/installation.md).
 
 ## Configuring the CLI
 
-The CLI needs only two environment variables to work:
-* `SCOTTY_SERVER` the address of the server
-* `SCOTTY_ACCESS_TOKEN` the bearer token to use
+### Option 1: OAuth Authentication (Recommended)
 
-You can provide the information either via env-vars or by passing the
-`--server` and `--access-token` arguments to the CLI.
+Use OAuth device flow for secure authentication:
+
+```shell
+# Authenticate with OAuth
+scottyctl auth:login --server https://localhost:21342
+
+# Use authenticated commands
+scottyctl app:list
+```
+
+### Option 2: Bearer Token
+
+Bearer tokens are configured on the server with logical identifiers that map to secure tokens. Use environment variables or command-line arguments:
+
+```shell
+# Via environment variables
+export SCOTTY_SERVER=https://localhost:21342
+export SCOTTY_ACCESS_TOKEN=your_secure_bearer_token
+
+# Via command-line arguments  
+scottyctl --server https://localhost:21342 --access-token your_secure_bearer_token app:list
+```
+
+**Security Note**: Server administrators should **never store actual bearer tokens in configuration files**. Instead, use placeholder values in config files and set actual secure tokens via environment variables like `SCOTTY__API__BEARER_TOKENS__ADMIN=your_secure_token`. See the [configuration documentation](docs/content/configuration.md) for security best practices.
+
+## Docker Deployment
+
+### Quick Start with Docker
+
+The Docker image includes only the binaries and non-sensitive configuration files (Casbin model, blueprints). Configuration with secrets must be provided at runtime.
+
+**Option 1: Mount configuration directory (recommended)**
+```bash
+docker run -d \
+  -v /path/to/your/config:/app/config:ro \
+  -v /path/to/apps:/app/apps \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 21342:21342 \
+  scotty:latest
+```
+
+**Option 2: Use environment variables**
+```bash
+docker run -d \
+  -e SCOTTY__API__AUTH_MODE=bearer \
+  -e SCOTTY__API__BEARER_TOKENS__ADMIN=your-secure-token \
+  -e SCOTTY__APPS__DOMAIN_SUFFIX=your-domain.site \
+  -p 21342:21342 \
+  scotty:latest
+```
+
+**Option 3: Docker Compose**
+```yaml
+services:
+  scotty:
+    image: scotty:latest
+    ports:
+      - "21342:21342"
+    volumes:
+      - ./config:/app/config:ro
+      - ./apps:/app/apps
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SCOTTY__API__BEARER_TOKENS__ADMIN=${ADMIN_TOKEN}
+    restart: unless-stopped
+```
+
+**Important**: Never commit secrets to git. Use environment variables or mount configuration files at runtime. See [config/README.md](config/README.md) for detailed configuration documentation.
+
+## Observability
+
+Scotty includes a comprehensive observability stack with metrics, distributed tracing, and pre-built dashboards for monitoring application health and performance.
+
+### Quick Start
+
+Start the observability stack (Grafana, Jaeger, VictoriaMetrics, OpenTelemetry Collector):
+
+```shell
+cd observability
+docker-compose up -d
+```
+
+Enable telemetry in Scotty:
+
+```shell
+SCOTTY__TELEMETRY=metrics,traces cargo run --bin scotty
+```
+
+Access the services:
+- **Grafana Dashboard**: http://grafana.ddev.site (admin/admin)
+- **Jaeger Tracing**: http://jaeger.ddev.site
+- **VictoriaMetrics**: http://vm.ddev.site
+
+### What's Monitored
+
+Scotty exports 40+ metrics covering:
+- Log streaming (active streams, throughput, errors)
+- Shell sessions (active connections, timeouts)
+- WebSocket connections and message rates
+- Task execution and output streaming
+- HTTP server performance by endpoint
+- Memory usage (RSS and virtual)
+- Application fleet metrics
+- Tokio async runtime health
+
+### Documentation
+
+For complete setup instructions, metrics reference, and production deployment guide:
+
+📖 **[Observability Documentation](docs/content/observability.md)**
+📖 **[Observability Setup Guide](observability/README.md)**
 
 ## Developing/Contributing
 

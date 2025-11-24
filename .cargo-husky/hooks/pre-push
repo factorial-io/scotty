@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# Pre-push hook for scotty
+# Ensures code quality before pushing to remote
+#
+
+set -e
+
+echo "Running pre-push checks..."
+echo ""
+
+# 1. Check code formatting first (fastest check)
+echo "📝 Checking Rust code formatting..."
+cargo fmt -- --check
+echo "✅ Rust formatting OK"
+echo ""
+
+# 2. Run Clippy linter
+echo "🔍 Running Clippy linter..."
+cargo clippy -- -D warnings
+echo "✅ Clippy checks passed"
+echo ""
+
+# 3. Frontend checks (only if frontend files changed)
+# Check if any frontend files are being pushed
+if git diff --name-only @{upstream}..HEAD 2>/dev/null | grep -q "^frontend/" || \
+   git diff --name-only HEAD 2>/dev/null | grep -q "^frontend/"; then
+
+    echo "🔧 Generating TypeScript bindings..."
+    cargo run --bin scotty-ts-generator
+    echo "✅ TypeScript bindings generated"
+    echo ""
+
+    echo "🎨 Linting frontend code..."
+    cd frontend && npm run lint
+    cd ..
+    echo "✅ Frontend linting passed"
+    echo ""
+
+    echo "🔎 Type-checking frontend code..."
+    cd frontend && npm run check
+    cd ..
+    echo "✅ Frontend type checking passed"
+    echo ""
+else
+    echo "⏭️  Skipping frontend checks (no frontend changes detected)"
+    echo ""
+fi
+
+# 4. Run Rust tests (slowest, run last)
+echo "🧪 Running Rust tests..."
+cargo test
+echo "✅ All tests passed"
+echo ""
+
+echo "🎉 All pre-push checks passed! Proceeding with push..."

@@ -1,0 +1,85 @@
+# .scottyignore Example File
+# This file demonstrates various patterns supported by scotty
+
+# ==========================================
+# Log Files
+# ==========================================
+# Ignore all log files
+*.log
+*.log.*
+logs/
+
+# ==========================================
+# Temporary Files
+# ==========================================
+# Ignore temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+
+# ==========================================
+# Build Artifacts
+# ==========================================
+# Ignore common build directories
+target/
+dist/
+build/
+node_modules/
+.next/
+.nuxt/
+
+# ==========================================
+# Environment & Secrets
+# ==========================================
+# IMPORTANT: Never upload sensitive files!
+.env
+.env.local
+.env.*.local
+secrets.yaml
+secrets.json
+credentials.json
+*.key
+*.pem
+
+# ==========================================
+# Development Files
+# ==========================================
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.iml
+
+# ==========================================
+# Documentation (Optional)
+# ==========================================
+# Uncomment to ignore documentation
+# README.md
+# docs/
+# *.md
+
+# ==========================================
+# Negation Examples
+# ==========================================
+# Re-include specific files even if pattern matches
+# !important.log
+# !docs/deployment.md
+
+# ==========================================
+# Nested Patterns
+# ==========================================
+# Ignore files in any subdirectory
+**/*.bak
+**/*.backup
+**/.DS_Store
+
+# ==========================================
+# Notes
+# ==========================================
+# - Patterns use gitignore-style syntax
+# - `.DS_Store` and `.git/` are always ignored automatically
+# - Empty lines and lines starting with # are comments
+# - Use ! to negate/re-include files
+# - Patterns are relative to the folder containing docker-compose.yml

@@ -3,14 +3,14 @@
 ## Overview
 
 Scotty provides a simple REST API to interact with your apps. For that, it
-traverses a directory structure on the server and reads the `docker-compose.yml`
+traverses a directory structure on the server and reads the `compose.yml`
 files in each found directory. If the same directory contains a `.scotty` file,
 it reads the settings for that app from that file.
 
 Scotty uses the information from the `.scotty.yml` file to create a
-`docker-compose.override.yml` file to instruct a load balancer on how to reach
+`compose.override.yml` file to instruct a load balancer on how to reach
 the exposed services of the app. Scotty does not touch any other files in the
-directory besides the `docker-compose.override.yml` and `.scotty.yml` files.
+directory besides the `compose.override.yml` and `.scotty.yml` files.
 
 Scotty also tracks how long an app has been running and stops it after
 a given lifetime. It can add basic auth to the app and prevent
@@ -18,12 +18,12 @@ robots from indexing the app if needed.
 
 ## The anatomy of an app
 
-Every folder with a `docker-compose.yml` file is considered an app. The
+Every folder with a `compose.yml` file is considered an app. The
 folder needs to reside in the apps directory of Scotty (see configuration).
 
-Every app has a unique name which derives from the folder the docker-compose.yml
+Every app has a unique name which derives from the folder the compose.yml
 is in. The name is used to identify the app in the UI and CLI. An app has
-numerous services, which are defined in the docker-compose.yml file. Some of the
+numerous services, which are defined in the compose.yml file. Some of the
 services are exposed to the public, some are not. Every service gets a unique
 hostname, which is derived from the app name and service name, but this can
 be overridden in the `.scotty.yml` file or while creating a new app.
@@ -35,17 +35,17 @@ Example layout of the apps directory:
 ```
 .
 ├── feat-preview-apps-using-scotty-test
-│   ├── docker-compose.override.yml
-│   └── docker-compose.yml
+│   ├── compose.override.yml
+│   └── compose.yml
 ├── main-test-app
-│   ├── docker-compose.override.yml
-│   ├── docker-compose.yml
+│   ├── compose.override.yml
+│   ├── compose.yml
 │   ├── private
 │   ├── redis.conf
 │   └── web
 └── nginx-test
-    ├── docker-compose.override.yml
-    ├── docker-compose.yml
+    ├── compose.override.yml
+    ├── compose.yml
     └── html
         ├── index.html
         └── static
@@ -55,13 +55,13 @@ Example layout of the apps directory:
 
 ## Types of apps
 
-Scotty does not support all possible docker-compose settings. `docker-compose.yml`
+Scotty does not support all possible docker-compose settings. `compose.yml`
 is validated and categorized into three types: *owned*, *supported* and
 *unsupported*:
 
 Unsupported features are:
 * Exposing ports directly, as this might conflict with other running apps
-* Using environment-variable expansion inside the docker-compose.yml file. This is
+* Using environment-variable expansion inside the compose.yml file. This is
   not supported, as Scotty can't know the values of the environment variables
   at runtime. You can adopt these types of apps manually and provide the values
   for the environment variables in the `.scotty.yml` file.
@@ -107,12 +107,12 @@ blueprints can be get by running `blueprint:list`.
 ## Server-Architecture
 
 Scotty traverses a dedicated folder on the server to find possible apps. If
-there is a folder with a valid docker-compose.yml file, Scotty will add the app
+there is a folder with a valid compose.yml file, Scotty will add the app
 to its internal database. If there is a corresponding `.scotty.yml` file, Scotty
 will also read the settings for that particular app.
 
 When Scotty creates a new app, it will save the settings in the `.scotty.yml` file
-and create a `docker-compose.override.yml` file to instruct the load balancer on
+and create a `compose.override.yml` file to instruct the load balancer on
 what domain should be used to reach each public service of an app.
 
 ### Overview
@@ -127,7 +127,7 @@ Scotty will create the necessary labels for Traefik to route the traffic to the
 public services of each app. Depending on the settings, Scotty will also create
 configuration to enable basic auth or to prevent robots from indexing the app.
 
-An example `docker-compose.override.yml` file for Traefik:
+An example `compose.override.yml` file for Traefik:
 
 ```yaml
 services:
@@ -156,12 +156,12 @@ in the `config` directory. Then you can refer to the listed middlewares in the
 ### [Haproxy-Config](https://github.com/factorial-io/haproxy-config)
 
 Scotty supports the legacy setup called haproxy-config. It will create the
-necessary docker-compose.override.yml to instruct haproxy-config to route the
+necessary compose.override.yml to instruct haproxy-config to route the
 traffic to the public services of each app. Haproxy-config does not support
 preventing robots from indexing the app. The support for haproxy-config won't be
 continued in the future, as haproxy-config is deprecated.
 
-An example `docker-compose.override.yml` file for haproxy-config:
+An example `compose.override.yml` file for haproxy-config:
 
 ```yaml
 services:

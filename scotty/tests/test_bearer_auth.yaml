@@ -1,0 +1,42 @@
+debug: false
+api:
+    bind_address: "0.0.0.0:21342"
+    create_app_max_size: "50M"
+    auth_mode: "bearer"
+    bearer_tokens:
+        # Maps identifiers to token values for testing
+        # Identifiers match those in config/casbin/policy.yaml
+        admin: "test-bearer-token-123"
+        client-a: "client-a-secure-token-456"
+        no-rbac: "token-without-rbac-assignments"
+scheduler:
+    running_app_check: "10m"
+    ttl_check: "10m"
+    task_cleanup: "1m"
+telemetry: None
+apps:
+    max_depth: 3
+    domain_suffix: "test.local"
+    use_tls: false
+    root_folder: "./apps"
+    blueprints:
+        test-blueprint:
+            name: "Test Blueprint"
+            description: "A simple test blueprint for authentication testing"
+            public_services: ~
+            required_services:
+                - nginx
+            actions:
+                post_create:
+                    commands:
+                        nginx:
+                            - echo "Test blueprint created"
+docker:
+    connection: local
+    registries: {}
+load_balancer_type: Traefik
+traefik:
+    network: "proxy"
+    use_tls: false
+haproxy:
+    use_tls: false

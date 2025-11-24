@@ -95,6 +95,21 @@ impl Ui {
         }
     }
 
+    /// Check if output is going to a terminal (as opposed to being piped or redirected)
+    pub fn is_terminal(&self) -> bool {
+        self.status_line.is_some()
+    }
+
+    /// Stop and clear the status line - useful before entering raw terminal mode
+    pub fn clear(&self) {
+        if let Some(status_line) = &self.status_line {
+            if let Ok(mut sl) = status_line.write() {
+                sl.clear_line();
+                sl.stop_animation();
+            }
+        }
+    }
+
     pub async fn run<F>(&self, x: F) -> anyhow::Result<()>
     where
         F: AsyncFn,

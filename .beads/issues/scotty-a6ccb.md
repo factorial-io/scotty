@@ -1,0 +1,60 @@
+---
+title: Clarify identifier vs token distinction in policy.yaml and documentation
+status: closed
+priority: 1
+issue_type: bug
+depends_on:
+  scotty-b5863: blocks
+created_at: 2025-11-03T10:22:43.858318+00:00
+updated_at: 2025-11-24T20:17:25.579962+00:00
+closed_at: 2025-11-03T14:44:57.105463+00:00
+---
+
+# Description
+
+The RBAC policy file contains what appears to be token values as identifiers (e.g., 'identifier:test-bearer-token-123'), creating confusion about whether this is an identifier or actual token. This pattern could encourage developers to put token values in RBAC assignments, which is a security concern.
+
+# Design
+
+1. Review config/casbin/policy.yaml and test configs
+2. Ensure identifiers are semantic names (e.g., 'admin', 'client-a') NOT token values
+3. Token values should ONLY exist in bearer_tokens configuration
+4. Add comments in policy.yaml explaining the identifier vs token distinction
+5. Update any test configs that conflate identifiers with token values
+6. Add documentation explaining this pattern
+
+# Acceptance Criteria
+
+- policy.yaml uses semantic identifiers (admin, client-a) not token values
+- Comments in policy.yaml explain identifier naming
+- bearer_tokens config maps identifiers to actual token values
+- Documentation clearly explains the pattern
+- No token values appear in RBAC policy files
+
+# Notes
+
+Implementation completed:
+
+**Security Fixes:**
+- ✅ Fixed Dockerfile to NOT copy config directory (was baking secrets into images!)
+- ✅ Now only copies safe files: casbin/model.conf and blueprints/
+- ✅ Fixed confusing identifier naming: test-bearer-token-123 → test-service
+
+**Documentation Added:**
+- ✅ Created config/README.md with comprehensive configuration guide
+- ✅ Created config/default.yaml.example (template without secrets)
+- ✅ Created config/casbin/policy.yaml.example (example RBAC with clear comments)
+- ✅ Added Docker deployment section to main README.md
+- ✅ Documented identifier vs token distinction extensively
+
+**Configuration Improvements:**
+- ✅ Updated .gitignore to exclude sensitive config files
+- ✅ Added comments to test configs explaining identifier pattern
+- ✅ Updated default.yaml bearer_tokens to match new semantic identifiers
+
+**Key Security Principles Documented:**
+1. Identifiers are NAMES in policy.yaml (e.g., "admin", "ci-bot")
+2. Token VALUES are secrets in environment variables
+3. Never commit secrets to git
+4. Docker images contain NO sensitive configs
+5. Mount config at runtime or use environment variables

@@ -1,0 +1,1113 @@
+use anyhow::{Context, Result};
+use casbin::prelude::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::info;
+
+use super::casbin::CasbinManager;
+use super::config::ConfigManager;
+use super::fallback::FallbackService;
+use super::types::{
+    Assignment, AuthConfig, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
+};
+
+/// Casbin-based authorization service
+pub struct AuthorizationService {
+    enforcer: Arc<RwLock<CachedEnforcer>>,
+    config: Arc<RwLock<AuthConfig>>,
+    config_path: String,
+}
+
+impl AuthorizationService {
+    /// Create a new authorization service with Casbin
+    pub async fn new(config_dir: &str) -> Result<Self> {
+        let model_path = format!("{}/model.conf", config_dir);
+        let policy_path = format!("{}/policy.yaml", config_dir);
+
+        // Load configuration from YAML
+        let config = ConfigManager::load_config(&policy_path).await?;
+
+        // Create Casbin enforcer using DefaultModel and MemoryAdapter
+        let m = DefaultModel::from_file(&model_path)
+            .await
+            .context("Failed to load Casbin model")?;
+
+        let a = MemoryAdapter::default();
+        let mut enforcer = CachedEnforcer::new(m, a)
+            .await
+            .context("Failed to create Casbin enforcer")?;
+
+        // Load policies into Casbin
+        CasbinManager::sync_policies_to_casbin(&mut enforcer, &config).await?;
+
+        info!(
+            "Authorization service initialized with {} scopes, {} roles",
+            config.scopes.len(),
+            config.roles.len()
+        );
+
+        Ok(Self {
+            enforcer: Arc::new(RwLock::new(enforcer)),
+            config: Arc::new(RwLock::new(config)),
+            config_path: policy_path,
+        })
+    }
+
+    /// Create a fallback authorization service with minimal configuration
+    pub async fn create_fallback_service(legacy_access_token: Option<String>) -> Self {
+        FallbackService::create_fallback_service(legacy_access_token).await
+    }
+
+    /// Create service from existing components (used by fallback service)
+    pub fn new_from_components(
+        enforcer: Arc<RwLock<CachedEnforcer>>,
+        config: Arc<RwLock<AuthConfig>>,
+        config_path: String,
+    ) -> Self {
+        Self {
+            enforcer,
+            config,
+            config_path,
+        }
+    }
+
+    /// Debug method to print the complete state of the authorization service
+    #[allow(dead_code)] // Useful for debugging
+    pub async fn debug_authorization_state(&self) {
+        println!("=== AUTHORIZATION SERVICE COMPLETE STATE ===");
+        println!("Config path: {}", self.config_path);
+
+        let config = self.config.read().await;
+        let enforcer = self.enforcer.read().await;
+
+        // Print scopes
+        println!("SCOPES:");
+        for (scope_name, scope_config) in &config.scopes {
+            println!("  - {}: {}", scope_name, scope_config.description);
+        }
+
+        // Print roles
+        println!("ROLES:");
+        for (role_name, role_config) in &config.roles {
+            let perms: Vec<String> = role_config
+                .permissions
+                .iter()
+                .map(|p| match p {
+                    PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
+                    PermissionOrWildcard::Wildcard => "*".to_string(),
+                })
+                .collect();
+            println!(
+                "  - {}: [{}] - {}",
+                role_name,
+                perms.join(", "),
+                role_config.description
+            );
+        }
+
+        // Print user assignments
+        println!("USER ASSIGNMENTS:");
+        for (user_id, assignments) in &config.assignments {
+            for assignment in assignments {
+                println!(
+                    "  - User '{}' has role '{}' in scopes: [{}]",
+                    user_id,
+                    assignment.role,
+                    assignment.scopes.join(", ")
+                );
+            }
+        }
+
+        // Print app to scope mappings
+        println!("APP SCOPE MAPPINGS:");
+        for (app_name, scopes) in &config.apps {
+            println!(
+                "  - App '{}' is in scopes: [{}]",
+                app_name,
+                scopes.join(", ")
+            );
+        }
+
+        // Print all Casbin policies
+        println!("CASBIN POLICIES:");
+        let policies = enforcer.get_policy();
+        if policies.is_empty() {
+            println!("  - NO POLICIES FOUND!");
+        } else {
+            for policy in &policies {
+                println!("  - Policy: [{}]", policy.join(", "));
+            }
+        }
+
+        // Print all Casbin user->role groupings (g)
+        println!("CASBIN USER->ROLE GROUPINGS (g):");
+        let user_role_groupings = enforcer.get_named_grouping_policy("g");
+        if user_role_groupings.is_empty() {
+            println!("  - NO USER->ROLE GROUPINGS FOUND!");
+        } else {
+            for grouping in &user_role_groupings {
+                println!("  - User->Role: [{}]", grouping.join(", "));
+            }
+        }
+
+        // Print all Casbin app->scope groupings (g2)
+        println!("CASBIN APP->SCOPE GROUPINGS (g2):");
+        let app_scope_groupings = enforcer.get_named_grouping_policy("g2");
+        if app_scope_groupings.is_empty() {
+            println!("  - NO APP->SCOPE GROUPINGS FOUND!");
+        } else {
+            for grouping in &app_scope_groupings {
+                println!("  - App->Scope: [{}]", grouping.join(", "));
+            }
+        }
+
+        println!("=== END AUTHORIZATION STATE ===");
+    }
+
+    /// Check if a user has permission to perform an action on an app
+    pub async fn check_permission(&self, user: &str, app: &str, action: &Permission) -> bool {
+        info!(
+            "Checking permission: user='{}', app='{}', action='{}'",
+            user,
+            app,
+            action.as_str()
+        );
+        let action_str = action.as_str();
+
+        let enforcer = self.enforcer.read().await;
+
+        let result = enforcer
+            .enforce(vec![user, app, action_str])
+            .unwrap_or(false);
+
+        if result {
+            info!("Permission granted: {} can {} on {}", user, action_str, app);
+        } else {
+            info!(
+                "Permission denied: {} cannot {} on {}",
+                user, action_str, app
+            );
+        }
+
+        result
+    }
+
+    /// Check if a user has a global permission (not tied to a specific app)
+    /// For global permissions like AdminRead/AdminWrite, this checks if the user has the permission
+    /// across any of their scopes rather than requiring a specific app
+    pub async fn check_global_permission(&self, user: &str, action: &Permission) -> bool {
+        info!(
+            "Checking global permission: user='{}', action='{}'",
+            user,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
+
+        // Check if user has the permission in any of their roles
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    info!(
+                        "Global permission granted: {} has {} via role {}",
+                        user,
+                        action.as_str(),
+                        assignment.role
+                    );
+                    return true;
+                }
+            }
+        }
+
+        info!(
+            "Global permission denied: {} lacks {}",
+            user,
+            action.as_str()
+        );
+        false
+    }
+
+    /// Check if a user has permission in any of the specified scopes
+    /// This is used for actions like app creation where the target scope is known
+    pub async fn check_permission_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &Permission,
+    ) -> bool {
+        info!(
+            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+            user,
+            scopes,
+            action.as_str()
+        );
+
+        let config = self.config.read().await;
+
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
+
+        // Check if user has the permission in any of their roles that overlap with target scopes
+        for assignment in &all_assignments {
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let has_permission = role_config.permissions.iter().any(|p| match p {
+                    PermissionOrWildcard::Wildcard => true,
+                    PermissionOrWildcard::Permission(perm) => perm == action,
+                });
+
+                if has_permission {
+                    // Expand wildcard scopes and check access
+                    let expanded_scopes =
+                        self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+                    let has_scope_access = expanded_scopes
+                        .iter()
+                        .any(|assigned_scope| scopes.contains(assigned_scope));
+
+                    if has_scope_access {
+                        info!(
+                            "Permission granted: {} has {} in scopes {:?} via role {}",
+                            user,
+                            action.as_str(),
+                            scopes,
+                            assignment.role
+                        );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        info!(
+            "Permission denied: {} lacks {} in scopes {:?}",
+            user,
+            action.as_str(),
+            scopes
+        );
+        false
+    }
+
+    /// Format user identifier for authorization checks
+    pub fn format_user_id(email: &str, token: Option<&str>) -> String {
+        if let Some(token) = token {
+            format!("bearer:{}", token)
+        } else {
+            email.to_string()
+        }
+    }
+
+    /// Get the correct user ID for authorization checks from a CurrentUser
+    /// Handles both bearer token users (with identifier: format) and OAuth users
+    pub fn get_user_id_for_authorization(user: &crate::api::basic_auth::CurrentUser) -> String {
+        if user.email.starts_with("identifier:") {
+            // Bearer token users already have the correct identifier format
+            user.email.clone()
+        } else {
+            // OAuth users use their email address directly
+            user.email.clone()
+        }
+    }
+
+    /// Helper method to expand wildcard scopes to actual scope names
+    /// Returns the original scopes if no wildcard, or all available scopes if wildcard is present
+    fn expand_wildcard_scopes(
+        &self,
+        scopes: &[String],
+        available_scopes: &std::collections::HashMap<String, super::types::ScopeConfig>,
+    ) -> Vec<String> {
+        if scopes.contains(&"*".to_string()) {
+            available_scopes.keys().cloned().collect()
+        } else {
+            scopes.to_vec()
+        }
+    }
+
+    /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
+    /// Returns None if email has no '@', domain is empty, or email has multiple '@' symbols
+    fn extract_domain(email: &str) -> Option<String> {
+        // Use first '@' to match standard email format
+        let at_pos = email.find('@')?;
+
+        // Everything after '@'
+        let domain = &email[at_pos + 1..];
+
+        // Reject emails with multiple '@' symbols (security: prevent bypass via user@evil.com@factorial.io)
+        if domain.contains('@') {
+            return None;
+        }
+
+        // Return domain if non-empty
+        if domain.is_empty() {
+            None
+        } else {
+            Some(domain.to_string())
+        }
+    }
+
+    /// Validate domain assignment pattern (e.g., "@factorial.io")
+    /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
+    pub fn validate_domain_assignment(user_id: &str) -> Result<()> {
+        // Not a domain pattern - skip validation
+        if !user_id.starts_with('@') {
+            return Ok(());
+        }
+
+        let domain = &user_id[1..]; // Strip '@' prefix
+
+        // Must have at least one character after '@'
+        if domain.is_empty() {
+            anyhow::bail!("Domain cannot be empty (just '@')");
+        }
+
+        // Must contain at least one dot
+        if !domain.contains('.') {
+            anyhow::bail!(
+                "Invalid domain '{}': must contain a dot (e.g., '@example.com')",
+                user_id
+            );
+        }
+
+        // Reject multiple @ symbols
+        if domain.contains('@') {
+            anyhow::bail!("Invalid domain '{}': contains '@' character", user_id);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve user assignments with domain fallback support
+    /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    ///
+    /// Email addresses are normalized to lowercase per RFC 5321 for case-insensitive matching
+    fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
+        let mut result = Vec::new();
+
+        // Normalize email to lowercase for case-insensitive matching (RFC 5321)
+        // Only normalize if it looks like an email (contains @), preserve identifiers like "identifier:admin"
+        let normalized_user = if user.contains('@') {
+            user.to_lowercase()
+        } else {
+            user.to_string()
+        };
+
+        // Step 1: Check exact email match
+        if let Some(assignments) = config.assignments.get(&normalized_user) {
+            result.extend_from_slice(assignments);
+        } else {
+            // Step 2: Check domain match (only if no exact match)
+            if let Some(domain) = Self::extract_domain(&normalized_user) {
+                let domain_key = format!("@{}", domain);
+                if let Some(assignments) = config.assignments.get(&domain_key) {
+                    result.extend_from_slice(assignments);
+                }
+            }
+        }
+
+        // Step 3: Always add wildcard (additive)
+        if let Some(wildcard) = config.assignments.get("*") {
+            result.extend_from_slice(wildcard);
+        }
+
+        result
+    }
+
+    /// Check if authorization is enabled (has any assignments)
+    pub async fn is_enabled(&self) -> bool {
+        let config = self.config.read().await;
+        !config.assignments.is_empty()
+    }
+
+    /// Look up user information by bearer token
+    #[allow(dead_code)]
+    pub async fn get_user_by_token(&self, token: &str) -> Option<String> {
+        let config = self.config.read().await;
+        let token_user_id = Self::format_user_id("", Some(token));
+
+        // Only authenticate tokens that are explicitly listed in assignments
+        if config.assignments.contains_key(&token_user_id) {
+            Some(token_user_id)
+        } else {
+            None
+        }
+    }
+
+    /// Look up user information by identifier (new format: identifier:admin)
+    pub async fn get_user_by_identifier(&self, identifier_user_id: &str) -> Option<String> {
+        let config = self.config.read().await;
+
+        // Check if user assignments exist for this identifier
+        if config.assignments.contains_key(identifier_user_id) {
+            Some(identifier_user_id.to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Save current configuration to file
+    async fn save_config(&self) -> Result<()> {
+        // Skip saving for fallback service (in-memory only)
+        if self.config_path.starts_with("fallback/") {
+            return Ok(());
+        }
+
+        let config = self.config.read().await;
+        ConfigManager::save_config(&config, &self.config_path).await
+    }
+
+    /// Get all available scopes defined in the authorization configuration
+    pub async fn get_scopes(&self) -> Vec<String> {
+        let config = self.config.read().await;
+        config.scopes.keys().cloned().collect()
+    }
+
+    /// Validate that all specified scopes exist in the authorization system
+    /// Returns Ok(()) if all scopes exist, or Err with missing scopes if not
+    pub async fn validate_scopes(&self, scopes: &[String]) -> Result<(), Vec<String>> {
+        let available_scopes = self.get_scopes().await;
+        let missing_scopes: Vec<String> = scopes
+            .iter()
+            .filter(|scope| !available_scopes.contains(scope))
+            .cloned()
+            .collect();
+
+        if missing_scopes.is_empty() {
+            Ok(())
+        } else {
+            Err(missing_scopes)
+        }
+    }
+
+    /// Get all scopes a user has access to with their permissions
+    pub async fn get_user_scopes_with_permissions(
+        &self,
+        user: &str,
+    ) -> Vec<crate::api::rest::handlers::scopes::list::ScopeInfo> {
+        let config = self.config.read().await;
+        let mut user_scopes = Vec::new();
+
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
+
+        // Process all assignments
+        for assignment in all_assignments {
+            // Get role permissions
+            let permissions = if let Some(role_config) = config.roles.get(&assignment.role) {
+                role_config
+                    .permissions
+                    .iter()
+                    .map(|p| match p {
+                        PermissionOrWildcard::Wildcard => "*".to_string(),
+                        PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
+
+            // Expand wildcard scopes and add each scope the user has access to
+            let expanded_scopes = self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+
+            for scope in &expanded_scopes {
+                let scope_info = crate::api::rest::handlers::scopes::list::ScopeInfo {
+                    name: scope.clone(),
+                    description: config
+                        .scopes
+                        .get(scope)
+                        .map(|s| s.description.clone())
+                        .unwrap_or_else(|| format!("Scope: {}", scope)),
+                    permissions: permissions.clone(),
+                };
+
+                // Only add if not already in the list (user might have multiple roles for same scope)
+                if !user_scopes.iter().any(
+                    |s: &crate::api::rest::handlers::scopes::list::ScopeInfo| {
+                        s.name == scope_info.name
+                    },
+                ) {
+                    user_scopes.push(scope_info);
+                } else {
+                    // If scope already exists, merge permissions
+                    if let Some(existing) = user_scopes.iter_mut().find(
+                        |s: &&mut crate::api::rest::handlers::scopes::list::ScopeInfo| {
+                            s.name == *scope
+                        },
+                    ) {
+                        for perm in &permissions {
+                            if !existing.permissions.contains(perm) {
+                                existing.permissions.push(perm.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        user_scopes
+    }
+
+    /// Assign an app to scopes
+    /// Note: Caller should validate scopes exist using validate_scopes() before calling this
+    pub async fn set_app_scopes(&self, app: &str, scopes: Vec<String>) -> Result<()> {
+        let mut config = self.config.write().await;
+        let mut enforcer = self.enforcer.write().await;
+
+        // Remove existing app-scope associations from Casbin (g2 policies)
+        let existing_policies = enforcer.get_named_grouping_policy("g2");
+        let app_policies: Vec<_> = existing_policies
+            .iter()
+            .filter(|p| p.len() >= 2 && p[0] == app)
+            .cloned()
+            .collect();
+        for policy in app_policies {
+            enforcer.remove_named_grouping_policy("g2", policy).await?;
+        }
+
+        // Add new app-scope associations to Casbin (g2 policies)
+        for scope in &scopes {
+            enforcer
+                .add_named_grouping_policy("g2", vec![app.to_string(), scope.clone()])
+                .await?;
+        }
+
+        // Update config
+        config.apps.insert(app.to_string(), scopes);
+
+        // Save config
+        drop(config);
+        drop(enforcer);
+        self.save_config().await?;
+
+        Ok(())
+    }
+
+    /// Create a new scope
+    pub async fn create_scope(&self, name: &str, description: &str) -> Result<()> {
+        let mut config = self.config.write().await;
+
+        if config.scopes.contains_key(name) {
+            anyhow::bail!("Scope '{}' already exists", name);
+        }
+
+        config.scopes.insert(
+            name.to_string(),
+            ScopeConfig {
+                description: description.to_string(),
+                created_at: chrono::Utc::now(),
+            },
+        );
+
+        drop(config);
+        self.save_config().await?;
+
+        info!("Created scope '{}'", name);
+        Ok(())
+    }
+
+    /// Get all scopes
+    pub async fn list_scopes(&self) -> Vec<(String, ScopeConfig)> {
+        let config = self.config.read().await;
+        config
+            .scopes
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Create a new role
+    pub async fn create_role(
+        &self,
+        name: &str,
+        permissions: Vec<PermissionOrWildcard>,
+        description: &str,
+    ) -> Result<()> {
+        let mut config = self.config.write().await;
+
+        if config.roles.contains_key(name) {
+            anyhow::bail!("Role '{}' already exists", name);
+        }
+
+        config.roles.insert(
+            name.to_string(),
+            RoleConfig {
+                permissions,
+                description: description.to_string(),
+            },
+        );
+
+        drop(config);
+        self.save_config().await?;
+
+        info!("Created role '{}'", name);
+        Ok(())
+    }
+
+    /// Assign role to user for specific scopes
+    pub async fn assign_user_role(
+        &self,
+        user: &str,
+        role: &str,
+        scopes: Vec<String>,
+    ) -> Result<()> {
+        let mut config = self.config.write().await;
+        let mut enforcer = self.enforcer.write().await;
+
+        // Check if role exists
+        if !config.roles.contains_key(role) {
+            anyhow::bail!("Role '{}' does not exist", role);
+        }
+
+        // Note: We now use direct user-scope-permission policies instead of user->role mappings
+
+        // Add user permissions for each scope to Casbin (direct user-scope-permission policies)
+        if let Some(role_config) = config.roles.get(role) {
+            // Expand wildcard scopes to actual scopes
+            let expanded_scopes = self.expand_wildcard_scopes(&scopes, &config.scopes);
+
+            for scope in &expanded_scopes {
+                for permission in &role_config.permissions {
+                    match permission {
+                        PermissionOrWildcard::Wildcard => {
+                            // Add all permissions for this user-scope combination
+                            for perm in Permission::all() {
+                                let action = perm.as_str();
+                                enforcer
+                                    .add_policy(vec![
+                                        user.to_string(),
+                                        scope.clone(),
+                                        action.to_string(),
+                                    ])
+                                    .await?;
+                            }
+                        }
+                        PermissionOrWildcard::Permission(perm) => {
+                            let action = perm.as_str();
+                            enforcer
+                                .add_policy(vec![
+                                    user.to_string(),
+                                    scope.clone(),
+                                    action.to_string(),
+                                ])
+                                .await?;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update config
+        let assignments = config
+            .assignments
+            .entry(user.to_string())
+            .or_insert_with(Vec::new);
+
+        // Check if assignment already exists
+        if !assignments
+            .iter()
+            .any(|a| a.role == role && a.scopes == scopes)
+        {
+            assignments.push(Assignment {
+                role: role.to_string(),
+                scopes,
+            });
+        }
+
+        drop(config);
+        drop(enforcer);
+        self.save_config().await?;
+
+        info!("Assigned role '{}' to user '{}'", role, user);
+        Ok(())
+    }
+
+    /// Get user's effective permissions for debugging
+    pub async fn get_user_permissions(&self, user: &str) -> HashMap<String, Vec<String>> {
+        let config = self.config.read().await;
+        let mut all_permissions: HashMap<String, Vec<String>> = HashMap::new();
+
+        // Get user assignments (with domain fallback support)
+        let all_assignments = self.resolve_user_assignments(user, &config);
+
+        // Process all assignments
+        for assignment in all_assignments {
+            // Get role permissions
+            if let Some(role_config) = config.roles.get(&assignment.role) {
+                let permissions: Vec<String> = role_config
+                    .permissions
+                    .iter()
+                    .map(|p| match p {
+                        PermissionOrWildcard::Wildcard => "*".to_string(),
+                        PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
+                    })
+                    .collect();
+
+                // Expand wildcard scopes and add permissions for each scope
+                let expanded_scopes =
+                    self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+
+                for scope in &expanded_scopes {
+                    let scope_perms = all_permissions.entry(scope.clone()).or_default();
+                    for perm in &permissions {
+                        if !scope_perms.contains(perm) {
+                            scope_perms.push(perm.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        all_permissions
+    }
+
+    /// Get all roles
+    pub async fn list_roles(&self) -> Vec<(String, RoleConfig)> {
+        let config = self.config.read().await;
+        config
+            .roles
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Get all assignments
+    pub async fn list_assignments(&self) -> HashMap<String, Vec<Assignment>> {
+        let config = self.config.read().await;
+        config.assignments.clone()
+    }
+
+    /// Get enforcer for testing (internal use only)
+    #[cfg(test)]
+    pub async fn get_enforcer_for_testing(&self) -> Arc<RwLock<CachedEnforcer>> {
+        self.enforcer.clone()
+    }
+}
+
+impl std::fmt::Debug for AuthorizationService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthorizationService")
+            .field("config_path", &self.config_path)
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod domain_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_domain() {
+        // Valid emails
+        assert_eq!(
+            AuthorizationService::extract_domain("user@factorial.io"),
+            Some("factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user@sub.factorial.io"),
+            Some("sub.factorial.io".to_string())
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("user.name@example.com"),
+            Some("example.com".to_string())
+        );
+
+        // Edge cases
+        assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
+        assert_eq!(AuthorizationService::extract_domain("user@"), None);
+        assert_eq!(AuthorizationService::extract_domain(""), None);
+
+        // Security: Reject emails with multiple @ symbols to prevent bypass
+        assert_eq!(
+            AuthorizationService::extract_domain("user@evil.com@factorial.io"),
+            None
+        );
+        assert_eq!(
+            AuthorizationService::extract_domain("admin@attacker.com@trusted.io"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_validate_domain_assignment() {
+        // Valid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@sub.factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("@example.co.uk").is_ok());
+
+        // Non-domain patterns (should pass - not validated)
+        assert!(AuthorizationService::validate_domain_assignment("user@factorial.io").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("identifier:admin").is_ok());
+        assert!(AuthorizationService::validate_domain_assignment("*").is_ok());
+
+        // Invalid domain patterns
+        assert!(AuthorizationService::validate_domain_assignment("@").is_err()); // Empty domain
+        assert!(AuthorizationService::validate_domain_assignment("@factorial").is_err()); // No dot
+        assert!(AuthorizationService::validate_domain_assignment("@@factorial.io").is_err()); // Extra @
+        assert!(AuthorizationService::validate_domain_assignment("@facto@rial.io").is_err());
+        // @ in domain
+    }
+
+    #[test]
+    fn test_assignment_resolution_precedence() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Create a test service (we just need the method, not the full service)
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["exact-scope".to_string()],
+        }];
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["domain-scope".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["wildcard-scope".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment.clone());
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment.clone());
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment.clone());
+
+        // Create a minimal service for testing
+        let service = create_test_service_with_config(config.clone());
+
+        // Test 1: Exact match wins (+ wildcard, NOT domain)
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2); // exact + wildcard
+        assert!(result.iter().any(|a| a.role == "admin"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "developer")); // Domain NOT included
+
+        // Test 2: Domain match (+ wildcard, no exact)
+        let result = service.resolve_user_assignments("other@factorial.io", &config);
+        assert_eq!(result.len(), 2); // domain + wildcard
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+        assert!(!result.iter().any(|a| a.role == "admin")); // Exact NOT included
+
+        // Test 3: Only wildcard (no exact, no domain)
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1); // only wildcard
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_domain_assignment_additive_wildcard() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev".to_string()],
+        }];
+        let wildcard_assignment = vec![Assignment {
+            role: "viewer".to_string(),
+            scopes: vec!["public".to_string()],
+        }];
+
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+        config
+            .assignments
+            .insert("*".to_string(), wildcard_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // User with domain match should get BOTH domain AND wildcard
+        let result = service.resolve_user_assignments("user@factorial.io", &config);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().any(|a| a.role == "developer"));
+        assert!(result.iter().any(|a| a.role == "viewer"));
+
+        // User without domain match should get ONLY wildcard
+        let result = service.resolve_user_assignments("user@other.com", &config);
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|a| a.role == "viewer"));
+    }
+
+    #[test]
+    fn test_case_insensitive_email_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase exact email
+        let exact_assignment = vec![Assignment {
+            role: "admin".to_string(),
+            scopes: vec!["admin-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("user@factorial.io".to_string(), exact_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the exact assignment
+        let test_cases = vec![
+            "user@factorial.io", // exact lowercase
+            "User@factorial.io", // capitalized local
+            "USER@factorial.io", // uppercase local
+            "user@Factorial.io", // capitalized domain
+            "user@FACTORIAL.IO", // uppercase domain
+            "User@Factorial.Io", // mixed case
+            "USER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match exact assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "admin",
+                "Email '{}' should get admin role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_case_insensitive_domain_matching() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has lowercase domain assignment
+        let domain_assignment = vec![Assignment {
+            role: "developer".to_string(),
+            scopes: vec!["dev-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("@factorial.io".to_string(), domain_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Test various case combinations - all should match the domain assignment
+        let test_cases = vec![
+            "newuser@factorial.io", // exact lowercase
+            "NewUser@factorial.io", // capitalized local
+            "newuser@Factorial.io", // capitalized domain
+            "newuser@FACTORIAL.IO", // uppercase domain
+            "NewUser@Factorial.Io", // mixed case
+            "NEWUSER@FACTORIAL.IO", // all uppercase
+        ];
+
+        for email in test_cases {
+            let result = service.resolve_user_assignments(email, &config);
+            assert_eq!(
+                result.len(),
+                1,
+                "Email '{}' should match domain assignment",
+                email
+            );
+            assert_eq!(
+                result[0].role, "developer",
+                "Email '{}' should get developer role",
+                email
+            );
+        }
+    }
+
+    #[test]
+    fn test_identifier_patterns_preserved() {
+        let mut config = AuthConfig {
+            scopes: HashMap::new(),
+            roles: HashMap::new(),
+            assignments: HashMap::new(),
+            apps: HashMap::new(),
+        };
+
+        // Config has identifier-based assignments (not emails)
+        let identifier_assignment = vec![Assignment {
+            role: "service".to_string(),
+            scopes: vec!["service-scope".to_string()],
+        }];
+        config
+            .assignments
+            .insert("identifier:my-service".to_string(), identifier_assignment);
+
+        let service = create_test_service_with_config(config.clone());
+
+        // Identifiers should NOT be normalized (case-sensitive)
+        let result = service.resolve_user_assignments("identifier:my-service", &config);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "service");
+
+        // Different case should NOT match (identifiers are case-sensitive)
+        let result = service.resolve_user_assignments("identifier:My-Service", &config);
+        assert_eq!(result.len(), 0, "Identifiers should be case-sensitive");
+    }
+
+    // Helper function to create a minimal test service (sync wrapper)
+    fn create_test_service_with_config(config: AuthConfig) -> AuthorizationService {
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        // Use tokio runtime to create async components
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            use casbin::prelude::*;
+
+            // Create a minimal in-memory enforcer (not used in these tests but required for struct)
+            let m = DefaultModel::from_str(
+                r#"
+[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+"#,
+            )
+            .await
+            .unwrap();
+
+            let a = MemoryAdapter::default();
+            let enforcer = CachedEnforcer::new(m, a).await.unwrap();
+
+            AuthorizationService {
+                enforcer: Arc::new(RwLock::new(enforcer)),
+                config: Arc::new(RwLock::new(config)),
+                config_path: "test".to_string(),
+            }
+        })
+    }
+}

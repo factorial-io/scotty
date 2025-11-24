@@ -1,0 +1,46 @@
+debug: false
+api:
+    bind_address: "0.0.0.0:21342"
+    create_app_max_size: "50M"
+    auth_mode: "oauth"
+    oauth:
+        client_id: "test_oauth_client_id"
+        client_secret: "test_oauth_client_secret"
+        oidc_issuer_url: "https://test-oauth-provider.example.com"
+        device_flow_enabled: true
+    bearer_tokens:
+        # OAuth mode with bearer token fallback for service accounts
+        # Identifiers match those in config/casbin/policy.yaml
+        admin: "test-bearer-token-123"
+        client-a: "client-a-secure-token-456"
+scheduler:
+    running_app_check: "10m"
+    ttl_check: "10m" 
+    task_cleanup: "1m"
+telemetry: None
+apps:
+    max_depth: 3
+    domain_suffix: "test.local"
+    use_tls: false
+    root_folder: "./apps"
+    blueprints:
+        test-oauth-blueprint:
+            name: "Test OAuth Blueprint"
+            description: "A simple test blueprint for OAuth testing"
+            public_services: ~
+            required_services:
+                - nginx
+            actions:
+                post_create:
+                    commands:
+                        nginx:
+                            - echo "OAuth test blueprint created"
+docker:
+    connection: local
+    registries: {}
+load_balancer_type: Traefik
+traefik:
+    network: "proxy"
+    use_tls: false
+haproxy:
+    use_tls: false

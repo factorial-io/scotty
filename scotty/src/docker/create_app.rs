@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use scotty_core::utils::slugify::slugify;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -23,7 +24,7 @@ use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalanc
 use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
 use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
-use super::state_machine_handlers::set_finished_handler::SetFinishedHandler;
+use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
 use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
 use super::validation::validate_docker_compose_content;
 
@@ -42,7 +43,12 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
         let app_state = &context.read().await.app_state;
         let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
         let handle = sm.spawn(context.clone());
-        let _ = handle.await;
+
+        // Gracefully handle both errors and panics from nested state machine
+        handle
+            .await
+            .map_err(|e| anyhow::anyhow!("Docker compose rebuild task panicked: {}", e))?
+            .context("Docker compose rebuild failed")?;
 
         Ok(self.next_state)
     }
@@ -58,6 +64,7 @@ enum CreateAppStates {
     RunPostActions,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -68,6 +75,7 @@ async fn create_app_prepare(
     files: &FileList,
 ) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
     let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
+    sm.set_error_state(CreateAppStates::SetFailed);
     sm.add_handler(
         CreateAppStates::CreateDirectory,
         Arc::new(CreateDirectoryHandler::<CreateAppStates> {
@@ -123,15 +131,19 @@ async fn create_app_prepare(
 
     sm.add_handler(
         CreateAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<CreateAppStates> {
-            next_state: CreateAppStates::Done,
-            notification: Some(Message::new(MessageType::AppCreated, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            CreateAppStates::Done,
+            Some(Message::new(MessageType::AppCreated, app)),
+        )),
+    );
+    sm.add_handler(
+        CreateAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(CreateAppStates::Done, None)),
     );
     Ok(sm)
 }
 
-fn validate_app(
+async fn validate_app(
     app_state: SharedAppState,
     settings: &AppSettings,
     files: &FileList,
@@ -139,7 +151,7 @@ fn validate_app(
     let docker_compose_file = files
         .files
         .iter()
-        .find(|f| is_valid_docker_compose_file(&f.name));
+        .find(|f| scotty_core::utils::compose::is_valid_config_file(&f.name));
 
     if docker_compose_file.is_none() {
         return Err(AppError::NoDockerComposeFile.into());
@@ -195,6 +207,15 @@ fn validate_app(
         }
     }
 
+    // Validate that all specified groups exist in the authorization system
+    if let Err(missing_scopes) = app_state
+        .auth_service
+        .validate_scopes(&settings.scopes)
+        .await
+    {
+        return Err(AppError::ScopesNotFound(missing_scopes).into());
+    }
+
     Ok(docker_compose_file.unwrap().clone())
 }
 
@@ -208,9 +229,15 @@ fn validate_app(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
+/// # use scotty::docker::create_app::create_app;
+/// # async fn example() {
+/// # let app_state = todo!();
+/// # let settings = todo!();
+/// # let files = todo!();
 /// let result = create_app(app_state, "my-app", &settings, &files).await;
 /// assert!(result.is_ok());
+/// # }
 /// ```
 pub async fn create_app(
     app_state: SharedAppState,
@@ -219,7 +246,7 @@ pub async fn create_app(
     files: &FileList,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
-    let candidate = validate_app(app_state.clone(), settings, files)?;
+    let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");
@@ -236,25 +263,4 @@ pub async fn create_app(
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await
-}
-
-fn is_valid_docker_compose_file(file_path: &str) -> bool {
-    let file_name = std::path::Path::new(file_path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("");
-    file_name == "docker-compose.yml" || file_name == "docker-compose.yaml"
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_valid_docker_compose_file() {
-        assert!(is_valid_docker_compose_file("docker-compose.yml"));
-        assert!(is_valid_docker_compose_file("docker-compose.yaml"));
-        assert!(is_valid_docker_compose_file("./docker-compose.yaml"));
-        assert!(is_valid_docker_compose_file("./docker-compose.yml"));
-    }
 }

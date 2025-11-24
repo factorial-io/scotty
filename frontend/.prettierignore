@@ -1,4 +1,15 @@
-# Package Managers
+# Build outputs
+build/
+.svelte-kit/
+dist/
+
+# Auto-generated TypeScript types from ts-rs
+src/generated/
+
+# Dependencies
+node_modules/
+
+# Package manager
 package-lock.json
 pnpm-lock.yaml
 yarn.lock

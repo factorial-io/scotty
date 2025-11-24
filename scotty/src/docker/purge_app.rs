@@ -7,7 +7,8 @@ use crate::{
     app_state::SharedAppState,
     docker::state_machine_handlers::{
         context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        set_finished_handler::SetFinishedHandler, update_app_data_handler::UpdateAppDataHandler,
+        task_completion_handler::TaskCompletionHandler,
+        update_app_data_handler::UpdateAppDataHandler,
     },
     state_machine::StateMachine,
 };
@@ -22,6 +23,7 @@ pub enum PurgeAppStates {
     RunDockerCompose,
     UpdateAppData,
     SetFinished,
+    SetFailed,
     Done,
 }
 
@@ -38,6 +40,7 @@ pub async fn purge_app_prepare(
     info!("Purging app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
+    sm.set_error_state(PurgeAppStates::SetFailed);
 
     let command = match purge_method {
         PurgeAppMethod::Down => vec!["down", "-v", "--rmi", "all"],
@@ -60,10 +63,14 @@ pub async fn purge_app_prepare(
     );
     sm.add_handler(
         PurgeAppStates::SetFinished,
-        Arc::new(SetFinishedHandler::<PurgeAppStates> {
-            next_state: PurgeAppStates::Done,
-            notification: Some(Message::new(MessageType::AppPurged, app)),
-        }),
+        Arc::new(TaskCompletionHandler::success(
+            PurgeAppStates::Done,
+            Some(Message::new(MessageType::AppPurged, app)),
+        )),
+    );
+    sm.add_handler(
+        PurgeAppStates::SetFailed,
+        Arc::new(TaskCompletionHandler::failure(PurgeAppStates::Done, None)),
     );
     Ok(sm)
 }

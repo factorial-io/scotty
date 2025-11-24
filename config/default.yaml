@@ -1,13 +1,21 @@
 debug: false
 api:
     bind_address: "0.0.0.0:21342"
-    access_token: "mysecret"
+    auth_mode: bearer
     create_app_max_size: "50M"
+    bearer_tokens:
+        admin: "admin-bearer-token"
+        client-a: "client-a-bearer-token"
+        client-b: "client-b-bearet-token"
+        hello-world: "hello-world-bearer-token"
+        test-service: "test-bearer-123-token"
+    oauth:
+        oidc_issuer_url: "https://source.factorial.io"
 scheduler:
-    running_app_check: "15s"
+    running_app_check: "15m"
     ttl_check: "10m"
     task_cleanup: "3m"
-telemetry: None
+telemetry: None  # Options: None, "traces", "metrics", or "traces,metrics" for both
 apps:
     domain_suffix: "ddev.site"
     root_folder: "./apps" # Path to the folder where the apps are stored

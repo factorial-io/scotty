@@ -27,14 +27,28 @@ where
     {
         let context = context.write().await;
         let task = context.task.clone();
+        let task_id = task.read().await.id;
         context
             .app_state
             .task_manager
-            .add_task(&task.read().await.id, task.clone(), None)
+            .add_task(&task_id, task.clone(), None)
+            .await;
+
+        // Add initial status message for the app operation
+        context
+            .app_state
+            .task_manager
+            .add_task_status(&task_id, format!("Starting app '{}'", app.name))
             .await;
     }
+    // TODO(scotty-f1dd): State machine handle is intentionally dropped here to allow immediate
+    // API response. This means we cannot detect panics in the state machine task.
+    // Errors are handled via TaskCompletionHandler, but panics are silently lost.
+    // Future refactoring should support multiple handles in TaskState to track both
+    // the state machine handle and any subprocess handles it spawns.
     let _handle = sm.spawn(context.clone());
 
+    // Return immediately with the context, task is running in background
     Ok(context.clone().read().await.as_running_app_context().await)
 }
 
@@ -55,8 +69,9 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use scotty::docker::helper::wait_for_containers_ready;
+/// use scotty::app_state::SharedAppState;
 ///
 /// async fn example(app_state: &SharedAppState) -> anyhow::Result<()> {
 ///     let container_ids = vec!["container1".to_string(), "container2".to_string()];

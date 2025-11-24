@@ -1,54 +1,91 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { apiCall } from '$lib';
+	import { authenticatedApiCall } from '$lib';
 	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { sessionStore } from '../stores/sessionStore';
 
 	export let app: App;
-	export let hasActions = false;
+	export let canManage: boolean = false;
 
 	let customActions: CustomAction[] = [];
 	let isLoading = true;
+	let hasFetched = false;
+	let lastAppKey = `${app.name}-${app.settings?.app_blueprint || 'none'}`;
+
+	// Export a reactive value that indicates if actions are available
+	export let hasActions: boolean = false;
 	let currentTaskId: string | null = null;
 	let currentAction: string | null = null;
 
-	onMount(async () => {
-		if (app.settings?.app_blueprint) {
-			try {
-				// Fetch all blueprints and filter for the one we need
-				const result = (await apiCall('blueprints')) as BlueprintsResponse;
-				if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
-					const blueprint = result.blueprints[app.settings.app_blueprint];
-					// Filter for custom actions only
-					// The API returns action names as "Custom(action_name)"
-					// We need to extract the actual action name
-					customActions = Object.keys(blueprint.actions || {})
-						.filter((key) => !key.startsWith('post_'))
-						.map((key) => ({
-							name: key,
-							description: blueprint.actions[key].description
-						}));
-				} else {
-					console.warn(
-						`Blueprint ${app.settings.app_blueprint} not found or has no actions`
-					);
-				}
-			} catch (err) {
-				console.error('Error loading blueprints:', err);
-			} finally {
-				isLoading = false;
+	// Reactive statement: Fetch blueprints when authentication is ready and canManage is true
+	$: {
+		const shouldFetch =
+			$sessionStore.isAuthenticated &&
+			$sessionStore.isInitialized &&
+			canManage &&
+			app.settings?.app_blueprint &&
+			!hasFetched;
+
+		if (shouldFetch) {
+			fetchBlueprints();
+		}
+	}
+
+	async function fetchBlueprints() {
+		// Prevent multiple fetches
+		if (hasFetched) return;
+		hasFetched = true;
+		isLoading = true;
+
+		try {
+			// Check if app settings exist
+			if (!app.settings) {
+				console.warn('App settings not available');
+				return;
 			}
-		} else {
+
+			// Fetch all blueprints and filter for the one we need
+			const result = (await authenticatedApiCall('blueprints')) as BlueprintsResponse;
+			if (result && result.blueprints && result.blueprints[app.settings.app_blueprint]) {
+				const blueprint = result.blueprints[app.settings.app_blueprint];
+				// Filter for custom actions only
+				customActions = Object.keys(blueprint.actions || {})
+					.filter((key) => !key.startsWith('post_'))
+					.map((key) => ({
+						name: key,
+						description: blueprint.actions[key].description
+					}));
+			} else {
+				console.warn(`Blueprint ${app.settings.app_blueprint} not found or has no actions`);
+			}
+		} catch (err) {
+			console.error('Error loading blueprints:', err);
+			// Reset hasFetched to allow retry
+			hasFetched = false;
+		} finally {
 			isLoading = false;
 		}
-	});
+	}
+
+	// Reset hasFetched when app name or blueprint changes
+	$: if (app.name || app.settings?.app_blueprint) {
+		// Only reset if the app identity actually changed
+		const currentAppKey = `${app.name}-${app.settings?.app_blueprint || 'none'}`;
+		if (currentAppKey !== lastAppKey) {
+			lastAppKey = currentAppKey;
+			hasFetched = false;
+			customActions = [];
+			isLoading = true;
+		}
+	}
 
 	async function triggerCustomAction(actionName: string) {
-		if (currentTaskId !== null || !isSupported()) return;
+		if (currentTaskId !== null || !isSupported() || !canManage) return;
 
 		try {
 			currentAction = actionName;
-			const result = await apiCall(`apps/${app.name}/actions`, {
+			const result = await authenticatedApiCall(`apps/${app.name}/actions`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -60,7 +97,7 @@
 			const context = result as RunningAppContext;
 			if (context && context.task && context.task.id) {
 				currentTaskId = context.task.id;
-				goto(`/tasks/${currentTaskId}`);
+				goto(resolve(`/tasks/${currentTaskId}`));
 			} else {
 				console.error('Unexpected API response:', result);
 				throw new Error('Invalid response from server');
@@ -72,22 +109,20 @@
 	}
 
 	// Check if the app is in a supported state for custom actions
-	function isSupported() {
-		return app.status === 'Running' && app.settings?.app_blueprint;
+	function isSupported(): boolean {
+		return app.status === 'Running' && !!app.settings?.app_blueprint;
 	}
 
-	// Update hasActions reactively based on whether custom actions are available
-	$: hasActions = !isLoading && customActions.length > 0 && isSupported();
+	// Update the exported hasActions variable reactively
+	$: hasActions = !isLoading && customActions.length > 0 && canManage && isSupported();
 </script>
 
-{#if isLoading}
-	<div class="btn btn-sm join-item loading">Loading actions...</div>
-{:else if customActions.length > 0}
-	<div class="dropdown">
+{#if hasActions}
+	<div class="dropdown dropdown-end">
 		<div
 			tabindex="0"
 			role="button"
-			class="btn btn-sm join-item {currentTaskId !== null || !isSupported()
+			class="btn btn-sm {currentTaskId !== null || !canManage || !isSupported()
 				? 'btn-disabled'
 				: ''}"
 		>
@@ -99,6 +134,7 @@
 			{/if}
 		</div>
 		<ul
+			role="menu"
 			tabindex="0"
 			class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm"
 		>
@@ -108,19 +144,12 @@
 						on:click={() => triggerCustomAction(action.name)}
 						data-tip={action.description}
 						class="tooltip tooltip-right"
-						disabled={currentTaskId !== null || !isSupported()}
+						disabled={currentTaskId !== null || !canManage || !isSupported()}
 					>
 						{action.name}
 					</button>
 				</li>
 			{/each}
 		</ul>
-	</div>
-{:else if !isLoading && app.settings?.app_blueprint && isSupported()}
-	<div
-		class="btn btn-sm join-item btn-disabled tooltip tooltip-bottom"
-		data-tip="No custom actions defined in blueprint"
-	>
-		Custom Actions
 	</div>
 {/if}

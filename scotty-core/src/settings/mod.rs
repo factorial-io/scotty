@@ -4,4 +4,7 @@ pub mod apps;
 pub mod docker;
 pub mod loadbalancer;
 pub mod notification_services;
+pub mod output;
+pub mod rate_limiting;
 pub mod scheduler_interval;
+pub mod shell;

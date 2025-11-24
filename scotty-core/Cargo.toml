@@ -11,7 +11,15 @@ license-file.workspace = true
 name = "scotty_core"
 path = "src/lib.rs"
 
+[features]
+default = []
+clap = ["dep:clap"]
+utoipa = ["dep:utoipa"]
+
 [dependencies]
+# Import shared types from scotty-types
+scotty-types = { path = "../scotty-types", features = ["utoipa"] }
+
 async-trait.workspace = true
 anyhow.workspace = true
 serde.workspace = true
@@ -20,27 +28,35 @@ chrono.workspace = true
 serde_norway.workspace = true
 tracing.workspace = true
 tokio.workspace = true
-utoipa.workspace = true
+utoipa = { workspace = true, optional = true }
 clokwerk.workspace = true
 readonly.workspace = true
 uuid.workspace = true
 bollard.workspace = true
 deunicode.workspace = true
 url.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
+futures-util.workspace = true
+semver.workspace = true
+thiserror.workspace = true
 secrecy.workspace = true
 zeroize.workspace = true
+flate2.workspace = true
+walkdir.workspace = true
+owo-colors.workspace = true
+
+axum = { workspace = true }
+clap = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3.20.0"
+wiremock.workspace = true
 
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false # Disable features which are enabled by default
 features = [
-    "prepush-hook",
-    "run-cargo-test",
-    "run-cargo-clippy",
-    "run-cargo-fmt",
+    "user-hooks", # Use custom hooks from .cargo-husky/hooks/
 ]
 
 [package.metadata.release]

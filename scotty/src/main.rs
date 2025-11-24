@@ -3,8 +3,11 @@ mod app_state;
 mod docker;
 mod http;
 mod init_telemetry;
+mod metrics;
 mod notification;
+mod oauth;
 mod onepassword;
+mod services;
 mod settings;
 mod state_machine;
 mod static_files;
@@ -14,8 +17,10 @@ mod utils;
 
 use docker::setup::setup_docker_integration;
 use http::setup_http_server;
+use scotty_core::settings::api_server::AuthMode;
+use std::io::IsTerminal;
 use tokio::time::sleep;
-use tracing::info;
+use tracing::{info, warn};
 
 use clap::Parser;
 
@@ -23,22 +28,81 @@ use clap::Parser;
 #[command(name = "scotty")]
 #[command(about = "Yet another micro platform as a service")]
 #[clap(version)]
-struct Cli {}
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Parser)]
+enum Commands {
+    /// Show current configuration and exit
+    Config,
+    /// Start the scotty server (default)
+    Run,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _cli = Cli::parse();
+    // Load .env files (silently ignore if they don't exist)
+    // Load in reverse order because dotenvy doesn't override existing vars
+    // Order: .env.local first (lower priority), then .env (won't override .env.local)
+    // Environment variables always take precedence over .env files
+    dotenvy::from_filename(".env.local").ok();
+    dotenvy::dotenv().ok();
+
+    // Print logo if running in a terminal (before CLI parsing so --help shows it)
+    if std::io::stdout().is_terminal() {
+        scotty_core::logo::print_logo();
+    }
+
+    let cli = Cli::parse();
+
+    match cli.command.as_ref().unwrap_or(&Commands::Run) {
+        Commands::Config => {
+            let app_state = app_state::AppState::new_for_config_only().await?;
+            println!("{:#?}", &app_state.settings);
+            return Ok(());
+        }
+        Commands::Run => {
+            // Continue with the normal server startup
+        }
+    }
 
     let mut handles = vec![];
 
     let app_state = app_state::AppState::new().await?;
     init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
 
+    // Warn if running in development mode
+    if matches!(app_state.settings.api.auth_mode, AuthMode::Development) {
+        let dev_user = app_state
+            .settings
+            .api
+            .dev_user_email
+            .as_deref()
+            .unwrap_or("dev:system:internal");
+        warn!("⚠️  RUNNING IN DEVELOPMENT MODE - NO AUTHENTICATION REQUIRED!");
+        warn!("⚠️  All requests will be authenticated as: {}", dev_user);
+        warn!("⚠️  DO NOT USE IN PRODUCTION!");
+    }
+
+    // Determine if telemetry (tracing or metrics) is enabled
+    let telemetry_enabled = app_state
+        .settings
+        .telemetry
+        .as_ref()
+        .map(|settings| {
+            let lower = settings.to_lowercase();
+            lower.split(',').any(|s| s == "traces" || s == "metrics")
+        })
+        .unwrap_or(false);
+
     // Setup http server.
     {
         let handle = setup_http_server(
             app_state.clone(),
             &app_state.clone().settings.api.bind_address,
+            telemetry_enabled,
         )
         .await?;
 

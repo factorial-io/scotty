@@ -1,4 +1,4 @@
-import { apiCall } from '$lib';
+import { authenticatedApiCall } from '$lib';
 import { writable } from 'svelte/store';
 import type { TaskDetail, ApiError } from '../types';
 
@@ -6,8 +6,8 @@ export const tasks = writable({} as Record<string, TaskDetail>);
 
 export function monitorTask(taskId: string, callback: (result: TaskDetail) => void) {
 	const interval = setInterval(async () => {
-		const result = getTask(taskId);
-		if (result && (result.state === 'Failed' || result.state === 'Finished')) {
+		const result = await requestTaskDetails(taskId);
+		if (!('error' in result) && (result.state === 'Failed' || result.state === 'Finished')) {
 			clearInterval(interval);
 			callback(result);
 		}
@@ -29,7 +29,7 @@ export function updateTask(taskId: string, payload: TaskDetail) {
 }
 
 export async function requestAllTasks() {
-	const results = (await apiCall('tasks')) as { tasks: TaskDetail[] };
+	const results = (await authenticatedApiCall('tasks')) as { tasks: TaskDetail[] };
 	const tasks_by_id = {} as Record<string, TaskDetail>;
 	results.tasks.forEach((task) => {
 		tasks_by_id[task.id] = task;
@@ -38,7 +38,8 @@ export async function requestAllTasks() {
 }
 
 export async function requestTaskDetails(taskId: string): Promise<TaskDetail | ApiError> {
-	const result = (await apiCall(`task/${taskId}`)) as TaskDetail | ApiError;
+	const result = (await authenticatedApiCall(`task/${taskId}`)) as TaskDetail | ApiError;
+
 	if ('error' in result && result.error) {
 		return result;
 	}

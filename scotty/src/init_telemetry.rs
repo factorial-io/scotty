@@ -1,7 +1,6 @@
 use anyhow::Result;
-use init_tracing_opentelemetry::tracing_subscriber_ext::build_logger_text;
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry_sdk::trace::Tracer;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::trace::{TraceError, Tracer};
 use tracing::{info, warn, Subscriber};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, registry::LookupSpan, Layer};
@@ -13,7 +12,7 @@ where
 {
     use init_tracing_opentelemetry::{
         init_propagator, //stdio,
-        otlp,
+        otlp::traces::{identity, init_tracerprovider},
         resource::DetectResource,
     };
     use opentelemetry::global;
@@ -21,7 +20,8 @@ where
         .with_fallback_service_name(env!("CARGO_PKG_NAME"))
         .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
         .build();
-    let tracerprovider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
+    let tracerprovider =
+        init_tracerprovider(otel_rsrc, identity).map_err(|e| TraceError::Other(Box::new(e)))?;
     // to not send trace somewhere, but continue to create and propagate,...
     // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
     // or to `std::io::stdout()` to print
@@ -47,15 +47,20 @@ where
         Box::new(
             tracing_subscriber::fmt::layer()
                 .with_line_number(false)
-                .with_thread_names(true)
-                .with_timer(tracing_subscriber::fmt::time::uptime()),
+                .with_thread_names(false)
+                .with_timer(tracing_subscriber::fmt::time::SystemTime)
+                .with_target(true)
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE) // Disable span list display
+                .event_format(
+                    tracing_subscriber::fmt::format().compact(), // Use compact format
+                ),
         )
     } else {
         Box::new(
             tracing_subscriber::fmt::layer()
-                .json()
                 //.with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-                .with_timer(tracing_subscriber::fmt::time::uptime()),
+                .with_timer(tracing_subscriber::fmt::time::SystemTime)
+                .with_target(true),
         )
     }
 }
@@ -68,7 +73,8 @@ pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
         format!(
             // `otel::tracing` should be a level info to emit opentelemetry trace & span
             // `otel::setup` set to debug to log detected resources, configuration read and infered
-            "{},otel::tracing=trace,otel=debug",
+            // Filter out verbose HTTP request details from axum tracing
+            "{},otel::tracing=trace,otel=debug,axum_tracing_opentelemetry=error",
             std::env::var("RUST_LOG")
                 .or_else(|_| std::env::var("OTEL_LOG_LEVEL"))
                 .unwrap_or_else(|_| "warn".to_string())
@@ -79,9 +85,10 @@ pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
 
 pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     //setup a temporary subscriber to log output during setup
+    use init_tracing_opentelemetry::config::TracingConfig;
     let subscriber = registry()
         .with(build_loglevel_filter_layer())
-        .with(build_logger_text());
+        .with(TracingConfig::default().build_layer()?);
     let _guard = tracing::subscriber::set_default(subscriber);
     info!("init logging & tracing");
 
@@ -117,8 +124,12 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     };
 
     if metrics_enabled {
-        // @todo: Handle metrics
-        warn!("Metrics are not yet implemented");
+        match crate::metrics::init_metrics() {
+            Ok(_) => {
+                info!("OpenTelemetry metrics initialized successfully");
+            }
+            Err(e) => warn!("Failed to initialize metrics: {}", e),
+        }
     }
 
     tracing_result

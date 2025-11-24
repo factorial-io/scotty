@@ -1,0 +1,4 @@
+[2025-01-04 10:00:00] DEBUG: This log file should be ignored by .scottyignore
+[2025-01-04 10:00:01] INFO: Testing log filtering
+[2025-01-04 10:00:02] WARN: This file matches the *.log pattern
+[2025-01-04 10:00:03] ERROR: Should not be uploaded to the server

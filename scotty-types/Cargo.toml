@@ -1,0 +1,25 @@
+[package]
+name = "scotty-types"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Minimal types-only crate for TypeScript generation"
+
+# Note: This crate is part of the parent workspace
+
+[features]
+default = []
+utoipa = ["dep:utoipa"]
+
+[dependencies]
+# Only the minimal dependencies needed for type generation
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+ts-rs = { version = "11.0", features = ["chrono-impl", "uuid-impl"] }
+utoipa = { version = "5.4", optional = true, features = ["chrono", "uuid"] }
+
+[dev-dependencies]
+serde_json = "1.0"

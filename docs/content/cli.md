@@ -2,8 +2,55 @@
 
 The CLI provides a thin wrapper to access the REST API of Scotty. It is
 written in Rust and provides a simple interface to list, create, update and
-destroy apps. You can get help by running `scottyctl --help` and
-`scottyctl --help <command>`.
+destroy apps, as well as manage authorization (scopes, roles, assignments).
+
+You can get help by running `scottyctl --help` and `scottyctl --help <command>`.
+
+## Authentication
+
+Scotty supports two authentication methods:
+
+### OAuth Authentication (Recommended)
+
+Use the device flow to authenticate interactively:
+
+```shell
+scottyctl --server https://scotty.example.com auth:login
+```
+
+This command will:
+1. Open your browser to authenticate with the OIDC provider
+2. Store the OAuth token securely for future commands
+3. Automatically refresh tokens when they expire
+
+**Managing OAuth sessions:**
+
+```shell
+# Check authentication status
+scottyctl auth:status
+
+# Refresh the token
+scottyctl auth:refresh
+
+# Logout and clear stored credentials
+scottyctl auth:logout
+```
+
+### Bearer Token Authentication
+
+For service accounts, CI/CD, or when OAuth is not available, use bearer tokens:
+
+```shell
+# Via command line argument
+scottyctl --server https://scotty.example.com --access-token <TOKEN> app:list
+
+# Via environment variable (recommended)
+export SCOTTY_SERVER=https://scotty.example.com
+export SCOTTY_ACCESS_TOKEN=<TOKEN>
+scottyctl app:list
+```
+
+**Note:** For the rest of this documentation, command examples use `--server` and `--access-token` for clarity, but you can always use OAuth via `auth:login` or environment variables instead.
 
 ## List all apps
 
@@ -32,6 +79,87 @@ Example output:
 
 The command lists all services of a specific app and their status. The output
 also contains the enabled notification services for that app.
+
+## View logs from an app service
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:logs <APP> <SERVICE>
+```
+
+This command displays logs from a specific service within an app. By default, it shows all available logs and exits.
+
+### Options
+
+* `-f, --follow`: Follow log output in real-time (like `tail -f`)
+* `-n, --lines <LINES>`: Show only the last N lines
+* `--since <SINCE>`: Show logs since a timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
+* `--until <UNTIL>`: Show logs until a timestamp (e.g., "1h", "2023-01-01T11:00:00Z")
+* `-t, --timestamps`: Include timestamps in the log output
+
+### Examples
+
+View all logs:
+```shell
+scottyctl app:logs my-app web
+```
+
+Follow logs in real-time:
+```shell
+scottyctl app:logs my-app web --follow
+```
+
+Show last 100 lines with timestamps:
+```shell
+scottyctl app:logs my-app web --lines 100 --timestamps
+```
+
+Show logs from the last 2 hours:
+```shell
+scottyctl app:logs my-app web --since 2h --follow
+```
+
+## Open an interactive shell in an app service
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:shell <APP> <SERVICE>
+```
+
+This command opens an interactive shell session inside a running container. This is useful for debugging, inspecting files, or running commands inside the container environment.
+
+**Note:** The shell command requires the `shell` permission in the authorization system.
+
+### Options
+
+* `-c, --command <COMMAND>`: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.
+* `--shell <SHELL>`: Specify which shell to use (default: `/bin/bash`)
+
+### Examples
+
+Open an interactive shell:
+```shell
+scottyctl app:shell my-app web
+```
+
+Execute a single command:
+```shell
+scottyctl app:shell my-app web --command "ls -la /app"
+```
+
+Use a different shell:
+```shell
+scottyctl app:shell my-app web --shell /bin/sh
+```
+
+Change to a specific directory and run commands:
+```shell
+scottyctl app:shell my-app web --command "cd /var/www && pwd && ls -la"
+```
+
+Run a script and capture its exit code:
+```shell
+scottyctl app:shell my-app web --command "/app/scripts/healthcheck.sh"
+echo "Exit code: $?"
+```
 
 ## Start/run an app
 
@@ -89,14 +217,56 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
 ```
 
 This command will create a new app on the server. The `--folder` argument is
-mandatory and should point to a folder containing at least a `docker-compose.yml`
+mandatory and should point to a folder containing at least a `compose.yml`
 file. The complete folder will be uploaded to the server (size limits may apply).
+
+### Controlling File Uploads with .scottyignore
+
+You can control which files are uploaded by creating a `.scottyignore` file in your project folder. This file uses gitignore-style patterns to exclude files from being uploaded.
+
+**Pattern Examples:**
+
+```scottyignore
+# Ignore log files
+*.log
+
+# Ignore build artifacts
+target/
+node_modules/
+dist/
+
+# Ignore environment files
+.env
+.env.local
+
+# Re-include specific files using ! (negation)
+!important.log
+
+# Ignore files in any subdirectory
+**/*.tmp
+**/.cache/
+```
+
+**Common patterns:**
+
+| Pattern | Description |
+|---------|-------------|
+| `*.log` | Ignore all .log files in any directory |
+| `target` | Ignore the target directory and all its contents |
+| `!important.log` | Re-include important.log even if *.log is ignored |
+| `**/*.tmp` | Ignore .tmp files in any subdirectory |
+| `.env*` | Ignore .env, .env.local, etc. |
+| `# comment` | Comments (ignored) |
+
+**Note:** The following files are always ignored automatically:
+- `.DS_Store` (macOS system file)
+- `.git/` directory and its contents
 
 You either need to declare a public service via `--service` or use the
 `--app-blueprint` argument (You can get a list of available blueprints with
 `scottyctl blueprint:list`). When declaring a public service, you need to
 provide a service name and a port. The service name should match a service in the
-docker-compose.yml file. The port should be the port the service is listening on.
+compose.yml file. The port should be the port the service is listening on.
 
 The `--ttl` argument is optional and will set the lifetime of the app in hours,
 days or forever.
@@ -116,7 +286,7 @@ should contain key-value pairs separated by an equal sign.
 
 You can add custom domains to the app with the `--custom-domain` argument. The
 argument should contain a domain and a service name separated by a colon. The
-service name should match a service in the docker-compose.yml file.
+service name should match a service in the compose.yml file.
 
 The `--env-file` argument will load environment variables from a file. The file
 should contain key-value pairs separated by an equal sign.
@@ -207,6 +377,31 @@ scottyctl --server <SERVER> --access-token <TOKEN> blueprint:list
 
 This will list all available blueprints on the server.
 
+## Get blueprint details
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> blueprint:info <BLUEPRINT>
+```
+
+This command displays detailed information about a specific blueprint, including its configuration, services, and required parameters.
+
+## Run a custom action
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:action <APP> <ACTION>
+```
+
+Execute a custom action defined in the app's `.scotty.yml` file. Custom actions allow you to run predefined commands or scripts within your application containers.
+
+Example:
+```shell
+# Run a database migration action
+scottyctl app:action my-app db:migrate
+
+# Clear application cache
+scottyctl app:action my-app cache:clear
+```
+
 ## Add a notification service to an app
 
 ```shell
@@ -240,3 +435,147 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:info <APP>
 ```
 
 For more info, see the help for [`app:info`](http://localhost:8080/cli.html#get-info-about-an-app).
+
+## Authorization Management (Admin Commands)
+
+These commands require `admin_read` or `admin_write` permissions. See the [Authorization documentation](authorization.html) for more details.
+
+### Scopes Management
+
+**List all scopes:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:scopes:list
+```
+
+Lists all authorization scopes with their descriptions and creation timestamps.
+
+**Create a new scope:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:scopes:create <NAME> <DESCRIPTION>
+```
+
+Example:
+```shell
+scottyctl admin:scopes:create staging "Staging environment applications"
+```
+
+### Roles Management
+
+**List all roles:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:list
+```
+
+Lists all roles with their descriptions and associated permissions.
+
+**Create a new role:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:create <NAME> <DESCRIPTION> <PERMISSIONS>
+```
+
+Permissions should be comma-separated. Use `*` for all permissions.
+
+Example:
+```shell
+# Create a developer role with specific permissions
+scottyctl admin:roles:create developer "Developer access" view,manage,shell,logs,create
+
+# Create an admin role with all permissions
+scottyctl admin:roles:create admin "Full access" "*"
+```
+
+### Assignments Management
+
+**List all user assignments:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:list
+```
+
+Lists all user-to-role assignments with their assigned scopes.
+
+**Create a new assignment:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:create <USER> <ROLE> <SCOPES>
+```
+
+Scopes should be comma-separated. Use `*` for all scopes.
+
+Examples:
+```shell
+# Assign user to developer role in staging scope
+scottyctl admin:assignments:create alice@example.com developer staging
+
+# Assign bearer token to admin role across all scopes
+scottyctl admin:assignments:create identifier:ci-bot admin "*"
+
+# Assign user to multiple scopes
+scottyctl admin:assignments:create bob@example.com operator staging,production
+```
+
+**Remove an assignment:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:remove <USER> <ROLE> <SCOPES>
+```
+
+Example:
+```shell
+scottyctl admin:assignments:remove alice@example.com developer staging
+```
+
+### Permissions Management
+
+**List all available permissions:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:list
+```
+
+Lists all permissions that can be assigned to roles.
+
+**Test permission for a user:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:test <USER> <APP> <PERMISSION>
+```
+
+Tests whether a specific user has a particular permission on an app.
+
+Example:
+```shell
+scottyctl admin:permissions:test alice@example.com my-app manage
+```
+
+**Get all permissions for a user:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:user <USER>
+```
+
+Displays all effective permissions for a user across all scopes.
+
+Example:
+```shell
+scottyctl admin:permissions:user alice@example.com
+```
+
+## Shell Completion
+
+Generate shell completion scripts for bash, zsh, fish, or PowerShell:
+
+```shell
+scottyctl completion <SHELL>
+```
+
+Examples:
+```shell
+# Bash
+scottyctl completion bash > /etc/bash_completion.d/scottyctl
+
+# Zsh
+scottyctl completion zsh > ~/.zsh/completion/_scottyctl
+
+# Fish
+scottyctl completion fish > ~/.config/fish/completions/scottyctl.fish
+
+# PowerShell
+scottyctl completion powershell > scottyctl.ps1
+```
+
+After installing the completion script, restart your shell or source the completion file.
