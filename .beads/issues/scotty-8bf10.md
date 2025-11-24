@@ -8,12 +8,29 @@ labels:
 - oauth
 - performance
 created_at: 2025-10-27T10:42:30.587922+00:00
-updated_at: 2025-11-24T20:17:25.587336+00:00
+updated_at: 2025-11-24T21:26:00.027269+00:00
 ---
 
 # Description
 
 OIDC token validation makes an HTTP request to /oauth/userinfo on every API request, causing high latency, increased load on OIDC provider, potential rate limiting, and poor API performance.
+
+Location: scotty/src/oauth/device_flow.rs:228-268
+
+Current Issues:
+- No caching of validated tokens
+- No retry logic if OIDC provider is temporarily unavailable
+- No circuit breaker pattern to prevent cascading failures
+- Each request makes network call to OIDC provider
+
+Required Improvements:
+- Implement token caching with TTL (respect token expiry)
+- Add circuit breaker for OIDC provider failures
+- Consider using tower::retry for transient failures
+- Cache should invalidate on token expiration
+
+Priority: HIGH - Performance and reliability issue
+References: PR #467 review from 2025-11-24
 
 # Design
 
