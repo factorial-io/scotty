@@ -26,7 +26,7 @@ class Scottyctl < Formula
 
   def install
     if build.head?
-      system "cargo", "install", "--path", ".", "--bin", "scottyctl", "--root", prefix
+      system "cargo", "install", "--path", "scottyctl", "--bin", "scottyctl", "--root", prefix
     else
       bin.install "scottyctl"
     end
