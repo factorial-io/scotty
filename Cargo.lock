@@ -3384,6 +3384,7 @@ dependencies = [
  "reqwest 0.12.24",
  "scotty-core",
  "scotty-types",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_norway",
