@@ -232,27 +232,30 @@ EXAMPLES:
     scottyctl app:logs my-app web --since 1h         # Logs from last hour
 ```
 
-### app:shell Command (NOT YET IMPLEMENTED)
+### app:shell Command
 
-**Note**: The backend shell service is fully implemented, but the CLI command is not yet available in scottyctl.
+Open an interactive shell for an app service via WebSocket.
 
-**Planned Command:**
+**Command:**
 ```bash
-scottyctl app:shell <app_name> <service> [OPTIONS]
+scottyctl app:shell <app_name> <service_name> [OPTIONS]
 
 OPTIONS:
-    -u, --user <USER>         User to run shell as (default: root)
-    -w, --workdir <PATH>      Working directory (default: container default)
+    -c, --command <COMMAND>   Command to execute instead of interactive shell
         --shell <SHELL>       Shell to use (default: /bin/bash)
-        --timeout <DURATION>  Session timeout (default: from config)
 
-PLANNED EXAMPLES:
-    scottyctl app:shell my-app web                   # Open bash shell
-    scottyctl app:shell my-app web -u www-data       # Shell as www-data user
-    scottyctl app:shell my-app db --shell /bin/sh    # Use sh instead of bash
+EXAMPLES:
+    scottyctl app:shell my-app web                        # Open interactive bash shell
+    scottyctl app:shell my-app web --shell /bin/sh        # Use sh instead of bash
+    scottyctl app:shell my-app web -c "ls -la"            # Execute single command
+    scottyctl app:shell my-app db -c "mysql -u root"      # Run mysql client
 ```
 
-**Current Workaround**: Use the REST API directly or wait for CLI implementation (Phase 6).
+**Features:**
+- Full interactive terminal with TTY support
+- Real-time terminal resizing
+- Proper signal handling (Ctrl+C, Ctrl+D)
+- WebSocket-based connection for low latency
 
 ## Configuration Options
 
