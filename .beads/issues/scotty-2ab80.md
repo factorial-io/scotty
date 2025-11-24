@@ -1,0 +1,68 @@
+---
+title: Upgrade OpenTelemetry dependencies to latest versions
+status: closed
+priority: 2
+issue_type: task
+depends_on:
+  scotty-06fec: blocks
+created_at: 2025-10-24T23:51:52.305855+00:00
+updated_at: 2025-11-24T20:17:25.560306+00:00
+closed_at: 2025-10-25T16:54:58.935792+00:00
+---
+
+# Description
+
+Upgrade opentelemetry, opentelemetry_sdk, and opentelemetry-otlp crates to their latest stable versions to get bug fixes, performance improvements, and new features.
+
+# Design
+
+Check current versions in Cargo.toml workspace dependencies:
+- opentelemetry = "0.28.0"
+- opentelemetry_sdk = "0.28"
+- opentelemetry-otlp = "0.28.0"
+
+Research latest versions on crates.io and upgrade incrementally. Update any API changes in:
+- scotty/src/metrics/init.rs
+- scotty/src/metrics/instruments.rs
+- scotty/src/init_telemetry.rs
+
+Test that traces and metrics still export correctly after upgrade.
+
+# Acceptance Criteria
+
+- All opentelemetry crates upgraded to latest stable versions
+- Cargo.toml updated with new versions
+- Code compiles without errors
+- Metrics initialization works
+- Traces export successfully
+- No breaking changes in existing functionality
+
+# Notes
+
+Successfully upgraded OpenTelemetry from 0.28 to 0.31 (latest stable version):
+
+Upgraded crates:
+- opentelemetry: 0.28.0 → 0.31.0
+- opentelemetry_sdk: 0.28 → 0.31
+- opentelemetry-otlp: 0.28.0 → 0.31.0 (added grpc-tonic feature)
+- tracing-opentelemetry: 0.29 → 0.32
+- axum-tracing-opentelemetry: 0.26.0 → 0.32.1
+- init-tracing-opentelemetry: 0.27.0 → 0.32.1
+
+API changes handled:
+- Fixed TraceError import (moved to opentelemetry_sdk::trace)
+- Updated init_tracerprovider imports (now in otlp::traces module)
+- Fixed TracingConfig import (moved to config module)
+- Added error conversion for init_tracerprovider
+- Fixed build_layer() result handling
+
+Removed axum-otel-metrics due to version conflict (required 0.30 while ecosystem moved to 0.31). Implemented custom HTTP metrics middleware instead.
+
+Implementation notes:
+- Created scotty/src/metrics/http.rs with custom middleware
+- Tracks http_requests_total, http_request_duration, http_requests_active
+- Fixed telemetry_enabled flag to check for both 'traces' and 'metrics'
+- All metrics exporting correctly to VictoriaMetrics
+- Grafana dashboard updated with correct metric names
+
+Commits: bb28b5cd, 075c755b, 8e297537
