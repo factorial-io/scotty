@@ -26,6 +26,11 @@ echo ""
 if git diff --name-only @{upstream}..HEAD 2>/dev/null | grep -q "^frontend/" || \
    git diff --name-only HEAD 2>/dev/null | grep -q "^frontend/"; then
 
+    echo "🔧 Generating TypeScript bindings..."
+    cargo run --bin ts-generator
+    echo "✅ TypeScript bindings generated"
+    echo ""
+
     echo "🎨 Linting frontend code..."
     cd frontend && npm run lint
     cd ..
