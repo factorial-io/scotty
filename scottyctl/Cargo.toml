@@ -41,10 +41,3 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3.23"
-
-[package.metadata.release]
-pre-release-hook = [
-    "sh",
-    "-c",
-    "cd .. && git cliff -o CHANGELOG.md --tag {{version}}",
-]

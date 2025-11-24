@@ -58,6 +58,3 @@ default-features = false # Disable features which are enabled by default
 features = [
     "user-hooks", # Use custom hooks from .cargo-husky/hooks/
 ]
-
-[package.metadata.release]
-pre-release-hook = ["echo", "skipping"]
