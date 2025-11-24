@@ -42,6 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Shell session types
     ShellDataType::export()?;
+    ShellSessionRequest::export()?;
     ShellSessionInfo::export()?;
     ShellSessionData::export()?;
     ShellSessionEnd::export()?;
@@ -55,6 +56,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // List generated files
     let generated_dir = &export_dir;
+    let mut ts_files = Vec::new();
+
     if generated_dir.exists() {
         println!("\n📋 Generated files:");
         let mut entries: Vec<_> = std::fs::read_dir(generated_dir)?
@@ -72,9 +75,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         entries.sort_by_key(|entry| entry.file_name());
 
         for entry in entries {
-            println!("   - {}", entry.file_name().to_string_lossy());
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            println!("   - {}", file_name);
+            // Store filename without extension for index generation
+            if let Some(name_without_ext) = file_name.strip_suffix(".ts") {
+                ts_files.push(name_without_ext.to_string());
+            }
         }
     }
+
+    // Generate index.ts file that re-exports all types
+    println!("\n🔧 Generating index.ts...");
+    let index_path = export_dir.join("index.ts");
+    let mut index_content = String::from("// Auto-generated index file - do not edit manually\n");
+    index_content.push_str("// Re-exports all generated TypeScript types\n\n");
+
+    for file_name in &ts_files {
+        index_content.push_str(&format!("export * from './{}';\n", file_name));
+    }
+
+    std::fs::write(&index_path, index_content)?;
+    println!("✅ Created index.ts with {} exports", ts_files.len());
 
     Ok(())
 }
