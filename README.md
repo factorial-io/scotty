@@ -5,6 +5,8 @@
 
 ## About
 
+Current release: 0.1.0
+
 **scotty -- yet another micro platform as a service** is a Rust
 server providing an API to create, start, stop or destroy a
 Docker Compose-based application on your own hardware.

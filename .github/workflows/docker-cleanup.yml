@@ -9,10 +9,10 @@ jobs:
         name: Delete old test images
         steps:
             - name: Cleanup registry
-              uses: actions/delete-package-versions@v5
+              uses: dataaxiom/ghcr-cleanup-action@v1
               with:
-                  package-name: ${{ github.event.repository.name }}
-                  package-type: container
-                  min-versions-to-keep: 5
-                  delete-only-untagged-versions: true
-                  ignore-versions: (main|next|v*)
+                  dry-run: false
+                  delete-tags: "*"
+                  delete-untagged: true
+                  exclude-tags: main,next,v*
+                  token: ${{ secrets.GITHUB_TOKEN }}

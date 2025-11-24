@@ -2,6 +2,70 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2025-11-24
+
+### Bug Fixes
+
+- Correct cargo-release README.md path in workspace metadata ✔️
+- Increase registry cleanup rate to 100 images per run ✔️
+- Improve error reporting and fix env vars in custom actions ✔️
+- Restore custom actions dropdown functionality and divider visibility ✔️
+
+### CI
+
+- Update docker-cleanup.yml to delete all tags ✔️
+
+### Dependencies
+
+- Update traefik docker tag to v3.6 ✔️
+- Update dependency typescript-eslint to v8.48.0 ✔️
+- Update dependency svelte to v5.43.14 (#578) ✔️
+- Update dependency typescript-eslint to v8.47.0 ✔️
+- Update dependency @sveltejs/kit to v2.49.0 ✔️
+- Update rust dependencies auto-merge (patch) (#577) ✔️
+- Update rust crate clap to v4.5.52 (#571) ✔️
+- Update dependency svelte to v5.43.8 (#569) ✔️
+- Update dependency daisyui to v5.5.5 (#567) ✔️
+- Update dependency svelte to v5.43.7 (#566) ✔️
+- Update rust crate axum to v0.8.7 (#565) ✔️
+- Update dependency daisyui to v5.5.4 (#564) ✔️
+- Update dependency @sveltejs/kit to v2.48.5 ✔️
+- Update rust crate config to v0.15.19 ✔️
+- Update npm dependencies auto-merge (patch) ✔️
+- Update dependency daisyui to v5.5.0 ✔️
+- Update dependency typescript-eslint to v8.46.4 (#558) ✔️
+- Update dependency svelte to v5.43.5 (#555) ✔️
+- Update dependency eslint to v9.39.1 ✔️
+- Update dependency daisyui to v5.4.7 (#554) ✔️
+- Update npm dependencies auto-merge (patch) (#553) ✔️
+- Update dependency daisyui to v5.4.4 ✔️
+- Update npm dependencies auto-merge (patch) (#548) ✔️
+- Update dependency @iconify/svelte to v5.1.0 ✔️
+- Update rust crate bollard to v0.19.4 (#540) ✔️
+- Update dependency daisyui to v5.3.11 (#539) ✔️
+- Update dependency globals to v16.5.0 ✔️
+- Update dependency eslint-plugin-svelte to v3.13.0 ✔️
+- Update rust docker tag to v1.91 ✔️
+- Update dependency @sveltejs/kit to v2.48.4 (#536) ✔️
+- Update dependency svelte to v5.43.2 ✔️
+- Update rust dependencies auto-merge (patch) (#533) ✔️
+- Update dependency @sveltejs/kit to v2.48.3 (#532) ✔️
+- Update dependency eslint to v9.38.0 ✔️
+- Update dependency node to v24 ✔️
+- Update dependency svelte to v5.43.0 ✔️
+- Update dependency daisyui to v5.3.10 (#530) ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v6.2.1 ✔️
+- Update dependency @sveltejs/kit to v2.48.2 ✔️
+- Update npm dependencies auto-merge (patch) (#511) ✔️
+- Update dependency @sveltejs/kit to v2.47.3 ✔️
+- Update dependency node to 22.21 ✔️
+- Update rust crate tokio to v1.48.0 ✔️
+- Update rust crate tempfile to v3.23.0 ✔️
+
+### Documentation
+
+- Add version to readme ✔️
+
 ## [0.1.0-alpha.38] - 2025-10-23
 
 ### Bug Fixes
