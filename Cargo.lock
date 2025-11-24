@@ -3430,6 +3430,7 @@ dependencies = [
  "deunicode",
  "flate2",
  "futures-util",
+ "owo-colors",
  "readonly",
  "reqwest 0.12.24",
  "scotty-types",

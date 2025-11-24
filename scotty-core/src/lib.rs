@@ -3,6 +3,7 @@ pub mod api;
 pub mod apps;
 pub mod auth;
 pub mod http;
+pub mod logo;
 pub mod notification_types;
 pub mod output;
 pub mod settings;
