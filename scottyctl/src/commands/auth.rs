@@ -1,3 +1,4 @@
+use crate::api::get;
 use crate::auth::{
     cache::CachedTokenManager,
     config::{get_server_info, server_info_to_oauth_config},
@@ -8,7 +9,24 @@ use crate::cli::AuthLoginCommand;
 use crate::context::AppContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use serde::Deserialize;
 use std::sync::OnceLock;
+use tabled::{builder::Builder, settings::Style};
+
+/// Scope information with permissions (mirrors server response)
+#[derive(Debug, Deserialize)]
+struct ScopeInfo {
+    name: String,
+    #[allow(dead_code)]
+    description: String,
+    permissions: Vec<String>,
+}
+
+/// Response from /api/v1/authenticated/scopes/list
+#[derive(Debug, Deserialize)]
+struct UserScopesResponse {
+    scopes: Vec<ScopeInfo>,
+}
 
 // Global cached token manager
 static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
@@ -129,7 +147,7 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
         "Server: {}",
         app_context.server().server.bright_blue()
     ));
-    match get_current_auth_method(app_context).await? {
+    let is_authenticated = match get_current_auth_method(app_context).await? {
         AuthMethod::OAuth(token) => {
             app_context.ui().println("Authenticated via OAuth");
             app_context.ui().println(format!(
@@ -142,11 +160,13 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
                     .ui()
                     .println(format!("   Expires: {:?}", expires_at));
             }
+            true
         }
         AuthMethod::Bearer(_) => {
             app_context
                 .ui()
                 .println("Authenticated via Bearer token (SCOTTY_ACCESS_TOKEN)");
+            true
         }
         AuthMethod::None => {
             app_context
@@ -156,9 +176,80 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
                 "Run 'scottyctl --server {} auth:login' or set SCOTTY_ACCESS_TOKEN",
                 app_context.server().server
             ));
+            false
+        }
+    };
+
+    // Fetch and display permissions if authenticated
+    if is_authenticated {
+        display_user_permissions(app_context).await;
+    }
+
+    Ok(())
+}
+
+/// All available permission types in display order
+const PERMISSION_COLUMNS: &[&str] = &[
+    "view",
+    "manage",
+    "create",
+    "destroy",
+    "shell",
+    "logs",
+    "admin_read",
+    "admin_write",
+];
+
+/// Fetch and display user permissions from the server
+async fn display_user_permissions(app_context: &AppContext) {
+    match get(app_context.server(), "scopes/list").await {
+        Ok(response) => {
+            match serde_json::from_value::<UserScopesResponse>(response) {
+                Ok(scopes_response) => {
+                    if scopes_response.scopes.is_empty() {
+                        app_context.ui().println("\nNo permissions assigned");
+                    } else {
+                        app_context.ui().println("\nPermissions:");
+
+                        let mut builder = Builder::default();
+
+                        // Build header row
+                        let mut header = vec!["Scope".to_string()];
+                        header.extend(PERMISSION_COLUMNS.iter().map(|s| s.to_string()));
+                        builder.push_record(header);
+
+                        // Build data rows
+                        for scope in &scopes_response.scopes {
+                            let has_wildcard = scope.permissions.contains(&"*".to_string());
+                            let mut row = vec![scope.name.clone()];
+
+                            for perm in PERMISSION_COLUMNS {
+                                let has_perm =
+                                    has_wildcard || scope.permissions.contains(&perm.to_string());
+                                row.push(if has_perm {
+                                    "✓".to_string()
+                                } else {
+                                    String::new()
+                                });
+                            }
+                            builder.push_record(row);
+                        }
+
+                        let mut table = builder.build();
+                        table.with(Style::rounded());
+                        app_context.ui().println(table.to_string());
+                    }
+                }
+                Err(e) => {
+                    tracing::debug!("Failed to parse scopes response: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            // Silently fail - permissions display is optional
+            tracing::debug!("Failed to fetch user permissions: {}", e);
         }
     }
-    Ok(())
 }
 
 pub async fn auth_refresh(app_context: &AppContext) -> Result<()> {

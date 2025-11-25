@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::casbin::CasbinManager;
+use super::casbin::{register_user_match_function, CasbinManager};
 use super::config::ConfigManager;
 use super::fallback::FallbackService;
 use super::types::{
@@ -37,6 +37,9 @@ impl AuthorizationService {
         let mut enforcer = CachedEnforcer::new(m, a)
             .await
             .context("Failed to create Casbin enforcer")?;
+
+        // Register custom user_match function for domain/wildcard matching
+        register_user_match_function(&mut enforcer);
 
         // Load policies into Casbin
         CasbinManager::sync_policies_to_casbin(&mut enforcer, &config).await?;
@@ -166,6 +169,11 @@ impl AuthorizationService {
     }
 
     /// Check if a user has permission to perform an action on an app
+    ///
+    /// Uses Casbin with a custom `user_match` function that handles:
+    /// 1. Exact match (case-insensitive for emails)
+    /// 2. Domain pattern match (`@factorial.io` matches `user@factorial.io`)
+    /// 3. Wildcard match (`*` matches any user)
     pub async fn check_permission(&self, user: &str, app: &str, action: &Permission) -> bool {
         info!(
             "Checking permission: user='{}', app='{}', action='{}'",

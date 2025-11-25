@@ -129,6 +129,7 @@ mod tests {
         let config_dir = temp_dir.path().to_str().unwrap();
 
         // Create model.conf
+        // Uses user_match() custom function for domain/wildcard matching
         let model_content = r#"[request_definition]
 r = sub, app, act
 
@@ -143,7 +144,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act"#;
+m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act"#;
 
         std::fs::write(format!("{}/model.conf", config_dir), model_content)
             .expect("Failed to write model.conf");
