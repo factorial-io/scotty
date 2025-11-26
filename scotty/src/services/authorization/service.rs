@@ -391,8 +391,12 @@ impl AuthorizationService {
         Ok(())
     }
 
-    /// Resolve user assignments with domain fallback support
-    /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    /// Resolve which assignments apply to a user by iterating through ALL assignments
+    /// and using Casbin's user_match logic to filter them with precedence rules.
+    /// This delegates the matching logic to Casbin's user_match_impl, making it the single
+    /// source of truth for how patterns match users.
+    ///
+    /// Precedence: exact > domain > wildcard (wildcard is always additive)
     ///
     /// Email addresses are normalized to lowercase per RFC 5321 for case-insensitive matching
     fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
@@ -406,22 +410,35 @@ impl AuthorizationService {
             user.to_string()
         };
 
-        // Step 1: Check exact email match
-        if let Some(assignments) = config.assignments.get(&normalized_user) {
-            result.extend_from_slice(assignments);
-        } else {
-            // Step 2: Check domain match (only if no exact match)
-            if let Some(domain) = Self::extract_domain(&normalized_user) {
-                let domain_key = format!("@{}", domain);
-                if let Some(assignments) = config.assignments.get(&domain_key) {
-                    result.extend_from_slice(assignments);
+        // Collect all matching patterns using Casbin's user_match logic
+        let mut exact_match = None;
+        let mut domain_match = None;
+        let mut wildcard_match = None;
+
+        for (user_pattern, assignments) in &config.assignments {
+            // Use the same user_match logic that Casbin uses for enforcement
+            if super::casbin::user_match_impl(&normalized_user, user_pattern) {
+                // Classify the match type
+                if user_pattern == "*" {
+                    wildcard_match = Some(assignments);
+                } else if user_pattern.starts_with('@') {
+                    domain_match = Some(assignments);
+                } else {
+                    exact_match = Some(assignments);
                 }
             }
         }
 
-        // Step 3: Always add wildcard (additive)
-        if let Some(wildcard) = config.assignments.get("*") {
-            result.extend_from_slice(wildcard);
+        // Apply precedence: exact > domain > wildcard (wildcard always added)
+        if let Some(assignments) = exact_match {
+            result.extend_from_slice(assignments);
+        } else if let Some(assignments) = domain_match {
+            result.extend_from_slice(assignments);
+        }
+
+        // Always add wildcard (additive)
+        if let Some(assignments) = wildcard_match {
+            result.extend_from_slice(assignments);
         }
 
         result
