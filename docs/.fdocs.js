@@ -14,13 +14,13 @@ export default function (defaultConfig) {
         },
         logo: {
             src: "/assets/logo.svg",
-            width: 115,
-            height: 30,
+            width: 162,
+            height: 40,
         },
         footerLogo: {
             src: "/assets/logo-white.svg",
-            width: 115,
-            height: 30,
+            width: 162,
+            height: 40,
         },
         menu: [
             "guide",
