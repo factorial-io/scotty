@@ -132,44 +132,138 @@ Uses Casbin for RBAC with three concepts:
 - **Roles**: Permission sets (e.g., `admin`, `developer`, `viewer`)
 - **Assignments**: Map users to roles+scopes
 
-**Assignment Types**:
-- **Exact email**: `user@factorial.io` - Specific user
-- **Domain pattern**: `@factorial.io` - All users from domain (NEW)
-- **Wildcard**: `*` - All users
+**Configuration**: `config/casbin/policy.yaml`
 
-**Assignment Precedence**:
-1. Exact email match (highest priority)
-2. Domain match (fallback if no exact match)
-3. Wildcard (always added, regardless of exact/domain match)
+**Available Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`
 
-**Example** (`config/casbin/policy.yaml`):
+#### Assignment Types
+
+Scotty supports three types of user assignments with a specific precedence order:
+
+1. **Exact email match** (highest priority)
+   - Syntax: `user@factorial.io`
+   - Matches specific user email (case-insensitive per RFC 5321)
+   - Use for: Individual users requiring specific permissions
+
+2. **Domain pattern match** (fallback)
+   - Syntax: `@factorial.io`
+   - Matches all users from a specific email domain
+   - Use for: Granting consistent permissions to all users from an organization
+   - Validation rules:
+     - Must start with `@`
+     - Must contain at least one dot (e.g., `@factorial.io`)
+     - Cannot contain additional `@` symbols
+   - Security: Prevents subdomain attacks (`user@evil.factorial.io` does NOT match `@factorial.io`)
+
+3. **Wildcard match** (baseline)
+   - Syntax: `*`
+   - Matches all users regardless of identity
+   - Use for: Default baseline permissions for anonymous or unassigned users
+   - Always additive (combined with exact/domain matches)
+
+#### Assignment Precedence
+
+When a user authenticates, Scotty resolves their permissions using this precedence:
+
+1. **Exact email match** - If found, use these assignments
+2. **Domain match** - If no exact match, check for domain pattern (e.g., `@factorial.io`)
+3. **Wildcard** - Always added to all users (additive, not exclusive)
+
+**Example**: User `developer@factorial.io` authenticates:
+- Has exact assignment: Uses exact + wildcard assignments
+- No exact, has domain `@factorial.io`: Uses domain + wildcard assignments
+- No exact, no domain: Uses only wildcard assignments
+
+#### Configuration Example
+
 ```yaml
+# config/casbin/policy.yaml
+scopes:
+  client-a:
+    description: Client A Production
+  qa:
+    description: QA Environment
+  default:
+    description: Default scope for public apps
+
+roles:
+  admin:
+    permissions: ['*']
+    description: Full system access
+  developer:
+    permissions: ['view', 'manage', 'create', 'shell', 'logs']
+    description: Developer access (no destroy)
+  viewer:
+    permissions: ['view']
+    description: Read-only access
+
 assignments:
-  # Exact email - takes precedence
+  # Exact email - highest priority
   stephan@factorial.io:
     - role: admin
-      scopes: ['*']
+      scopes: ['*']  # Access to all scopes
 
-  # Domain - applies to all @factorial.io users without exact match
+  # Domain pattern - applies to all @factorial.io users
+  # Only used if no exact email match exists
   '@factorial.io':
     - role: developer
       scopes: ['client-a', 'qa']
 
   # Wildcard - baseline for everyone
+  # Always combined with exact/domain assignments
   '*':
     - role: viewer
       scopes: ['default']
 ```
 
-**Domain Validation Rules**:
-- Must start with `@`
-- Must have at least one character after `@`
-- Must contain at least one dot (e.g., `@factorial.io`)
-- Cannot contain additional `@` symbols
+#### Use Cases
 
-Configuration: `config/casbin/policy.yaml`
+**Individual Admin Access**:
+```yaml
+stephan@factorial.io:
+  - role: admin
+    scopes: ['*']
+```
 
-Permissions: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin:*`
+**Organization-Wide Developer Access**:
+```yaml
+'@factorial.io':
+  - role: developer
+    scopes: ['client-a', 'qa', 'staging']
+```
+
+**Public Read-Only Access**:
+```yaml
+'*':
+  - role: viewer
+    scopes: ['public-demos']
+```
+
+**Mixed Access Levels**:
+```yaml
+# Admin gets special access
+admin@factorial.io:
+  - role: admin
+    scopes: ['production']
+
+# All other @factorial.io users get developer
+'@factorial.io':
+  - role: developer
+    scopes: ['staging', 'qa']
+
+# Everyone gets viewer access to demos
+'*':
+  - role: viewer
+    scopes: ['demos']
+```
+
+#### Implementation Details
+
+- **Custom Casbin matcher**: Uses `user_match()` function for domain/wildcard matching
+- **Case-insensitive**: Email matching follows RFC 5321 (case-insensitive)
+- **Security**: Domain patterns validated to prevent attacks
+- **Location**: `scotty/src/services/authorization/casbin.rs`
+- **Tests**: `scotty/tests/authorization_domain_test.rs`
 
 ### scottyctl Architecture
 

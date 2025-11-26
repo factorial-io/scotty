@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::casbin::CasbinManager;
+use super::casbin::{register_user_match_function, CasbinManager};
 use super::service::AuthorizationService;
 use super::types::{
     Assignment, AuthConfig, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
@@ -20,6 +20,7 @@ impl FallbackService {
         legacy_access_token: Option<String>,
     ) -> AuthorizationService {
         // Create a minimal Casbin model in memory
+        // Uses user_match() custom function for domain/wildcard matching
         let model_text = r#"
 [request_definition]
 r = sub, app, act
@@ -35,7 +36,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
+m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
 "#;
 
         let m = DefaultModel::from_str(model_text)
@@ -46,6 +47,9 @@ m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
         let mut enforcer = CachedEnforcer::new(m, a)
             .await
             .expect("Failed to create fallback Casbin enforcer");
+
+        // Register custom user_match function for domain/wildcard matching
+        register_user_match_function(&mut enforcer);
 
         // Create default configuration with everyone having access to "default" scope
         let mut config = Self::create_minimal_config();

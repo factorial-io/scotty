@@ -1,11 +1,73 @@
 use anyhow::Result;
 use casbin::prelude::*;
+use casbin::rhai::Dynamic;
 use tracing::info;
 
 use super::types::{AuthConfig, Permission, PermissionOrWildcard};
 
 /// Casbin-specific operations and policy management
 pub struct CasbinManager;
+
+/// Custom user matching function for Casbin matchers.
+///
+/// Matches request user (r_user) against policy user (p_user) with support for:
+/// 1. Exact match (case-insensitive for emails)
+/// 2. Domain pattern match (e.g., `@factorial.io` matches `user@factorial.io`)
+/// 3. Wildcard match (`*` matches any user)
+///
+/// This function is registered with Casbin via `add_function("user_match", ...)`.
+pub fn user_match(r_user: Dynamic, p_user: Dynamic) -> Dynamic {
+    let r_user_str = r_user.into_string().unwrap_or_default();
+    let p_user_str = p_user.into_string().unwrap_or_default();
+
+    let result = user_match_impl(&r_user_str, &p_user_str);
+    result.into()
+}
+
+/// Implementation of user matching logic (separated for easier testing)
+pub fn user_match_impl(r_user: &str, p_user: &str) -> bool {
+    // Normalize emails to lowercase for case-insensitive matching (RFC 5321)
+    let r_user_normalized = if r_user.contains('@') {
+        r_user.to_lowercase()
+    } else {
+        r_user.to_string()
+    };
+
+    let p_user_normalized = if p_user.contains('@') {
+        p_user.to_lowercase()
+    } else {
+        p_user.to_string()
+    };
+
+    // 1. Wildcard match - policy user "*" matches any request user
+    if p_user_normalized == "*" {
+        return true;
+    }
+
+    // 2. Exact match (case-insensitive for emails)
+    if r_user_normalized == p_user_normalized {
+        return true;
+    }
+
+    // 3. Domain pattern match - policy user "@domain.com" matches "user@domain.com"
+    if p_user_normalized.starts_with('@') {
+        // Extract domain from request user email
+        if let Some(at_pos) = r_user_normalized.find('@') {
+            let r_domain = &r_user_normalized[at_pos..]; // includes the @
+            if r_domain == p_user_normalized {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Register the custom user_match function with a Casbin enforcer
+pub fn register_user_match_function(enforcer: &mut CachedEnforcer) {
+    use casbin::function_map::OperatorFunction;
+    enforcer.add_function("user_match", OperatorFunction::Arg2(user_match));
+}
 
 impl CasbinManager {
     /// Synchronize YAML config to Casbin policies
@@ -119,5 +181,68 @@ impl CasbinManager {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_match_exact() {
+        // Exact match (same case)
+        assert!(user_match_impl("user@example.com", "user@example.com"));
+
+        // Exact match (different case - should match due to normalization)
+        assert!(user_match_impl("User@Example.com", "user@example.com"));
+        assert!(user_match_impl("user@example.com", "User@Example.com"));
+
+        // Non-email identifiers (case-sensitive)
+        assert!(user_match_impl("identifier:admin", "identifier:admin"));
+        assert!(!user_match_impl("identifier:Admin", "identifier:admin"));
+    }
+
+    #[test]
+    fn test_user_match_domain_pattern() {
+        // Domain pattern matches
+        assert!(user_match_impl("user@factorial.io", "@factorial.io"));
+        assert!(user_match_impl("another@factorial.io", "@factorial.io"));
+        assert!(user_match_impl("User@Factorial.IO", "@factorial.io"));
+
+        // Domain pattern doesn't match different domains
+        assert!(!user_match_impl("user@other.com", "@factorial.io"));
+        assert!(!user_match_impl(
+            "user@factorial.io.evil.com",
+            "@factorial.io"
+        ));
+
+        // Non-email shouldn't match domain patterns
+        assert!(!user_match_impl("identifier:admin", "@factorial.io"));
+    }
+
+    #[test]
+    fn test_user_match_wildcard() {
+        // Wildcard matches everything
+        assert!(user_match_impl("user@example.com", "*"));
+        assert!(user_match_impl("identifier:admin", "*"));
+        assert!(user_match_impl("anything", "*"));
+        assert!(user_match_impl("", "*"));
+    }
+
+    #[test]
+    fn test_user_match_no_match() {
+        // Different users, no pattern match
+        assert!(!user_match_impl("user@example.com", "other@example.com"));
+        assert!(!user_match_impl("user@example.com", "user@other.com"));
+        assert!(!user_match_impl("identifier:admin", "identifier:user"));
+    }
+
+    #[test]
+    fn test_user_match_security() {
+        // Ensure domain pattern doesn't match subdomain attacks
+        assert!(!user_match_impl("user@evil.factorial.io", "@factorial.io"));
+
+        // Ensure partial matches don't work
+        assert!(!user_match_impl("userfactorial.io", "@factorial.io"));
     }
 }
