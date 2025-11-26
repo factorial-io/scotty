@@ -1,4 +1,6 @@
-# scotty
+<div align="center">
+  <img src="docs/content/assets/logo.svg" alt="Scotty" width="324" height="80">
+</div>
 
 ![Tests](https://github.com/factorial-io/scotty/actions/workflows/ci.yml/badge.svg)
 ![Build](https://github.com/factorial-io/scotty/actions/workflows/release.yml/badge.svg)
