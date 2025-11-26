@@ -338,28 +338,6 @@ impl AuthorizationService {
         }
     }
 
-    /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
-    /// Returns None if email has no '@', domain is empty, or email has multiple '@' symbols
-    fn extract_domain(email: &str) -> Option<String> {
-        // Use first '@' to match standard email format
-        let at_pos = email.find('@')?;
-
-        // Everything after '@'
-        let domain = &email[at_pos + 1..];
-
-        // Reject emails with multiple '@' symbols (security: prevent bypass via user@evil.com@factorial.io)
-        if domain.contains('@') {
-            return None;
-        }
-
-        // Return domain if non-empty
-        if domain.is_empty() {
-            None
-        } else {
-            Some(domain.to_string())
-        }
-    }
-
     /// Validate domain assignment pattern (e.g., "@factorial.io")
     /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
     pub fn validate_domain_assignment(user_id: &str) -> Result<()> {
@@ -825,38 +803,6 @@ impl std::fmt::Debug for AuthorizationService {
 #[cfg(test)]
 mod domain_tests {
     use super::*;
-
-    #[test]
-    fn test_extract_domain() {
-        // Valid emails
-        assert_eq!(
-            AuthorizationService::extract_domain("user@factorial.io"),
-            Some("factorial.io".to_string())
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("user@sub.factorial.io"),
-            Some("sub.factorial.io".to_string())
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("user.name@example.com"),
-            Some("example.com".to_string())
-        );
-
-        // Edge cases
-        assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
-        assert_eq!(AuthorizationService::extract_domain("user@"), None);
-        assert_eq!(AuthorizationService::extract_domain(""), None);
-
-        // Security: Reject emails with multiple @ symbols to prevent bypass
-        assert_eq!(
-            AuthorizationService::extract_domain("user@evil.com@factorial.io"),
-            None
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("admin@attacker.com@trusted.io"),
-            None
-        );
-    }
 
     #[test]
     fn test_validate_domain_assignment() {
