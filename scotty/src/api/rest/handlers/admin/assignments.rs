@@ -18,10 +18,24 @@ pub struct AssignmentsListResponse {
     pub assignments: Vec<AssignmentInfo>,
 }
 
+/// Request to create a new role assignment
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "user_id": "@factorial.io",
+    "role": "developer",
+    "scopes": ["client-a", "qa"]
+}))]
 pub struct CreateAssignmentRequest {
+    /// User identifier - supports exact email, domain pattern (@factorial.io), wildcard (*), or identifier (identifier:service)
+    #[schema(example = "@factorial.io")]
     pub user_id: String,
+
+    /// Role name (must exist in system)
+    #[schema(example = "developer")]
     pub role: String,
+
+    /// List of scopes to grant (use ["*"] for all scopes)
+    #[schema(example = json!(["client-a", "qa"]))]
     pub scopes: Vec<String>,
 }
 
@@ -82,13 +96,75 @@ pub async fn list_assignments_handler(
     Ok(Json(response))
 }
 
+/// Create a new role assignment for a user, domain, or wildcard
+///
+/// Assigns a role with specific scopes to a user identifier. Supports three types of user patterns:
+///
+/// # User Patterns
+///
+/// - **Exact email**: `user@factorial.io` - Matches a specific user (case-insensitive per RFC 5321)
+/// - **Domain pattern**: `@factorial.io` - Matches all users from a specific email domain
+/// - **Wildcard**: `*` - Matches all users regardless of identity
+///
+/// # Precedence Rules
+///
+/// When a user authenticates, assignments are resolved with this precedence:
+/// 1. Exact email match (highest priority)
+/// 2. Domain pattern match (fallback if no exact match)
+/// 3. Wildcard (always added as baseline, combined with exact/domain)
+///
+/// # Domain Pattern Validation
+///
+/// Domain patterns must follow these rules:
+/// - Start with `@` character
+/// - Contain at least one dot (e.g., `@factorial.io`)
+/// - Cannot contain additional `@` symbols
+/// - Security: Prevents subdomain attacks (`user@evil.factorial.io` does NOT match `@factorial.io`)
+///
+/// # Examples
+///
+/// **Individual admin access**:
+/// ```json
+/// {
+///   "user_id": "stephan@factorial.io",
+///   "role": "admin",
+///   "scopes": ["*"]
+/// }
+/// ```
+///
+/// **Organization-wide developer access**:
+/// ```json
+/// {
+///   "user_id": "@factorial.io",
+///   "role": "developer",
+///   "scopes": ["client-a", "qa"]
+/// }
+/// ```
+///
+/// **Public read-only baseline**:
+/// ```json
+/// {
+///   "user_id": "*",
+///   "role": "viewer",
+///   "scopes": ["default"]
+/// }
+/// ```
+///
+/// **Service identifier (non-email)**:
+/// ```json
+/// {
+///   "user_id": "identifier:my-service",
+///   "role": "admin",
+///   "scopes": ["production"]
+/// }
+/// ```
 #[utoipa::path(
     post,
     path = "/api/v1/authenticated/admin/assignments",
     request_body = CreateAssignmentRequest,
     responses(
         (status = 200, response = inline(CreateAssignmentResponse)),
-        (status = 400, description = "Invalid request data"),
+        (status = 400, description = "Invalid request data - see validation rules above"),
         (status = 401, description = "Access token is missing or invalid"),
         (status = 403, description = "Insufficient permissions - AdminWrite required"),
     ),

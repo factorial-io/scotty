@@ -1,10 +1,11 @@
 ---
 title: Add OpenAPI documentation for domain pattern in assignment creation
-status: open
+status: closed
 priority: 2
 issue_type: task
 created_at: 2025-11-26T09:46:44.990570+00:00
-updated_at: 2025-11-26T09:46:44.990570+00:00
+updated_at: 2025-11-26T09:56:37.825285+00:00
+closed_at: 2025-11-26T09:56:37.825285+00:00
 ---
 
 # Description

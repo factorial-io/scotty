@@ -1,10 +1,11 @@
 ---
 title: Document domain-based authorization in AGENTS.md
-status: open
+status: closed
 priority: 2
 issue_type: task
 created_at: 2025-11-26T09:46:36.496336+00:00
-updated_at: 2025-11-26T09:46:36.496336+00:00
+updated_at: 2025-11-26T09:56:04.734035+00:00
+closed_at: 2025-11-26T09:56:04.734035+00:00
 ---
 
 # Description
