@@ -2,6 +2,7 @@ pub mod admin;
 pub mod api;
 pub mod apps;
 pub mod auth;
+pub mod authorization;
 pub mod http;
 pub mod logo;
 pub mod notification_types;

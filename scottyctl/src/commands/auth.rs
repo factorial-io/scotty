@@ -9,6 +9,7 @@ use crate::cli::AuthLoginCommand;
 use crate::context::AppContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use scotty_core::authorization::Permission;
 use serde::Deserialize;
 use std::sync::OnceLock;
 use tabled::{builder::Builder, settings::Style};
@@ -188,20 +189,14 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
     Ok(())
 }
 
-/// All available permission types in display order
-const PERMISSION_COLUMNS: &[&str] = &[
-    "view",
-    "manage",
-    "create",
-    "destroy",
-    "shell",
-    "logs",
-    "admin_read",
-    "admin_write",
-];
-
 /// Fetch and display user permissions from the server
 async fn display_user_permissions(app_context: &AppContext) {
+    // Get available permissions from Permission enum
+    let available_permissions: Vec<String> = Permission::all()
+        .iter()
+        .map(|p| p.as_str().to_string())
+        .collect();
+
     match get(app_context.server(), "scopes/list").await {
         Ok(response) => {
             match serde_json::from_value::<UserScopesResponse>(response) {
@@ -215,7 +210,7 @@ async fn display_user_permissions(app_context: &AppContext) {
 
                         // Build header row
                         let mut header = vec!["Scope".to_string()];
-                        header.extend(PERMISSION_COLUMNS.iter().map(|s| s.to_string()));
+                        header.extend(available_permissions.iter().map(|s| s.to_string()));
                         builder.push_record(header);
 
                         // Build data rows
@@ -223,9 +218,8 @@ async fn display_user_permissions(app_context: &AppContext) {
                             let has_wildcard = scope.permissions.contains(&"*".to_string());
                             let mut row = vec![scope.name.clone()];
 
-                            for perm in PERMISSION_COLUMNS {
-                                let has_perm =
-                                    has_wildcard || scope.permissions.contains(&perm.to_string());
+                            for perm in &available_permissions {
+                                let has_perm = has_wildcard || scope.permissions.contains(perm);
                                 row.push(if has_perm {
                                     "✓".to_string()
                                 } else {
