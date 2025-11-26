@@ -240,8 +240,24 @@ async fn display_user_permissions(app_context: &AppContext) {
             }
         }
         Err(e) => {
-            // Silently fail - permissions display is optional
-            tracing::debug!("Failed to fetch user permissions: {}", e);
+            // Check if this is an authentication error
+            let error_msg = e.to_string();
+            if error_msg.contains("401") || error_msg.contains("Unauthorized") {
+                app_context
+                    .ui()
+                    .println("\n⚠️  Authentication token expired or invalid");
+                app_context.ui().println(format!(
+                    "Run 'scottyctl --server {} auth:login' to re-authenticate",
+                    app_context.server().server
+                ));
+            } else if error_msg.contains("403") || error_msg.contains("Forbidden") {
+                app_context
+                    .ui()
+                    .println("\n⚠️  Insufficient permissions to view user permissions");
+            } else {
+                // Other errors - just debug log
+                tracing::debug!("Failed to fetch user permissions: {}", e);
+            }
         }
     }
 }
