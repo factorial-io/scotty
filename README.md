@@ -3,7 +3,7 @@
 </div>
 
 ![Tests](https://github.com/factorial-io/scotty/actions/workflows/ci.yml/badge.svg)
-![Build](https://github.com/factorial-io/scotty/actions/workflows/release.yml/badge.svg)
+![Build](https://github.com/factorial-io/scotty/actions/workflows/release-with-homebrew.yml/badge.svg)
 
 ## About
 
