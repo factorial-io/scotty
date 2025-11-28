@@ -3,7 +3,7 @@ members = ["scotty-core", "scotty", "scottyctl", "scotty-types", "ts-generator"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 rust-version = "1.86"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
@@ -102,7 +102,7 @@ flate2 = "1.0"
 wiremock = "0.6"
 
 [workspace.metadata.release]
-pre-release-hook = ["bash", "scripts/generate-changelogs.sh", "{{version}}"]
+pre-release-hook = ["bash", "-c", "cd $(git rev-parse --show-toplevel) && bash scripts/generate-changelogs.sh {{version}}"]
 sign-tag = true
 pre-release-replacements = [ ]
 
