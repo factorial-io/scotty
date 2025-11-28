@@ -2,10 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.2] - 2025-11-28
+## [0.2.3] - 2025-11-28
 
 ### Bug Fixes
 
+- Update pre-release-hook to run from workspace root ✔️
+- Resolve changelog generation issues with empty sections and subshell ✔️
 - Skip empty version sections in per-crate changelogs ✔️
 - Update changelog generation to preserve full version history per crate ✔️
 - Correct build badge workflow filename ✔️
