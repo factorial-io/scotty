@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.2] - 2025-11-28
+## [0.2.3] - 2025-11-28
 
 ### Bug Fixes
 
+- Resolve changelog generation issues with empty sections and subshell ✔️
 - Skip empty version sections in per-crate changelogs ✔️
 - Show error when auth token expired in auth:status ✔️
 
@@ -136,7 +137,7 @@ All notable changes to this project will be documented in this file.
 
 - Remove trailing newlines from UI messages ✔️
 - Fix: Change task output from stderr to stdout if it was targeted to
-stdout ❌
+  stdout ❌
 - Include file path in env file parse error message ✔️
 - Fix environment variable precedence in app creation ✔️
 - Support binary file handling in file reading ✔️
@@ -173,4 +174,3 @@ stdout ❌
 ### Features
 
 - Restructure into workspaces (#152) ✔️
-
