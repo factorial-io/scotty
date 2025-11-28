@@ -102,7 +102,25 @@ flate2 = "1.0"
 wiremock = "0.6"
 
 [workspace.metadata.release]
-pre-release-hook = ["sh", "-c", "git cliff -o CHANGELOG.md --tag {{version}}"]
+pre-release-hook = [
+    "sh",
+    "-c",
+    """
+    # Generate global changelog
+    git cliff -o CHANGELOG.md --tag {{version}} && \
+    
+    # Generate per-crate filtered changelogs
+    git cliff -o scotty-core/CHANGELOG.md --tag {{version}} --include-path 'scotty-core/*' && \
+    git cliff -o scotty-types/CHANGELOG.md --tag {{version}} --include-path 'scotty-types/*' && \
+    git cliff -o scotty/CHANGELOG.md --tag {{version}} --include-path 'scotty/*' && \
+    git cliff -o scottyctl/CHANGELOG.md --tag {{version}} --include-path 'scottyctl/*' && \
+    git cliff -o ts-generator/CHANGELOG.md --tag {{version}} --include-path 'ts-generator/*' && \
+    git cliff -o frontend/CHANGELOG.md --tag {{version}} --include-path 'frontend/*' && \
+    
+    # Stage all changelogs
+    git add CHANGELOG.md */CHANGELOG.md frontend/CHANGELOG.md
+    """,
+]
 sign-tag = true
 pre-release-replacements = [ ]
 
