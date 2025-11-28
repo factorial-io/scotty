@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Skip empty version sections in per-crate changelogs ✔️
 - Update changelog generation to preserve full version history per crate ✔️
 - Correct build badge workflow filename ✔️
 - Show error when auth token expired in auth:status ✔️
