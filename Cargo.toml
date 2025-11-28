@@ -102,30 +102,7 @@ flate2 = "1.0"
 wiremock = "0.6"
 
 [workspace.metadata.release]
-pre-release-hook = [
-    "sh",
-    "-c",
-    """
-    # Save current directory and navigate to workspace root
-    WORKSPACE_ROOT=$(git rev-parse --show-toplevel) && \
-    cd $WORKSPACE_ROOT && \
-    
-    # Generate global changelog
-    git cliff -o CHANGELOG.md --tag {{version}} && \
-    
-    # Initialize per-crate changelogs if they don't exist (full history)
-    # Then prepend new version section for subsequent releases
-    for dir in scotty-core scotty-types scotty scottyctl ts-generator frontend; do \
-      if [ ! -f $dir/CHANGELOG.md ]; then \
-        git cliff -o $dir/CHANGELOG.md --include-path "$dir/*"; \
-      fi; \
-      git cliff -p $dir/CHANGELOG.md --unreleased --tag {{version}} --include-path "$dir/*"; \
-    done && \
-    
-    # Stage all changelogs
-    git add CHANGELOG.md */CHANGELOG.md frontend/CHANGELOG.md
-    """,
-]
+pre-release-hook = ["bash", "scripts/generate-changelogs.sh", "{{version}}"]
 sign-tag = true
 pre-release-replacements = [ ]
 
