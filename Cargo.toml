@@ -106,16 +106,21 @@ pre-release-hook = [
     "sh",
     "-c",
     """
+    # Save current directory and navigate to workspace root
+    WORKSPACE_ROOT=$(git rev-parse --show-toplevel) && \
+    cd $WORKSPACE_ROOT && \
+    
     # Generate global changelog
     git cliff -o CHANGELOG.md --tag {{version}} && \
     
-    # Generate per-crate filtered changelogs
-    git cliff -o scotty-core/CHANGELOG.md --tag {{version}} --include-path 'scotty-core/*' && \
-    git cliff -o scotty-types/CHANGELOG.md --tag {{version}} --include-path 'scotty-types/*' && \
-    git cliff -o scotty/CHANGELOG.md --tag {{version}} --include-path 'scotty/*' && \
-    git cliff -o scottyctl/CHANGELOG.md --tag {{version}} --include-path 'scottyctl/*' && \
-    git cliff -o ts-generator/CHANGELOG.md --tag {{version}} --include-path 'ts-generator/*' && \
-    git cliff -o frontend/CHANGELOG.md --tag {{version}} --include-path 'frontend/*' && \
+    # Initialize per-crate changelogs if they don't exist (full history)
+    # Then prepend new version section for subsequent releases
+    for dir in scotty-core scotty-types scotty scottyctl ts-generator frontend; do \
+      if [ ! -f $dir/CHANGELOG.md ]; then \
+        git cliff -o $dir/CHANGELOG.md --include-path "$dir/*"; \
+      fi; \
+      git cliff -p $dir/CHANGELOG.md --unreleased --tag {{version}} --include-path "$dir/*"; \
+    done && \
     
     # Stage all changelogs
     git add CHANGELOG.md */CHANGELOG.md frontend/CHANGELOG.md
