@@ -1,0 +1,1103 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Configuration</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" Configuration">
+        <meta name="twitter:title" content=" Configuration">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/configuration.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/configuration.html#the-cli" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> the Cli</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/configuration.html#the-server" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> the Server</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration</h1>
+<p>Configuration on the server side is done using some toml files inside the
+config folder, see below.</p>
+<p>The cli does not have any configuration. All it needs to know is the URL of the
+server and the api token to authenticate against the server.</p>
+<h2 id="the-cli" tabindex="-1"><a class="header-anchor" href="#the-cli">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> the Cli</h2>
+<p>Run <code>scottyctl</code> with the follwinng options:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span>
+scottyctl <span class="token parameter variable">--server</span> https://loclahost:21342 <span class="token parameter variable">--token</span> my-secret</code></pre>
+<p>You can also set the environment variables <code>SCOTTY_SERVER</code> and
+<code>SCOTTY_ACCESS_TOKEN</code> to store the server and token for the cli.</p>
+<p>To check if the server and access-token works, run the command <code>app:list</code>:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> https://loclahost:21342 --access-token my-secret app:list</code></pre>
+<h2 id="the-server" tabindex="-1"><a class="header-anchor" href="#the-server">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> the Server</h2>
+<p>The server has a bunch of configuration files in a folder named <code>config</code> on the
+same level as the binary. It supports overring specific configuration entries
+via env-vars or by entire files. Best practice is to setup your app in
+<code>config/local.yaml</code> and pass sensitive data via env-vars.</p>
+<p>We'll describe in this file all sections of the server configuration:o</p>
+<h3 id="global-settings" tabindex="-1"><a class="header-anchor" href="#global-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Global settings</h3>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">debug</span><span class="token punctuation">:</span> <span class="token boolean important">false</span>
+<span class="token key atrule">telemetry</span><span class="token punctuation">:</span> None
+<span class="token key atrule">frontend_directory</span><span class="token punctuation">:</span> ./frontend/build</code></pre>
+<ul>
+<li><code>debug</code>: If set to true, the server will log more information. The default is
+false.</li>
+<li><code>telemetry</code>: The telemetry backend to use. The default is <code>None</code>. Possible values
+are <code>None</code>, <code>traces</code> and <code>metrics</code>. Please set also the Opentelemetry endpoint
+via the env-var OTEL_where to deliver the traces or metrics. (Use this setting only for debugging)</li>
+<li>frontend_directory: The directory where the frontend is located. The default is
+<code>./frontend/build</code>. If you want to use a different frontend, you can set the
+directory here. All files in the directory are served by scotty as static files
+from <code>/</code>.</li>
+</ul>
+<h3 id="api-settings" tabindex="-1"><a class="header-anchor" href="#api-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> API settings</h3>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">bind_address</span><span class="token punctuation">:</span> <span class="token string">"0.0.0.0:21342"</span>
+  <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+    <span class="token key atrule">admin</span><span class="token punctuation">:</span> <span class="token string">"placeholder-will-be-overridden"</span> 
+    <span class="token key atrule">client-a</span><span class="token punctuation">:</span> <span class="token string">"placeholder-will-be-overridden"</span>
+    <span class="token key atrule">deployment</span><span class="token punctuation">:</span> <span class="token string">"placeholder-will-be-overridden"</span>
+  <span class="token key atrule">create_app_max_size</span><span class="token punctuation">:</span> <span class="token string">"50M"</span>
+  <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> <span class="token string">"bearer"</span>  <span class="token comment"># "dev", "oauth", or "bearer"</span>
+  <span class="token key atrule">dev_user_email</span><span class="token punctuation">:</span> <span class="token string">"dev:system:internal"</span>
+  <span class="token key atrule">dev_user_name</span><span class="token punctuation">:</span> <span class="token string">"Dev User"</span>
+  <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+    <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
+    <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_client_id"</span>
+    <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_client_secret"</span>
+    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
+    <span class="token key atrule">frontend_base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span></code></pre>
+<ul>
+<li><code>bind_address</code>: The address and port the server listens on.</li>
+<li><code>bearer_tokens</code>: <strong>Required for bearer authentication</strong>. Map of logical token identifiers to secure bearer tokens. <strong>Security Note</strong>: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).</li>
+<li><code>create_app_max_size</code>: The maximum size of the uploaded files. The default
+is 50M. As the payload gets base64-encoded, the actual possible size is a
+bit smaller (by ~ 2/3)</li>
+<li><code>auth_mode</code>: Authentication mode. Options are:
+<ul>
+<li><code>"dev"</code>: Development mode with no authentication (uses fixed dev user)</li>
+<li><code>"oauth"</code>: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)</li>
+<li><code>"bearer"</code>: Traditional token-based authentication (default)</li>
+</ul>
+</li>
+<li><code>dev_user_email</code>: Email address for the development user (used when <code>auth_mode</code> is "dev")</li>
+<li><code>dev_user_name</code>: Display name for the development user (used when <code>auth_mode</code> is "dev")</li>
+<li><code>oauth</code>: OAuth configuration section (used when <code>auth_mode</code> is "oauth")
+<ul>
+<li><code>oidc_issuer_url</code>: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)</li>
+<li><code>client_id</code>: OAuth application client ID from your OIDC provider</li>
+<li><code>client_secret</code>: OAuth application client secret from your OIDC provider</li>
+<li><code>redirect_url</code>: OAuth callback URL - must match your provider's configuration (backend endpoint)</li>
+<li><code>frontend_base_url</code>: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")</li>
+</ul>
+</li>
+</ul>
+<p><strong>Hybrid Authentication:</strong> When <code>auth_mode</code> is <code>oauth</code>, you can optionally configure <code>bearer_tokens</code> to enable service account access alongside OAuth for human users. This allows:</p>
+<ul>
+<li><strong>Human users</strong> authenticate via OAuth (web UI, CLI device flow)</li>
+<li><strong>Service accounts</strong> (CI/CD, monitoring, automation) authenticate via bearer tokens</li>
+<li><strong>Zero OAuth latency</strong> for service accounts (bearer tokens checked first)</li>
+</ul>
+<p>See <a href="oauth-authentication.html#hybrid-authentication-oauth-bearer-tokens">OAuth Authentication - Hybrid Mode</a> for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.</p>
+<h3 id="rate-limiting" tabindex="-1"><a class="header-anchor" href="#rate-limiting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Rate Limiting</h3>
+<p>Scotty includes comprehensive rate limiting to protect API endpoints from abuse and ensure fair resource usage. Rate limiting is configured per-tier with independent limits for different endpoint types.</p>
+<p><strong>Rate limiting is disabled by default</strong> and must be explicitly enabled via configuration.</p>
+<h4 id="configuration-1" tabindex="-1"><a class="header-anchor" href="#configuration-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration</h4>
+<p>Rate limiting is configured in the <code>api.rate_limiting</code> section:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">rate_limiting</span><span class="token punctuation">:</span>
+    <span class="token key atrule">enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+    <span class="token key atrule">public_auth</span><span class="token punctuation">:</span>
+      <span class="token key atrule">requests_per_minute</span><span class="token punctuation">:</span> <span class="token number">60</span>
+      <span class="token key atrule">burst_size</span><span class="token punctuation">:</span> <span class="token number">10</span>
+    <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+      <span class="token key atrule">requests_per_minute</span><span class="token punctuation">:</span> <span class="token number">120</span>
+      <span class="token key atrule">burst_size</span><span class="token punctuation">:</span> <span class="token number">20</span>
+    <span class="token key atrule">authenticated</span><span class="token punctuation">:</span>
+      <span class="token key atrule">requests_per_minute</span><span class="token punctuation">:</span> <span class="token number">300</span>
+      <span class="token key atrule">burst_size</span><span class="token punctuation">:</span> <span class="token number">50</span></code></pre>
+<h4 id="configuration-options" tabindex="-1"><a class="header-anchor" href="#configuration-options">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration Options</h4>
+<ul>
+<li><code>enabled</code>: Global toggle for all rate limiting (default: <code>false</code>)</li>
+<li><code>public_auth</code>: Rate limits for login endpoints
+<ul>
+<li><code>requests_per_minute</code>: Maximum requests allowed per minute</li>
+<li><code>burst_size</code>: Number of requests allowed in a short burst</li>
+</ul>
+</li>
+<li><code>oauth</code>: Rate limits for OAuth flow endpoints
+<ul>
+<li><code>requests_per_minute</code>: Maximum requests allowed per minute</li>
+<li><code>burst_size</code>: Number of requests allowed in a short burst</li>
+</ul>
+</li>
+<li><code>authenticated</code>: Rate limits for authenticated API endpoints
+<ul>
+<li><code>requests_per_minute</code>: Maximum requests allowed per minute</li>
+<li><code>burst_size</code>: Number of requests allowed per minute</li>
+</ul>
+</li>
+</ul>
+<h4 id="rate-limiting-tiers" tabindex="-1"><a class="header-anchor" href="#rate-limiting-tiers">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Rate Limiting Tiers</h4>
+<p>Scotty implements three independent rate limiting tiers:</p>
+<ol>
+<li>
+<p><strong>Public Auth</strong> (<code>public_auth</code>) - Protects login endpoints from brute force attacks</p>
+<ul>
+<li>Rate limited by client IP address</li>
+<li>Applies to: <code>/api/v1/login</code></li>
+<li>Recommended: 60 requests/minute with burst of 10</li>
+</ul>
+</li>
+<li>
+<p><strong>OAuth</strong> (<code>oauth</code>) - Prevents OAuth flow abuse and session exhaustion</p>
+<ul>
+<li>Rate limited by client IP address</li>
+<li>Applies to: <code>/oauth/device</code>, <code>/oauth/authorize</code>, <code>/oauth/device/token</code>, etc.</li>
+<li>Recommended: 120 requests/minute with burst of 20</li>
+</ul>
+</li>
+<li>
+<p><strong>Authenticated</strong> (<code>authenticated</code>) - Ensures fair resource usage per user</p>
+<ul>
+<li>Rate limited by bearer token (per-user limits)</li>
+<li>Applies to: All <code>/api/v1/authenticated/*</code> endpoints</li>
+<li>Recommended: 300 requests/minute with burst of 50</li>
+</ul>
+</li>
+</ol>
+<h4 id="monitoring" tabindex="-1"><a class="header-anchor" href="#monitoring">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Monitoring</h4>
+<p>Rate limiting metrics are automatically exported to your observability stack:</p>
+<ul>
+<li><code>scotty.rate_limit.hits.total</code> - Total rate limit hits across all tiers</li>
+<li><code>scotty.rate_limit.hits.by_tier{tier="..."}</code> - Hits per tier (authenticated, public_auth, oauth)</li>
+</ul>
+<p>These metrics are visualized in the Grafana dashboard under the "Rate Limiting" section.</p>
+<h4 id="behavior" tabindex="-1"><a class="header-anchor" href="#behavior">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Behavior</h4>
+<p>When a client exceeds their rate limit:</p>
+<ul>
+<li>HTTP 429 (Too Many Requests) status code is returned</li>
+<li>Response headers include:
+<ul>
+<li><code>Retry-After</code>: Seconds until the client can retry (RFC 6585)</li>
+<li><code>X-RateLimit-After</code>: Same information in alternate format</li>
+</ul>
+</li>
+<li>Metrics are recorded for monitoring and alerting</li>
+</ul>
+<p><strong>Note:</strong> The current implementation does not include additional RFC 6585 headers (<code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code>). These may be added in future versions for enhanced client-side rate limit awareness.</p>
+<h4 id="deployment-considerations" tabindex="-1"><a class="header-anchor" href="#deployment-considerations">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Deployment Considerations</h4>
+<p><strong>Single Instance Deployments</strong></p>
+<p>The current rate limiting implementation uses in-memory token bucket counters. For single-instance deployments, this provides:</p>
+<ul>
+<li>Fast, efficient rate limiting with O(1) lookups</li>
+<li>No external dependencies (Redis, database, etc.)</li>
+<li>Zero latency for rate limit checks</li>
+</ul>
+<p><strong>Multi-Instance Deployments</strong></p>
+<p>For deployments with multiple Scotty instances (horizontal scaling), be aware:</p>
+<ul>
+<li>
+<p><strong>Rate limits are per-instance</strong>, not global</p>
+<ul>
+<li>Each instance maintains its own rate limit counters</li>
+<li>Example: With 3 instances and 60 req/min limit, effective limit is ~180 req/min</li>
+</ul>
+</li>
+<li>
+<p><strong>Recommended Solutions for Distributed Deployments:</strong></p>
+<ol>
+<li>
+<p><strong>External Load Balancer Rate Limiting</strong> (Recommended)</p>
+<ul>
+<li>Use Nginx, Traefik, or cloud load balancer rate limiting</li>
+<li>Provides global rate limits across all instances</li>
+<li>Example: Traefik <code>RateLimit</code> middleware, Nginx <code>limit_req_zone</code></li>
+</ul>
+</li>
+<li>
+<p><strong>API Gateway</strong></p>
+<ul>
+<li>Use AWS API Gateway, Kong, or similar</li>
+<li>Centralized rate limiting with additional features</li>
+</ul>
+</li>
+<li>
+<p><strong>Session Affinity / Sticky Sessions</strong></p>
+<ul>
+<li>Route same client IP to same instance</li>
+<li>Provides consistent rate limiting per client</li>
+<li>Less effective for distributed attacks</li>
+</ul>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>Future Enhancements</strong></p>
+<p>For distributed rate limiting support, future versions may add:</p>
+<ul>
+<li>Redis-backed rate limiting for shared state</li>
+<li>Configurable rate limit storage backend</li>
+<li>Rate limit synchronization across instances</li>
+</ul>
+<h4 id="ipv6-support" tabindex="-1"><a class="header-anchor" href="#ipv6-support">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> IPv6 Support</h4>
+<p><strong>IP-Based Rate Limiting (Public Auth &amp; OAuth Tiers)</strong></p>
+<p>The <code>SmartIpKeyExtractor</code> used for IP-based rate limiting supports both IPv4 and IPv6:</p>
+<ul>
+<li>IPv6 addresses are extracted and used as rate limit keys</li>
+<li>Supports standard IPv6 notation (e.g., <code>2001:db8::1</code>)</li>
+<li>Handles IPv4-mapped IPv6 addresses (e.g., <code>::ffff:192.0.2.1</code>)</li>
+</ul>
+<p><strong>Important IPv6 Considerations:</strong></p>
+<ol>
+<li>
+<p><strong>Prefix-Based Attacks</strong></p>
+<ul>
+<li>IPv6 allows easy generation of many addresses from single /64 prefix</li>
+<li>Consider implementing prefix-based rate limiting at load balancer level</li>
+<li>Example: Rate limit entire /64 subnet instead of individual addresses</li>
+</ul>
+</li>
+<li>
+<p><strong>Proxy Detection</strong></p>
+<ul>
+<li>Ensure <code>X-Forwarded-For</code> headers are properly handled</li>
+<li>Configure trusted proxy addresses in your load balancer</li>
+<li>See <a href="https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers">Traefik ForwardedHeaders</a> or <a href="http://nginx.org/en/docs/http/ngx_http_realip_module.html">Nginx real_ip_module</a></li>
+</ul>
+</li>
+<li>
+<p><strong>Testing</strong></p>
+<ul>
+<li>Test rate limiting with both IPv4 and IPv6 clients</li>
+<li>Verify proxy header forwarding in your deployment</li>
+</ul>
+</li>
+</ol>
+<p><strong>Example Nginx Configuration for IPv6 Rate Limiting:</strong></p>
+<pre class="language-nginx"><code class="language-nginx"><span class="token comment"># Define rate limit zone supporting both IPv4 and IPv6</span>
+<span class="token directive"><span class="token keyword">limit_req_zone</span> <span class="token variable">$binary_remote_addr</span> zone=scotty_limit:10m rate=60r/m</span><span class="token punctuation">;</span>
+
+<span class="token directive"><span class="token keyword">server</span></span> <span class="token punctuation">{</span>
+    <span class="token directive"><span class="token keyword">listen</span> <span class="token number">80</span></span><span class="token punctuation">;</span>
+    <span class="token directive"><span class="token keyword">listen</span> [::]:80</span><span class="token punctuation">;</span>  <span class="token comment"># IPv6 support</span>
+
+    <span class="token directive"><span class="token keyword">location</span> /api/v1/login</span> <span class="token punctuation">{</span>
+        <span class="token directive"><span class="token keyword">limit_req</span> zone=scotty_limit burst=10</span><span class="token punctuation">;</span>
+        <span class="token directive"><span class="token keyword">proxy_pass</span> http://scotty_backend</span><span class="token punctuation">;</span>
+        <span class="token directive"><span class="token keyword">proxy_set_header</span> X-Forwarded-For <span class="token variable">$proxy_add_x_forwarded_for</span></span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span></code></pre>
+<h3 id="authorization-settings" tabindex="-1"><a class="header-anchor" href="#authorization-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authorization settings</h3>
+<p>Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the <a href="authorization.html">Authorization System</a> documentation for complete details.</p>
+<p><strong>Authorization is entirely optional</strong> - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.</p>
+<h4 id="configuration-files" tabindex="-1"><a class="header-anchor" href="#configuration-files">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration Files</h4>
+<p>Authorization requires two configuration files in the <code>config/casbin/</code> directory:</p>
+<pre><code>config/
+├── casbin/
+│   ├── model.conf       # Casbin RBAC model (auto-generated)
+│   └── policy.yaml      # Groups, roles, and assignments
+└── default.yaml         # Main configuration
+</code></pre>
+<h4 id="example-authorization-configuration" tabindex="-1"><a class="header-anchor" href="#example-authorization-configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Example Authorization Configuration</h4>
+<p>Create <code>config/casbin/policy.yaml</code> with your access control setup:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Scope definitions - organize apps by purpose</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token key atrule">frontend</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Frontend applications"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">backend</span><span class="token punctuation">:</span> 
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Backend services"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">production</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Production environment"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+
+<span class="token comment"># Role definitions with permissions</span>
+<span class="token key atrule">roles</span><span class="token punctuation">:</span>
+  <span class="token key atrule">admin</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Full administrative access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>  <span class="token comment"># Wildcard for all permissions</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">developer</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Development access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"shell"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"create"</span><span class="token punctuation">]</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">operator</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Operations access without shell"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">]</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+
+<span class="token comment"># User/token assignments to roles within scopes</span>
+<span class="token comment"># Assignment key format depends on authentication mode:</span>
+<span class="token comment">#</span>
+<span class="token comment"># OAuth Mode (auth_mode: "oauth"):</span>
+<span class="token comment">#   - Use email addresses directly: "user@example.com"</span>
+<span class="token comment">#   - Email is extracted from OIDC token claims during authentication</span>
+<span class="token comment">#</span>
+<span class="token comment"># Bearer Mode (auth_mode: "bearer"):</span>
+<span class="token comment">#   - Use identifier prefix: "identifier:token_name"</span>
+<span class="token comment">#   - Maps to configured bearer_tokens (api.bearer_tokens.token_name)</span>
+<span class="token comment">#</span>
+<span class="token comment"># Dev Mode (auth_mode: "dev"):</span>
+<span class="token comment">#   - Uses fixed dev user from api.dev_user_* configuration</span>
+<span class="token comment">#   - Authorization assignments are not applicable</span>
+<span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token comment"># OAuth user assignments (when auth_mode: "oauth")</span>
+  <span class="token key atrule">"alice@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>  <span class="token comment"># Global access to all scopes</span>
+  <span class="token key atrule">"stephan@factorial.io"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>  <span class="token comment"># Global admin access</span>
+  <span class="token key atrule">"bob@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"backend"</span><span class="token punctuation">]</span>
+
+  <span class="token comment"># Bearer token assignments (when auth_mode: "bearer")</span>
+  <span class="token key atrule">"identifier:deployment"</span><span class="token punctuation">:</span>  <span class="token comment"># Maps to bearer_tokens.deployment</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"staging"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"identifier:admin"</span><span class="token punctuation">:</span>       <span class="token comment"># Maps to bearer_tokens.admin</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+
+<span class="token comment"># App scope mappings (managed automatically from .scotty.yml)</span>
+<span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"my-frontend-app"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"my-backend-api"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"backend"</span><span class="token punctuation">]</span></code></pre>
+<h4 id="app-scope-assignment" tabindex="-1"><a class="header-anchor" href="#app-scope-assignment">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> App Scope Assignment</h4>
+<p>Apps declare scope membership in their <code>.scotty.yml</code> configuration:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Apps can belong to multiple scopes</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token string">"frontend"</span>
+  <span class="token punctuation">-</span> <span class="token string">"staging"</span>
+
+<span class="token key atrule">public_services</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">service</span><span class="token punctuation">:</span> <span class="token string">"web"</span>
+    <span class="token key atrule">port</span><span class="token punctuation">:</span> <span class="token number">3000</span></code></pre>
+<h4 id="available-permissions" tabindex="-1"><a class="header-anchor" href="#available-permissions">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Available Permissions</h4>
+<ul>
+<li><code>view</code> - See app status and information</li>
+<li><code>manage</code> - Start, stop, restart applications</li>
+<li><code>logs</code> - View application logs</li>
+<li><code>shell</code> - Execute shell commands in containers</li>
+<li><code>create</code> - Create new apps in scope</li>
+<li><code>destroy</code> - Delete apps from scope</li>
+</ul>
+<h4 id="bearer-token-integration" tabindex="-1"><a class="header-anchor" href="#bearer-token-integration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bearer Token Integration</h4>
+<p>Bearer tokens are configured using logical identifiers that map to secure tokens:</p>
+<ol>
+<li><strong>Configuration</strong>: Define secure tokens in <code>api.bearer_tokens</code> section</li>
+<li><strong>Authorization</strong>: Reference identifiers in policy assignments as <code>identifier:name</code></li>
+<li><strong>Environment Override</strong>: Use <code>SCOTTY__API__BEARER_TOKENS__NAME=secure_token</code></li>
+</ol>
+<p>Example CLI usage with authorized token:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token string">"secure-admin-token-abc123"</span>
+scottyctl app:list  <span class="token comment"># Shows only apps user has 'view' permission for</span></code></pre>
+<p><strong>Important</strong>: The <code>api.access_token</code> configuration is <strong>no longer supported</strong>. Use <code>api.bearer_tokens</code> instead.</p>
+<h4 id="bearer-token-security-best-practices" tabindex="-1"><a class="header-anchor" href="#bearer-token-security-best-practices">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bearer Token Security Best Practices</h4>
+<p>🔒 <strong>NEVER store actual bearer tokens in configuration files!</strong> Follow these security guidelines:</p>
+<h5 id="1.-use-environment-variables-for-actual-tokens" tabindex="-1"><a class="header-anchor" href="#1.-use-environment-variables-for-actual-tokens">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 1. Use Environment Variables for Actual Tokens</h5>
+<p>Store only placeholder values in configuration files and override with secure environment variables:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Production deployment - set actual secure tokens via environment variables</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__DEPLOYMENT</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__CLIENT_A</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span>
+
+<span class="token comment"># Start Scotty server</span>
+./scotty</code></pre>
+<h5 id="2.-generate-strong-tokens" tabindex="-1"><a class="header-anchor" href="#2.-generate-strong-tokens">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 2. Generate Strong Tokens</h5>
+<p>Use cryptographically secure random tokens:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Generate 32-byte base64-encoded tokens (recommended)</span>
+openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span>
+
+<span class="token comment"># Or use system UUID (less entropy but still secure)</span>
+uuidgen</code></pre>
+<h5 id="3.-configuration-file-security" tabindex="-1"><a class="header-anchor" href="#3.-configuration-file-security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 3. Configuration File Security</h5>
+<p>In your <code>config/local.yaml</code> or <code>config/default.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+    <span class="token key atrule">admin</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>           <span class="token comment"># Will be overridden by SCOTTY__API__BEARER_TOKENS__ADMIN</span>
+    <span class="token key atrule">deployment</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>      <span class="token comment"># Will be overridden by SCOTTY__API__BEARER_TOKENS__DEPLOYMENT</span>
+    <span class="token key atrule">monitoring</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>      <span class="token comment"># Will be overridden by SCOTTY__API__BEARER_TOKENS__MONITORING</span></code></pre>
+<h5 id="4.-token-rotation" tabindex="-1"><a class="header-anchor" href="#4.-token-rotation">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 4. Token Rotation</h5>
+<p>Regularly rotate bearer tokens:</p>
+<ol>
+<li>Generate new secure tokens</li>
+<li>Update environment variables</li>
+<li>Restart Scotty server</li>
+<li>Update CLI configurations and automation tools</li>
+</ol>
+<h5 id="5.-access-control" tabindex="-1"><a class="header-anchor" href="#5.-access-control">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 5. Access Control</h5>
+<ul>
+<li><strong>Principle of Least Privilege</strong>: Create different tokens with different permissions via authorization system</li>
+<li><strong>Scope Limitation</strong>: Use authorization scopes to limit what each token can access</li>
+<li><strong>Audit Regularly</strong>: Review token assignments and remove unused tokens</li>
+</ul>
+<p>Example secure deployment setup:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token shebang important">#!/bin/bash</span>
+<span class="token comment"># secure-deploy.sh - Production deployment script</span>
+
+<span class="token comment"># Generate secure tokens if they don't exist</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token operator">=</span><span class="token string">"<span class="token variable">${ADMIN_TOKEN<span class="token operator">:-</span>$(openssl rand -base64 32)}</span>"</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__DEPLOY</span><span class="token operator">=</span><span class="token string">"<span class="token variable">${DEPLOY_TOKEN<span class="token operator">:-</span>$(openssl rand -base64 32)}</span>"</span>
+
+<span class="token comment"># Set restrictive file permissions</span>
+<span class="token function">chmod</span> <span class="token number">700</span> config/
+<span class="token function">chmod</span> <span class="token number">600</span> config/*.yaml
+
+<span class="token comment"># Start server with secure token environment</span>
+<span class="token builtin class-name">exec</span> ./scotty</code></pre>
+<h3 id="scheduler-settings" tabindex="-1"><a class="header-anchor" href="#scheduler-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Scheduler settings</h3>
+<p>scotty is running some tasks in the background on a regular level. Here you can
+fine tune when certain tasks are executed:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">scheduler</span><span class="token punctuation">:</span>
+  <span class="token key atrule">running_app_check</span><span class="token punctuation">:</span> <span class="token string">"15s"</span>
+  <span class="token key atrule">ttl_check</span><span class="token punctuation">:</span> <span class="token string">"10m"</span>
+  <span class="token key atrule">task_cleanup</span><span class="token punctuation">:</span> <span class="token string">"3m"</span></code></pre>
+<ul>
+<li><code>running_app_check</code> how often should the app-folder be traversed and the
+running apps be checked. The default is 15s.</li>
+<li><code>ttl_check</code> how often should the ttl of the apps be checked. The default is
+10m. This setting describes the frequency of the ttl-check. The actual ttl is
+configured on a per app basis.</li>
+<li><code>task_cleanup</code> how often should the task-queue be cleaned up. The default is
+3m. Everytime a cli or UI is issuing a command, a new task gets created and
+put into the queue. The task encapsulates the output of the command and
+other useful information. The higher the setting the longer you can inspect
+the output of commands in the UI</li>
+</ul>
+<h3 id="app-settings" tabindex="-1"><a class="header-anchor" href="#app-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> App settings</h3>
+<pre><code>apps:
+  domain_suffix: "ddev.site"
+  root_folder: "./apps" # Path to the folder where the apps are stored
+</code></pre>
+<ul>
+<li><code>domain_suffix</code> The suffix for auto-generated domains. Set this to the domain
+you want to use for your apps. App-domains are constructed by the service- and
+the app-name, when a custom domain is not provided.</li>
+<li><code>root_folder</code> The folder where the apps are stored. The default is <code>./apps</code>.
+If you run scotty in a docker container, and mount the apps-folder into the
+container, make sure that both paths are the same. Otherwise docker-compose
+can't run the apps, as there is a mismatch between the local path and the
+path on the host, where the docker daemon is running.</li>
+</ul>
+<h3 id="docker-settings" tabindex="-1"><a class="header-anchor" href="#docker-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Docker settings</h3>
+<p>Scotty uses docker to inspect running docker apps. For this to work it needs to
+communicate with the docker daemon</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">docker</span><span class="token punctuation">:</span>
+  <span class="token key atrule">connection</span><span class="token punctuation">:</span> local <span class="token comment"># local, socket or http, see bollard docs</span>
+  <span class="token key atrule">registries</span><span class="token punctuation">:</span>
+    <span class="token key atrule">example_registry</span><span class="token punctuation">:</span>
+      <span class="token key atrule">registry</span><span class="token punctuation">:</span> https<span class="token punctuation">:</span>//registry.example.com
+      <span class="token key atrule">username</span><span class="token punctuation">:</span> <span class="token string">"registry"</span>
+      <span class="token key atrule">password</span><span class="token punctuation">:</span> <span class="token string">"registry"</span>
+    <span class="token key atrule">example_2_registry</span><span class="token punctuation">:</span>
+      <span class="token punctuation">...</span></code></pre>
+<ul>
+<li>
+<p><code>connection</code> The connection to the docker daemon. The default is <code>local</code>. Other
+possible values are <code>socket</code> and <code>http</code>. See the bollard documentation for
+more information.</p>
+</li>
+<li>
+<p><code>registries</code> A list of registries to pull images from. The key is the name of
+the registry, the value is a map with the keys <code>registry</code>, <code>username</code> and
+<code>password</code>. The password is stored in plain text. If you want to use a
+registry with a token, you need to provide the token as password.</p>
+<p>The key for the registry is used when creating a new app, so scotty knows
+where to pull the image from, see the docs for <code>app:create</code></p>
+<p>If you do not want to store the password in plain text, you can provide the
+password as an environment variable. Check the override section for more
+information.</p>
+</li>
+</ul>
+<h3 id="loadbalancer-settings" tabindex="-1"><a class="header-anchor" href="#loadbalancer-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Loadbalancer settings</h3>
+<p>Scotty can work with different loadbalancers, currently with Traefik (preferred)
+and Haproxy-config (deprecated).</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">load_balancer_type</span><span class="token punctuation">:</span> Traefik <span class="token comment">#HaproxyConfig or Traefik</span>
+<span class="token key atrule">traefik</span><span class="token punctuation">:</span>
+  <span class="token key atrule">network</span><span class="token punctuation">:</span> <span class="token string">"proxy"</span>
+  <span class="token key atrule">use_tls</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+  <span class="token key atrule">certresolver</span><span class="token punctuation">:</span> <span class="token string">"myresolver"</span>
+<span class="token key atrule">haproxy</span><span class="token punctuation">:</span>
+  <span class="token key atrule">use_tls</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
+<ul>
+<li><code>load_balancer_type</code> The loadbalancer to use. Use <code>Traefik</code> or <code>HaproxyConfig</code></li>
+</ul>
+<h4 id="traefik" tabindex="-1"><a class="header-anchor" href="#traefik">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Traefik</h4>
+<ul>
+<li><code>network</code> The network to use for the communication between scotty and traefik.
+The default is <code>proxy</code>. If you use a different network, make sure to create
+the network before starting scotty.
+Scotty will also add the network to all public services of your app when you
+create or adopt an app, so traefik can access the public services of the app.</li>
+<li><code>use_tls</code> If set to true, scotty will create the necessary labels for traefik
+to use tls. The default is true.</li>
+<li><code>certresolver</code> The certresolver to use for the tls-certificate. The
+certresolver must be configured in traefik. The default is <code>myresolver</code> shown
+also in the example <code>compose.yml</code> from the <a href="installation.html">installation-documentation</a></li>
+</ul>
+<h4 id="haproxy-config" tabindex="-1"><a class="header-anchor" href="#haproxy-config">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Haproxy-config</h4>
+<ul>
+<li><code>use_tls</code> If set to true, scotty will create the necessary environment variables
+for haproxy-config to use tls.</li>
+</ul>
+<h3 id="blueprints" tabindex="-1"><a class="header-anchor" href="#blueprints">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Blueprints</h3>
+<p>Blueprints are a way to run certain tasks after specific events happened, like
+<code>app:create</code>, <code>app:run</code> or <code>app:destroy</code>. They are stored in <code>config/blueprints</code>
+and can be adopted by apps. They are stored as separate files in the
+<code>config/blueprints</code>-folder. Scotty is using the key of the blueprint to associate
+the blueprint with an app.</p>
+<p>Here's an example blueprint:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">blueprints</span><span class="token punctuation">:</span>
+    <span class="token key atrule">drupal-lagoon</span><span class="token punctuation">:</span>
+      <span class="token key atrule">name</span><span class="token punctuation">:</span> <span class="token string">"Drupal using lagoon base images"</span>
+      <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"A simple Drupal application using lagoon base images (cli, php, nginx)"</span>
+      <span class="token key atrule">required_services</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> cli
+        <span class="token punctuation">-</span> php
+        <span class="token punctuation">-</span> nginx
+      <span class="token key atrule">public_services</span><span class="token punctuation">:</span>
+        <span class="token key atrule">nginx</span><span class="token punctuation">:</span> <span class="token number">8080</span>
+      <span class="token key atrule">actions</span><span class="token punctuation">:</span>
+        <span class="token key atrule">post_create</span><span class="token punctuation">:</span>
+          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+            <span class="token punctuation">-</span> drush deploy
+        <span class="token key atrule">post_rebuild</span><span class="token punctuation">:</span>
+          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+            <span class="token punctuation">-</span> drush deploy
+        <span class="token key atrule">post_run</span><span class="token punctuation">:</span>
+          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+            <span class="token punctuation">-</span> drush uli</code></pre>
+<ul>
+<li><code>name</code> The name of the blueprint</li>
+<li><code>description</code> A short description of the blueprint</li>
+<li><code>required_services</code> A list of services that are required for the blueprint to
+work. If one of the services is missing, scotty will throw an error when an
+app tries to adopt the blueprint.</li>
+<li><code>public_services</code> A list of services that should be exposed to the public. The
+key is the service name, the value is the port to expose.</li>
+<li><code>actions</code> A list of action-hooks and their corresponding commands. The
+following hooks are available:
+<ul>
+<li><code>post_create</code> Run after the app was created</li>
+<li><code>post_rebuild</code> Run after the app was rebuilt</li>
+<li><code>post_run</code> Run after the app was started</li>
+<li><code>post_destroy</code> Run after the app was destroyed
+The key is the service name, the value is a list of commands to run on that
+service.</li>
+</ul>
+</li>
+</ul>
+<h4 id="environment-variables-in-blueprint-actions" tabindex="-1"><a class="header-anchor" href="#environment-variables-in-blueprint-actions">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Environment Variables in Blueprint Actions</h4>
+<p>When blueprint action scripts are executed, Scotty automatically injects
+additional environment variables that can be used in your commands:</p>
+<ul>
+<li><code>SCOTTY__APP_NAME</code> - Contains the name of the app</li>
+<li><code>SCOTTY__PUBLIC_URL__&lt;SERVICE_NAME&gt;</code> - Contains the public URL for each
+service that has a public URL configured. The service name is sanitized
+to be a valid environment variable name (e.g., <code>my-service</code> becomes
+<code>SCOTTY__PUBLIC_URL__MY_SERVICE</code>)</li>
+</ul>
+<p>These variables are available in addition to any environment variables you've
+configured for your app via the <code>--env</code> option or in the <code>.scotty.yml</code> file.</p>
+<p><strong>Example usage:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">blueprints</span><span class="token punctuation">:</span>
+    <span class="token key atrule">drupal-lagoon</span><span class="token punctuation">:</span>
+      <span class="token key atrule">name</span><span class="token punctuation">:</span> <span class="token string">"Drupal using lagoon base images"</span>
+      <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"A simple Drupal application using lagoon base images"</span>
+      <span class="token key atrule">required_services</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> cli
+      <span class="token key atrule">public_services</span><span class="token punctuation">:</span>
+        <span class="token key atrule">nginx</span><span class="token punctuation">:</span> <span class="token number">8080</span>
+      <span class="token key atrule">actions</span><span class="token punctuation">:</span>
+        <span class="token key atrule">post_run</span><span class="token punctuation">:</span>
+          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+            <span class="token punctuation">-</span> echo "App name is $SCOTTY__APP_NAME"
+            <span class="token punctuation">-</span> echo "Public URL is $SCOTTY__PUBLIC_URL__NGINX"
+            <span class="token punctuation">-</span> drush uli <span class="token punctuation">-</span><span class="token punctuation">-</span>uri="$SCOTTY__PUBLIC_URL__NGINX"</code></pre>
+<p>If you create a new app via <code>app:create</code> or the REST-API, you can provide the
+blueprint to associate with your app.</p>
+<h3 id="1password-settings" tabindex="-1"><a class="header-anchor" href="#1password-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 1Password settings</h3>
+<p>Scotty can integrate with 1Password connect and resolve secrets from
+one or more connect instances when needed. For that to work, scotty can parse
+a special uri-scheme for envuronment variables, before running any action on an
+app. Here's the URI-scheme:</p>
+<pre><code>op://&lt;connect-instance&gt;/&lt;vault-uuid&gt;/&lt;item-uuid&gt;/&lt;field&gt;
+</code></pre>
+<p>Scotty needs a JWT token to authenticate against a connect instance. The JWT
+token is stored in the configuration file:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">onepassword</span><span class="token punctuation">:</span>
+  <span class="token key atrule">connect-instance-a</span><span class="token punctuation">:</span>
+    <span class="token key atrule">jwt</span><span class="token punctuation">:</span> todo
+    <span class="token key atrule">server</span><span class="token punctuation">:</span> https<span class="token punctuation">:</span>//connect<span class="token punctuation">-</span>a.example.com
+  <span class="token key atrule">connect-instance-b</span><span class="token punctuation">:</span>
+    <span class="token key atrule">jwt</span><span class="token punctuation">:</span> todo
+    <span class="token key atrule">server</span><span class="token punctuation">:</span> https<span class="token punctuation">:</span>//connect<span class="token punctuation">-</span>b.example.com</code></pre>
+<p>Then you can inject the actual JWT-tokens via the environment variables:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__ONEPASSWORD__CONNECT_INSTANCE_A__JWT</span><span class="token operator">=</span>todo
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__ONEPASSWORD__CONNECT_INSTANCE_B__JWT</span><span class="token operator">=</span>todo</code></pre>
+<p>Then, for your app, you can set a environment variable like this:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:create <span class="token builtin class-name">test</span> <span class="token punctuation">..</span>. <span class="token parameter variable">--env</span> <span class="token string">"DATABASE_PASSWORD=op://connect-instance-a/vault-uuid/item-uuid/password"</span></code></pre>
+<p>Scotty will resolve the secret from the connect instance and inject the value
+when running an action on the app. Please note, that it won't resolve secrets
+from environment variables inside compose.yml files.</p>
+<h3 id="notification-settings" tabindex="-1"><a class="header-anchor" href="#notification-settings">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Notification settings</h3>
+<p>Scotty supports issuing notifications via multiple channels. THese notifications
+are sent on all actions that are run on an app. The following channels are
+supported and need to be configured:</p>
+<h4 id="mattermost-channels" tabindex="-1"><a class="header-anchor" href="#mattermost-channels">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Mattermost channels</h4>
+<p>Scotty can send a notification after an action was successfully run on an app to
+a mattermost channel. Here's an example configuration:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">notifications</span><span class="token punctuation">:</span>
+  <span class="token key atrule">mattermost-example</span><span class="token punctuation">:</span>
+    <span class="token key atrule">type</span><span class="token punctuation">:</span> mattermost
+    <span class="token key atrule">host</span><span class="token punctuation">:</span> <span class="token string">"https://mattermost.example.com"</span>
+    <span class="token key atrule">hook_id</span><span class="token punctuation">:</span> <span class="token string">"some-hook-id"</span></code></pre>
+<p>The hook_id is the id of the incoming webhook in mattermost. You can create a
+new incoming webhook in the mattermost settings.</p>
+<h4 id="gitlab-merge-requests" tabindex="-1"><a class="header-anchor" href="#gitlab-merge-requests">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Gitlab merge requests</h4>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">notifications</span><span class="token punctuation">:</span>
+  <span class="token key atrule">gitlab-example</span><span class="token punctuation">:</span>
+    <span class="token key atrule">type</span><span class="token punctuation">:</span> gitlab
+    <span class="token key atrule">host</span><span class="token punctuation">:</span> "https<span class="token punctuation">:</span>//gitlab.example.com
+    <span class="token key atrule">token</span><span class="token punctuation">:</span> <span class="token string">"some-token"</span></code></pre>
+<p>Scotty needs a personal access token to authenticate against the gitlab instance.
+The token must have the <code>api</code>-scope. You can create a new personal access token
+in the gitlab settings.</p>
+<h4 id="webhooks" tabindex="-1"><a class="header-anchor" href="#webhooks">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Webhooks</h4>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">notifications</span><span class="token punctuation">:</span>
+  <span class="token key atrule">webhook-example</span><span class="token punctuation">:</span>
+    <span class="token key atrule">type</span><span class="token punctuation">:</span> webhook
+    <span class="token key atrule">method</span><span class="token punctuation">:</span> <span class="token string">"POST"</span>
+    <span class="token key atrule">url</span><span class="token punctuation">:</span> <span class="token string">"https://webhook.example.com"</span></code></pre>
+<p>Scotty will send a POST-request to the url with the payload of the notification.
+Method can be <code>POST</code> or <code>GET</code>.</p>
+<h3 id="how-to-override-the-configuration" tabindex="-1"><a class="header-anchor" href="#how-to-override-the-configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> How to override the configuration</h3>
+<p>The default configuration is stored in <code>config/default.yaml</code>. You can override
+all or parts of the documentation by creating a file <code>config/local.yaml</code> and
+replace the values you want to override.</p>
+<p>As an alternative you can override the configuration by setting environment
+variables, this is especiall useful for sensitive data like passwords.</p>
+<p>The environment variables must be prefixed with <code>SCOTTY__</code> and the keys must be
+concatenated with <em>double underscores</em>. For example to override bearer tokens
+you can set environment variables like <code>SCOTTY__API__BEARER_TOKENS__ADMIN</code>.</p>
+<p>Rule of thumb is: If you want to override a key, replace the dots with double
+underscores and prefix the key with <code>SCOTTY__</code>.</p>
+<h4 id="using-.env-files-for-configuration" tabindex="-1"><a class="header-anchor" href="#using-.env-files-for-configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Using .env files for configuration</h4>
+<p><strong>Recommended for local development</strong>: Scotty automatically loads <code>.env</code> and <code>.env.local</code> files on startup, making it easy to configure the server without managing environment variables manually.</p>
+<p><strong>Configuration precedence</strong> (highest to lowest priority):</p>
+<ol>
+<li><strong>Environment variables</strong> - Always take precedence over .env files</li>
+<li><strong><code>.env.local</code></strong> - Local overrides, not committed to version control</li>
+<li><strong><code>.env</code></strong> - Shared defaults, can be committed to version control</li>
+</ol>
+<p><strong>Example <code>.env</code> file:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Development mode configuration</span>
+<span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>dev
+
+<span class="token comment"># Docker registry credentials</span>
+<span class="token assign-left variable">SCOTTY__DOCKER__REGISTRIES__MYREGISTRY__PASSWORD</span><span class="token operator">=</span>secret123
+
+<span class="token comment"># Bearer tokens (use strong tokens in production!)</span>
+<span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token operator">=</span>my-secure-admin-token</code></pre>
+<p><strong>Example <code>.env.local</code> file (overrides .env):</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Override for local development only</span>
+<span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
+<span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>my-local-client-id</code></pre>
+<p><strong>Best practices:</strong></p>
+<ul>
+<li>✅ Use <code>.env</code> for shared development defaults (can be committed)</li>
+<li>✅ Use <code>.env.local</code> for personal overrides (add to <code>.gitignore</code>)</li>
+<li>✅ Generate strong tokens for production (see security best practices above)</li>
+<li>❌ Never commit secrets to version control</li>
+<li>❌ Don't rely on .env files in production (use proper environment variables)</li>
+</ul>
+<p><strong>Note:</strong> Both <code>.env</code> and <code>.env.local</code> files are optional - if they don't exist, the server will start normally using configuration files and environment variables.</p>
+<h4 id="example" tabindex="-1"><a class="header-anchor" href="#example">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Example</h4>
+<table>
+<thead>
+<tr>
+<th>name of value in the config file</th>
+<th>environment variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>debug</code></td>
+<td><code>SCOTTY__DEBUG</code></td>
+</tr>
+<tr>
+<td><code>api.bearer_tokens.admin</code></td>
+<td><code>SCOTTY__API__BEARER_TOKENS__ADMIN</code></td>
+</tr>
+<tr>
+<td><code>api.bearer_tokens.deployment</code></td>
+<td><code>SCOTTY__API__BEARER_TOKENS__DEPLOYMENT</code></td>
+</tr>
+<tr>
+<td><code>api.bind_address</code></td>
+<td><code>SCOTTY__API__BIND_ADDRESS</code></td>
+</tr>
+<tr>
+<td><code>api.auth_mode</code></td>
+<td><code>SCOTTY__API__AUTH_MODE</code></td>
+</tr>
+<tr>
+<td><code>api.dev_user_email</code></td>
+<td><code>SCOTTY__API__DEV_USER_EMAIL</code></td>
+</tr>
+<tr>
+<td><code>api.dev_user_name</code></td>
+<td><code>SCOTTY__API__DEV_USER_NAME</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.oidc_issuer_url</code></td>
+<td><code>SCOTTY__API__OAUTH__OIDC_ISSUER_URL</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.client_id</code></td>
+<td><code>SCOTTY__API__OAUTH__CLIENT_ID</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.client_secret</code></td>
+<td><code>SCOTTY__API__OAUTH__CLIENT_SECRET</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.redirect_url</code></td>
+<td><code>SCOTTY__API__OAUTH__REDIRECT_URL</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.frontend_base_url</code></td>
+<td><code>SCOTTY__API__OAUTH__FRONTEND_BASE_URL</code></td>
+</tr>
+<tr>
+<td><code>docker.registries.example_registry.password</code></td>
+<td><code>SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD</code></td>
+</tr>
+<tr>
+<td><code>apps.domain_suffix</code></td>
+<td><code>SCOTTY__APPS__DOMAIN_SUFFIX</code></td>
+</tr>
+<tr>
+<td><code>load_balancer_type</code></td>
+<td><code>SCOTTY__LOAD_BALANCER_TYPE</code></td>
+</tr>
+<tr>
+<td><code>traefik.network</code></td>
+<td><code>SCOTTY__TRAEFIK__NETWORK</code></td>
+</tr>
+</tbody>
+</table>
+<p>Scotty will print out the resolved configuration on startup, so you can check
+for any errors.</p>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/installation.html"> Installation</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/observability.html"> Observability</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
