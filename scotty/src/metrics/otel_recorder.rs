@@ -1,6 +1,7 @@
 //! OpenTelemetry metrics recorder wrapping ScottyMetrics
 
 use super::instruments::ScottyMetrics;
+use super::recorder_trait::MetricsRecorder;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Instant;
 
@@ -137,11 +138,7 @@ impl OtelRecorder {
     }
 
     // HTTP
-    #[allow(dead_code)]
-    pub(crate) fn record_http_request_started(&self) {
-        self.instruments.http_requests_active.add(1, &[]);
-    }
-
+    // HTTP
     #[allow(dead_code)]
     pub(crate) fn record_http_request_finished(&self, duration_secs: f64, status: u16) {
         use opentelemetry::KeyValue;
@@ -196,7 +193,107 @@ impl OtelRecorder {
         self.instruments.rate_limit_requests_total.add(1, &labels);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn record_rate_limit_extractor_error(&self) {
         self.instruments.rate_limit_extractor_errors.add(1, &[]);
+    }
+}
+
+// Trait implementation - delegates to internal methods
+impl MetricsRecorder for OtelRecorder {
+    fn record_log_stream_started(&self, active_count: usize) {
+        self.record_log_stream_started(active_count);
+    }
+
+    fn record_log_stream_ended(&self, active_count: usize, duration_secs: f64) {
+        self.record_log_stream_ended(active_count, duration_secs);
+    }
+
+    fn record_log_line_received(&self) {
+        self.record_log_line_received();
+    }
+
+    fn record_log_stream_error(&self) {
+        self.record_log_stream_error();
+    }
+
+    fn record_shell_session_started(&self) {
+        self.record_shell_session_started();
+    }
+
+    fn record_shell_session_ended(&self, duration_secs: f64) {
+        self.record_shell_session_ended(duration_secs);
+    }
+
+    fn record_shell_session_error(&self, duration_secs: f64) {
+        self.record_shell_session_error(duration_secs);
+    }
+
+    fn record_shell_session_timeout(&self, duration_secs: f64) {
+        self.record_shell_session_timeout(duration_secs);
+    }
+
+    fn record_websocket_connection_opened(&self) {
+        self.record_websocket_connection_opened();
+    }
+
+    fn record_websocket_connection_closed(&self) {
+        self.record_websocket_connection_closed();
+    }
+
+    fn record_websocket_message_received(&self) {
+        self.record_websocket_message_received();
+    }
+
+    fn record_websocket_message_sent(&self) {
+        self.record_websocket_message_sent();
+    }
+
+    fn record_websocket_messages_sent(&self, count: usize) {
+        self.record_websocket_messages_sent(count);
+    }
+
+    fn record_websocket_auth_failure(&self) {
+        self.record_websocket_auth_failure();
+    }
+
+    fn record_task_added(&self, active_count: usize) {
+        self.record_task_added(active_count);
+    }
+
+    fn record_task_finished(&self, duration_secs: f64, failed: bool) {
+        self.record_task_finished(duration_secs, failed);
+    }
+
+    fn record_task_cleanup(&self, active_count: usize) {
+        self.record_task_cleanup(active_count);
+    }
+
+    fn record_oauth_device_flow_start(&self) {
+        self.record_oauth_device_flow_start();
+    }
+
+    fn record_oauth_web_flow_start(&self) {
+        self.record_oauth_web_flow_start();
+    }
+
+    fn record_oauth_flow_failure(&self) {
+        self.record_oauth_flow_failure();
+    }
+
+    fn record_oauth_token_validation(&self, start: std::time::Instant, failed: bool) {
+        self.record_oauth_token_validation(start, failed);
+    }
+
+    fn record_rate_limit_allowed(&self, tier: &str) {
+        self.record_rate_limit_allowed(tier);
+    }
+
+    fn record_rate_limit_denied(&self, tier: &str) {
+        self.record_rate_limit_denied(tier);
+    }
+
+    fn record_rate_limit_extractor_error(&self) {
+        self.record_rate_limit_extractor_error();
     }
 }

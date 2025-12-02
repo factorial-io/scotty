@@ -2,6 +2,13 @@
 //!
 //! This module provides metrics instrumentation for the unified output system.
 
+// Recorder trait (always available)
+mod recorder_trait;
+use recorder_trait::MetricsRecorder;
+
+// No-op recorder (always available for fallback)
+mod noop;
+
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod app_list;
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
@@ -16,9 +23,6 @@ mod memory;
 mod otel_recorder;
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod tokio_runtime;
-
-#[cfg(feature = "no-telemetry")]
-mod noop;
 
 use std::sync::OnceLock;
 
@@ -41,14 +45,24 @@ static RECORDER: OnceLock<otel_recorder::OtelRecorder> = OnceLock::new();
 #[cfg(feature = "no-telemetry")]
 static RECORDER: OnceLock<noop::NoOpRecorder> = OnceLock::new();
 
-/// Get the global metrics recorder
+// Fallback no-op recorder for when telemetry isn't initialized (e.g., tests)
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-pub(crate) fn metrics() -> &'static otel_recorder::OtelRecorder {
-    RECORDER.get().expect("Metrics not initialized")
+static NOOP_FALLBACK: noop::NoOpRecorder = noop::NoOpRecorder::new();
+
+/// Get the global metrics recorder
+///
+/// Returns the initialized recorder if available, otherwise returns a no-op fallback.
+/// This ensures metrics calls never panic, even in tests where init_metrics() isn't called.
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
+    RECORDER
+        .get()
+        .map(|r| r as &'static dyn MetricsRecorder)
+        .unwrap_or(&NOOP_FALLBACK)
 }
 
 #[cfg(feature = "no-telemetry")]
-pub(crate) fn metrics() -> &'static noop::NoOpRecorder {
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
     RECORDER.get_or_init(|| noop::NoOpRecorder::new())
 }
 
@@ -95,6 +109,39 @@ pub async fn sample_memory_metrics() {}
 
 #[cfg(feature = "no-telemetry")]
 pub async fn sample_tokio_metrics() {}
+
+// OAuth metrics helpers
+pub fn record_oauth_sessions_expired_cleaned(count: usize) {
+    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+    {
+        if let Some(metrics) = get_metrics() {
+            metrics
+                .oauth_sessions_expired_cleaned
+                .add(count as u64, &[]);
+        }
+    }
+    #[cfg(feature = "no-telemetry")]
+    let _ = count;
+}
+
+pub fn record_oauth_session_counts(device_count: usize, web_count: usize, session_count: usize) {
+    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+    {
+        if let Some(metrics) = get_metrics() {
+            metrics
+                .oauth_device_flow_sessions_active
+                .record(device_count as i64, &[]);
+            metrics
+                .oauth_web_flow_sessions_active
+                .record(web_count as i64, &[]);
+            metrics
+                .oauth_sessions_active
+                .record(session_count as i64, &[]);
+        }
+    }
+    #[cfg(feature = "no-telemetry")]
+    let _ = (device_count, web_count, session_count);
+}
 
 // Module-style wrappers for existing call sites (both telemetry and no-telemetry)
 pub mod websocket {
