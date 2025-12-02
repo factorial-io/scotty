@@ -42,7 +42,7 @@ pub use tokio_runtime::{sample_tokio_metrics, spawn_instrumented};
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 static RECORDER: OnceLock<otel_recorder::OtelRecorder> = OnceLock::new();
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 static RECORDER: OnceLock<noop::NoOpRecorder> = OnceLock::new();
 
 // Fallback no-op recorder for when telemetry isn't initialized (e.g., tests)
@@ -61,7 +61,7 @@ pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
         .unwrap_or(&NOOP_FALLBACK)
 }
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
     RECORDER.get_or_init(|| noop::NoOpRecorder::new())
 }
@@ -79,12 +79,12 @@ pub(crate) fn set_recorder(recorder: otel_recorder::OtelRecorder) {
 }
 
 // No-telemetry stubs for functions called during setup
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub fn init_metrics() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub async fn http_metrics_middleware(
     request: axum::extract::Request,
     next: axum::middleware::Next,
@@ -92,7 +92,7 @@ pub async fn http_metrics_middleware(
     next.run(request).await
 }
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
 where
     F: std::future::Future + Send + 'static,
@@ -101,13 +101,13 @@ where
     tokio::spawn(future)
 }
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub async fn sample_app_list_metrics(_app_state: crate::app_state::SharedAppState) {}
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub async fn sample_memory_metrics() {}
 
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub async fn sample_tokio_metrics() {}
 
 // OAuth metrics helpers
@@ -120,7 +120,7 @@ pub fn record_oauth_sessions_expired_cleaned(count: usize) {
                 .add(count as u64, &[]);
         }
     }
-    #[cfg(feature = "no-telemetry")]
+    #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
     let _ = count;
 }
 
@@ -139,7 +139,7 @@ pub fn record_oauth_session_counts(device_count: usize, web_count: usize, sessio
                 .record(session_count as i64, &[]);
         }
     }
-    #[cfg(feature = "no-telemetry")]
+    #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
     let _ = (device_count, web_count, session_count);
 }
 

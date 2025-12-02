@@ -147,7 +147,7 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
 }
 
 // Minimal telemetry implementation (no OpenTelemetry)
-#[cfg(feature = "no-telemetry")]
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub fn init_telemetry_and_tracing(_settings: &Option<String>) -> Result<()> {
     info!("init logging (no-telemetry mode)");
 

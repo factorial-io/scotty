@@ -1,16 +1,6 @@
-// Compile-time feature conflict checks
-#[cfg(all(
-    feature = "no-telemetry",
-    any(feature = "telemetry-grpc", feature = "telemetry-http")
-))]
-compile_error!("Cannot enable no-telemetry together with telemetry-grpc or telemetry-http");
-
-#[cfg(not(any(
-    feature = "telemetry-grpc",
-    feature = "telemetry-http",
-    feature = "no-telemetry"
-)))]
-compile_error!("Must enable at least one of: telemetry-grpc, telemetry-http, or no-telemetry");
+// Compile-time feature conflict check
+#[cfg(all(feature = "telemetry-grpc", feature = "telemetry-http"))]
+compile_error!("Cannot enable both telemetry-grpc and telemetry-http at the same time");
 
 mod api;
 mod app_state;

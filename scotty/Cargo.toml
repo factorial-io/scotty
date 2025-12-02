@@ -10,7 +10,7 @@ license-file.workspace = true
 [features]
 default = ["telemetry-grpc"]
 
-# Telemetry features - choose one transport
+# Telemetry features - choose one transport or omit for no telemetry
 telemetry-grpc = [
     "opentelemetry",
     "opentelemetry_sdk",
@@ -30,9 +30,6 @@ telemetry-http = [
     "init-tracing-opentelemetry",
     "axum-tracing-opentelemetry",
 ]
-
-# Disable all telemetry for minimal builds
-no-telemetry = []
 
 [dependencies]
 anyhow.workspace = true
