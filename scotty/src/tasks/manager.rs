@@ -19,42 +19,6 @@ use crate::api::websocket::WebSocketMessenger;
 use crate::metrics;
 use crate::tasks::timed_buffer::TimedBuffer;
 
-/// Record metrics when a new task is added
-fn record_task_added_metrics(active_count: usize) {
-    if let Some(m) = metrics::get_metrics() {
-        m.tasks_total.add(1, &[]);
-        m.tasks_active.record(active_count as i64, &[]);
-    }
-}
-
-/// Record metrics when a task finishes
-fn record_task_finished_metrics(
-    start_time: chrono::DateTime<chrono::Utc>,
-    finish_time: chrono::DateTime<chrono::Utc>,
-    state: &State,
-) {
-    if let Some(m) = metrics::get_metrics() {
-        // Record task duration
-        let duration_secs = finish_time
-            .signed_duration_since(start_time)
-            .num_milliseconds() as f64
-            / 1000.0;
-        m.task_duration.record(duration_secs, &[]);
-
-        // Track failures
-        if matches!(state, State::Failed) {
-            m.task_failures.add(1, &[]);
-        }
-    }
-}
-
-/// Record metrics when tasks are cleaned up
-fn record_task_cleanup_metrics(active_count: usize) {
-    if let Some(m) = metrics::get_metrics() {
-        m.tasks_active.record(active_count as i64, &[]);
-    }
-}
-
 /// Helper function to add multiple lines to task output with a single write lock
 async fn add_output_lines(
     details: &Arc<RwLock<TaskDetails>>,
@@ -262,7 +226,13 @@ impl TaskManager {
         details_guard.finish_time = Some(finish_time);
         details_guard.state = state.clone();
 
-        record_task_finished_metrics(start_time, finish_time, &state);
+        // Record metrics
+        let duration_secs = finish_time
+            .signed_duration_since(start_time)
+            .num_milliseconds() as f64
+            / 1000.0;
+        let failed = matches!(state, State::Failed);
+        metrics::metrics().record_task_finished(duration_secs, failed);
     }
 
     pub async fn start_process(
@@ -344,7 +314,7 @@ impl TaskManager {
         let task_state = TaskState { details, handle };
         processes.insert(*id, task_state);
 
-        record_task_added_metrics(processes.len());
+        metrics::metrics().record_task_added(processes.len());
     }
 
     pub async fn add_task_with_output(
@@ -404,7 +374,7 @@ impl TaskManager {
             let active_count = processes.len();
             drop(processes); // Release lock before recording metrics
 
-            record_task_cleanup_metrics(active_count);
+            metrics::metrics().record_task_cleanup(active_count);
         }
         // Write lock released immediately
     }

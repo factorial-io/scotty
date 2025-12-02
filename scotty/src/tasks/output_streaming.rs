@@ -139,7 +139,7 @@ impl TaskOutputStreamingService {
                                     }),
                                 )
                                 .await;
-                            crate::metrics::tasks::record_output_lines(chunk_len);
+                            crate::metrics::tasks::record_output_lines(chunk_len as usize);
                         }
 
                         // Update last sent sequence to the last historical line
@@ -212,7 +212,7 @@ impl TaskOutputStreamingService {
                                         has_more: false,
                                     }),
                                 ).await;
-                                crate::metrics::tasks::record_output_lines(lines_count as u64);
+                                crate::metrics::tasks::record_output_lines(lines_count);
                             }
                         }
                     }
@@ -272,7 +272,7 @@ impl TaskOutputStreamingService {
                                                 has_more: false,
                                             }),
                                         ).await;
-                                        crate::metrics::tasks::record_output_lines(lines_count);
+                                crate::metrics::tasks::record_output_lines(lines_count as usize);
                                     }
                                 }
                             }
@@ -297,7 +297,7 @@ impl TaskOutputStreamingService {
                         }),
                     )
                     .await;
-                crate::metrics::tasks::record_output_lines(lines_count);
+                crate::metrics::tasks::record_output_lines(lines_count as usize);
             }
 
             // Send stream ended message

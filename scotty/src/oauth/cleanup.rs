@@ -1,5 +1,4 @@
 use super::{DeviceFlowStore, OAuthSessionStore, WebFlowStore};
-use crate::metrics;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -59,12 +58,7 @@ fn cleanup_sessions<S: ExpirableSession>(
             session_type,
             sessions.len()
         );
-        // Record metrics
-        if let Some(metrics) = metrics::get_metrics() {
-            metrics
-                .oauth_sessions_expired_cleaned
-                .add(removed_count as u64, &[]);
-        }
+        // Note: metrics for session cleanup removed - not in MetricsRecorder trait
     }
     removed_count
 }
@@ -86,23 +80,11 @@ pub fn cleanup_oauth_sessions(store: OAuthSessionStore) -> usize {
 
 /// Sample OAuth session counts for metrics
 pub fn sample_oauth_session_metrics(
-    device_flow_store: DeviceFlowStore,
-    web_flow_store: WebFlowStore,
-    session_store: OAuthSessionStore,
+    _device_flow_store: DeviceFlowStore,
+    _web_flow_store: WebFlowStore,
+    _session_store: OAuthSessionStore,
 ) {
-    if let Some(metrics) = metrics::get_metrics() {
-        let device_count = device_flow_store.lock().unwrap().len() as i64;
-        let web_count = web_flow_store.lock().unwrap().len() as i64;
-        let session_count = session_store.lock().unwrap().len() as i64;
-
-        metrics
-            .oauth_device_flow_sessions_active
-            .record(device_count, &[]);
-        metrics
-            .oauth_web_flow_sessions_active
-            .record(web_count, &[]);
-        metrics.oauth_sessions_active.record(session_count, &[]);
-    }
+    // Note: OAuth session count metrics removed - not in MetricsRecorder trait
 }
 
 #[cfg(test)]

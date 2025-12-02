@@ -3,9 +3,11 @@ use axum::http::{
     HeaderValue, Method,
 };
 use axum::middleware;
-use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use tower_http::cors::CorsLayer;
 use tracing::info;
+
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 use crate::{api::router::ApiRoutes, app_state::SharedAppState};
 
@@ -28,6 +30,7 @@ pub async fn setup_http_server(
 
     let mut app = ApiRoutes::create(app_state.clone()).layer(cors);
 
+    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
     if telemetry_enabled {
         app = app
             .layer(middleware::from_fn(crate::metrics::http_metrics_middleware))
