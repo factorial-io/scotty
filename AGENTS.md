@@ -48,6 +48,10 @@ SCOTTY__TELEMETRY=metrics,traces cargo run --bin scotty
 
 # View current configuration
 cargo run --bin scotty -- config
+
+# Choose telemetry transport (default: telemetry-grpc)
+cargo build                             # Uses gRPC (default)
+cargo build --no-default-features --features telemetry-http   # HTTP transport
 ```
 
 ### Running scottyctl

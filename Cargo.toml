@@ -13,15 +13,15 @@ license-file = "LICENSE"
 
 [workspace.dependencies]
 anyhow = "1.0.89"
-axum = { version = "0.8.0", features = ["ws", "macros"] }
-bollard = "0.19.0"
-config = "0.15.0"
+axum = { version = "0.8.0", default-features = false, features = ["http1", "http2", "tokio", "tower-log", "matched-path", "json", "ws", "macros"] }
+bollard = { version = "0.19.0", default-features = false, features = ["ssl", "chrono", "http", "pipe"] }
+config = { version = "0.15.0", default-features = false, features = ["yaml", "toml"] }
 readonly = "0.2.12"
-serde = "1.0.210"
-clap = { version = "4.5", features = ["derive", "env"] }
+serde = { version = "1.0.210", features = ["derive"] }
+clap = { version = "4.5", default-features = false, features = ["std", "derive", "env", "help", "usage", "error-context"] }
 clap_complete = "4.2"
-serde_json = { version = "1.0.128", features = [] }
-tokio = { version = "1.44.2", features = [
+serde_json = { version = "1.0.128", default-features = false, features = ["std"] }
+tokio = { version = "1.44.2", default-features = false, features = [
     "fs",
     "sync",
     "time",
@@ -32,53 +32,46 @@ tokio = { version = "1.44.2", features = [
     "process",
 ] }
 tokio-metrics = "0.4"
-tracing = "0.1.40"
-tracing-subscriber = "0.3"
+tracing = { version = "0.1.40", default-features = false, features = ["std", "attributes"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log", "std"] }
 ts-rs = "11.0"
-opentelemetry = { version = "0.31.0", features = ["trace", "metrics"] }
-opentelemetry_sdk = { version = "0.31", features = [
+opentelemetry = { version = "0.31.0", default-features = false, features = ["trace", "metrics"] }
+opentelemetry_sdk = { version = "0.31", default-features = false, features = [
     "rt-tokio",
     "metrics",
-], default-features = false }
-tracing-opentelemetry = "0.32"
-init-tracing-opentelemetry = { version = "0.32.1", features = [
+] }
+tracing-opentelemetry = { version = "0.32", default-features = false }
+init-tracing-opentelemetry = { version = "0.32.1", default-features = false, features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
-axum-tracing-opentelemetry = "0.32.1"
-opentelemetry-otlp = { version = "0.31.0", features = [
-    "grpc-tonic",
-    "reqwest-client",
-    "reqwest-rustls",
-    "http-proto",
-    "tls",
-    "metrics",
-] }
+axum-tracing-opentelemetry = { version = "0.32.1", default-features = false }
+opentelemetry-otlp = { version = "0.31.0", default-features = false, features = ["metrics"] }
 
-utoipa = { version = "5.3", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "9.0", features = ["axum", "reqwest"] }
-utoipa-redoc = { version = "6.0", features = ["axum"] }
-utoipa-rapidoc = { version = "6.0", features = ["axum"] }
+utoipa = { version = "5.4", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9.0", default-features = false, features = ["axum"] }
+utoipa-redoc = { version = "6.0", default-features = false, features = ["axum"] }
+utoipa-rapidoc = { version = "6.0", default-features = false, features = ["axum"] }
 utoipa-axum = "0.2"
 
-tower-http = { version = "0.6.1", features = ["cors", "fs"] }
+tower-http = { version = "0.6.1", default-features = false, features = ["cors", "fs", "trace"] }
 tower_governor = "0.8"
 governor = "0.10"
-tower = { version = "0.5", features = ["util"] }
-tokio-tungstenite = { version = "0.28", features = ["rustls-tls-native-roots"] }
-futures-util = "0.3.30"
-uuid = { version = "1.10", features = ["v4", "serde"] }
-reqwest = { version = "0.12.8", features = ["json"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tokio-tungstenite = { version = "0.28", default-features = false, features = ["rustls-tls-native-roots"] }
+futures-util = { version = "0.3.30", default-features = false, features = ["std"] }
+uuid = { version = "1.10", default-features = false, features = ["v4", "serde"] }
+reqwest = { version = "0.12.8", default-features = false, features = ["json", "rustls-tls", "http2", "charset", "stream"] }
 thiserror = "2.0.0"
-clokwerk = { version = "0.4.0", features = ["async"] }
+clokwerk = { version = "0.4.0", default-features = false, features = ["async"] }
 walkdir = "2.5.0"
 ignore = "0.4"
-chrono = { version = "0.4.38", features = ["serde"] }
-tokio-stream = "0.1.16"
+chrono = { version = "0.4.38", default-features = false, features = ["clock", "std", "serde"] }
+tokio-stream = { version = "0.1.16", default-features = false }
 serde_norway = "0.9.42"
-regex = "1.11.0"
-tabled = { version = "0.20.0", features = ["ansi"] }
-owo-colors = "4.1.0"
+regex = { version = "1.11.0", default-features = false, features = ["std", "perf"] }
+tabled = { version = "0.20.0", default-features = false, features = ["std", "ansi"] }
+owo-colors = { version = "4.1.0", default-features = false }
 async-trait = "0.1.83"
 base64 = "0.22.1"
 path-clean = "1.0.1"
@@ -87,18 +80,18 @@ maplit = "1.0.2"
 urlencoding = "2.1.3"
 deunicode = "1"
 dotenvy = "0.15.7"
-url = "2.5"
+url = { version = "2.5", default-features = false }
 include_dir = "0.7.3"
-mime_guess = "2.0.4"
-semver = "1.0"
+mime_guess = { version = "2.0.4", default-features = false }
+semver = { version = "1.0", default-features = false, features = ["std"] }
 casbin = { version = "2.8", default-features = false, features = ["runtime-tokio", "cached"] }
-secrecy = { version = "0.10", features = ["serde"] }
-subtle = "2.6"
-zeroize = "1.8"
-sysinfo = "0.37"
+secrecy = { version = "0.10", default-features = false, features = ["serde"] }
+subtle = { version = "2.6", default-features = false }
+zeroize = { version = "1.8", default-features = false, features = ["alloc"] }
+sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 once_cell = "1.20"
 num_cpus = "1.16"
-flate2 = "1.0"
+flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
 wiremock = "0.6"
 
 [workspace.metadata.release]
