@@ -63,13 +63,7 @@ pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
 
 #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
-    RECORDER.get_or_init(|| noop::NoOpRecorder::new())
-}
-
-/// Get direct access to instruments (for internal metrics modules only)
-#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-pub(crate) fn get_metrics() -> Option<&'static instruments::ScottyMetrics> {
-    RECORDER.get().map(|r| &r.instruments)
+    RECORDER.get_or_init(noop::NoOpRecorder::new)
 }
 
 /// Set the global recorder (called during initialization)
@@ -78,20 +72,7 @@ pub(crate) fn set_recorder(recorder: otel_recorder::OtelRecorder) {
     let _ = RECORDER.set(recorder);
 }
 
-// No-telemetry stubs for functions called during setup
-#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
-pub fn init_metrics() -> anyhow::Result<()> {
-    Ok(())
-}
-
-#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
-pub async fn http_metrics_middleware(
-    request: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> axum::response::Response {
-    next.run(request).await
-}
-
+// No-telemetry stubs (actually used in no-telemetry builds)
 #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 pub fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
 where
@@ -112,53 +93,24 @@ pub async fn sample_tokio_metrics() {}
 
 // OAuth metrics helpers
 pub fn record_oauth_sessions_expired_cleaned(count: usize) {
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    {
-        if let Some(metrics) = get_metrics() {
-            metrics
-                .oauth_sessions_expired_cleaned
-                .add(count as u64, &[]);
-        }
-    }
-    #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
-    let _ = count;
+    metrics().record_oauth_sessions_expired_cleaned(count);
 }
 
-pub fn record_oauth_session_counts(device_count: usize, web_count: usize, session_count: usize) {
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    {
-        if let Some(metrics) = get_metrics() {
-            metrics
-                .oauth_device_flow_sessions_active
-                .record(device_count as i64, &[]);
-            metrics
-                .oauth_web_flow_sessions_active
-                .record(web_count as i64, &[]);
-            metrics
-                .oauth_sessions_active
-                .record(session_count as i64, &[]);
-        }
-    }
-    #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
-    let _ = (device_count, web_count, session_count);
+pub fn record_oauth_session_counts(device_count: usize, web_count: usize, _session_count: usize) {
+    let m = metrics();
+    m.record_oauth_device_sessions(device_count as u64);
+    m.record_oauth_web_sessions(web_count as u64);
 }
 
 // Module-style wrappers for existing call sites (both telemetry and no-telemetry)
 pub mod websocket {
-    use std::sync::atomic::{AtomicI64, Ordering};
-    static ACTIVE_CONNECTIONS: AtomicI64 = AtomicI64::new(0);
-
     #[inline]
     pub fn record_connection_opened() {
-        let count = ACTIVE_CONNECTIONS.fetch_add(1, Ordering::Relaxed) + 1;
         super::metrics().record_websocket_connection_opened();
-        // Note: active count tracking done via atomic
-        let _ = count; // For future use
     }
 
     #[inline]
     pub fn record_connection_closed() {
-        let _count = ACTIVE_CONNECTIONS.fetch_sub(1, Ordering::Relaxed) - 1;
         super::metrics().record_websocket_connection_closed();
     }
 

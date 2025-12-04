@@ -1,5 +1,4 @@
 use axum::{extract::Request, middleware::Next, response::Response};
-use opentelemetry::KeyValue;
 use std::time::Instant;
 
 /// HTTP metrics middleware that tracks request counts, durations, and active requests
@@ -14,9 +13,7 @@ pub async fn http_metrics_middleware(request: Request, next: Next) -> Response {
     let path = request.uri().path().to_string();
 
     // Increment active requests
-    if let Some(m) = super::get_metrics() {
-        m.http_requests_active.add(1, &[]);
-    }
+    super::metrics().record_http_requests_active_increment();
 
     // Process the request
     let response = next.run(request).await;
@@ -25,17 +22,8 @@ pub async fn http_metrics_middleware(request: Request, next: Next) -> Response {
     let duration = start.elapsed().as_secs_f64();
     let status = response.status().as_u16().to_string();
 
-    if let Some(m) = super::get_metrics() {
-        let labels = [
-            KeyValue::new("method", method),
-            KeyValue::new("route", path),
-            KeyValue::new("status", status),
-        ];
-
-        m.http_requests_total.add(1, &labels);
-        m.http_request_duration.record(duration, &labels);
-        m.http_requests_active.add(-1, &[]);
-    }
+    super::metrics().record_http_request_finished(&method, &path, &status, duration);
+    super::metrics().record_http_requests_active_decrement();
 
     response
 }

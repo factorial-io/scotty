@@ -198,4 +198,124 @@ impl MetricsRecorder for OtelRecorder {
     fn record_rate_limit_extractor_error(&self) {
         self.instruments.rate_limit_extractor_errors.add(1, &[]);
     }
+
+    // HTTP metrics
+    fn record_http_requests_active_increment(&self) {
+        self.instruments.http_requests_active.add(1, &[]);
+    }
+
+    fn record_http_requests_active_decrement(&self) {
+        self.instruments.http_requests_active.add(-1, &[]);
+    }
+
+    fn record_http_request_finished(
+        &self,
+        method: &str,
+        path: &str,
+        status: &str,
+        duration_secs: f64,
+    ) {
+        use opentelemetry::KeyValue;
+        let labels = [
+            KeyValue::new("method", method.to_string()),
+            KeyValue::new("route", path.to_string()),
+            KeyValue::new("status", status.to_string()),
+        ];
+        self.instruments.http_requests_total.add(1, &labels);
+        self.instruments
+            .http_request_duration
+            .record(duration_secs, &labels);
+    }
+
+    // App list metrics
+    fn record_apps_total(&self, count: u64) {
+        self.instruments.apps_total.record(count, &[]);
+    }
+
+    fn record_apps_by_status(&self, status: &str, count: u64) {
+        use opentelemetry::KeyValue;
+        let labels = [KeyValue::new("status", status.to_string())];
+        self.instruments.apps_by_status.record(count, &labels);
+    }
+
+    fn record_app_services_count(&self, count: f64) {
+        self.instruments.app_services_count.record(count, &[]);
+    }
+
+    fn record_app_last_check_age(&self, seconds: f64) {
+        self.instruments
+            .app_last_check_age_seconds
+            .record(seconds, &[]);
+    }
+
+    // Memory metrics
+    fn record_memory_rss_bytes(&self, bytes: u64) {
+        self.instruments.memory_rss_bytes.record(bytes, &[]);
+    }
+
+    fn record_memory_virtual_bytes(&self, bytes: u64) {
+        self.instruments.memory_virtual_bytes.record(bytes, &[]);
+    }
+
+    // Tokio runtime metrics
+    fn record_tokio_active_tasks(&self, count: u64) {
+        self.instruments.tokio_active_tasks_count.record(count, &[]);
+    }
+
+    fn record_tokio_tasks_dropped(&self, count: u64) {
+        self.instruments.tokio_tasks_dropped.add(count, &[]);
+    }
+
+    fn record_tokio_workers_count(&self, count: u64) {
+        self.instruments.tokio_workers_count.record(count, &[]);
+    }
+
+    fn record_tokio_poll_count(&self, count: u64) {
+        self.instruments.tokio_poll_count.add(count, &[]);
+    }
+
+    fn record_tokio_slow_poll_count(&self, count: u64) {
+        self.instruments.tokio_slow_poll_count.add(count, &[]);
+    }
+
+    fn record_tokio_poll_duration(&self, duration_secs: f64) {
+        self.instruments
+            .tokio_poll_duration
+            .record(duration_secs, &[]);
+    }
+
+    fn record_tokio_idle_duration(&self, duration_secs: f64) {
+        self.instruments
+            .tokio_idle_duration
+            .record(duration_secs, &[]);
+    }
+
+    fn record_tokio_scheduled_count(&self, count: u64) {
+        self.instruments.tokio_scheduled_count.add(count, &[]);
+    }
+
+    fn record_tokio_first_poll_delay(&self, duration_secs: f64) {
+        self.instruments
+            .tokio_first_poll_delay
+            .record(duration_secs, &[]);
+    }
+
+    // OAuth session metrics
+    fn record_oauth_device_sessions(&self, count: u64) {
+        self.instruments
+            .oauth_device_flow_sessions_active
+            .record(count as i64, &[]);
+    }
+
+    fn record_oauth_web_sessions(&self, count: u64) {
+        self.instruments
+            .oauth_web_flow_sessions_active
+            .record(count as i64, &[]);
+    }
+
+    fn record_oauth_sessions_expired_cleaned(&self, count: usize) {
+        self.instruments
+            .oauth_sessions_expired_cleaned
+            .add(count as u64, &[]);
+    }
 }

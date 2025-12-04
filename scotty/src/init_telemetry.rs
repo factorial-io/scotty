@@ -1,5 +1,7 @@
 use anyhow::Result;
-use tracing::{info, warn};
+use tracing::info;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use tracing::warn;
 use tracing_subscriber::{layer::SubscriberExt, Layer};
 use tracing_subscriber::{registry, EnvFilter};
 

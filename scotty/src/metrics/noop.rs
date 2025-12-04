@@ -85,4 +85,79 @@ impl MetricsRecorder for NoOpRecorder {
 
     #[inline(always)]
     fn record_rate_limit_extractor_error(&self) {}
+
+    // HTTP metrics
+    #[inline(always)]
+    fn record_http_requests_active_increment(&self) {}
+
+    #[inline(always)]
+    fn record_http_requests_active_decrement(&self) {}
+
+    #[inline(always)]
+    fn record_http_request_finished(
+        &self,
+        _method: &str,
+        _path: &str,
+        _status: &str,
+        _duration_secs: f64,
+    ) {
+    }
+
+    // App list metrics
+    #[inline(always)]
+    fn record_apps_total(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_apps_by_status(&self, _status: &str, _count: u64) {}
+
+    #[inline(always)]
+    fn record_app_services_count(&self, _count: f64) {}
+
+    #[inline(always)]
+    fn record_app_last_check_age(&self, _seconds: f64) {}
+
+    // Memory metrics
+    #[inline(always)]
+    fn record_memory_rss_bytes(&self, _bytes: u64) {}
+
+    #[inline(always)]
+    fn record_memory_virtual_bytes(&self, _bytes: u64) {}
+
+    // Tokio runtime metrics
+    #[inline(always)]
+    fn record_tokio_active_tasks(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_tasks_dropped(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_workers_count(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_poll_count(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_slow_poll_count(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_poll_duration(&self, _duration_secs: f64) {}
+
+    #[inline(always)]
+    fn record_tokio_idle_duration(&self, _duration_secs: f64) {}
+
+    #[inline(always)]
+    fn record_tokio_scheduled_count(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_tokio_first_poll_delay(&self, _duration_secs: f64) {}
+
+    // OAuth session metrics
+    #[inline(always)]
+    fn record_oauth_device_sessions(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_oauth_web_sessions(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_oauth_sessions_expired_cleaned(&self, _count: usize) {}
 }
