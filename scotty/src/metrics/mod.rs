@@ -167,20 +167,3 @@ pub mod shell {
         super::metrics().record_shell_session_timeout(duration_secs);
     }
 }
-
-pub mod tasks {
-    #[inline]
-    pub fn record_stream_started() {
-        // Not implemented in metrics recorder yet
-    }
-
-    #[inline]
-    pub fn record_stream_ended() {
-        // Not implemented in metrics recorder yet
-    }
-
-    #[inline]
-    pub fn record_output_lines(_count: usize) {
-        // Not implemented in metrics recorder yet
-    }
-}

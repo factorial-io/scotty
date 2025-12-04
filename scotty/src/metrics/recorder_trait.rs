@@ -26,6 +26,9 @@ pub trait MetricsRecorder: Send + Sync {
     fn record_task_added(&self, active_count: usize);
     fn record_task_finished(&self, duration_secs: f64, failed: bool);
     fn record_task_cleanup(&self, active_count: usize);
+    fn record_task_output_stream_started(&self);
+    fn record_task_output_stream_ended(&self);
+    fn record_task_output_lines(&self, count: usize);
 
     fn record_oauth_device_flow_start(&self);
     fn record_oauth_web_flow_start(&self);

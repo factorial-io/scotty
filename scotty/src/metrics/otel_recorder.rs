@@ -152,6 +152,20 @@ impl MetricsRecorder for OtelRecorder {
             .record(active_count as i64, &[]);
     }
 
+    fn record_task_output_stream_started(&self) {
+        // Task output streams are tracked separately from task execution
+        // This could be extended to track active streams if needed
+    }
+
+    fn record_task_output_stream_ended(&self) {
+        // Task output streams are tracked separately from task execution
+        // This could be extended to track active streams if needed
+    }
+
+    fn record_task_output_lines(&self, count: usize) {
+        self.instruments.task_output_lines.add(count as u64, &[]);
+    }
+
     // OAuth
     fn record_oauth_device_flow_start(&self) {
         self.instruments.oauth_device_flows_total.add(1, &[]);

@@ -75,6 +75,15 @@ impl MetricsRecorder for NoOpRecorder {
     fn record_task_cleanup(&self, _active_count: usize) {}
 
     #[inline(always)]
+    fn record_task_output_stream_started(&self) {}
+
+    #[inline(always)]
+    fn record_task_output_stream_ended(&self) {}
+
+    #[inline(always)]
+    fn record_task_output_lines(&self, _count: usize) {}
+
+    #[inline(always)]
     fn record_oauth_device_flow_start(&self) {}
 
     #[inline(always)]

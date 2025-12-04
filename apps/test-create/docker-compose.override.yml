@@ -1,0 +1,15 @@
+services:
+  nginx:
+    labels:
+      traefik.enable: 'true'
+      traefik.http.middlewares.nginx--test-create--robots.headers.customresponseheaders.X-Robots-Tags: none, noarchive, nosnippet, notranslate, noimageindex
+      traefik.http.routers.nginx--test-create-0.middlewares: nginx--test-create--robots
+      traefik.http.routers.nginx--test-create-0.rule: Host(`nginx.test-create.ddev.site`)
+      traefik.http.services.nginx--test-create.loadbalancer.server.port: '80'
+    environment: {}
+    networks:
+    - default
+    - proxy
+networks:
+  proxy:
+    external: true
