@@ -45,15 +45,24 @@ static RECORDER: OnceLock<otel_recorder::OtelRecorder> = OnceLock::new();
 #[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
 static RECORDER: OnceLock<noop::NoOpRecorder> = OnceLock::new();
 
-// Fallback no-op recorder for when telemetry isn't initialized (e.g., tests)
-#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+// Fallback no-op recorder for tests (not compiled in release builds)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), test))]
 static NOOP_FALLBACK: noop::NoOpRecorder = noop::NoOpRecorder::new();
 
 /// Get the global metrics recorder
 ///
-/// Returns the initialized recorder if available, otherwise returns a no-op fallback.
-/// This ensures metrics calls never panic, even in tests where init_metrics() isn't called.
-#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+/// In test builds: Returns a no-op fallback if not initialized (zero-cost for tests)
+/// In release builds: Expects initialization (eliminates branch, better performance)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), not(test)))]
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
+    RECORDER
+        .get()
+        .expect("Metrics not initialized - init_metrics() must be called during startup")
+        as &'static dyn MetricsRecorder
+}
+
+/// Get the global metrics recorder (test variant with fallback)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), test))]
 pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
     RECORDER
         .get()

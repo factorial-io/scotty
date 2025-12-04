@@ -36,9 +36,21 @@ pub trait MetricsRecorder: Send + Sync {
     fn record_rate_limit_denied(&self, tier: &str);
     fn record_rate_limit_extractor_error(&self);
 
-    // HTTP metrics
+    // Specialized metrics (only used in telemetry-enabled builds)
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_http_requests_active_increment(&self);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_http_requests_active_decrement(&self);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_http_request_finished(
         &self,
         method: &str,
@@ -47,29 +59,97 @@ pub trait MetricsRecorder: Send + Sync {
         duration_secs: f64,
     );
 
-    // App list metrics
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_apps_total(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_apps_by_status(&self, status: &str, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_app_services_count(&self, count: f64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_app_last_check_age(&self, seconds: f64);
 
-    // Memory metrics
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_memory_rss_bytes(&self, bytes: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_memory_virtual_bytes(&self, bytes: u64);
 
-    // Tokio runtime metrics
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_active_tasks(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_tasks_dropped(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_workers_count(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_poll_count(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_slow_poll_count(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_poll_duration(&self, duration_secs: f64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_idle_duration(&self, duration_secs: f64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_scheduled_count(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_tokio_first_poll_delay(&self, duration_secs: f64);
 
-    // OAuth session metrics
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_oauth_device_sessions(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_oauth_web_sessions(&self, count: u64);
+    #[cfg_attr(
+        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
+        allow(dead_code)
+    )]
     fn record_oauth_sessions_expired_cleaned(&self, count: usize);
 }

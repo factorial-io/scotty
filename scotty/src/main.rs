@@ -1,6 +1,6 @@
 // Compile-time feature conflict check
-#[cfg(all(feature = "telemetry-grpc", feature = "telemetry-http"))]
-compile_error!("Cannot enable both telemetry-grpc and telemetry-http at the same time");
+// Note: telemetry-grpc and telemetry-http can be enabled simultaneously
+// The actual transport is chosen at runtime via configuration
 
 mod api;
 mod app_state;

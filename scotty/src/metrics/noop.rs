@@ -4,9 +4,18 @@ use super::recorder_trait::MetricsRecorder;
 use std::time::Instant;
 
 /// Zero-cost no-op recorder
+///
+/// Used in two scenarios:
+/// - no-telemetry builds: as the main recorder
+/// - test builds with telemetry: as fallback when metrics not initialized
+#[cfg_attr(
+    all(any(feature = "telemetry-grpc", feature = "telemetry-http"), not(test)),
+    allow(dead_code)
+)]
 pub(crate) struct NoOpRecorder;
 
 impl NoOpRecorder {
+    #[cfg(any(test, not(any(feature = "telemetry-grpc", feature = "telemetry-http"))))]
     pub(crate) const fn new() -> Self {
         Self
     }
