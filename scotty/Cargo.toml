@@ -10,7 +10,8 @@ license-file.workspace = true
 [features]
 default = ["telemetry-grpc"]
 
-# Telemetry features - choose one transport or omit for no telemetry
+# Telemetry features - can enable one, both, or omit for no telemetry
+# When both are enabled, the transport is chosen at runtime via configuration
 telemetry-grpc = [
     "opentelemetry",
     "opentelemetry_sdk",
