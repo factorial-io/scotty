@@ -5,18 +5,25 @@ use super::recorder_trait::MetricsRecorder;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Instant;
 
-// Active counts tracked in memory
-static ACTIVE_SHELL_SESSIONS: AtomicI64 = AtomicI64::new(0);
-static ACTIVE_WEBSOCKET_CONNECTIONS: AtomicI64 = AtomicI64::new(0);
-
 /// Wrapper around ScottyMetrics providing a clean API
+///
+/// Active counts are tracked within each recorder instance to support proper
+/// test isolation and avoid shared state issues when metrics are re-initialized.
 pub(crate) struct OtelRecorder {
     pub(super) instruments: ScottyMetrics,
+    /// Active shell sessions count (used to calculate gauge values)
+    active_shell_sessions: AtomicI64,
+    /// Active WebSocket connections count (used to calculate gauge values)
+    active_websocket_connections: AtomicI64,
 }
 
 impl OtelRecorder {
     pub(crate) fn new(instruments: ScottyMetrics) -> Self {
-        Self { instruments }
+        Self {
+            instruments,
+            active_shell_sessions: AtomicI64::new(0),
+            active_websocket_connections: AtomicI64::new(0),
+        }
     }
 
     /// Get direct access to instruments (for internal metrics modules)
@@ -67,13 +74,13 @@ impl MetricsRecorder for OtelRecorder {
 
     // Shell sessions
     fn record_shell_session_started(&self) {
-        let count = ACTIVE_SHELL_SESSIONS.fetch_add(1, Ordering::Relaxed) + 1;
+        let count = self.active_shell_sessions.fetch_add(1, Ordering::Relaxed) + 1;
         self.instruments.shell_sessions_total.add(1, &[]);
         self.instruments.shell_sessions_active.record(count, &[]);
     }
 
     fn record_shell_session_ended(&self, duration_secs: f64) {
-        let count = ACTIVE_SHELL_SESSIONS.fetch_sub(1, Ordering::Relaxed) - 1;
+        let count = self.active_shell_sessions.fetch_sub(1, Ordering::Relaxed) - 1;
         self.instruments.shell_sessions_active.record(count, &[]);
         self.instruments
             .shell_session_duration
@@ -81,7 +88,7 @@ impl MetricsRecorder for OtelRecorder {
     }
 
     fn record_shell_session_error(&self, duration_secs: f64) {
-        let count = ACTIVE_SHELL_SESSIONS.fetch_sub(1, Ordering::Relaxed) - 1;
+        let count = self.active_shell_sessions.fetch_sub(1, Ordering::Relaxed) - 1;
         self.instruments.shell_sessions_active.record(count, &[]);
         self.instruments.shell_session_errors.add(1, &[]);
         self.instruments
@@ -90,7 +97,7 @@ impl MetricsRecorder for OtelRecorder {
     }
 
     fn record_shell_session_timeout(&self, duration_secs: f64) {
-        let count = ACTIVE_SHELL_SESSIONS.fetch_sub(1, Ordering::Relaxed) - 1;
+        let count = self.active_shell_sessions.fetch_sub(1, Ordering::Relaxed) - 1;
         self.instruments.shell_sessions_active.record(count, &[]);
         self.instruments.shell_session_timeouts.add(1, &[]);
         self.instruments
@@ -100,14 +107,20 @@ impl MetricsRecorder for OtelRecorder {
 
     // WebSocket
     fn record_websocket_connection_opened(&self) {
-        let count = ACTIVE_WEBSOCKET_CONNECTIONS.fetch_add(1, Ordering::Relaxed) + 1;
+        let count = self
+            .active_websocket_connections
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
         self.instruments
             .websocket_connections_active
             .record(count, &[]);
     }
 
     fn record_websocket_connection_closed(&self) {
-        let count = ACTIVE_WEBSOCKET_CONNECTIONS.fetch_sub(1, Ordering::Relaxed) - 1;
+        let count = self
+            .active_websocket_connections
+            .fetch_sub(1, Ordering::Relaxed)
+            - 1;
         self.instruments
             .websocket_connections_active
             .record(count, &[]);
