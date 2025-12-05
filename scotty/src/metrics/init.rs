@@ -1,4 +1,4 @@
-use super::instruments::ScottyMetrics;
+use super::{instruments::ScottyMetrics, otel_recorder::OtelRecorder};
 use anyhow::Result;
 use opentelemetry::metrics::MeterProvider;
 use opentelemetry::{global, KeyValue};
@@ -13,7 +13,7 @@ use std::time::Duration;
 ///
 /// Sets up the global MeterProvider to export metrics via OTLP
 /// to the OpenTelemetry Collector.
-pub fn init_metrics() -> Result<ScottyMetrics> {
+pub fn init_metrics() -> Result<()> {
     // Get OTLP endpoint from environment or use default
     let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
         .unwrap_or_else(|_| "http://otel-collector:4317".to_string());
@@ -43,12 +43,13 @@ pub fn init_metrics() -> Result<ScottyMetrics> {
 
     global::set_meter_provider(provider.clone());
 
-    // Create metrics
+    // Create metrics recorder
     let meter = provider.meter(env!("CARGO_PKG_NAME"));
-    let metrics = ScottyMetrics::new(meter);
+    let instruments = ScottyMetrics::new(meter);
+    let recorder = OtelRecorder::new(instruments);
 
-    // Set global metrics instance
-    super::set_metrics(metrics.clone());
+    // Set global recorder
+    super::set_recorder(recorder);
 
-    Ok(metrics)
+    Ok(())
 }

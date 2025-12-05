@@ -2,34 +2,168 @@
 //!
 //! This module provides metrics instrumentation for the unified output system.
 
+// Recorder trait (always available)
+mod recorder_trait;
+use recorder_trait::MetricsRecorder;
+
+// No-op recorder (always available for fallback)
+mod noop;
+
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod app_list;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod http;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod init;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod instruments;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod memory;
-pub mod shell;
-pub mod tasks;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+mod otel_recorder;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 mod tokio_runtime;
-pub mod websocket;
 
 use std::sync::OnceLock;
 
+// Telemetry exports
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub use app_list::sample_app_list_metrics;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub use http::http_metrics_middleware;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub use init::init_metrics;
-pub use instruments::ScottyMetrics;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub use memory::sample_memory_metrics;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub use tokio_runtime::{sample_tokio_metrics, spawn_instrumented};
 
-/// Global metrics instance
-static METRICS: OnceLock<ScottyMetrics> = OnceLock::new();
+// Global recorder
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+static RECORDER: OnceLock<otel_recorder::OtelRecorder> = OnceLock::new();
 
-/// Get the global metrics instance if initialized
-pub fn get_metrics() -> Option<&'static ScottyMetrics> {
-    METRICS.get()
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+static RECORDER: OnceLock<noop::NoOpRecorder> = OnceLock::new();
+
+// Fallback no-op recorder for tests (not compiled in release builds)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), test))]
+static NOOP_FALLBACK: noop::NoOpRecorder = noop::NoOpRecorder::new();
+
+/// Get the global metrics recorder
+///
+/// In test builds: Returns a no-op fallback if not initialized (zero-cost for tests)
+/// In release builds: Expects initialization (eliminates branch, better performance)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), not(test)))]
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
+    RECORDER
+        .get()
+        .expect("Metrics not initialized - init_metrics() must be called during startup")
+        as &'static dyn MetricsRecorder
 }
 
-/// Set the global metrics instance (called during initialization)
-pub(crate) fn set_metrics(metrics: ScottyMetrics) {
-    let _ = METRICS.set(metrics);
+/// Get the global metrics recorder (test variant with fallback)
+#[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), test))]
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
+    RECORDER
+        .get()
+        .map(|r| r as &'static dyn MetricsRecorder)
+        .unwrap_or(&NOOP_FALLBACK)
+}
+
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub(crate) fn metrics() -> &'static dyn MetricsRecorder {
+    RECORDER.get_or_init(noop::NoOpRecorder::new)
+}
+
+/// Set the global recorder (called during initialization)
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+pub(crate) fn set_recorder(recorder: otel_recorder::OtelRecorder) {
+    let _ = RECORDER.set(recorder);
+}
+
+// No-telemetry stubs (actually used in no-telemetry builds)
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub fn spawn_instrumented<F>(future: F) -> tokio::task::JoinHandle<F::Output>
+where
+    F: std::future::Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    tokio::spawn(future)
+}
+
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub async fn sample_app_list_metrics(_app_state: crate::app_state::SharedAppState) {}
+
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub async fn sample_memory_metrics() {}
+
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub async fn sample_tokio_metrics() {}
+
+// OAuth metrics helpers
+pub fn record_oauth_sessions_expired_cleaned(count: usize) {
+    metrics().record_oauth_sessions_expired_cleaned(count);
+}
+
+pub fn record_oauth_session_counts(device_count: usize, web_count: usize, _session_count: usize) {
+    let m = metrics();
+    m.record_oauth_device_sessions(device_count as u64);
+    m.record_oauth_web_sessions(web_count as u64);
+}
+
+// Module-style wrappers for existing call sites (both telemetry and no-telemetry)
+pub mod websocket {
+    #[inline]
+    pub fn record_connection_opened() {
+        super::metrics().record_websocket_connection_opened();
+    }
+
+    #[inline]
+    pub fn record_connection_closed() {
+        super::metrics().record_websocket_connection_closed();
+    }
+
+    #[inline]
+    pub fn record_message_sent() {
+        super::metrics().record_websocket_message_sent();
+    }
+
+    #[inline]
+    pub fn record_messages_sent(count: usize) {
+        if count > 0 {
+            super::metrics().record_websocket_messages_sent(count);
+        }
+    }
+
+    #[inline]
+    pub fn record_message_received() {
+        super::metrics().record_websocket_message_received();
+    }
+
+    #[inline]
+    pub fn record_auth_failure() {
+        super::metrics().record_websocket_auth_failure();
+    }
+}
+
+pub mod shell {
+    #[inline]
+    pub fn record_session_started() {
+        super::metrics().record_shell_session_started();
+    }
+
+    #[inline]
+    pub fn record_session_ended(duration_secs: f64) {
+        super::metrics().record_shell_session_ended(duration_secs);
+    }
+
+    #[inline]
+    pub fn record_session_error(duration_secs: f64) {
+        super::metrics().record_shell_session_error(duration_secs);
+    }
+
+    #[inline]
+    pub fn record_session_timeout(duration_secs: f64) {
+        super::metrics().record_shell_session_timeout(duration_secs);
+    }
 }

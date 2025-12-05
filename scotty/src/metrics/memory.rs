@@ -28,11 +28,8 @@ pub async fn sample_memory_metrics() {
             virtual_bytes / 1024 / 1024
         );
 
-        // Record metrics if available
-        if let Some(metrics) = super::get_metrics() {
-            metrics.memory_rss_bytes.record(rss_bytes, &[]);
-            metrics.memory_virtual_bytes.record(virtual_bytes, &[]);
-        }
+        super::metrics().record_memory_rss_bytes(rss_bytes);
+        super::metrics().record_memory_virtual_bytes(virtual_bytes);
     } else {
         warn!("Failed to get process information for memory metrics");
     }

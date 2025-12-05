@@ -2,17 +2,20 @@ use axum::http::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     HeaderValue, Method,
 };
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 use axum::middleware;
-use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use tower_http::cors::CorsLayer;
 use tracing::info;
+
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 use crate::{api::router::ApiRoutes, app_state::SharedAppState};
 
 pub async fn setup_http_server(
     app_state: SharedAppState,
     bind_address: &str,
-    telemetry_enabled: bool,
+    _telemetry_enabled: bool,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
     let cors = CorsLayer::new()
         .allow_origin("*".parse::<HeaderValue>().unwrap())
@@ -26,14 +29,16 @@ pub async fn setup_http_server(
         // .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
-    let mut app = ApiRoutes::create(app_state.clone()).layer(cors);
+    let app = ApiRoutes::create(app_state.clone()).layer(cors);
 
-    if telemetry_enabled {
-        app = app
-            .layer(middleware::from_fn(crate::metrics::http_metrics_middleware))
+    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+    let app = if _telemetry_enabled {
+        app.layer(middleware::from_fn(crate::metrics::http_metrics_middleware))
             .layer(OtelInResponseLayer)
-            .layer(OtelAxumLayer::default());
-    }
+            .layer(OtelAxumLayer::default())
+    } else {
+        app
+    };
 
     println!("🚀 API-Server starting at http://{}", &bind_address);
     let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();

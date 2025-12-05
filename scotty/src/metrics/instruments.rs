@@ -33,6 +33,8 @@ pub struct ScottyMetrics {
     pub task_duration: Histogram<f64>,
     pub task_failures: Counter<u64>,
     pub task_output_lines: Counter<u64>,
+    pub task_output_streams_active: Gauge<i64>,
+    pub task_output_streams_total: Counter<u64>,
 
     // Memory metrics
     pub memory_rss_bytes: Gauge<u64>,
@@ -185,6 +187,16 @@ impl ScottyMetrics {
             task_output_lines: meter
                 .u64_counter("scotty.task.output_lines")
                 .with_description("Task output lines streamed")
+                .build(),
+
+            task_output_streams_active: meter
+                .i64_gauge("scotty.task_output_streams.active")
+                .with_description("Active task output streams")
+                .build(),
+
+            task_output_streams_total: meter
+                .u64_counter("scotty.task_output_streams.total")
+                .with_description("Total task output streams")
                 .build(),
 
             // Memory

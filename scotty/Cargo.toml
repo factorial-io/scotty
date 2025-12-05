@@ -10,7 +10,8 @@ license-file.workspace = true
 [features]
 default = ["telemetry-grpc"]
 
-# Telemetry features - choose one transport
+# Telemetry features - can enable one, both, or omit for no telemetry
+# When both are enabled, the transport is chosen at runtime via configuration
 telemetry-grpc = [
     "opentelemetry",
     "opentelemetry_sdk",
@@ -30,9 +31,6 @@ telemetry-http = [
     "init-tracing-opentelemetry",
     "axum-tracing-opentelemetry",
 ]
-
-# Disable all telemetry for minimal builds
-no-telemetry = []
 
 [dependencies]
 anyhow.workspace = true
@@ -83,7 +81,6 @@ utoipa-redoc.workspace = true
 utoipa-swagger-ui.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-walkdir.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 casbin.workspace = true

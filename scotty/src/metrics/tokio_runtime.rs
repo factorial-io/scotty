@@ -38,41 +38,38 @@ pub async fn sample_tokio_metrics() {
             metrics.total_idle_duration
         );
 
-        // Record metrics if available
-        if let Some(m) = super::get_metrics() {
-            // Task counts
-            m.tokio_active_tasks_count
-                .record(metrics.instrumented_count, &[]);
-            m.tokio_tasks_dropped.add(metrics.dropped_count, &[]);
-            m.tokio_workers_count.record(num_cpus::get() as u64, &[]);
+        // Record metrics
+        let m = super::metrics();
 
-            // Poll metrics
-            m.tokio_poll_count.add(metrics.total_poll_count, &[]);
-            m.tokio_slow_poll_count
-                .add(metrics.total_slow_poll_count, &[]);
+        // Task counts
+        m.record_tokio_active_tasks(metrics.instrumented_count);
+        m.record_tokio_tasks_dropped(metrics.dropped_count);
+        m.record_tokio_workers_count(num_cpus::get() as u64);
 
-            // Duration metrics (convert from Duration to seconds)
-            // For histograms, we record the total duration across all events in this interval
-            // The histogram will track the distribution of these aggregate values
-            let poll_duration_secs = metrics.total_poll_duration.as_secs_f64();
-            if poll_duration_secs > 0.0 {
-                m.tokio_poll_duration.record(poll_duration_secs, &[]);
-            }
+        // Poll metrics
+        m.record_tokio_poll_count(metrics.total_poll_count);
+        m.record_tokio_slow_poll_count(metrics.total_slow_poll_count);
 
-            let idle_duration_secs = metrics.total_idle_duration.as_secs_f64();
-            if idle_duration_secs > 0.0 {
-                m.tokio_idle_duration.record(idle_duration_secs, &[]);
-            }
+        // Duration metrics (convert from Duration to seconds)
+        // For histograms, we record the total duration across all events in this interval
+        // The histogram will track the distribution of these aggregate values
+        let poll_duration_secs = metrics.total_poll_duration.as_secs_f64();
+        if poll_duration_secs > 0.0 {
+            m.record_tokio_poll_duration(poll_duration_secs);
+        }
 
-            // Scheduling metrics
-            m.tokio_scheduled_count
-                .add(metrics.total_scheduled_count, &[]);
+        let idle_duration_secs = metrics.total_idle_duration.as_secs_f64();
+        if idle_duration_secs > 0.0 {
+            m.record_tokio_idle_duration(idle_duration_secs);
+        }
 
-            // First poll delay
-            let first_poll_delay_secs = metrics.total_first_poll_delay.as_secs_f64();
-            if first_poll_delay_secs > 0.0 {
-                m.tokio_first_poll_delay.record(first_poll_delay_secs, &[]);
-            }
+        // Scheduling metrics
+        m.record_tokio_scheduled_count(metrics.total_scheduled_count);
+
+        // First poll delay
+        let first_poll_delay_secs = metrics.total_first_poll_delay.as_secs_f64();
+        if first_poll_delay_secs > 0.0 {
+            m.record_tokio_first_poll_delay(first_poll_delay_secs);
         }
     }
 }
