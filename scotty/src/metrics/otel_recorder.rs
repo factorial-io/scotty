@@ -15,6 +15,8 @@ pub(crate) struct OtelRecorder {
     active_shell_sessions: AtomicI64,
     /// Active WebSocket connections count (used to calculate gauge values)
     active_websocket_connections: AtomicI64,
+    /// Active task output streams count (used to calculate gauge values)
+    active_task_output_streams: AtomicI64,
 }
 
 impl OtelRecorder {
@@ -23,6 +25,7 @@ impl OtelRecorder {
             instruments,
             active_shell_sessions: AtomicI64::new(0),
             active_websocket_connections: AtomicI64::new(0),
+            active_task_output_streams: AtomicI64::new(0),
         }
     }
 
@@ -166,13 +169,24 @@ impl MetricsRecorder for OtelRecorder {
     }
 
     fn record_task_output_stream_started(&self) {
-        // Task output streams are tracked separately from task execution
-        // This could be extended to track active streams if needed
+        let count = self
+            .active_task_output_streams
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
+        self.instruments.task_output_streams_total.add(1, &[]);
+        self.instruments
+            .task_output_streams_active
+            .record(count, &[]);
     }
 
     fn record_task_output_stream_ended(&self) {
-        // Task output streams are tracked separately from task execution
-        // This could be extended to track active streams if needed
+        let count = self
+            .active_task_output_streams
+            .fetch_sub(1, Ordering::Relaxed)
+            - 1;
+        self.instruments
+            .task_output_streams_active
+            .record(count, &[]);
     }
 
     fn record_task_output_lines(&self, count: usize) {
@@ -344,5 +358,77 @@ impl MetricsRecorder for OtelRecorder {
         self.instruments
             .oauth_sessions_expired_cleaned
             .add(count as u64, &[]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::instruments::ScottyMetrics;
+    use opentelemetry::metrics::MeterProvider;
+    use opentelemetry_sdk::metrics::SdkMeterProvider;
+
+    fn create_test_recorder() -> OtelRecorder {
+        let provider = SdkMeterProvider::builder().build();
+        let meter = provider.meter("test");
+        let instruments = ScottyMetrics::new(meter);
+        OtelRecorder::new(instruments)
+    }
+
+    #[test]
+    fn test_task_output_stream_metrics_increment_decrement() {
+        let recorder = create_test_recorder();
+
+        // Verify initial state
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+
+        // Start first stream
+        recorder.record_task_output_stream_started();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+
+        // Start second stream
+        recorder.record_task_output_stream_started();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 2);
+
+        // Start third stream
+        recorder.record_task_output_stream_started();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 3);
+
+        // End first stream
+        recorder.record_task_output_stream_ended();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 2);
+
+        // End second stream
+        recorder.record_task_output_stream_ended();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+
+        // End third stream
+        recorder.record_task_output_stream_ended();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_task_output_stream_metrics_match_shell_session_pattern() {
+        // This test verifies that task output streams follow the same pattern
+        // as shell sessions and websocket connections
+        let recorder = create_test_recorder();
+
+        // Shell sessions pattern
+        recorder.record_shell_session_started();
+        assert_eq!(recorder.active_shell_sessions.load(Ordering::Relaxed), 1);
+        recorder.record_shell_session_ended(1.0);
+        assert_eq!(recorder.active_shell_sessions.load(Ordering::Relaxed), 0);
+
+        // Task output streams pattern (should match)
+        recorder.record_task_output_stream_started();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+        recorder.record_task_output_stream_ended();
+        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+
+        // WebSocket connections pattern
+        recorder.record_websocket_connection_opened();
+        assert_eq!(recorder.active_websocket_connections.load(Ordering::Relaxed), 1);
+        recorder.record_websocket_connection_closed();
+        assert_eq!(recorder.active_websocket_connections.load(Ordering::Relaxed), 0);
     }
 }
