@@ -56,7 +56,6 @@ utoipa-redoc.workspace = true
 utoipa-swagger-ui.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-walkdir.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 casbin.workspace = true

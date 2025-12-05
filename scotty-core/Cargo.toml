@@ -31,7 +31,6 @@ tokio.workspace = true
 utoipa = { workspace = true, optional = true }
 clokwerk.workspace = true
 readonly.workspace = true
-uuid.workspace = true
 bollard.workspace = true
 deunicode.workspace = true
 url.workspace = true
@@ -40,8 +39,6 @@ futures-util.workspace = true
 semver.workspace = true
 thiserror.workspace = true
 secrecy.workspace = true
-zeroize.workspace = true
-flate2.workspace = true
 walkdir.workspace = true
 owo-colors.workspace = true
 
