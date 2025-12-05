@@ -2992,7 +2992,6 @@ dependencies = [
  "utoipa-redoc",
  "utoipa-swagger-ui",
  "uuid",
- "walkdir",
  "wiremock",
 ]
 
@@ -3009,7 +3008,6 @@ dependencies = [
  "clap",
  "clokwerk",
  "deunicode",
- "flate2",
  "futures-util",
  "owo-colors",
  "readonly",
@@ -3026,10 +3024,8 @@ dependencies = [
  "tracing",
  "url",
  "utoipa",
- "uuid",
  "walkdir",
  "wiremock",
- "zeroize",
 ]
 
 [[package]]
@@ -3070,7 +3066,6 @@ dependencies = [
  "reqwest 0.12.24",
  "scotty-core",
  "scotty-types",
- "semver",
  "serde",
  "serde_json",
  "tabled",
@@ -3080,7 +3075,6 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "tracing-subscriber",
- "url",
  "uuid",
  "walkdir",
 ]

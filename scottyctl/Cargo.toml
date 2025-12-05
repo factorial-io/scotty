@@ -29,10 +29,8 @@ tracing-subscriber.workspace = true
 crossterm = { version = "0.29.0", default-features = false, features = ["event-stream"] }
 open = { version = "5.0", default-features = false }
 thiserror.workspace = true
-semver.workspace = true
 tokio-tungstenite.workspace = true
 futures-util.workspace = true
-url.workspace = true
 uuid.workspace = true
 flate2.workspace = true
 [[bin]]
