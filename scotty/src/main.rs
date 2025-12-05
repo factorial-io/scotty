@@ -1,3 +1,7 @@
+// Compile-time feature conflict check
+// Note: telemetry-grpc and telemetry-http can be enabled simultaneously
+// The actual transport is chosen at runtime via configuration
+
 mod api;
 mod app_state;
 mod docker;

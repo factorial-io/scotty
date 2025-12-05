@@ -7,10 +7,35 @@ authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
+[features]
+default = ["telemetry-grpc"]
+
+# Telemetry features - can enable one, both, or omit for no telemetry
+# When both are enabled, the transport is chosen at runtime via configuration
+telemetry-grpc = [
+    "opentelemetry",
+    "opentelemetry_sdk",
+    "opentelemetry-otlp",
+    "opentelemetry-otlp/grpc-tonic",
+    "tracing-opentelemetry",
+    "init-tracing-opentelemetry",
+    "axum-tracing-opentelemetry",
+]
+
+telemetry-http = [
+    "opentelemetry",
+    "opentelemetry_sdk",
+    "opentelemetry-otlp",
+    "opentelemetry-otlp/http-proto",
+    "tracing-opentelemetry",
+    "init-tracing-opentelemetry",
+    "axum-tracing-opentelemetry",
+]
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-axum-tracing-opentelemetry.workspace = true
+axum-tracing-opentelemetry = { workspace = true, optional = true }
 axum.workspace = true
 base64.workspace = true
 bollard.workspace = true
@@ -20,13 +45,13 @@ chrono.workspace = true
 config.workspace = true
 dotenvy.workspace = true
 futures-util.workspace = true
-init-tracing-opentelemetry.workspace = true
+init-tracing-opentelemetry = { workspace = true, optional = true }
 include_dir.workspace = true
 mime_guess.workspace = true
 maplit.workspace = true
-opentelemetry.workspace = true
-opentelemetry_sdk.workspace = true
-opentelemetry-otlp.workspace = true
+opentelemetry = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
 path-clean.workspace = true
 readonly.workspace = true
 regex.workspace = true
@@ -38,7 +63,7 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_norway.workspace = true
-sha2 = "0.10"
+sha2 = { version = "0.10", default-features = false, features = ["std"] }
 subtle.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
@@ -47,7 +72,7 @@ tower-http.workspace = true
 tower_governor.workspace = true
 governor.workspace = true
 tower.workspace = true
-tracing-opentelemetry.workspace = true
+tracing-opentelemetry = { workspace = true, optional = true }
 tracing-subscriber.workspace = true
 tracing.workspace = true
 urlencoding.workspace = true
@@ -56,7 +81,6 @@ utoipa-redoc.workspace = true
 utoipa-swagger-ui.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-walkdir.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 casbin.workspace = true
@@ -64,9 +88,9 @@ bcrypt.workspace = true
 sysinfo.workspace = true
 once_cell.workspace = true
 num_cpus.workspace = true
-http-body-util = "0.1.3"
-oauth2 = "4.4"
-url = "2.0"
+http-body-util = { version = "0.1.3", default-features = false }
+oauth2 = { version = "4.4", default-features = false, features = ["reqwest"] }
+url.workspace = true
 
 [dev-dependencies]
 axum-test = "18.1.0"

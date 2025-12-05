@@ -1,11 +1,22 @@
 use anyhow::Result;
-use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{TraceError, Tracer};
-use tracing::{info, warn, Subscriber};
-use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{layer::SubscriberExt, registry::LookupSpan, Layer};
+use tracing::info;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use tracing::warn;
+use tracing_subscriber::{layer::SubscriberExt, Layer};
 use tracing_subscriber::{registry, EnvFilter};
 
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use opentelemetry::trace::TracerProvider;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use opentelemetry_sdk::trace::{TraceError, Tracer};
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use tracing::Subscriber;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use tracing_opentelemetry::OpenTelemetryLayer;
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+use tracing_subscriber::registry::LookupSpan;
+
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub fn build_otel_layer<S>() -> Result<OpenTelemetryLayer<S, Tracer>, TraceError>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
@@ -41,7 +52,7 @@ where
 
 pub fn build_reduced_logger_text<S>() -> Box<dyn Layer<S> + Send + Sync + 'static>
 where
-    S: Subscriber + for<'a> LookupSpan<'a>,
+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
 {
     if cfg!(debug_assertions) {
         Box::new(
@@ -83,6 +94,8 @@ pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
     EnvFilter::from_default_env()
 }
 
+// Full telemetry implementation (with OpenTelemetry)
+#[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     //setup a temporary subscriber to log output during setup
     use init_tracing_opentelemetry::config::TracingConfig;
@@ -133,4 +146,18 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
     }
 
     tracing_result
+}
+
+// Minimal telemetry implementation (no OpenTelemetry)
+#[cfg(not(any(feature = "telemetry-grpc", feature = "telemetry-http")))]
+pub fn init_telemetry_and_tracing(_settings: &Option<String>) -> Result<()> {
+    info!("init logging (no-telemetry mode)");
+
+    let subscriber = registry()
+        .with(build_loglevel_filter_layer())
+        .with(build_reduced_logger_text());
+    tracing::subscriber::set_global_default(subscriber)?;
+
+    info!("Basic tracing initialized (OpenTelemetry disabled)");
+    Ok(())
 }

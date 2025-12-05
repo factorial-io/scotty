@@ -1,23 +1,21 @@
 scopes:
+  qa:
+    description: QA
+    created_at: 2024-01-01T00:00:00Z
   client-a:
     description: Client A
     created_at: 2024-01-01T00:00:00Z
   default:
     description: Default scope for unassigned apps
     created_at: 2024-01-01T00:00:00Z
-  qa:
-    description: QA
-    created_at: 2024-01-01T00:00:00Z
   client-b:
     description: Client B
     created_at: 2024-01-01T00:00:00Z
 roles:
-  operator:
+  admin:
     permissions:
-    - view
-    - manage
-    - logs
-    description: Operations team - no shell or destroy
+    - '*'
+    description: Full system access
   developer:
     permissions:
     - view
@@ -30,21 +28,21 @@ roles:
     permissions:
     - view
     description: Read-only access
-  admin:
+  operator:
     permissions:
-    - '*'
-    description: Full system access
+    - view
+    - manage
+    - logs
+    description: Operations team - no shell or destroy
 assignments:
-  dev:system:internal:
-  - role: admin
-    scopes:
-    - '*'
-  identifier:hello-world:
+  identifier:client-a:
   - role: developer
     scopes:
     - client-a
-    - client-b
-    - qa
+  xxxstephan@factorial.io:
+  - role: admin
+    scopes:
+    - '*'
   identifier:test-service:
   - role: admin
     scopes:
@@ -52,28 +50,30 @@ assignments:
     - client-b
     - qa
     - default
+  identifier:hello-world:
+  - role: developer
+    scopes:
+    - client-a
+    - client-b
+    - qa
+  dev:system:internal:
+  - role: admin
+    scopes:
+    - '*'
   '@factorial.io':
   - role: developer
     scopes:
     - client-a
     - client-b
     - qa
-  xxxstephan@factorial.io:
-  - role: admin
-    scopes:
-    - '*'
-  '*':
-  - role: viewer
-    scopes:
-    - default
-  identifier:client-a:
-  - role: developer
-    scopes:
-    - client-a
   identifier:admin:
   - role: admin
     scopes:
     - client-a
     - client-b
     - qa
+    - default
+  '*':
+  - role: viewer
+    scopes:
     - default

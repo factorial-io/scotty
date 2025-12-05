@@ -486,7 +486,7 @@ pub struct ShellSessionError {
 
 // WebSocket message types
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[ts(export, tag = "type", content = "data")]
 #[serde(tag = "type", content = "data")]
 pub enum WebSocketMessage {
     Ping,

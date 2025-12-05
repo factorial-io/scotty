@@ -98,7 +98,7 @@ impl TaskOutputStreamingService {
 
         // Start the streaming task
         crate::metrics::spawn_instrumented(async move {
-            crate::metrics::tasks::record_stream_started();
+            crate::metrics::metrics().record_task_output_stream_started();
             info!(
                 "Task output streaming task started for task {} (output_collection_active: {})",
                 task_id, output_collection_active
@@ -139,7 +139,7 @@ impl TaskOutputStreamingService {
                                     }),
                                 )
                                 .await;
-                            crate::metrics::tasks::record_output_lines(chunk_len);
+                            crate::metrics::metrics().record_task_output_lines(chunk_len as usize);
                         }
 
                         // Update last sent sequence to the last historical line
@@ -167,7 +167,7 @@ impl TaskOutputStreamingService {
                         },
                     )
                     .await;
-                crate::metrics::tasks::record_stream_ended();
+                crate::metrics::metrics().record_task_output_stream_ended();
                 return;
             }
 
@@ -212,7 +212,7 @@ impl TaskOutputStreamingService {
                                         has_more: false,
                                     }),
                                 ).await;
-                                crate::metrics::tasks::record_output_lines(lines_count as u64);
+                                crate::metrics::metrics().record_task_output_lines(lines_count);
                             }
                         }
                     }
@@ -272,7 +272,7 @@ impl TaskOutputStreamingService {
                                                 has_more: false,
                                             }),
                                         ).await;
-                                        crate::metrics::tasks::record_output_lines(lines_count);
+                                crate::metrics::metrics().record_task_output_lines(lines_count as usize);
                                     }
                                 }
                             }
@@ -297,7 +297,7 @@ impl TaskOutputStreamingService {
                         }),
                     )
                     .await;
-                crate::metrics::tasks::record_output_lines(lines_count);
+                crate::metrics::metrics().record_task_output_lines(lines_count as usize);
             }
 
             // Send stream ended message
@@ -312,7 +312,7 @@ impl TaskOutputStreamingService {
                 )
                 .await;
 
-            crate::metrics::tasks::record_stream_ended();
+            crate::metrics::metrics().record_task_output_stream_ended();
             info!(
                 "Task output stream for task {} ended and cleaned up",
                 task_id

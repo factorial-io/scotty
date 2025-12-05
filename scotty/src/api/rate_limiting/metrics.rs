@@ -4,35 +4,17 @@ use crate::metrics;
 
 /// Record an allowed rate limit request
 pub fn record_allowed_request(tier: &str) {
-    if let Some(m) = metrics::get_metrics() {
-        m.rate_limit_requests_total.add(
-            1,
-            &[
-                opentelemetry::KeyValue::new("tier", tier.to_string()),
-                opentelemetry::KeyValue::new("status", "allowed"),
-            ],
-        );
-    }
+    metrics::metrics().record_rate_limit_allowed(tier);
 }
 
 /// Record a denied rate limit request (429 response)
 pub fn record_denied_request(tier: &str) {
-    if let Some(m) = metrics::get_metrics() {
-        m.rate_limit_requests_total.add(
-            1,
-            &[
-                opentelemetry::KeyValue::new("tier", tier.to_string()),
-                opentelemetry::KeyValue::new("status", "denied"),
-            ],
-        );
-    }
+    metrics::metrics().record_rate_limit_denied(tier);
 }
 
 /// Record a key extraction error
 pub fn record_extractor_error() {
-    if let Some(m) = metrics::get_metrics() {
-        m.rate_limit_extractor_errors.add(1, &[]);
-    }
+    metrics::metrics().record_rate_limit_extractor_error();
 }
 
 #[cfg(test)]
