@@ -380,31 +380,52 @@ mod tests {
         let recorder = create_test_recorder();
 
         // Verify initial state
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            0
+        );
 
         // Start first stream
         recorder.record_task_output_stream_started();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            1
+        );
 
         // Start second stream
         recorder.record_task_output_stream_started();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 2);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            2
+        );
 
         // Start third stream
         recorder.record_task_output_stream_started();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 3);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            3
+        );
 
         // End first stream
         recorder.record_task_output_stream_ended();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 2);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            2
+        );
 
         // End second stream
         recorder.record_task_output_stream_ended();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            1
+        );
 
         // End third stream
         recorder.record_task_output_stream_ended();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            0
+        );
     }
 
     #[test]
@@ -421,14 +442,30 @@ mod tests {
 
         // Task output streams pattern (should match)
         recorder.record_task_output_stream_started();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            1
+        );
         recorder.record_task_output_stream_ended();
-        assert_eq!(recorder.active_task_output_streams.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            recorder.active_task_output_streams.load(Ordering::Relaxed),
+            0
+        );
 
         // WebSocket connections pattern
         recorder.record_websocket_connection_opened();
-        assert_eq!(recorder.active_websocket_connections.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            recorder
+                .active_websocket_connections
+                .load(Ordering::Relaxed),
+            1
+        );
         recorder.record_websocket_connection_closed();
-        assert_eq!(recorder.active_websocket_connections.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            recorder
+                .active_websocket_connections
+                .load(Ordering::Relaxed),
+            0
+        );
     }
 }
