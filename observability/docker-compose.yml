@@ -16,7 +16,7 @@ services:
     # OpenTelemetry Collector - Unified telemetry pipeline
     # Receives OTLP traces and metrics from Scotty, routes to backends
     otel-collector:
-        image: otel/opentelemetry-collector:0.95.0
+        image: otel/opentelemetry-collector:0.140.1
         command: ["--config=/etc/otel-collector-config.yaml"]
         volumes:
             - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro

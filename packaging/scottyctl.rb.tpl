@@ -5,9 +5,8 @@ class Scottyctl < Formula
 
   head do
     url "https://github.com/factorial-io/scotty.git", branch: "next"
+    depends_on "rust" => :build
   end
-
-  depends_on "rust" => :build
 
   on_macos do
     if Hardware::CPU.arm?

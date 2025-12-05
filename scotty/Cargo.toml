@@ -38,7 +38,6 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_norway.workspace = true
-serde_yml = "0.0.12"
 sha2 = "0.10"
 subtle.workspace = true
 thiserror.workspace = true
@@ -57,7 +56,6 @@ utoipa-redoc.workspace = true
 utoipa-swagger-ui.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-walkdir.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 casbin.workspace = true
@@ -74,6 +72,3 @@ axum-test = "18.1.0"
 tokio-test = "0.4.4"
 wiremock = "0.6"
 tokio-tungstenite.workspace = true
-
-[package.metadata.release]
-pre-release-hook = ["echo", "skipping"]

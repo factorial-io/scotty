@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::casbin::CasbinManager;
+use super::casbin::{register_user_match_function, CasbinManager};
 use super::config::ConfigManager;
 use super::fallback::FallbackService;
 use super::types::{
@@ -37,6 +37,9 @@ impl AuthorizationService {
         let mut enforcer = CachedEnforcer::new(m, a)
             .await
             .context("Failed to create Casbin enforcer")?;
+
+        // Register custom user_match function for domain/wildcard matching
+        register_user_match_function(&mut enforcer);
 
         // Load policies into Casbin
         CasbinManager::sync_policies_to_casbin(&mut enforcer, &config).await?;
@@ -166,6 +169,11 @@ impl AuthorizationService {
     }
 
     /// Check if a user has permission to perform an action on an app
+    ///
+    /// Uses Casbin with a custom `user_match` function that handles:
+    /// 1. Exact match (case-insensitive for emails)
+    /// 2. Domain pattern match (`@factorial.io` matches `user@factorial.io`)
+    /// 3. Wildcard match (`*` matches any user)
     pub async fn check_permission(&self, user: &str, app: &str, action: &Permission) -> bool {
         info!(
             "Checking permission: user='{}', app='{}', action='{}'",
@@ -330,28 +338,6 @@ impl AuthorizationService {
         }
     }
 
-    /// Extract domain from email address (e.g., "user@factorial.io" -> Some("factorial.io"))
-    /// Returns None if email has no '@', domain is empty, or email has multiple '@' symbols
-    fn extract_domain(email: &str) -> Option<String> {
-        // Use first '@' to match standard email format
-        let at_pos = email.find('@')?;
-
-        // Everything after '@'
-        let domain = &email[at_pos + 1..];
-
-        // Reject emails with multiple '@' symbols (security: prevent bypass via user@evil.com@factorial.io)
-        if domain.contains('@') {
-            return None;
-        }
-
-        // Return domain if non-empty
-        if domain.is_empty() {
-            None
-        } else {
-            Some(domain.to_string())
-        }
-    }
-
     /// Validate domain assignment pattern (e.g., "@factorial.io")
     /// Returns Ok(()) if valid or not a domain pattern, Err with message if invalid
     pub fn validate_domain_assignment(user_id: &str) -> Result<()> {
@@ -383,8 +369,12 @@ impl AuthorizationService {
         Ok(())
     }
 
-    /// Resolve user assignments with domain fallback support
-    /// Precedence: 1) Exact email 2) Domain match 3) Wildcard (always additive)
+    /// Resolve which assignments apply to a user by iterating through ALL assignments
+    /// and using Casbin's user_match logic to filter them with precedence rules.
+    /// This delegates the matching logic to Casbin's user_match_impl, making it the single
+    /// source of truth for how patterns match users.
+    ///
+    /// Precedence: exact > domain > wildcard (wildcard is always additive)
     ///
     /// Email addresses are normalized to lowercase per RFC 5321 for case-insensitive matching
     fn resolve_user_assignments(&self, user: &str, config: &AuthConfig) -> Vec<Assignment> {
@@ -398,22 +388,35 @@ impl AuthorizationService {
             user.to_string()
         };
 
-        // Step 1: Check exact email match
-        if let Some(assignments) = config.assignments.get(&normalized_user) {
-            result.extend_from_slice(assignments);
-        } else {
-            // Step 2: Check domain match (only if no exact match)
-            if let Some(domain) = Self::extract_domain(&normalized_user) {
-                let domain_key = format!("@{}", domain);
-                if let Some(assignments) = config.assignments.get(&domain_key) {
-                    result.extend_from_slice(assignments);
+        // Collect all matching patterns using Casbin's user_match logic
+        let mut exact_match = None;
+        let mut domain_match = None;
+        let mut wildcard_match = None;
+
+        for (user_pattern, assignments) in &config.assignments {
+            // Use the same user_match logic that Casbin uses for enforcement
+            if super::casbin::user_match_impl(&normalized_user, user_pattern) {
+                // Classify the match type
+                if user_pattern == "*" {
+                    wildcard_match = Some(assignments);
+                } else if user_pattern.starts_with('@') {
+                    domain_match = Some(assignments);
+                } else {
+                    exact_match = Some(assignments);
                 }
             }
         }
 
-        // Step 3: Always add wildcard (additive)
-        if let Some(wildcard) = config.assignments.get("*") {
-            result.extend_from_slice(wildcard);
+        // Apply precedence: exact > domain > wildcard (wildcard always added)
+        if let Some(assignments) = exact_match {
+            result.extend_from_slice(assignments);
+        } else if let Some(assignments) = domain_match {
+            result.extend_from_slice(assignments);
+        }
+
+        // Always add wildcard (additive)
+        if let Some(assignments) = wildcard_match {
+            result.extend_from_slice(assignments);
         }
 
         result
@@ -800,38 +803,6 @@ impl std::fmt::Debug for AuthorizationService {
 #[cfg(test)]
 mod domain_tests {
     use super::*;
-
-    #[test]
-    fn test_extract_domain() {
-        // Valid emails
-        assert_eq!(
-            AuthorizationService::extract_domain("user@factorial.io"),
-            Some("factorial.io".to_string())
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("user@sub.factorial.io"),
-            Some("sub.factorial.io".to_string())
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("user.name@example.com"),
-            Some("example.com".to_string())
-        );
-
-        // Edge cases
-        assert_eq!(AuthorizationService::extract_domain("no-at-sign"), None);
-        assert_eq!(AuthorizationService::extract_domain("user@"), None);
-        assert_eq!(AuthorizationService::extract_domain(""), None);
-
-        // Security: Reject emails with multiple @ symbols to prevent bypass
-        assert_eq!(
-            AuthorizationService::extract_domain("user@evil.com@factorial.io"),
-            None
-        );
-        assert_eq!(
-            AuthorizationService::extract_domain("admin@attacker.com@trusted.io"),
-            None
-        );
-    }
 
     #[test]
     fn test_validate_domain_assignment() {

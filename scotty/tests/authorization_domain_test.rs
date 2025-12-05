@@ -274,7 +274,7 @@ async fn create_test_service(config: AuthConfig) -> AuthorizationService {
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
-    // Create a minimal in-memory enforcer
+    // Create a minimal in-memory enforcer with user_match() custom function
     let m = DefaultModel::from_str(
         r#"
 [request_definition]
@@ -291,7 +291,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
+m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
 "#,
     )
     .await
@@ -299,6 +299,9 @@ m = r.sub == p.sub && g2(r.app, p.scope) && r.act == p.act
 
     let a = MemoryAdapter::default();
     let mut enforcer = casbin::CachedEnforcer::new(m, a).await.unwrap();
+
+    // Register custom user_match function for domain/wildcard matching
+    scotty::services::authorization::casbin::register_user_match_function(&mut enforcer);
 
     // Sync policies to Casbin
     scotty::services::authorization::casbin::CasbinManager::sync_policies_to_casbin(
