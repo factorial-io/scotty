@@ -3069,6 +3069,7 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "walkdir",
+ "wiremock",
 ]
 
 [[package]]

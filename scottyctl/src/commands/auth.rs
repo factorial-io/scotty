@@ -1,4 +1,4 @@
-use crate::api::get;
+use crate::api::{get, get_with_error};
 use crate::auth::{
     cache::CachedTokenManager,
     config::{get_server_info, server_info_to_oauth_config},
@@ -148,7 +148,9 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
         "Server: {}",
         app_context.server().server.bright_blue()
     ));
-    let is_authenticated = match get_current_auth_method(app_context).await? {
+    let auth_method = get_current_auth_method(app_context).await?;
+
+    match &auth_method {
         AuthMethod::OAuth(token) => {
             app_context.ui().println("Authenticated via OAuth");
             app_context.ui().println(format!(
@@ -161,13 +163,48 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
                     .ui()
                     .println(format!("   Expires: {:?}", expires_at));
             }
-            true
+
+            // Validate OAuth token
+            match validate_token(app_context).await {
+                Ok(true) => {
+                    // Token is valid, display permissions
+                    display_user_permissions(app_context).await;
+                }
+                Ok(false) => {
+                    // Token is invalid (401/403)
+                    return Err(anyhow::anyhow!(
+                        "Authentication token expired or invalid. Run 'scottyctl --server {} auth:login' to re-authenticate",
+                        app_context.server().server
+                    ));
+                }
+                Err(e) => {
+                    // Other error (network, etc.)
+                    return Err(e);
+                }
+            }
         }
         AuthMethod::Bearer(_) => {
             app_context
                 .ui()
                 .println("Authenticated via Bearer token (SCOTTY_ACCESS_TOKEN)");
-            true
+
+            // Validate bearer token
+            match validate_token(app_context).await {
+                Ok(true) => {
+                    // Token is valid, display permissions
+                    display_user_permissions(app_context).await;
+                }
+                Ok(false) => {
+                    // Token is invalid (401/403)
+                    return Err(anyhow::anyhow!(
+                        "Bearer token invalid. Please update SCOTTY_ACCESS_TOKEN environment variable"
+                    ));
+                }
+                Err(e) => {
+                    // Other error (network, etc.)
+                    return Err(e);
+                }
+            }
         }
         AuthMethod::None => {
             app_context
@@ -177,16 +214,26 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
                 "Run 'scottyctl --server {} auth:login' or set SCOTTY_ACCESS_TOKEN",
                 app_context.server().server
             ));
-            false
         }
-    };
-
-    // Fetch and display permissions if authenticated
-    if is_authenticated {
-        display_user_permissions(app_context).await;
     }
 
     Ok(())
+}
+
+/// Validate token by making a test API call
+/// Returns Ok(true) if token is valid, Ok(false) if 401/403, Err on other errors
+async fn validate_token(app_context: &AppContext) -> Result<bool> {
+    match get_with_error(app_context.server(), "scopes/list").await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            // Check if error is an authentication error using proper type matching
+            if e.is_auth_error() {
+                Ok(false)
+            } else {
+                Err(e.into())
+            }
+        }
+    }
 }
 
 /// Fetch and display user permissions from the server

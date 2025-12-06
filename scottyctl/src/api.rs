@@ -168,6 +168,27 @@ pub async fn delete(
     get_or_post(server, method, "delete", body).await
 }
 
+/// Get with access to HttpError for better error handling
+/// This bypasses the anyhow error conversion in get_or_post to preserve HTTP status codes
+pub async fn get_with_error(server: &ServerSettings, method: &str) -> Result<Value, HttpError> {
+    let token = get_auth_token(server)
+        .await
+        .map_err(|e| HttpError::ParseError(format!("Failed to get auth token: {}", e)))?;
+
+    let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", method));
+    info!("Calling scotty API at {}", &url);
+
+    let client = create_authenticated_client(&token)
+        .map_err(|e| HttpError::ParseError(format!("Failed to create HTTP client: {}", e)))?;
+
+    // Make the request and handle the RetryError
+    match client.get_json::<Value>(&url).await {
+        Ok(value) => Ok(value),
+        Err(RetryError::NonRetriable(http_err)) => Err(http_err),
+        Err(RetryError::ExhaustedRetries { error, .. }) => Err(error),
+    }
+}
+
 pub async fn wait_for_task(
     server: &ServerSettings,
     context: &RunningAppContext,
