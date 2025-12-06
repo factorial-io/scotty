@@ -210,11 +210,8 @@ mod tests {
                 .await;
 
             let client = reqwest::Client::new();
-            let response = client
-                .get(&format!("{}/test", mock_server.uri()))
-                .send()
-                .await
-                .unwrap();
+            let url = format!("{}/test", mock_server.uri());
+            let response = client.get(url).send().await.unwrap();
 
             // Get the status before converting to error
             assert_eq!(response.status(), 404);

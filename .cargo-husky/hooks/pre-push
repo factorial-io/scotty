@@ -15,9 +15,9 @@ cargo fmt -- --check
 echo "✅ Rust formatting OK"
 echo ""
 
-# 2. Run Clippy linter
+# 2. Run Clippy linter (all targets including tests, benches, examples)
 echo "🔍 Running Clippy linter..."
-cargo clippy -- -D warnings
+cargo clippy --all-targets -- -D warnings
 echo "✅ Clippy checks passed"
 echo ""
 
