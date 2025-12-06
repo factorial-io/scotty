@@ -33,9 +33,15 @@ tokio-tungstenite.workspace = true
 futures-util.workspace = true
 uuid.workspace = true
 flate2.workspace = true
+
+[lib]
+name = "scottyctl"
+path = "src/lib.rs"
+
 [[bin]]
 name = "scottyctl"
 path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3.23"
+wiremock = "0.6"

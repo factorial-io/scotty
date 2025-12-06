@@ -148,7 +148,8 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
         "Server: {}",
         app_context.server().server.bright_blue()
     ));
-    let is_authenticated = match get_current_auth_method(app_context).await? {
+    let auth_method = get_current_auth_method(app_context).await?;
+    let is_authenticated = match &auth_method {
         AuthMethod::OAuth(token) => {
             app_context.ui().println("Authenticated via OAuth");
             app_context.ui().println(format!(
@@ -181,12 +182,60 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
         }
     };
 
-    // Fetch and display permissions if authenticated
+    // Validate token and display permissions if authenticated
     if is_authenticated {
-        display_user_permissions(app_context).await;
+        // Validate token by making API call
+        match validate_token(app_context).await {
+            Ok(true) => {
+                // Token is valid, display permissions
+                display_user_permissions(app_context).await;
+            }
+            Ok(false) => {
+                // Token is invalid (401/403)
+                match auth_method {
+                    AuthMethod::OAuth(_) => {
+                        return Err(anyhow::anyhow!(
+                            "Authentication token expired or invalid. Run 'scottyctl --server {} auth:login' to re-authenticate",
+                            app_context.server().server
+                        ));
+                    }
+                    AuthMethod::Bearer(_) => {
+                        return Err(anyhow::anyhow!(
+                            "Bearer token invalid. Please update SCOTTY_ACCESS_TOKEN environment variable"
+                        ));
+                    }
+                    AuthMethod::None => {
+                        // This shouldn't happen since is_authenticated is true
+                        return Err(anyhow::anyhow!("No authentication method available"));
+                    }
+                }
+            }
+            Err(e) => {
+                // Other error (network, etc.)
+                return Err(e);
+            }
+        }
     }
 
     Ok(())
+}
+
+/// Validate token by making a test API call
+/// Returns Ok(true) if token is valid, Ok(false) if 401/403, Err on other errors
+async fn validate_token(app_context: &AppContext) -> Result<bool> {
+    match get(app_context.server(), "scopes/list").await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            // Check if error is due to authentication failure
+            // The API layer formats client errors as "Client error calling scotty API at {url}: {status}"
+            let error_chain = format!("{:?}", e);
+            if error_chain.contains("401") || error_chain.contains("403") {
+                Ok(false)
+            } else {
+                Err(e)
+            }
+        }
+    }
 }
 
 /// Fetch and display user permissions from the server
