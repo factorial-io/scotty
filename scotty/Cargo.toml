@@ -57,7 +57,7 @@ readonly.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 tempfile = "3.10.1"
-scotty-core = { path = "../scotty-core", features = ["utoipa"] }
+scotty-core = { path = "../scotty-core" }
 scotty-types = { path = "../scotty-types" }
 secrecy.workspace = true
 serde.workspace = true

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Request to create a new scope
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct CreateScopeRequest {
     /// Name of the scope
     pub name: String,
@@ -14,7 +14,7 @@ pub struct CreateScopeRequest {
 /// Request to create a new role
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct CreateRoleRequest {
     /// Name of the role
     pub name: String,
@@ -28,7 +28,7 @@ pub struct CreateRoleRequest {
 /// Request to create a user assignment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct CreateAssignmentRequest {
     /// User identifier (e.g., identifier:admin, user@example.com)
     pub user_id: String,
@@ -42,7 +42,7 @@ pub struct CreateAssignmentRequest {
 /// Request to remove a user assignment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct RemoveAssignmentRequest {
     /// User identifier (e.g., identifier:admin, user@example.com)
     pub user_id: String,
@@ -56,11 +56,11 @@ pub struct RemoveAssignmentRequest {
 /// Request to test permission for a user on an app
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct TestPermissionRequest {
     /// User identifier to test (defaults to current user if not specified)
     #[cfg_attr(feature = "clap", arg(long, short = 'u'))]
-    #[cfg_attr(feature = "utoipa", schema(example = "identifier:admin"))]
+    #[schema(example = "identifier:admin")]
     pub user_id: Option<String>, // None means test current user
     /// App name to test permission on
     pub app_name: String,
@@ -71,7 +71,7 @@ pub struct TestPermissionRequest {
 /// Request to get permissions for a specific user
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct GetUserPermissionsRequest {
     /// User identifier to get permissions for
     pub user_id: String,

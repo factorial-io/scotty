@@ -9,7 +9,7 @@ use crate::auth::config::get_server_info;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
-use scotty_core::http::{HttpClient, RetryError};
+use scotty_core::http::{HttpClient, HttpError, RetryError};
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::State;
@@ -52,6 +52,7 @@ fn create_authenticated_client(token: &str) -> anyhow::Result<HttpClient> {
         .with_timeout(Duration::from_secs(10))
         .with_default_headers(headers)
         .build()
+        .map_err(|e| anyhow::anyhow!("Failed to create HTTP client: {}", e))
 }
 
 /// Helper function to normalize URLs by handling trailing slashes
@@ -159,57 +160,58 @@ pub async fn get_or_post(
     with_retry(|| async {
         let client = create_authenticated_client(&token)?;
 
-        let result = match method.to_lowercase().as_str() {
-            "post" => {
-                if let Some(body) = body.clone() {
-                    client.post_json::<Value, Value>(&url, &body).await
-                } else {
-                    client.post(&url, &serde_json::json!({})).await?;
-                    // For POST without body, we still need to get the response as JSON
-                    client.get_json::<Value>(&url).await
+        let result =
+            match method.to_lowercase().as_str() {
+                "post" => {
+                    if let Some(body) = body.clone() {
+                        client.post_json::<Value, Value>(&url, &body).await
+                    } else {
+                        client.post(&url, &serde_json::json!({})).await?;
+                        // For POST without body, we still need to get the response as JSON
+                        client.get_json::<Value>(&url).await
+                    }
                 }
-            }
-            "delete" => {
-                if let Some(body) = body.clone() {
-                    let response = client
-                        .request_with_body(reqwest::Method::DELETE, &url, &body)
-                        .await?;
-                    response
-                        .json::<Value>()
-                        .await
-                        .map_err(|e| RetryError::NonRetriable(e.into()))
-                } else {
-                    let response = client.request(reqwest::Method::DELETE, &url).await?;
-                    response
-                        .json::<Value>()
-                        .await
-                        .map_err(|e| RetryError::NonRetriable(e.into()))
+                "delete" => {
+                    if let Some(body) = body.clone() {
+                        let response = client
+                            .request_with_body(reqwest::Method::DELETE, &url, &body)
+                            .await?;
+                        response.json::<Value>().await.map_err(|e| {
+                            RetryError::NonRetriable(HttpError::ParseError(e.to_string()))
+                        })
+                    } else {
+                        let response = client.request(reqwest::Method::DELETE, &url).await?;
+                        response.json::<Value>().await.map_err(|e| {
+                            RetryError::NonRetriable(HttpError::ParseError(e.to_string()))
+                        })
+                    }
                 }
-            }
-            _ => client.get_json::<Value>(&url).await,
-        };
+                _ => client.get_json::<Value>(&url).await,
+            };
 
         match result {
             Ok(value) => Ok(value),
             Err(RetryError::NonRetriable(err)) => {
-                // Check if this is an HTTP error we can extract more info from
-                if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
-                    if let Some(status) = reqwest_err.status() {
-                        if status.is_client_error() {
-                            return Err(anyhow::anyhow!(
-                                "Client error calling scotty API at {}: {}",
-                                &url,
-                                status
-                            ));
-                        }
-                    }
+                // HttpError now preserves the status code
+                if err.is_client_error() {
+                    return Err(anyhow::anyhow!(
+                        "Client error calling scotty API at {}: {}",
+                        &url,
+                        err
+                    ));
                 }
-                Err(err.context(format!("Failed to call scotty API at {}", &url)))
+                Err(anyhow::anyhow!(
+                    "Failed to call scotty API at {}: {}",
+                    &url,
+                    err
+                ))
             }
-            Err(RetryError::ExhaustedRetries(err)) => Err(err.context(format!(
-                "Failed to call scotty API at {} after retries",
-                &url
-            ))),
+            Err(RetryError::ExhaustedRetries { error, attempts }) => Err(anyhow::anyhow!(
+                "Failed to call scotty API at {} after {} retries: {}",
+                &url,
+                attempts,
+                error
+            )),
         }
     })
     .await
