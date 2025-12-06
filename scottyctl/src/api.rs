@@ -121,23 +121,24 @@ where
 }
 
 pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::Error> {
-    // 1. Check server auth mode to determine if OAuth tokens should be used
+    // 1. First check for explicit access token (highest priority)
+    // This allows users to override cached OAuth tokens with --access-token or SCOTTY_ACCESS_TOKEN
+    if let Some(token) = &server.access_token {
+        return Ok(token.clone());
+    }
+
+    // 2. Check server auth mode to determine if OAuth tokens should be used
     let server_supports_oauth = match get_server_info(server).await {
         Ok(server_info) => server_info.auth_mode == AuthMode::OAuth,
         Err(_) => false, // If we can't check, assume OAuth is not supported
     };
 
-    // 2. Try stored OAuth token only if server supports OAuth
+    // 3. Try stored OAuth token only if server supports OAuth
     if server_supports_oauth {
         if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(&server.server) {
             // TODO: Check if token is expired and refresh if needed
             return Ok(stored_token.access_token);
         }
-    }
-
-    // 3. Fall back to environment variable or command line token
-    if let Some(token) = &server.access_token {
-        return Ok(token.clone());
     }
 
     Err(anyhow::anyhow!(
