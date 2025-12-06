@@ -19,8 +19,7 @@ pub use ts_rs;
 pub use uuid;
 
 // Output types
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub enum OutputStreamType {
     Stdout,
@@ -35,8 +34,7 @@ pub enum OutputStreamType {
     Info,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct OutputLine {
     /// Timestamp when the line was received
@@ -83,8 +81,7 @@ impl std::fmt::Display for OutputStreamType {
 }
 
 // Output collection configuration
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct OutputLimits {
     /// Maximum number of lines to keep in memory
@@ -103,8 +100,7 @@ impl Default for OutputLimits {
 }
 
 // Unified output collection for tasks
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, utoipa::ToSchema)]
 #[ts(export)]
 pub struct TaskOutput {
     /// Collected output lines in chronological order
@@ -223,8 +219,9 @@ impl TaskOutput {
 }
 
 // Task types
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema, utoipa::ToResponse))]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema, utoipa::ToResponse,
+)]
 #[ts(export)]
 pub enum State {
     Running,
@@ -232,8 +229,7 @@ pub enum State {
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToResponse, utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, utoipa::ToResponse, utoipa::ToSchema)]
 #[ts(export)]
 pub struct TaskDetails {
     #[ts(type = "string")]

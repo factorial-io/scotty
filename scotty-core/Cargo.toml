@@ -14,11 +14,10 @@ path = "src/lib.rs"
 [features]
 default = []
 clap = ["dep:clap"]
-utoipa = ["dep:utoipa"]
 
 [dependencies]
 # Import shared types from scotty-types
-scotty-types = { path = "../scotty-types", features = ["utoipa"] }
+scotty-types = { path = "../scotty-types" }
 
 async-trait.workspace = true
 anyhow.workspace = true
@@ -28,7 +27,7 @@ chrono.workspace = true
 serde_norway.workspace = true
 tracing.workspace = true
 tokio.workspace = true
-utoipa = { workspace = true, optional = true }
+utoipa.workspace = true
 clokwerk.workspace = true
 readonly.workspace = true
 bollard.workspace = true

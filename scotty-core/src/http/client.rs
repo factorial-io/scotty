@@ -1,5 +1,5 @@
+use super::error::HttpError;
 use super::retry::{with_retry, RetryConfig, RetryError};
-use anyhow::Context;
 use futures_util::StreamExt;
 use reqwest::{header::HeaderMap, Method, Response};
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ impl HttpClientBuilder {
         self
     }
 
-    pub fn build(self) -> anyhow::Result<HttpClient> {
+    pub fn build(self) -> Result<HttpClient, HttpError> {
         let mut client_builder = reqwest::Client::builder();
 
         if let Some(timeout) = self.timeout {
@@ -79,11 +79,11 @@ impl HttpClient {
         HttpClientBuilder::new()
     }
 
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self, HttpError> {
         Self::builder().build()
     }
 
-    pub fn with_timeout(timeout: Duration) -> anyhow::Result<Self> {
+    pub fn with_timeout(timeout: Duration) -> Result<Self, HttpError> {
         Self::builder().with_timeout(timeout).build()
     }
 
@@ -147,7 +147,7 @@ impl HttpClient {
                     .timeout(self.default_timeout)
                     .send()
                     .await
-                    .context("Failed to send GET request")
+                    .map_err(HttpError::from)
             },
             &self.retry_config,
         )
@@ -167,17 +167,18 @@ impl HttpClient {
                     .timeout(self.default_timeout)
                     .send()
                     .await
-                    .context("Failed to send GET request")?;
+                    .map_err(HttpError::from)?;
 
                 if !response.status().is_success() {
+                    let status = response.status().as_u16();
                     let error_msg = Self::extract_error_message(response).await;
-                    return Err(anyhow::anyhow!("{}", error_msg));
+                    return Err(HttpError::http(status, error_msg));
                 }
 
                 let json = response
                     .json::<T>()
                     .await
-                    .context("Failed to parse JSON response")?;
+                    .map_err(|e| HttpError::ParseError(e.to_string()))?;
 
                 Ok(json)
             },
@@ -200,7 +201,7 @@ impl HttpClient {
                     .json(body)
                     .send()
                     .await
-                    .context("Failed to send POST request")
+                    .map_err(HttpError::from)
             },
             &self.retry_config,
         )
@@ -222,17 +223,18 @@ impl HttpClient {
                     .json(body)
                     .send()
                     .await
-                    .context("Failed to send POST request")?;
+                    .map_err(HttpError::from)?;
 
                 if !response.status().is_success() {
+                    let status = response.status().as_u16();
                     let error_msg = Self::extract_error_message(response).await;
-                    return Err(anyhow::anyhow!("{}", error_msg));
+                    return Err(HttpError::http(status, error_msg));
                 }
 
                 let json = response
                     .json::<R>()
                     .await
-                    .context("Failed to parse JSON response")?;
+                    .map_err(|e| HttpError::ParseError(e.to_string()))?;
 
                 Ok(json)
             },
@@ -251,7 +253,7 @@ impl HttpClient {
                     .timeout(self.default_timeout)
                     .send()
                     .await
-                    .context("Failed to send request")
+                    .map_err(HttpError::from)
             },
             &self.retry_config,
         )
@@ -277,7 +279,7 @@ impl HttpClient {
                     .json(body)
                     .send()
                     .await
-                    .context("Failed to send request with body")
+                    .map_err(HttpError::from)
             },
             &self.retry_config,
         )

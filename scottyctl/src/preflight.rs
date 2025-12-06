@@ -98,7 +98,7 @@ impl PreflightChecker {
         // Use the public /api/v1/info endpoint that doesn't require authentication
         let url = format!("{}/api/v1/info", self.server.server);
         let client = HttpClient::with_timeout(Duration::from_secs(5))
-            .context("Failed to create HTTP client")?;
+            .map_err(|e| anyhow::anyhow!("Failed to create HTTP client: {}", e))?;
 
         match client.get_json::<ServerInfo>(&url).await {
             Ok(info) => Ok(info),
