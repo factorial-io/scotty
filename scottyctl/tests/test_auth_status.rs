@@ -23,7 +23,7 @@ async fn test_auth_status_with_invalid_bearer_token_unauthorized() {
         server: mock_server.uri(),
         access_token: Some("invalid_bearer_token".to_string()),
     };
-    
+
     let app_context = AppContext::new(server_settings);
 
     // Call auth_status - should return Err because token is invalid
@@ -34,7 +34,7 @@ async fn test_auth_status_with_invalid_bearer_token_unauthorized() {
         result.is_err(),
         "auth_status should return Err when token is invalid (401)"
     );
-    
+
     // Verify error message mentions Bearer token and SCOTTY_ACCESS_TOKEN
     let error_msg = result.unwrap_err().to_string();
     assert!(
@@ -70,7 +70,7 @@ async fn test_auth_status_with_valid_bearer_token_succeeds() {
         server: mock_server.uri(),
         access_token: Some("valid_token".to_string()),
     };
-    
+
     let app_context = AppContext::new(server_settings);
 
     // Call auth_status - should succeed
@@ -103,7 +103,7 @@ async fn test_auth_status_with_invalid_bearer_token_forbidden() {
         server: mock_server.uri(),
         access_token: Some("invalid_bearer_token".to_string()),
     };
-    
+
     let app_context = AppContext::new(server_settings);
 
     // Call auth_status - should return Err because token is invalid
@@ -114,7 +114,7 @@ async fn test_auth_status_with_invalid_bearer_token_forbidden() {
         result.is_err(),
         "auth_status should return Err when token is invalid (403)"
     );
-    
+
     // Verify error message mentions Bearer token and SCOTTY_ACCESS_TOKEN
     let error_msg = result.unwrap_err().to_string();
     assert!(
@@ -135,7 +135,7 @@ async fn test_auth_status_with_no_auth_succeeds() {
         server: mock_server.uri(),
         access_token: None,
     };
-    
+
     let app_context = AppContext::new(server_settings);
 
     // Call auth_status - should succeed (but show "not authenticated")

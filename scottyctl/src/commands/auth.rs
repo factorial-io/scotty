@@ -1,4 +1,4 @@
-use crate::api::get;
+use crate::api::{get, get_with_error};
 use crate::auth::{
     cache::CachedTokenManager,
     config::{get_server_info, server_info_to_oauth_config},
@@ -205,8 +205,7 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
                         ));
                     }
                     AuthMethod::None => {
-                        // This shouldn't happen since is_authenticated is true
-                        return Err(anyhow::anyhow!("No authentication method available"));
+                        unreachable!("validate_token called with AuthMethod::None")
                     }
                 }
             }
@@ -223,16 +222,14 @@ pub async fn auth_status(app_context: &AppContext) -> Result<()> {
 /// Validate token by making a test API call
 /// Returns Ok(true) if token is valid, Ok(false) if 401/403, Err on other errors
 async fn validate_token(app_context: &AppContext) -> Result<bool> {
-    match get(app_context.server(), "scopes/list").await {
+    match get_with_error(app_context.server(), "scopes/list").await {
         Ok(_) => Ok(true),
         Err(e) => {
-            // Check if error is due to authentication failure
-            // The API layer formats client errors as "Client error calling scotty API at {url}: {status}"
-            let error_chain = format!("{:?}", e);
-            if error_chain.contains("401") || error_chain.contains("403") {
+            // Check if error is an authentication error using proper type matching
+            if e.is_auth_error() {
                 Ok(false)
             } else {
-                Err(e)
+                Err(e.into())
             }
         }
     }
