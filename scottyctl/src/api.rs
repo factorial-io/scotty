@@ -101,15 +101,11 @@ pub async fn get_or_post(
 
     let result = match method.to_lowercase().as_str() {
         "post" => {
-            if let Some(body) = body {
-                client.post_json::<Value, Value>(&url, &body).await
-            } else {
-                client.post(&url, &serde_json::json!({})).await?;
-                // For POST without body, we still need to get the response as JSON
-                client.get_json::<Value>(&url).await
-            }
+            let body = body.unwrap_or_else(|| serde_json::json!({}));
+            client.post_json::<Value, Value>(&url, &body).await
         }
         "delete" => {
+            // DELETE requests with JSON bodies need manual handling since there's no delete_json method
             if let Some(body) = body {
                 let response = client
                     .request_with_body(reqwest::Method::DELETE, &url, &body)

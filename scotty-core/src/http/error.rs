@@ -1,3 +1,41 @@
+//! HTTP error types that preserve status code information throughout the error chain.
+//!
+//! This module provides custom error types for the HTTP client that maintain HTTP
+//! status codes, enabling type-safe error handling without string parsing.
+//!
+//! # Migration from anyhow::Error
+//!
+//! Before:
+//! ```ignore
+//! let result: Result<T, anyhow::Error> = client.get_json(url).await;
+//! // Had to parse error strings to get status codes
+//! if err.to_string().contains("401") { ... }
+//! ```
+//!
+//! After:
+//! ```ignore
+//! let result: Result<T, RetryError> = client.get_json(url).await;
+//! if let Err(RetryError::NonRetriable(http_err)) = result {
+//!     if http_err.is_auth_error() { ... }
+//! }
+//! ```
+//!
+//! # Examples
+//!
+//! ```
+//! use scotty_core::http::HttpError;
+//!
+//! // Create an HTTP error
+//! let err = HttpError::http(404, "Not found");
+//! assert_eq!(err.status_code(), Some(404));
+//! assert!(err.is_client_error());
+//!
+//! // Check for specific error types
+//! if err.is_auth_error() {
+//!     // Handle 401/403
+//! }
+//! ```
+
 use reqwest::StatusCode;
 
 /// HTTP client error types that preserve status code information
@@ -9,7 +47,7 @@ pub enum HttpError {
 
     /// Network-level error (connection, DNS, etc.)
     #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
+    Network(reqwest::Error),
 
     /// Request timeout
     #[error("Request timeout")]
@@ -18,6 +56,22 @@ pub enum HttpError {
     /// Failed to parse response body
     #[error("Failed to parse response: {0}")]
     ParseError(String),
+}
+
+impl From<reqwest::Error> for HttpError {
+    fn from(err: reqwest::Error) -> Self {
+        // If the reqwest error has a status code, preserve it as Http variant
+        if let Some(status) = err.status() {
+            Self::Http {
+                status: status.as_u16(),
+                message: err.to_string(),
+            }
+        } else if err.is_timeout() {
+            Self::Timeout
+        } else {
+            Self::Network(err)
+        }
+    }
 }
 
 impl HttpError {
@@ -135,5 +189,45 @@ mod tests {
         assert!(!err.is_client_error());
         assert!(!err.is_server_error());
         assert_eq!(err.to_string(), "Failed to parse response: Invalid JSON");
+    }
+
+    #[test]
+    fn test_from_reqwest_error_with_status() {
+        // Create a mock server to generate a reqwest error with status
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let mock_server = MockServer::start().await;
+
+            Mock::given(method("GET"))
+                .and(path("/test"))
+                .respond_with(ResponseTemplate::new(404).set_body_string("Not found"))
+                .mount(&mock_server)
+                .await;
+
+            let client = reqwest::Client::new();
+            let response = client
+                .get(&format!("{}/test", mock_server.uri()))
+                .send()
+                .await
+                .unwrap();
+
+            // Get the status before converting to error
+            assert_eq!(response.status(), 404);
+
+            // Create error from response (status already consumed, so this creates a different error)
+            // Instead, test with error_for_status which preserves the status
+            let err = response.error_for_status().unwrap_err();
+            let http_err: HttpError = err.into();
+
+            // Should be Http variant with status code preserved
+            assert_eq!(http_err.status_code(), Some(404));
+            assert!(http_err.is_client_error());
+            assert!(matches!(http_err, HttpError::Http { .. }));
+        });
     }
 }
