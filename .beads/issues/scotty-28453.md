@@ -1,10 +1,11 @@
 ---
 title: auth:status should validate OAuth token and return non-zero on invalid token (GH#607)
-status: open
+status: closed
 priority: 2
 issue_type: bug
 created_at: 2025-12-06T14:27:53.561383+00:00
-updated_at: 2025-12-06T14:28:30.404427+00:00
+updated_at: 2025-12-06T14:50:23.076121+00:00
+closed_at: 2025-12-06T14:50:23.076121+00:00
 ---
 
 # Description

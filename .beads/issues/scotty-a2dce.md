@@ -1,12 +1,13 @@
 ---
 title: Add test for auth:status with invalid OAuth token
-status: open
+status: closed
 priority: 3
 issue_type: task
 depends_on:
   scotty-0791a: blocks
 created_at: 2025-12-06T14:28:46.767793+00:00
-updated_at: 2025-12-06T14:35:45.400610+00:00
+updated_at: 2025-12-06T14:50:15.443485+00:00
+closed_at: 2025-12-06T14:50:15.443485+00:00
 ---
 
 # Description
