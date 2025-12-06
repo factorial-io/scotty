@@ -40,6 +40,12 @@ pub struct StatusLine {
     is_dirty: Arc<AtomicBool>,
 }
 
+impl Default for StatusLine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatusLine {
     pub fn new() -> Self {
         StatusLine {

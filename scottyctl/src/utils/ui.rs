@@ -24,6 +24,12 @@ pub struct Ui {
     status_line: Option<Arc<RwLock<StatusLine>>>,
 }
 
+impl Default for Ui {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ui {
     pub fn new() -> Self {
         let stdout = std::io::stdout();
