@@ -167,5 +167,7 @@ impl StatusLine {
 impl Drop for StatusLine {
     fn drop(&mut self) {
         self.stop_animation();
+        self.clear_line();
+        let _ = stdout().flush();
     }
 }
