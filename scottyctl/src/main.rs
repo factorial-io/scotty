@@ -111,7 +111,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Test => commands::test::run_tests(&app_context).await,
     };
 
-    // Clear the UI status line before returning (success or error)
+    // Clear the UI status line before returning (success or error).
+    // This ensures clean terminal output regardless of command success/failure.
+    // Note: StatusLine::drop() also clears as a safety net for unexpected exits,
+    // but we explicitly clear here for predictable, immediate cleanup.
     app_context.ui().clear();
 
     result

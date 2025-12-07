@@ -166,6 +166,9 @@ impl StatusLine {
 
 impl Drop for StatusLine {
     fn drop(&mut self) {
+        // Stop animation threads first (joins them, ensuring they complete)
+        // before clearing, preventing race conditions where render could
+        // happen between stop and clear.
         self.stop_animation();
         self.clear_line();
         let _ = stdout().flush();
