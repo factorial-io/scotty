@@ -1,0 +1,9 @@
+#:schema https://docs.jj-vcs.dev/latest/config-schema.json
+
+[fix.tools.rustfmt]
+command = ["cargo", "fmt", "--all"]
+patterns = ["**/*.rs"]
+
+[fix.tools.clippy]
+command = ["cargo", "clippy", "--fix", "--allow-dirty", "--allow-staged", "--all-targets", "--all-features"]
+patterns = ["**/*.rs"]
