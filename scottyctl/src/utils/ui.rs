@@ -1,6 +1,6 @@
 use super::status_line::Status;
 use super::status_line::StatusLine;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -112,6 +112,8 @@ impl Ui {
             if let Ok(mut sl) = status_line.write() {
                 sl.clear_line();
                 sl.stop_animation();
+                // Flush to ensure clear is executed immediately
+                let _ = std::io::stdout().flush();
             }
         }
     }

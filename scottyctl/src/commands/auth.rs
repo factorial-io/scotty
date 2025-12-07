@@ -111,7 +111,9 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
         }
     }
 
-    app_context.ui().println("\nWaiting for authorization...");
+    app_context
+        .ui()
+        .new_status_line("Waiting for authorization...");
 
     // 4. Poll for token
     let stored_token = client
@@ -144,6 +146,10 @@ pub async fn auth_logout(app_context: &AppContext) -> Result<()> {
 }
 
 pub async fn auth_status(app_context: &AppContext) -> Result<()> {
+    app_context
+        .ui()
+        .new_status_line("Checking authentication status...");
+
     app_context.ui().println(format!(
         "Server: {}",
         app_context.server().server.bright_blue()
