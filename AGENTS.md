@@ -335,17 +335,23 @@ Metrics include: log streaming, shell sessions, WebSocket connections, task exec
 
 ## Release Process
 
-Uses `cargo-release` and `git-cliff`:
+Uses `cargo-release` with automatic changelog generation via `git-cliff`.
+
+**Important**: Do not manually update changelogs. They are automatically generated during the release process from git history.
 
 ```bash
-# Update changelog
-git cliff > CHANGELOG.md
-
 # Create new release (example)
 cargo release --no-publish alpha -x --tag-prefix ""
 ```
 
-Pre-push hook via `cargo-husky` runs automatically.
+The release process:
+1. Runs `scripts/generate-changelogs.sh` with the new version (via pre-release-hook)
+2. Generates changelogs for workspace root and all crates from git history
+3. Updates version numbers in all Cargo.toml files
+4. Creates and signs git tags
+5. Commits all changes
+
+Pre-push hook via `cargo-husky` runs automatically to enforce quality checks.
 
 ## Git Rules
 

@@ -186,21 +186,22 @@ cargo run --bin scotty  or your preferred way to run a rust binary
 
 This project uses a pre-push git-hook installed by cargo husky. It should be installed automatically.
 
-### Updating the changelog
-
-We are using [git-cliff](https://git-cliff.org) to enforce a changelog. Please update the changelog with
-the following command:
-
-```shell
-git cliff > changelog.md
-```
 ### Create a new release
 
-We are using `cargo-release` to patch up a new release, this is a typical
-command to create a new release:
+We are using `cargo-release` to create releases. Changelogs are automatically generated during the release process using [git-cliff](https://git-cliff.org).
+
+**Do not manually update changelogs** - they are regenerated from git history during release.
+
+Typical command to create a new release:
 
 ```shell
 cargo release --no-publish alpha -x --tag-prefix ""
 ```
 
-Adapt to your current needs.
+This will:
+1. Update version numbers in all workspace crates
+2. Generate changelogs for the workspace root and each crate
+3. Create git tags
+4. Commit the changes
+
+Adapt the command to your current needs (e.g., use `patch`, `minor`, or `major` instead of `alpha`).
