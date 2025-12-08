@@ -52,21 +52,11 @@ impl Context {
     /// * `status_message` - Message to add to task output
     /// * `is_error` - Whether to use add_task_status_error (true) or add_task_status (false)
     pub async fn complete_task(&self, target_state: State, status_message: String, is_error: bool) {
-        // Update task state and get updated details for broadcast
-        let (task_id, updated_task_details) = {
-            let mut task_details = self.task.write().await;
+        // Get task ID first
+        let task_id = self.task.read().await.id;
 
-            // Update state
-            task_details.state = target_state;
-            task_details.output_collection_active = false;
-            task_details.finish_time = Some(chrono::Utc::now());
-
-            let task_id = task_details.id;
-            // Clone for broadcast (released write lock before broadcast)
-            (task_id, task_details.clone())
-        };
-
-        // Add status message
+        // Add status message BEFORE marking output collection as inactive
+        // This ensures the message is available for the WebSocket stream to send
         if is_error {
             self.app_state
                 .task_manager
@@ -78,6 +68,23 @@ impl Context {
                 .add_task_status(&task_id, status_message)
                 .await;
         }
+
+        // Small yield to ensure the status message write completes and is visible
+        // to the WebSocket stream's next poll (which happens every 100ms)
+        tokio::task::yield_now().await;
+
+        // Now update task state and mark output collection as complete
+        let updated_task_details = {
+            let mut task_details = self.task.write().await;
+
+            // Update state
+            task_details.state = target_state;
+            task_details.output_collection_active = false;
+            task_details.finish_time = Some(chrono::Utc::now());
+
+            // Clone for broadcast (released write lock before broadcast)
+            task_details.clone()
+        };
 
         // Broadcast task update via WebSocket
         self.app_state

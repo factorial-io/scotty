@@ -47,7 +47,7 @@ static RECORDER: OnceLock<noop::NoOpRecorder> = OnceLock::new();
 
 // Fallback no-op recorder for tests (not compiled in release builds)
 #[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), test))]
-static NOOP_FALLBACK: noop::NoOpRecorder = noop::NoOpRecorder::new();
+static NOOP_FALLBACK: noop::NoOpRecorder = noop::NoOpRecorder;
 
 /// Get the global metrics recorder
 ///

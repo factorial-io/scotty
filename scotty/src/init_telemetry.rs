@@ -136,13 +136,18 @@ pub fn init_telemetry_and_tracing(settings: &Option<String>) -> Result<()> {
         }
     };
 
-    if metrics_enabled {
-        match crate::metrics::init_metrics() {
-            Ok(_) => {
-                info!("OpenTelemetry metrics initialized successfully");
+    // Always initialize metrics when telemetry features are compiled
+    // If not enabled via config, the recorder is still created but metrics won't be sent
+    // This prevents panics when code calls metrics().record_*() unconditionally
+    match crate::metrics::init_metrics() {
+        Ok(_) => {
+            if metrics_enabled {
+                info!("OpenTelemetry metrics initialized and enabled");
+            } else {
+                info!("OpenTelemetry metrics initialized (sending disabled via config)");
             }
-            Err(e) => warn!("Failed to initialize metrics: {}", e),
         }
+        Err(e) => warn!("Failed to initialize metrics: {}", e),
     }
 
     tracing_result

@@ -16,6 +16,7 @@ pub(crate) struct NoOpRecorder;
 
 impl NoOpRecorder {
     #[cfg(any(test, not(any(feature = "telemetry-grpc", feature = "telemetry-http"))))]
+    #[allow(dead_code)]
     pub(crate) const fn new() -> Self {
         Self
     }
