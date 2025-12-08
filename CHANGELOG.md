@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
@@ -39,7 +39,7 @@ All notable changes to this project will be documented in this file.
 - Use Casbin user_match_impl as single source of truth ✔️
 - Move Permission enum to scotty-core and iterate over it ✔️
 
-## [0.2.1] - 2025-11-25
+## [0.2.1]
 
 ### Bug Fixes
 
@@ -53,7 +53,7 @@ All notable changes to this project will be documented in this file.
 
 - Standardize to single workspace-level changelog ✔️
 
-## [0.2.0] - 2025-11-24
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -324,7 +324,7 @@ All notable changes to this project will be documented in this file.
 - Add comprehensive unit tests for shell feature ✔️
 - Add comprehensive tests for logs and shell services ✔️
 
-## [0.1.0] - 2025-11-24
+## [0.1.0]
 
 ### Bug Fixes
 
@@ -388,7 +388,7 @@ All notable changes to this project will be documented in this file.
 
 - Add version to readme ✔️
 
-## [0.1.0-alpha.38] - 2025-10-23
+## [0.1.0-alpha.38]
 
 ### Bug Fixes
 
@@ -587,25 +587,25 @@ All notable changes to this project will be documented in this file.
 
 - Add serialization and deserialization tests for AppTtl ✔️
 
-## [0.1.0-alpha.37] - 2025-06-05
+## [0.1.0-alpha.37]
 
 ### Bug Fixes
 
 - Try to fix homebrew formula ✔️
 
-## [0.1.0-alpha.36] - 2025-06-05
+## [0.1.0-alpha.36]
 
 ### Bug Fixes
 
 - Try to fix homebrew formula ✔️
 
-## [0.1.0-alpha.35] - 2025-06-05
+## [0.1.0-alpha.35]
 
 ### Bug Fixes
 
 - Try to fix homebrew formula ✔️
 
-## [0.1.0-alpha.34] - 2025-06-05
+## [0.1.0-alpha.34]
 
 ### CI
 
@@ -616,7 +616,7 @@ All notable changes to this project will be documented in this file.
 
 - Update dependency @sveltejs/kit to v2.21.2 (#345) ✔️
 
-## [0.1.0-alpha.33] - 2025-06-03
+## [0.1.0-alpha.33]
 
 ### Bug Fixes
 
@@ -630,7 +630,7 @@ All notable changes to this project will be documented in this file.
 - Update dependency eslint to v9.28.0 ✔️
 - Update dawidd6/action-homebrew-bump-formula action to v4 ✔️
 
-## [0.1.0-alpha.32] - 2025-05-30
+## [0.1.0-alpha.32]
 
 ### Bug Fixes
 
@@ -661,13 +661,13 @@ All notable changes to this project will be documented in this file.
 - Improve error handling and simplify collection logic ✔️
 - Refactor app_data.rs into modular components ✔️
 
-## [0.1.0-alpha.31] - 2025-05-30
+## [0.1.0-alpha.31]
 
 ### Features
 
 - Update homebrew tap on new releases ✔️
 
-## [0.1.0-alpha.30] - 2025-05-30
+## [0.1.0-alpha.30]
 
 ### Bug Fixes
 
@@ -712,13 +712,13 @@ All notable changes to this project will be documented in this file.
 
 - Refactor app_data.rs into modular components ✔️
 
-## [0.1.0-alpha.29] - 2025-05-12
+## [0.1.0-alpha.29]
 
 ### Bug Fixes
 
 - Remove trailing newlines from UI messages ✔️
 - Fix: Change task output from stderr to stdout if it was targeted to
-  stdout ❌
+stdout ❌
 - Include file path in env file parse error message ✔️
 - Fix environment variable precedence in app creation ✔️
 - Update rust crate tempfile to v3.20.0 ✔️
@@ -763,7 +763,7 @@ All notable changes to this project will be documented in this file.
 - Upgrade axum to 0.8.1 ✔️
 - Improve builder pattern for configuration loading ✔️
 
-## [0.1.0-alpha.28] - 2025-05-06
+## [0.1.0-alpha.28]
 
 ### Features
 
@@ -775,15 +775,15 @@ All notable changes to this project will be documented in this file.
 
 - Utilize reusable Pill component for status display ✔️
 
-## [0.1.0-alpha.27] - 2025-05-05
+## [0.1.0-alpha.27]
 
 ### Bug Fixes
 
 - Allow test commits to be included in change logs ✔️
 
-## [0.1.0-alpha.26] - 2025-05-05
+## [0.1.0-alpha.26]
 
-## [0.1.0-alpha.25] - 2025-05-05
+## [0.1.0-alpha.25]
 
 ### Dependencies
 
@@ -797,7 +797,7 @@ All notable changes to this project will be documented in this file.
 
 - Add tests for handling edge cases in environment variable parsing ✔️
 
-## [0.1.0-alpha.24] - 2025-05-05
+## [0.1.0-alpha.24]
 
 ### Bug Fixes
 
@@ -840,13 +840,13 @@ All notable changes to this project will be documented in this file.
 - Improve readability of conditional statement ✔️
 - Format code for consistency and readability ✔️
 
-## [0.1.0-alpha.23] - 2025-04-16
+## [0.1.0-alpha.23]
 
 ### Refactor
 
 - Improve env var parsing logic ✔️
 
-## [0.1.0-alpha.22] - 2025-04-16
+## [0.1.0-alpha.22]
 
 ### Bug Fixes
 
@@ -943,7 +943,7 @@ All notable changes to this project will be documented in this file.
 - Add dotenv integration and restructure scottyctl command handling ✔️
 - Lint + check frontend in ci ✔️
 
-## [0.1.0-alpha.21] - 2025-02-14
+## [0.1.0-alpha.21]
 
 ### Bug Fixes
 
@@ -967,7 +967,7 @@ All notable changes to this project will be documented in this file.
 - Clarify documentation (#181) ✔️
 - Clarify autocompletion ✔️
 
-## [0.1.0-alpha.20] - 2025-01-22
+## [0.1.0-alpha.20]
 
 ### Bug Fixes
 
@@ -1000,19 +1000,19 @@ All notable changes to this project will be documented in this file.
 
 - Add a test for haproxy and custom domains ✔️
 
-## [0.1.0-alpha.19] - 2025-01-06
+## [0.1.0-alpha.19]
 
 ### Bug Fixes
 
 - Fork slugify to support up to two dashes as separator ✔️
 
-## [0.1.0-alpha.18] - 2025-01-03
+## [0.1.0-alpha.18]
 
 ### Bug Fixes
 
 - Slugify app-names passed to the API -- (Fixes #158) ✔️
 
-## [0.1.0-alpha.17] - 2025-01-03
+## [0.1.0-alpha.17]
 
 ### Bug Fixes
 
@@ -1027,7 +1027,7 @@ All notable changes to this project will be documented in this file.
 
 - Update docs how to create a release ✔️
 
-## [0.1.0-alpha.16] - 2025-01-01
+## [0.1.0-alpha.16]
 
 ### Bug Fixes
 
@@ -1052,13 +1052,13 @@ All notable changes to this project will be documented in this file.
 - Restructure into workspaces (#152) ✔️
 - Add new subcommand to generate completion scripts for shell autocompletion ✔️
 
-## [0.1.0-alpha.15] - 2024-12-30
+## [0.1.0-alpha.15]
 
 ### Dependencies
 
 - Update dependency @sveltejs/kit to v2.15.1 ✔️
 
-## [0.1.0-alpha.14] - 2024-12-30
+## [0.1.0-alpha.14]
 
 ### Bug Fixes
 
@@ -1089,7 +1089,7 @@ All notable changes to this project will be documented in this file.
 
 - Add `blueprint:list` command to scotty cli ✔️
 
-## [0.1.0-alpha.13] - 2024-12-13
+## [0.1.0-alpha.13]
 
 ### Bug Fixes
 
@@ -1120,7 +1120,7 @@ All notable changes to this project will be documented in this file.
 - Support multiple domains for a service (fixes #126) ✔️
 - Export env-vars to settings when migrating an app ✔️
 
-## [0.1.0-alpha.12] - 2024-12-10
+## [0.1.0-alpha.12]
 
 ### Bug Fixes
 
@@ -1144,7 +1144,7 @@ All notable changes to this project will be documented in this file.
 
 - Apply environment also when running the docker-compose commands, Add a preliminary migrate command to create a .scotty-file ✔️
 
-## [0.1.0-alpha.11] - 2024-12-03
+## [0.1.0-alpha.11]
 
 ### Bug Fixes
 
@@ -1228,7 +1228,7 @@ All notable changes to this project will be documented in this file.
 - Create apic-call supports payload up to 50M, configurable via settings. ✔️
 - Add option to allow robots for scottyctl create ✔️
 
-## [0.1.0-alpha.10] - 2024-11-02
+## [0.1.0-alpha.10]
 
 ### Bug Fixes
 
@@ -1258,7 +1258,7 @@ All notable changes to this project will be documented in this file.
 - Allow separate blueprint config files in config/blueprints ✔️
 - Add ttl-option for scottyctl create ✔️
 
-## [0.1.0-alpha.9] - 2024-10-26
+## [0.1.0-alpha.9]
 
 ### Bug Fixes
 
@@ -1281,19 +1281,19 @@ All notable changes to this project will be documented in this file.
 - Validate docker-compose for the create task better ✔️
 - Expose version via API and CLI for both ctl and server ✔️
 
-## [0.1.0-alpha.8] - 2024-10-22
+## [0.1.0-alpha.8]
 
 ### CI
 
 - Fix cross compiling for linux, disable linux arm for now ✔️
 
-## [0.1.0-alpha.7] - 2024-10-22
+## [0.1.0-alpha.7]
 
 ### CI
 
 - Fix cross compiling for linux ✔️
 
-## [0.1.0-alpha.6] - 2024-10-22
+## [0.1.0-alpha.6]
 
 ### Bug Fixes
 
@@ -1329,7 +1329,7 @@ All notable changes to this project will be documented in this file.
 
 - Smaller improvements to the frontend ui ✔️
 
-## [0.1.0-alpha.5] - 2024-10-17
+## [0.1.0-alpha.5]
 
 ### CI
 
@@ -1339,8 +1339,9 @@ All notable changes to this project will be documented in this file.
 
 - Document how to create a new release ✔️
 
-## [0.1.0-alpha.4] - 2024-10-17
+## [0.1.0-alpha.4]
 
 ### CI
 
 - Enable changelog for ci changes ✔️
+

@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
@@ -23,13 +23,13 @@ All notable changes to this project will be documented in this file.
 - Use Casbin user_match_impl as single source of truth ✔️
 - Move Permission enum to scotty-core and iterate over it ✔️
 
-## [0.2.1] - 2025-11-28
+## [0.2.1]
 
 ### Refactor
 
 - Standardize to single workspace-level changelog ✔️
 
-## [0.2.0] - 2025-11-28
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -178,13 +178,13 @@ All notable changes to this project will be documented in this file.
 - Add comprehensive unit tests for shell feature ✔️
 - Add comprehensive tests for logs and shell services ✔️
 
-## [0.1.0] - 2025-11-28
+## [0.1.0]
 
 ### Bug Fixes
 
 - Improve error reporting and fix env vars in custom actions ✔️
 
-## [0.1.0-alpha.38] - 2025-11-28
+## [0.1.0-alpha.38]
 
 ### Bug Fixes
 
@@ -212,13 +212,13 @@ All notable changes to this project will be documented in this file.
 
 - Apply new Rust format string syntax ✔️
 
-## [0.1.0-alpha.33] - 2025-11-28
+## [0.1.0-alpha.33]
 
 ### Bug Fixes
 
 - Add SecureJson wrapper to mask sensitive env vars in API responses ✔️
 
-## [0.1.0-alpha.32] - 2025-11-28
+## [0.1.0-alpha.32]
 
 ### Bug Fixes
 
@@ -230,13 +230,13 @@ All notable changes to this project will be documented in this file.
 
 - Wait for containers to be ready before running post-actions ✔️
 
-## [0.1.0-alpha.30] - 2025-11-28
+## [0.1.0-alpha.30]
 
 ### Features
 
 - Expose public URLs as environment variables to actions ✔️
 
-## [0.1.0-alpha.29] - 2025-11-28
+## [0.1.0-alpha.29]
 
 ### Bug Fixes
 
@@ -253,7 +253,7 @@ All notable changes to this project will be documented in this file.
 - Upgrade axum to 0.8.1 ✔️
 - Improve builder pattern for configuration loading ✔️
 
-## [0.1.0-alpha.25] - 2025-11-28
+## [0.1.0-alpha.25]
 
 ### Refactor
 
@@ -263,7 +263,7 @@ All notable changes to this project will be documented in this file.
 
 - Add tests for handling edge cases in environment variable parsing ✔️
 
-## [0.1.0-alpha.24] - 2025-11-28
+## [0.1.0-alpha.24]
 
 ### Bug Fixes
 
@@ -294,7 +294,7 @@ All notable changes to this project will be documented in this file.
 
 - Format code for consistency and readability ✔️
 
-## [0.1.0-alpha.22] - 2025-11-28
+## [0.1.0-alpha.22]
 
 ### Bug Fixes
 
@@ -304,13 +304,13 @@ All notable changes to this project will be documented in this file.
 
 - Add new flag destroy_on_ttl which lets you destroy an app instead of stopping it after the TTL expired. ✔️
 
-## [0.1.0-alpha.21] - 2025-11-28
+## [0.1.0-alpha.21]
 
 ### Bug Fixes
 
 - Fix middleware setup for traefik config and multiple domains #194 ✔️
 
-## [0.1.0-alpha.20] - 2025-11-28
+## [0.1.0-alpha.20]
 
 ### Bug Fixes
 
@@ -321,25 +321,25 @@ All notable changes to this project will be documented in this file.
 
 - Add a test for haproxy and custom domains ✔️
 
-## [0.1.0-alpha.19] - 2025-11-28
+## [0.1.0-alpha.19]
 
 ### Bug Fixes
 
 - Fork slugify to support up to two dashes as separator ✔️
 
-## [0.1.0-alpha.18] - 2025-11-28
+## [0.1.0-alpha.18]
 
 ### Bug Fixes
 
 - Slugify app-names passed to the API -- (Fixes #158) ✔️
 
-## [0.1.0-alpha.17] - 2025-11-28
+## [0.1.0-alpha.17]
 
 ### Bug Fixes
 
 - Fix for wrong traefik config regarding TLS (Fixes #157) ✔️
 
-## [0.1.0-alpha.16] - 2025-11-28
+## [0.1.0-alpha.16]
 
 ### Documentation
 
@@ -348,3 +348,4 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Restructure into workspaces (#152) ✔️
+

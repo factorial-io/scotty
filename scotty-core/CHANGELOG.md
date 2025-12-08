@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
@@ -13,13 +13,13 @@ All notable changes to this project will be documented in this file.
 
 - Move Permission enum to scotty-core and iterate over it ✔️
 
-## [0.2.1] - 2025-11-28
+## [0.2.1]
 
 ### Refactor
 
 - Standardize to single workspace-level changelog ✔️
 
-## [0.2.0] - 2025-11-28
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -64,7 +64,7 @@ All notable changes to this project will be documented in this file.
 - Consolidate message types in scotty-core ✔️
 - Replace authorization groups terminology with scopes ✔️
 
-## [0.1.0-alpha.38] - 2025-11-28
+## [0.1.0-alpha.38]
 
 ### Bug Fixes
 
@@ -94,7 +94,7 @@ All notable changes to this project will be documented in this file.
 
 - Add serialization and deserialization tests for AppTtl ✔️
 
-## [0.1.0-alpha.33] - 2025-11-28
+## [0.1.0-alpha.33]
 
 ### Bug Fixes
 
@@ -104,7 +104,7 @@ All notable changes to this project will be documented in this file.
 
 - Add tempfile as a dev dependency ✔️
 
-## [0.1.0-alpha.32] - 2025-11-28
+## [0.1.0-alpha.32]
 
 ### Bug Fixes
 
@@ -119,7 +119,7 @@ All notable changes to this project will be documented in this file.
 - Improve error handling and simplify collection logic ✔️
 - Refactor app_data.rs into modular components ✔️
 
-## [0.1.0-alpha.30] - 2025-11-28
+## [0.1.0-alpha.30]
 
 ### Bug Fixes
 
@@ -135,7 +135,7 @@ All notable changes to this project will be documented in this file.
 
 - Refactor app_data.rs into modular components ✔️
 
-## [0.1.0-alpha.29] - 2025-11-28
+## [0.1.0-alpha.29]
 
 ### Documentation
 
@@ -146,13 +146,13 @@ All notable changes to this project will be documented in this file.
 - Implement custom debug for file structure ✔️
 - Improve builder pattern for configuration loading ✔️
 
-## [0.1.0-alpha.25] - 2025-11-28
+## [0.1.0-alpha.25]
 
 ### Refactor
 
 - Change AppSettings from_file to return Option ✔️
 
-## [0.1.0-alpha.24] - 2025-11-28
+## [0.1.0-alpha.24]
 
 ### Bug Fixes
 
@@ -165,7 +165,7 @@ All notable changes to this project will be documented in this file.
 - Enhance sensitive data handling with URI credential masking ✔️
 - Add redaction for sensitive environment variables ✔️
 
-## [0.1.0-alpha.22] - 2025-11-28
+## [0.1.0-alpha.22]
 
 ### Bug Fixes
 
@@ -175,19 +175,19 @@ All notable changes to this project will be documented in this file.
 
 - Add new flag destroy_on_ttl which lets you destroy an app instead of stopping it after the TTL expired. ✔️
 
-## [0.1.0-alpha.19] - 2025-11-28
+## [0.1.0-alpha.19]
 
 ### Bug Fixes
 
 - Fork slugify to support up to two dashes as separator ✔️
 
-## [0.1.0-alpha.18] - 2025-11-28
+## [0.1.0-alpha.18]
 
 ### Bug Fixes
 
 - Slugify app-names passed to the API -- (Fixes #158) ✔️
 
-## [0.1.0-alpha.16] - 2025-11-28
+## [0.1.0-alpha.16]
 
 ### Documentation
 
@@ -196,3 +196,4 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Restructure into workspaces (#152) ✔️
+

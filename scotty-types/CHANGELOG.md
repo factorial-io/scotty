@@ -2,14 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
 - Resolve changelog generation issues with empty sections and subshell ✔️
 - Skip empty version sections in per-crate changelogs ✔️
 
-## [0.2.0] - 2025-11-24
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -35,3 +35,4 @@ All notable changes to this project will be documented in this file.
 ### Testing
 
 - Add comprehensive unit tests for shell feature ✔️
+

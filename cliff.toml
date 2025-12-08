@@ -11,11 +11,7 @@ All notable changes to this project will be documented in this file.\n
 # https://keats.github.io/tera/docs/#introduction
 body = """
 {% if version %}\
-    {% if tag %}\
-        ## [{{ version | trim_start_matches(pat="v") }}] - {{ tag.timestamp | date(format="%Y-%m-%d") }}
-    {% else %}\
-        ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
-    {% endif %}\
+    ## [{{ version | trim_start_matches(pat="v") }}]
 {% else %}\
     ## [unreleased]
 {% endif %}\

@@ -2,14 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
 - Resolve changelog generation issues with empty sections and subshell ✔️
 - Skip empty version sections in per-crate changelogs ✔️
 
-## [0.2.0] - 2025-11-28
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -60,7 +60,7 @@ All notable changes to this project will be documented in this file.
 - Optimize build system and eliminate type duplication ✔️
 - Centralize session management and eliminate token storage duplication ✔️
 
-## [0.1.0] - 2025-11-28
+## [0.1.0]
 
 ### Bug Fixes
 
@@ -101,7 +101,7 @@ All notable changes to this project will be documented in this file.
 - Update npm dependencies auto-merge (patch) (#511) ✔️
 - Update dependency @sveltejs/kit to v2.47.3 ✔️
 
-## [0.1.0-alpha.38] - 2025-11-28
+## [0.1.0-alpha.38]
 
 ### Bug Fixes
 
@@ -210,27 +210,27 @@ All notable changes to this project will be documented in this file.
 - Normalize indentation in app.css ✔️
 - Reformat confirmation prompt for clarity ✔️
 
-## [0.1.0-alpha.34] - 2025-11-28
+## [0.1.0-alpha.34]
 
 ### Dependencies
 
 - Update dependency @sveltejs/kit to v2.21.2 (#345) ✔️
 
-## [0.1.0-alpha.33] - 2025-11-28
+## [0.1.0-alpha.33]
 
 ### Dependencies
 
 - Update npm dependencies auto-merge (patch) (#342) ✔️
 - Update dependency eslint to v9.28.0 ✔️
 
-## [0.1.0-alpha.32] - 2025-11-28
+## [0.1.0-alpha.32]
 
 ### Dependencies
 
 - Update dependency typescript-eslint to v8.33.0 ✔️
 - Update dependency daisyui to v5.0.43 ✔️
 
-## [0.1.0-alpha.30] - 2025-11-28
+## [0.1.0-alpha.30]
 
 ### Dependencies
 
@@ -250,7 +250,7 @@ All notable changes to this project will be documented in this file.
 - Update dependency eslint-plugin-svelte to v3.6.0 ✔️
 - Update npm dependencies auto-merge (patch) (#307) ✔️
 
-## [0.1.0-alpha.29] - 2025-11-28
+## [0.1.0-alpha.29]
 
 ### Dependencies
 
@@ -262,7 +262,7 @@ All notable changes to this project will be documented in this file.
 - Update npm dependencies auto-merge (patch) (#291) ✔️
 - Update dependency daisyui to v5 ✔️
 
-## [0.1.0-alpha.28] - 2025-11-28
+## [0.1.0-alpha.28]
 
 ### Features
 
@@ -274,13 +274,13 @@ All notable changes to this project will be documented in this file.
 
 - Utilize reusable Pill component for status display ✔️
 
-## [0.1.0-alpha.25] - 2025-11-28
+## [0.1.0-alpha.25]
 
 ### Dependencies
 
 - Update dependency vite to v5.4.19 [security] (#288) ✔️
 
-## [0.1.0-alpha.24] - 2025-11-28
+## [0.1.0-alpha.24]
 
 ### Dependencies
 
@@ -296,7 +296,7 @@ All notable changes to this project will be documented in this file.
 
 - Improve readability of conditional statement ✔️
 
-## [0.1.0-alpha.22] - 2025-11-28
+## [0.1.0-alpha.22]
 
 ### Bug Fixes
 
@@ -352,7 +352,7 @@ All notable changes to this project will be documented in this file.
 - Update npm dependencies auto-merge (patch) (#195) ✔️
 - Update dependency eslint-config-prettier to v10 ✔️
 
-## [0.1.0-alpha.21] - 2025-11-28
+## [0.1.0-alpha.21]
 
 ### Dependencies
 
@@ -361,7 +361,7 @@ All notable changes to this project will be documented in this file.
 - Update dependency @sveltejs/adapter-auto to v4 ✔️
 - Update dependency @sveltejs/kit to v2.17.1 ✔️
 
-## [0.1.0-alpha.20] - 2025-11-28
+## [0.1.0-alpha.20]
 
 ### Bug Fixes
 
@@ -378,19 +378,19 @@ All notable changes to this project will be documented in this file.
 - Update dependency typescript to v5.7.3 (#165) ✔️
 - Update dependency typescript-eslint to v8.19.1 ✔️
 
-## [0.1.0-alpha.16] - 2025-11-28
+## [0.1.0-alpha.16]
 
 ### Dependencies
 
 - Update dependency typescript-eslint to v8.19.0 (#150) ✔️
 
-## [0.1.0-alpha.15] - 2025-11-28
+## [0.1.0-alpha.15]
 
 ### Dependencies
 
 - Update dependency @sveltejs/kit to v2.15.1 ✔️
 
-## [0.1.0-alpha.14] - 2025-11-28
+## [0.1.0-alpha.14]
 
 ### Dependencies
 
@@ -409,7 +409,7 @@ All notable changes to this project will be documented in this file.
 
 - First version of the documentation ✔️
 
-## [0.1.0-alpha.13] - 2025-11-28
+## [0.1.0-alpha.13]
 
 ### Bug Fixes
 
@@ -430,7 +430,7 @@ All notable changes to this project will be documented in this file.
 - Add support for multiple domains and settings in UI ✔️
 - Reenable dark theme ✔️
 
-## [0.1.0-alpha.12] - 2025-11-28
+## [0.1.0-alpha.12]
 
 ### Bug Fixes
 
@@ -445,7 +445,7 @@ All notable changes to this project will be documented in this file.
 - Update dependency prettier to v3.4.2 (#113) ✔️
 - Update npm dependencies auto-merge (patch) (#110) ✔️
 
-## [0.1.0-alpha.11] - 2025-11-28
+## [0.1.0-alpha.11]
 
 ### Dependencies
 
@@ -487,7 +487,7 @@ All notable changes to this project will be documented in this file.
 - Onepassword integration (#91) ✔️
 - 1password-connect integration ✔️
 
-## [0.1.0-alpha.10] - 2025-11-28
+## [0.1.0-alpha.10]
 
 ### Dependencies
 
@@ -497,7 +497,7 @@ All notable changes to this project will be documented in this file.
 - Update dependency typescript-eslint to v8.12.0 ✔️
 - Update dependency daisyui to v4.12.14 (#39) ✔️
 
-## [0.1.0-alpha.9] - 2025-11-28
+## [0.1.0-alpha.9]
 
 ### Bug Fixes
 
@@ -515,7 +515,7 @@ All notable changes to this project will be documented in this file.
 
 - Add unsupported status to Apps, prevent running commands against unsupported apps ✔️
 
-## [0.1.0-alpha.6] - 2025-11-28
+## [0.1.0-alpha.6]
 
 ### Dependencies
 
@@ -526,3 +526,4 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Smaller improvements to the frontend ui ✔️
+

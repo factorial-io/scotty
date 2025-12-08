@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.3] - 2025-11-28
+## [0.2.3]
 
 ### Bug Fixes
 
@@ -18,13 +18,13 @@ All notable changes to this project will be documented in this file.
 
 - Move Permission enum to scotty-core and iterate over it ✔️
 
-## [0.2.1] - 2025-11-28
+## [0.2.1]
 
 ### Refactor
 
 - Standardize to single workspace-level changelog ✔️
 
-## [0.2.0] - 2025-11-28
+## [0.2.0]
 
 ### Bug Fixes
 
@@ -93,7 +93,7 @@ All notable changes to this project will be documented in this file.
 
 - Add comprehensive unit tests for shell feature ✔️
 
-## [0.1.0-alpha.38] - 2025-11-28
+## [0.1.0-alpha.38]
 
 ### Bug Fixes
 
@@ -119,7 +119,7 @@ All notable changes to this project will be documented in this file.
 
 - Apply new Rust format string syntax ✔️
 
-## [0.1.0-alpha.30] - 2025-11-28
+## [0.1.0-alpha.30]
 
 ### Bug Fixes
 
@@ -131,13 +131,13 @@ All notable changes to this project will be documented in this file.
 - Refactor to use shared AppContext with unified UI ✔️
 - Add retry mechanism with backoff for API calls ✔️
 
-## [0.1.0-alpha.29] - 2025-11-28
+## [0.1.0-alpha.29]
 
 ### Bug Fixes
 
 - Remove trailing newlines from UI messages ✔️
 - Fix: Change task output from stderr to stdout if it was targeted to
-  stdout ❌
+stdout ❌
 - Include file path in env file parse error message ✔️
 - Fix environment variable precedence in app creation ✔️
 - Support binary file handling in file reading ✔️
@@ -152,20 +152,20 @@ All notable changes to this project will be documented in this file.
 - Modularize and reorganize file and parser utilities ✔️
 - Introduce StatusLine for better status tracking and UI feedback ✔️
 
-## [0.1.0-alpha.23] - 2025-11-28
+## [0.1.0-alpha.23]
 
 ### Refactor
 
 - Improve env var parsing logic ✔️
 
-## [0.1.0-alpha.22] - 2025-11-28
+## [0.1.0-alpha.22]
 
 ### Features
 
 - Add new flag destroy_on_ttl which lets you destroy an app instead of stopping it after the TTL expired. ✔️
 - Add dotenv integration and restructure scottyctl command handling ✔️
 
-## [0.1.0-alpha.16] - 2025-11-28
+## [0.1.0-alpha.16]
 
 ### Documentation
 
@@ -174,3 +174,4 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Restructure into workspaces (#152) ✔️
+
