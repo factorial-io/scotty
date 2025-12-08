@@ -95,7 +95,7 @@ flate2 = { version = "1.0", default-features = false, features = ["rust_backend"
 wiremock = "0.6"
 
 [workspace.metadata.release]
-pre-release-hook = ["bash", "-c", "cd $(git rev-parse --show-toplevel) && bash scripts/generate-changelogs.sh {{version}}"]
+pre-release-hook = ["bash", "-c", "cd $(git rev-parse --show-toplevel) && bash .cargo-husky/hooks/pre-push && bash scripts/generate-changelogs.sh {{version}}"]
 sign-tag = true
 pre-release-replacements = [ ]
 
