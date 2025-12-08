@@ -542,4 +542,3 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Smaller improvements to the frontend ui ✔️
-
