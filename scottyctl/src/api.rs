@@ -216,6 +216,10 @@ pub async fn wait_for_task(
         // Split WebSocket into sender and receiver
         let (mut ws_sender, mut ws_receiver) = ws.split();
 
+        // Shared flag to signal when WebSocket stream has ended
+        let stream_ended = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stream_ended_clone = stream_ended.clone();
+
         // Spawn a task to handle WebSocket messages
         let ui_clone = ui.clone();
         let ws_handle = tokio::spawn(async move {
@@ -232,6 +236,8 @@ pub async fn wait_for_task(
                                     }
                                 }
                                 WebSocketMessage::TaskOutputStreamEnded { .. } => {
+                                    stream_ended_clone
+                                        .store(true, std::sync::atomic::Ordering::SeqCst);
                                     break; // Stop listening when stream ends
                                 }
                                 _ => {} // Ignore other message types
@@ -256,7 +262,16 @@ pub async fn wait_for_task(
             done = task.state != State::Running;
 
             if done {
-                // Abort the WebSocket handler since task is done
+                // Wait a bit for any remaining WebSocket messages to be processed
+                // The server should send TaskOutputStreamEnded when the task finishes
+                let mut wait_attempts = 0;
+                while !stream_ended.load(std::sync::atomic::Ordering::SeqCst) && wait_attempts < 20
+                {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                    wait_attempts += 1;
+                }
+
+                // Now abort the WebSocket handler
                 ws_handle.abort();
 
                 match task.state {

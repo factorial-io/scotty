@@ -218,18 +218,10 @@ impl TaskOutputStreamingService {
                     }
                     // Poll for new task output
                     _ = poll_timer.tick() => {
-                        // Check if output collection is still active
-                        if let Some(task_details) = app_state.task_manager.get_task_details(&task_id).await {
-                            if !task_details.output_collection_active {
-                                info!("Output collection disabled for task {}, ending stream", task_id);
-                                break;
-                            }
-                        } else {
-                            warn!("Task {} no longer exists, ending stream", task_id);
-                            break;
-                        }
+                        // First, check for new output BEFORE checking if collection is active
+                        // This ensures we capture any final messages added just before completion
+                        let mut should_end_stream = false;
 
-                        // Check for new output
                         if let Some(_task_output) = app_state.task_manager.get_task_output(&task_id).await {
                             let details_guard = {
                                 // Get the processes lock and clone the details Arc
@@ -240,6 +232,11 @@ impl TaskOutputStreamingService {
                             if let Some(details_arc) = details_guard {
                                 let details = details_arc.read().await;
                                 let output = &details.output;
+
+                                // Check if we should end after this poll
+                                if !details.output_collection_active {
+                                    should_end_stream = true;
+                                }
 
                                 // Find new lines since last_sent_sequence
                                 let new_lines: Vec<OutputLine> = output
@@ -262,7 +259,7 @@ impl TaskOutputStreamingService {
                                     // Send immediately if buffer should flush
                                     if buffer.should_flush() {
                                         let lines_to_send = buffer.flush();
-                                        let lines_count = lines_to_send.len() as u64;
+                                        let lines_count = lines_to_send.len();
                                         let _ = app_state.messenger.send_to_client(
                                             client_id,
                                             WebSocketMessage::TaskOutputData(TaskOutputData {
@@ -272,10 +269,22 @@ impl TaskOutputStreamingService {
                                                 has_more: false,
                                             }),
                                         ).await;
-                                crate::metrics::metrics().record_task_output_lines(lines_count as usize);
+                                        crate::metrics::metrics().record_task_output_lines(lines_count);
                                     }
                                 }
+                            } else {
+                                warn!("Task {} no longer exists, ending stream", task_id);
+                                should_end_stream = true;
                             }
+                        } else {
+                            warn!("Task output for {} no longer available, ending stream", task_id);
+                            should_end_stream = true;
+                        }
+
+                        // End stream after processing all available output
+                        if should_end_stream {
+                            info!("Output collection disabled for task {}, ending stream after final poll", task_id);
+                            break;
                         }
                     }
                 }
@@ -284,7 +293,7 @@ impl TaskOutputStreamingService {
             // Send any remaining buffered lines
             if buffer.has_data() {
                 let lines_to_send = buffer.flush();
-                let lines_count = lines_to_send.len() as u64;
+                let lines_count = lines_to_send.len();
                 let _ = app_state
                     .messenger
                     .send_to_client(
@@ -297,7 +306,7 @@ impl TaskOutputStreamingService {
                         }),
                     )
                     .await;
-                crate::metrics::metrics().record_task_output_lines(lines_count as usize);
+                crate::metrics::metrics().record_task_output_lines(lines_count);
             }
 
             // Send stream ended message

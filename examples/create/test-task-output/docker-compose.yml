@@ -1,0 +1,6 @@
+services:
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+      - ./test-scripts:/test-scripts:ro
