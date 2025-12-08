@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Address MR feedback - remove duplicate counter, fix naming confusion, optimize hot path ✔️
+- Make metrics() return trait object with no-op fallback for tests ✔️
+- Restore OAuth session count metrics ✔️
+- Refresh app state on task completion for both success and failure ✔️
+
+### Documentation
+
+- Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+- Implement metrics tracking for task output streams ✔️
+- Implement task output streaming metrics ✔️
+- Add no-telemetry feature flag for minimal builds without OpenTelemetry ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
+### Refactor
+
+- Move active count atomics from static to OtelRecorder instance ✔️
+- Simplify telemetry feature logic and test all configurations in CI ✔️
+- Remove redundant inherent methods from OtelRecorder ✔️
+
 ## [0.2.3]
 
 ### Bug Fixes

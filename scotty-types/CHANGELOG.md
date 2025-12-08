@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Enable std feature for serde in scotty-types to support String deserialization ✔️
+- Add ts-rs tag/content attributes to WebSocketMessage for proper TypeScript generation ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
 ## [0.2.3]
 
 ### Bug Fixes

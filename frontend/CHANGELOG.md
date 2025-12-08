@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Restore frontend/build/.gitkeep to fix CI builds ✔️
+
+### Dependencies
+
+- Update npm dependencies auto-merge (patch) (#611) ✔️
+- Update dependency typescript-eslint to v8.48.1 (#603) ✔️
+- Update dependency svelte to v5.45.3 (#600) ✔️
+- Update dependency prettier to v3.7.3 ✔️
+- Update dependency svelte to v5.45.2 ✔️
+- Update dependency prettier to v3.7.2 ✔️
+
 ## [0.2.3]
 
 ### Bug Fixes

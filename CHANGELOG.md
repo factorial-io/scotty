@@ -2,6 +2,75 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Use tag timestamp for changelog dates and clarify release process ✔️
+- Clear status line before command exits ✔️
+- Add Default implementations for StatusLine and Ui to satisfy clippy ✔️
+- Validate token in auth:status and return exit code 1 when invalid (GH#607) ✔️
+- Clippy warning in test and strengthen pre-push hook ✔️
+- Address code review feedback for HttpError ✔️
+- Prioritize explicit access token over cached OAuth tokens in scottyctl ✔️
+- Restore frontend/build/.gitkeep to fix CI builds ✔️
+- Enable std feature for serde in scotty-types to support String deserialization ✔️
+- Add ts-rs tag/content attributes to WebSocketMessage for proper TypeScript generation ✔️
+- Address MR feedback - remove duplicate counter, fix naming confusion, optimize hot path ✔️
+- Make metrics() return trait object with no-op fallback for tests ✔️
+- Restore OAuth session count metrics ✔️
+- Refresh app state on task completion for both success and failure ✔️
+
+### Dependencies
+
+- Update rust dependencies auto-merge (patch) ✔️
+- Update npm dependencies auto-merge (patch) (#611) ✔️
+- Update rust crate uuid to v1.19.0 ✔️
+- Update rust crate axum-test to v18.4.1 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.141.0 ✔️
+- Update dependency typescript-eslint to v8.48.1 (#603) ✔️
+- Update dependency svelte to v5.45.3 (#600) ✔️
+- Update rust docker tag to v1.91 ✔️
+- Update rust crate sysinfo to 0.37 ✔️
+- Update dependency prettier to v3.7.3 ✔️
+- Update dependency svelte to v5.45.2 ✔️
+- Update rust dependencies auto-merge (patch) (#597) ✔️
+- Update dependency prettier to v3.7.2 ✔️
+
+### Documentation
+
+- Close issue tracking for scotty-28453 and scotty-a2dce - GH#607 complete ✔️
+- Update issue tracking - close scotty-0791a, scotty-46245, create scotty-28453, scotty-6f06c, scotty-a2dce ✔️
+- Track scottyctl auth precedence bug (scotty-a84a4, GH #609) ✔️
+- Update AGENTS.md to clarify both telemetry transports can be enabled ✔️
+- Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+- Implement metrics tracking for task output streams ✔️
+- Implement task output streaming metrics ✔️
+- Add no-telemetry feature flag for minimal builds without OpenTelemetry ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
+### Refactor
+
+- Improve status line cleanup documentation and consistency ✔️
+- Improve status messages for auth commands ✔️
+- Improve error handling with custom ApiError type ✔️
+- Remove duplicate retry logic from scottyctl ✔️
+- Move active count atomics from static to OtelRecorder instance ✔️
+- Simplify telemetry feature logic and test all configurations in CI ✔️
+- Remove redundant inherent methods from OtelRecorder ✔️
+
+### Testing
+
+- Add comprehensive test coverage for auth:status token validation ✔️
+
 ## [0.2.3]
 
 ### Bug Fixes
