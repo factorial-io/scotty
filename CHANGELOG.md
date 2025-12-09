@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5]
+
+### Bug Fixes
+
+- Resolve race conditions in task output streaming ✔️
+
+### Dependencies
+
+- Update dependency svelte to v5.45.8 (#623) ✔️
+- Update dependency @sveltejs/kit to v2.49.2 (#622) ✔️
+- Update dependency svelte to v5.45.7 ✔️
+- Update rust crate reqwest to v0.12.25 ✔️
+- Update rust crate tower-http to v0.6.8 ✔️
+- Update dependency typescript-eslint to v8.49.0 ✔️
+
+### Documentation
+
+- Add new beads for new features ✔️
+
 ## [0.2.4]
 
 ### Bug Fixes

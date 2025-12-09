@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5]
+
+### Dependencies
+
+- Update dependency svelte to v5.45.8 (#623) ✔️
+- Update dependency @sveltejs/kit to v2.49.2 (#622) ✔️
+- Update dependency svelte to v5.45.7 ✔️
+- Update dependency typescript-eslint to v8.49.0 ✔️
+
 ## [0.2.4]
 
 ### Bug Fixes
@@ -542,3 +551,4 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Smaller improvements to the frontend ui ✔️
+
