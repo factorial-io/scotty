@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6]
+
+### Bug Fixes
+
+- Enable rustls-tls for oauth2 crate to support HTTPS token endpoints ✔️
+
 ## [0.2.5]
 
 ### Bug Fixes

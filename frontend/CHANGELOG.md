@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6]
+
+### Dependencies
+
+- Update dependency svelte to v5.45.10 ✔️
+- Update dependency daisyui to v5.5.13 (#628) ✔️
+- Update npm dependencies auto-merge (patch) ✔️
+- Update dependency daisyui to v5.5.11 ✔️
+
 ## [0.2.5]
 
 ### Dependencies
