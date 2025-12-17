@@ -54,7 +54,10 @@ impl HttpClientBuilder {
     }
 
     pub fn build(self) -> Result<HttpClient, HttpError> {
-        let mut client_builder = reqwest::Client::builder();
+        let mut client_builder = reqwest::Client::builder()
+            // Disable automatic redirects to prevent auth header stripping on http->https redirects
+            // Instead, we detect redirects and return a helpful error message
+            .redirect(reqwest::redirect::Policy::none());
 
         if let Some(timeout) = self.timeout {
             client_builder = client_builder.timeout(timeout);
@@ -85,6 +88,25 @@ impl HttpClient {
 
     pub fn with_timeout(timeout: Duration) -> Result<Self, HttpError> {
         Self::builder().with_timeout(timeout).build()
+    }
+
+    /// Check if a response is a redirect and return an appropriate error
+    fn check_redirect(response: &Response) -> Option<HttpError> {
+        let status = response.status();
+        if status.is_redirection() {
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|h| h.to_str().ok())
+                .unwrap_or("unknown")
+                .to_string();
+            Some(HttpError::Redirect {
+                status: status.as_u16(),
+                location,
+            })
+        } else {
+            None
+        }
     }
 
     /// Helper function to extract error message from response body
@@ -169,6 +191,11 @@ impl HttpClient {
                     .await
                     .map_err(HttpError::from)?;
 
+                // Check for redirects first - these should not be retried
+                if let Some(redirect_err) = Self::check_redirect(&response) {
+                    return Err(redirect_err);
+                }
+
                 if !response.status().is_success() {
                     let status = response.status().as_u16();
                     let error_msg = Self::extract_error_message(response).await;
@@ -224,6 +251,11 @@ impl HttpClient {
                     .send()
                     .await
                     .map_err(HttpError::from)?;
+
+                // Check for redirects first - these should not be retried
+                if let Some(redirect_err) = Self::check_redirect(&response) {
+                    return Err(redirect_err);
+                }
 
                 if !response.status().is_success() {
                     let status = response.status().as_u16();
@@ -466,5 +498,71 @@ mod tests {
 
         let error_msg = HttpClient::extract_error_message(response).await;
         assert_eq!(error_msg, "400 Bad Request: {invalid json");
+    }
+
+    #[tokio::test]
+    async fn test_redirect_returns_error() {
+        // Test that redirects are not followed and return a helpful error
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api"))
+            .respond_with(
+                ResponseTemplate::new(301)
+                    .insert_header("Location", "https://secure.example.com/api"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let result: Result<serde_json::Value, _> =
+            client.get_json(&format!("{}/api", mock_server.uri())).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        // Should be a non-retriable redirect error
+        match err {
+            crate::http::RetryError::NonRetriable(http_err) => {
+                assert!(http_err.is_redirect());
+                assert_eq!(
+                    http_err.redirect_location(),
+                    Some("https://secure.example.com/api")
+                );
+                assert!(http_err
+                    .to_string()
+                    .contains("Please update your server URL"));
+            }
+            _ => panic!("Expected NonRetriable redirect error, got: {:?}", err),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_redirect_not_retried() {
+        // Ensure redirects are not retried
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let mock_server = MockServer::start().await;
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_clone = call_count.clone();
+
+        Mock::given(method("GET"))
+            .and(path("/api"))
+            .respond_with(move |_: &wiremock::Request| {
+                call_count_clone.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(302)
+                    .insert_header("Location", "https://other.example.com/api")
+            })
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let result: Result<serde_json::Value, _> =
+            client.get_json(&format!("{}/api", mock_server.uri())).await;
+
+        assert!(result.is_err());
+        // Should only be called once - no retries for redirects
+        assert_eq!(call_count.load(Ordering::SeqCst), 1);
     }
 }

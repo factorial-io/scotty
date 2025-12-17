@@ -56,6 +56,10 @@ pub enum HttpError {
     /// Failed to parse response body
     #[error("Failed to parse response: {0}")]
     ParseError(String),
+
+    /// Server returned a redirect response
+    #[error("Server returned a {status} redirect to {location}. Please update your server URL to use the correct address.")]
+    Redirect { status: u16, location: String },
 }
 
 impl From<reqwest::Error> for HttpError {
@@ -130,6 +134,19 @@ impl HttpError {
     pub fn is_network(&self) -> bool {
         matches!(self, Self::Network(_))
     }
+
+    /// Check if this is a redirect error
+    pub fn is_redirect(&self) -> bool {
+        matches!(self, Self::Redirect { .. })
+    }
+
+    /// Get the redirect location if this is a redirect error
+    pub fn redirect_location(&self) -> Option<&str> {
+        match self {
+            Self::Redirect { location, .. } => Some(location),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -189,6 +206,21 @@ mod tests {
         assert!(!err.is_client_error());
         assert!(!err.is_server_error());
         assert_eq!(err.to_string(), "Failed to parse response: Invalid JSON");
+    }
+
+    #[test]
+    fn test_redirect_error() {
+        let err = HttpError::Redirect {
+            status: 301,
+            location: "https://example.com/api".to_string(),
+        };
+        assert!(err.is_redirect());
+        assert_eq!(err.redirect_location(), Some("https://example.com/api"));
+        assert!(!err.is_client_error());
+        assert!(!err.is_server_error());
+        assert!(err.to_string().contains("301 redirect"));
+        assert!(err.to_string().contains("https://example.com/api"));
+        assert!(err.to_string().contains("Please update your server URL"));
     }
 
     #[test]
