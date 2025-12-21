@@ -1,11 +1,11 @@
 ---
 # scotty-gv1j
 title: 'scottyctl: access-token should take precedence over cached OAuth tokens'
-status: todo
+status: completed
 type: bug
 priority: high
 created_at: 2025-12-21T12:44:46Z
-updated_at: 2025-12-21T13:33:30Z
+updated_at: 2025-12-21T13:36:06Z
 parent: scotty-8tep
 ---
 
