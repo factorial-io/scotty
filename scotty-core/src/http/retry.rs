@@ -74,6 +74,8 @@ pub fn is_retriable_error(err: &HttpError) -> bool {
         HttpError::Timeout => true,
         // Don't retry parse errors (likely bad response format)
         HttpError::ParseError(_) => false,
+        // Don't retry redirects - user needs to fix their URL
+        HttpError::Redirect { .. } => false,
     }
 }
 
