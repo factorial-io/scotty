@@ -319,12 +319,11 @@ impl ApiRoutes {
                 "/api/v1/authenticated/apps/notify/remove",
                 post(remove_notification_handler),
             )
+            // Note: Permission checking for actions is done dynamically in the handler
+            // based on the action's permission field (ActionRead or ActionWrite)
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
-                post(run_custom_action_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
+                post(run_custom_action_handler),
             )
             // Custom action management routes
             .route(
