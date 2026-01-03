@@ -730,3 +730,160 @@ scottyctl completion powershell > scottyctl.ps1
 ```
 
 After installing the completion script, restart your shell or source the completion file.
+
+## Web UI: Viewing Logs
+
+In addition to the CLI, Scotty provides a web interface for viewing container logs in real-time.
+
+### Accessing Service Logs
+
+1. Navigate to the **Dashboard** at `/dashboard`
+
+![Dashboard showing list of apps](assets/cli/dashboard.png)
+
+2. Click on an application to view its details
+
+![App detail page showing services](assets/cli/app-detail-page.png)
+
+3. In the **Available Services** section, click on a service name (e.g., "nginx", "web")
+4. The service detail page displays live-streaming logs
+
+![Log viewer showing real-time container logs](assets/cli/log-viewer.png)
+
+### Log Viewer Features
+
+The web-based log viewer provides:
+
+* **Real-time streaming**: Logs are streamed via WebSocket as they are generated
+* **Line numbers**: Each log line is numbered for easy reference
+* **Auto-scroll**: New log entries automatically scroll into view (can be toggled)
+* **Timestamps**: Option to show/hide timestamps in log output
+* **Line count**: Shows total number of log lines received
+* **Streaming indicator**: Shows when actively streaming new logs
+* **Service information**: The page shows service status, start time, and domain information
+
+### Permission Requirements
+
+To view logs in the web UI, you need the `logs` permission for the application's scope. If you don't have this permission, you'll be redirected to the application detail page.
+
+See the [Authorization documentation](authorization.html) for details on configuring permissions.
+
+## Security Best Practices
+
+### Shell Access Security
+
+The `app:shell` command provides direct access to running containers. Consider these security practices:
+
+**Permission Management:**
+* Grant `shell` permission only to users who require debugging access
+* Use scope-based authorization to limit shell access to specific environments (e.g., staging only, not production)
+* Regularly audit which users have shell access
+
+**Operational Security:**
+* Shell sessions run as the container's default user (often root)
+* Commands executed via shell are not logged by Scotty—consider container-level audit logging if needed
+* Shell access bypasses application-level authentication
+
+**Container Isolation:**
+* Shell sessions are isolated to the specific container
+* Users cannot access other containers or the host system directly
+* Network access from within the container follows the container's network configuration
+
+### Logs Access Security
+
+**Permission Management:**
+* The `logs` permission grants access to all log output from a service
+* Logs may contain sensitive information (API keys, user data, error details)
+* Consider the sensitivity of log content when granting access
+
+**Data Considerations:**
+* Log streaming is real-time only—historical logs depend on Docker's log retention
+* Logs are transmitted over WebSocket connections (encrypted if using HTTPS)
+
+## Troubleshooting
+
+### Common Issues
+
+#### WebSocket Connection Failures
+
+**Symptoms:** Logs not streaming, shell not connecting, "WebSocket error" messages
+
+**Solutions:**
+1. Verify the Scotty server is running and accessible
+2. Check that your network allows WebSocket connections (some proxies block them)
+3. Ensure you're using the correct protocol (`wss://` for HTTPS, `ws://` for HTTP)
+4. Check browser console for specific error messages
+
+```shell
+# Test basic connectivity
+curl -v https://your-scotty-server/api/health
+```
+
+#### Permission Denied Errors
+
+**Symptoms:** "Permission denied" or "Forbidden" when accessing logs or shell
+
+**Solutions:**
+1. Verify your authentication is valid:
+   ```shell
+   scottyctl auth:status
+   ```
+2. Check your assigned permissions:
+   ```shell
+   scottyctl admin:permissions:user your@email.com
+   ```
+3. Ensure you have the correct permission (`logs` or `shell`) for the app's scope
+4. Contact your administrator to request the necessary permissions
+
+#### Log Stream Not Starting
+
+**Symptoms:** Log viewer shows loading state but no logs appear
+
+**Solutions:**
+1. Verify the service is running:
+   ```shell
+   scottyctl app:info <APP>
+   ```
+2. Check that the container is producing logs:
+   ```shell
+   scottyctl app:logs <APP> <SERVICE> --lines 10
+   ```
+3. Ensure you have the `logs` permission for the application
+4. Try refreshing the page to re-establish the WebSocket connection
+
+#### Shell Session Issues
+
+**Symptoms:** Shell connects but commands don't work, or session terminates unexpectedly
+
+**Solutions:**
+1. Verify the container has the required shell:
+   ```shell
+   # Try a different shell if /bin/bash is not available
+   scottyctl app:shell <APP> <SERVICE> --shell /bin/sh
+   ```
+2. Check if the container is healthy and running:
+   ```shell
+   scottyctl app:info <APP>
+   ```
+3. For Alpine-based images, use `/bin/sh` instead of `/bin/bash`
+4. If the session terminates, check container logs for crash information
+
+#### Shell Exit Codes
+
+When using `--command`, the exit code is passed through:
+
+```shell
+# Check if a file exists (exit 0 = exists, exit 1 = not found)
+scottyctl app:shell my-app web --command "test -f /app/config.yml"
+echo $status  # Fish shell
+echo $?       # Bash/Zsh
+```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the server logs for error details
+2. Enable debug logging: `RUST_LOG=debug scottyctl ...`
+3. Verify your scottyctl version matches the server version
+4. Report issues at the project repository

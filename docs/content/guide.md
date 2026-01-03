@@ -31,9 +31,9 @@ It does not orchestrate your apps on a cluster of machines.
 It's a single-node solution with optional scope-based access control and no support for
 scaling your apps.
 
-It is also not a replacement for tools like Dockyard or Portainer. You
-will still need to log into the server and use the CLI to debug malfunctioning
-applications or inspect the logs.
+It is also not a replacement for tools like Dockyard or Portainer. However,
+Scotty does provide basic debugging capabilities including real-time log viewing
+(via CLI and web UI) and interactive shell access to containers via the CLI.
 
 Scotty wants to be a simple solution for a simple use-case.
 
@@ -46,4 +46,4 @@ Check out the following sections:
 * [Configuration Guide](configuration.md) to learn about all available settings
 * [Authorization System](authorization.md) for scope-based access control
 * [Architecture Documentation](architecture.md) to understand how Scotty works
-* [CLI Documentation](cli.md) for all available commands
+* [CLI Documentation](cli.md) for all available commands, including logs, shell access, and troubleshooting
