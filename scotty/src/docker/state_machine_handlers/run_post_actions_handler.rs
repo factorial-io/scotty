@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use scotty_core::{
     apps::app_data::AppSettings,
@@ -21,6 +21,9 @@ where
     pub action: ActionName,
     pub settings: Option<AppSettings>,
 }
+
+/// Commands to execute for an action (service -> list of commands)
+type ActionCommands = HashMap<String, Vec<String>>;
 
 impl<S> RunPostActionsHandler<S>
 where
@@ -47,6 +50,48 @@ where
             None => Ok(None),
         }
     }
+
+    /// Get the commands for the action, checking per-app custom actions first, then blueprint.
+    /// Returns None if the action is not found in either location.
+    fn get_action_commands(&self, context: &Context) -> Result<Option<ActionCommands>, AppError> {
+        let settings = match &self.settings {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+
+        // Extract action name string for per-app custom action lookup
+        let action_name_str = match &self.action {
+            ActionName::Custom(name) => Some(name.as_str()),
+            _ => None,
+        };
+
+        // First, check per-app custom actions
+        if let Some(name) = action_name_str {
+            if let Some(custom_action) = settings.get_custom_action(name) {
+                info!(
+                    action = %name,
+                    source = "per-app custom action",
+                    "Found action in per-app custom actions"
+                );
+                return Ok(Some(custom_action.commands.clone()));
+            }
+        }
+
+        // Fall back to blueprint actions
+        let blueprint = self.get_blueprint(context)?;
+        if let Some(bp) = blueprint {
+            if let Some(blueprint_action) = bp.actions.get(&self.action) {
+                info!(
+                    action = ?self.action,
+                    source = "blueprint",
+                    "Found action in blueprint"
+                );
+                return Ok(Some(blueprint_action.commands.clone()));
+            }
+        }
+
+        Ok(None)
+    }
 }
 
 #[async_trait::async_trait]
@@ -58,13 +103,19 @@ where
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
         let context = context.read().await;
         let docker_compose_path = std::path::PathBuf::from(&context.app_data.docker_compose_path);
-        let blueprint = self.get_blueprint(&context)?;
-        if blueprint.is_none() {
+
+        // Get action commands from either per-app custom actions or blueprint
+        let action_commands = self.get_action_commands(&context)?;
+        if action_commands.is_none() {
+            info!(
+                app_name = %context.app_data.name,
+                action = ?self.action,
+                "No action commands found, skipping"
+            );
             return Ok(self.next_state.clone());
         }
 
-        let blueprint_actions = &blueprint.unwrap().actions;
-        let selected_action = blueprint_actions.get(&self.action);
+        let commands = action_commands.unwrap();
 
         // Two different environment variables are used for different purposes:
         // - `environment`: Full environment (app settings + augmented SCOTTY__* vars)
@@ -75,43 +126,41 @@ where
         let environment = context.app_data.get_environment();
         let augmented_env = context.app_data.augment_environment(SecretHashMap::new());
 
-        if let Some(action) = selected_action {
+        info!(
+            app_name = %context.app_data.name,
+            action = ?self.action,
+            service_count = commands.len(),
+            "Executing custom action on {} service(s)",
+            commands.len()
+        );
+
+        for (service, script) in &commands {
             info!(
                 app_name = %context.app_data.name,
                 action = ?self.action,
-                service_count = action.commands.len(),
-                "Executing custom action on {} service(s)",
-                action.commands.len()
+                service = %service,
+                script_lines = script.len(),
+                "Running action on service"
             );
 
-            for (service, script) in &action.commands {
-                info!(
-                    app_name = %context.app_data.name,
-                    action = ?self.action,
-                    service = %service,
-                    script_lines = script.len(),
-                    "Running action on service"
-                );
-
-                let mut augmented_script = Vec::new();
-                for (key, value) in augmented_env.iter() {
-                    // Use expose_secret() to get the real value, not the masked display value
-                    augmented_script.push(format!("export {key}={}", value.expose_secret()));
-                }
-                augmented_script.extend(script.iter().cloned());
-                let script_one_line = augmented_script.join("; ");
-                let args = vec!["exec", service, "sh", "-c", &script_one_line];
-
-                run_task_and_wait(
-                    &context,
-                    &docker_compose_path,
-                    "docker-compose",
-                    &args,
-                    &environment,
-                    &format!("action {:?} on service {}", &self.action, service),
-                )
-                .await?;
+            let mut augmented_script = Vec::new();
+            for (key, value) in augmented_env.iter() {
+                // Use expose_secret() to get the real value, not the masked display value
+                augmented_script.push(format!("export {key}={}", value.expose_secret()));
             }
+            augmented_script.extend(script.iter().cloned());
+            let script_one_line = augmented_script.join("; ");
+            let args = vec!["exec", service, "sh", "-c", &script_one_line];
+
+            run_task_and_wait(
+                &context,
+                &docker_compose_path,
+                "docker-compose",
+                &args,
+                &environment,
+                &format!("action {:?} on service {}", &self.action, service),
+            )
+            .await?;
         }
 
         Ok(self.next_state.clone())

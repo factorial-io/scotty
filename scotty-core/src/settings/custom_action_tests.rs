@@ -203,4 +203,145 @@ mod tests {
         let action: CustomAction = serde_json::from_str(json).unwrap();
         assert_eq!(action.permission, Permission::ActionWrite);
     }
+
+    // Tests for can_execute() - critical for security
+    #[test]
+    fn test_can_execute_pending_action_returns_false() {
+        let action = create_test_action();
+        assert_eq!(action.status, ActionStatus::Pending);
+        assert!(
+            !action.can_execute(),
+            "Pending actions should not be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_approved_action_returns_true() {
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), None);
+        assert_eq!(action.status, ActionStatus::Approved);
+        assert!(
+            action.can_execute(),
+            "Approved actions should be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_rejected_action_returns_false() {
+        let mut action = create_test_action();
+        action.reject(
+            "admin@example.com".to_string(),
+            Some("Not allowed".to_string()),
+        );
+        assert_eq!(action.status, ActionStatus::Rejected);
+        assert!(
+            !action.can_execute(),
+            "Rejected actions should not be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_revoked_action_returns_false() {
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), None);
+        assert!(action.can_execute(), "Should be executable after approval");
+
+        action.revoke(
+            "admin@example.com".to_string(),
+            Some("No longer needed".to_string()),
+        );
+        assert_eq!(action.status, ActionStatus::Revoked);
+        assert!(
+            !action.can_execute(),
+            "Revoked actions should not be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_expired_status_returns_false() {
+        let mut action = create_test_action();
+        action.expire();
+        assert_eq!(action.status, ActionStatus::Expired);
+        assert!(
+            !action.can_execute(),
+            "Expired actions should not be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_approved_but_past_expiration_returns_false() {
+        use chrono::Duration;
+
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), None);
+
+        // Set expiration to 1 hour ago
+        action.expires_at = Some(Utc::now() - Duration::hours(1));
+
+        assert_eq!(action.status, ActionStatus::Approved);
+        assert!(
+            !action.can_execute(),
+            "Actions past their expiration should not be executable"
+        );
+    }
+
+    #[test]
+    fn test_can_execute_approved_with_future_expiration_returns_true() {
+        use chrono::Duration;
+
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), None);
+
+        // Set expiration to 1 hour from now
+        action.expires_at = Some(Utc::now() + Duration::hours(1));
+
+        assert_eq!(action.status, ActionStatus::Approved);
+        assert!(
+            action.can_execute(),
+            "Approved actions with future expiration should be executable"
+        );
+    }
+
+    #[test]
+    fn test_approve_sets_reviewer_info() {
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), Some("LGTM".to_string()));
+
+        assert_eq!(action.status, ActionStatus::Approved);
+        assert_eq!(action.reviewed_by, Some("admin@example.com".to_string()));
+        assert!(action.reviewed_at.is_some());
+        assert_eq!(action.review_comment, Some("LGTM".to_string()));
+    }
+
+    #[test]
+    fn test_reject_sets_reviewer_info() {
+        let mut action = create_test_action();
+        action.reject(
+            "admin@example.com".to_string(),
+            Some("Security concern".to_string()),
+        );
+
+        assert_eq!(action.status, ActionStatus::Rejected);
+        assert_eq!(action.reviewed_by, Some("admin@example.com".to_string()));
+        assert!(action.reviewed_at.is_some());
+        assert_eq!(action.review_comment, Some("Security concern".to_string()));
+    }
+
+    #[test]
+    fn test_revoke_sets_reviewer_info() {
+        let mut action = create_test_action();
+        action.approve("admin@example.com".to_string(), None);
+        action.revoke(
+            "security@example.com".to_string(),
+            Some("Emergency revocation".to_string()),
+        );
+
+        assert_eq!(action.status, ActionStatus::Revoked);
+        assert_eq!(action.reviewed_by, Some("security@example.com".to_string()));
+        assert!(action.reviewed_at.is_some());
+        assert_eq!(
+            action.review_comment,
+            Some("Emergency revocation".to_string())
+        );
+    }
 }

@@ -15,13 +15,22 @@ use crate::{
     services::AuthorizationService,
 };
 use scotty_core::{
-    authorization::Permission, settings::app_blueprint::ActionName,
+    authorization::Permission,
+    settings::{app_blueprint::ActionName, custom_action::CustomAction},
     tasks::running_app_context::RunningAppContext,
 };
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CustomActionPayload {
     pub action_name: String,
+}
+
+/// Result of looking up an action - either a per-app custom action or a blueprint action
+enum ActionLookupResult<'a> {
+    /// Per-app custom action (requires approval validation)
+    PerAppAction(&'a CustomAction),
+    /// Blueprint action (always executable)
+    BlueprintAction(Permission),
 }
 
 #[debug_handler]
@@ -32,8 +41,8 @@ pub struct CustomActionPayload {
     responses(
         (status = 200, response = inline(RunningAppContext)),
         (status = 401, description = "Access token is missing or invalid"),
-        (status = 403, description = "Insufficient permissions for this action"),
-        (status = 404, description = "App not found"),
+        (status = 403, description = "Insufficient permissions for this action or action not approved"),
+        (status = 404, description = "App or action not found"),
         (status = 500, description = "Internal server error"),
     ),
     security(
@@ -57,9 +66,31 @@ pub async fn run_custom_action_handler(
         None => return Err(AppError::AppNotFound(app_name.clone())),
     };
 
-    // Get the action's required permission from the blueprint
+    // Look up the action - check per-app custom actions first, then blueprint actions
     let action_name = ActionName::Custom(payload.action_name.clone());
-    let required_permission = get_action_permission(&state, &app, &action_name)?;
+    let lookup_result = lookup_action(&state, &app, &payload.action_name)?;
+
+    // Get the required permission and validate executability
+    let required_permission = match &lookup_result {
+        ActionLookupResult::PerAppAction(custom_action) => {
+            // CRITICAL: Validate that per-app custom actions are approved before execution
+            if !custom_action.can_execute() {
+                warn!(
+                    "Action '{}' on app '{}' is not executable (status: {})",
+                    payload.action_name, app_name, custom_action.status
+                );
+                return Err(AppError::ActionNotExecutable(format!(
+                    "Action '{}' cannot be executed (status: {}). Only approved actions can be executed.",
+                    payload.action_name, custom_action.status
+                )));
+            }
+            custom_action.permission
+        }
+        ActionLookupResult::BlueprintAction(permission) => {
+            // Blueprint actions are always executable (no approval workflow)
+            *permission
+        }
+    };
 
     // Check if user has the required permission for this action
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
@@ -97,24 +128,35 @@ pub async fn run_custom_action_handler(
     Ok(Json(app_data))
 }
 
-/// Get the required permission for an action from its definition
-fn get_action_permission(
-    state: &SharedAppState,
-    app: &scotty_core::apps::app_data::AppData,
-    action_name: &ActionName,
-) -> Result<Permission, AppError> {
+/// Look up an action by name, checking per-app custom actions first, then blueprint actions.
+///
+/// This function implements the action resolution priority:
+/// 1. Per-app custom actions (stored in AppSettings.custom_actions) - require approval
+/// 2. Blueprint actions (defined in the app's blueprint) - always executable
+fn lookup_action<'a>(
+    state: &'a SharedAppState,
+    app: &'a scotty_core::apps::app_data::AppData,
+    action_name: &str,
+) -> Result<ActionLookupResult<'a>, AppError> {
     // Get app settings
     let app_settings = app
         .settings
         .as_ref()
         .ok_or_else(|| AppError::AppSettingsNotFound(app.name.to_string()))?;
 
-    // Get blueprint name
+    // First, check per-app custom actions
+    if let Some(custom_action) = app_settings.get_custom_action(action_name) {
+        return Ok(ActionLookupResult::PerAppAction(custom_action));
+    }
+
+    // Fall back to blueprint actions
     let blueprint_name = app_settings.app_blueprint.as_ref().ok_or_else(|| {
-        AppError::AppBlueprintMismatch("App doesn't have a blueprint".to_string())
+        AppError::ActionNotFound(format!(
+            "Action '{}' not found: app has no custom actions and no blueprint",
+            action_name
+        ))
     })?;
 
-    // Get blueprint
     let blueprint = state
         .settings
         .apps
@@ -122,12 +164,15 @@ fn get_action_permission(
         .get(blueprint_name)
         .ok_or_else(|| AppError::AppBlueprintNotFound(blueprint_name.clone()))?;
 
-    // Get action
-    let action = blueprint
-        .actions
-        .get(action_name)
-        .ok_or_else(|| AppError::ActionNotFound(format!("Action not found: {action_name:?}")))?;
+    let action_key = ActionName::Custom(action_name.to_string());
+    let blueprint_action = blueprint.actions.get(&action_key).ok_or_else(|| {
+        AppError::ActionNotFound(format!(
+            "Action '{}' not found in app custom actions or blueprint '{}'",
+            action_name, blueprint_name
+        ))
+    })?;
 
-    // Return the action's permission (defaults to ActionWrite if not specified)
-    Ok(action.permission)
+    Ok(ActionLookupResult::BlueprintAction(
+        blueprint_action.permission,
+    ))
 }

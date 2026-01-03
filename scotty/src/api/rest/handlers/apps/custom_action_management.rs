@@ -67,7 +67,7 @@ pub async fn create_custom_action_handler(
     let mut settings = app.settings.clone().unwrap_or_default();
     settings
         .add_custom_action(action.clone())
-        .map_err(AppError::ActionNotFound)?;
+        .map_err(AppError::ActionAlreadyExists)?;
 
     // Update app with new settings
     let updated_app = scotty_core::apps::app_data::AppData {
