@@ -1,6 +1,7 @@
 pub mod api_server;
 pub mod app_blueprint;
 pub mod apps;
+pub mod custom_action;
 pub mod docker;
 pub mod loadbalancer;
 pub mod notification_services;

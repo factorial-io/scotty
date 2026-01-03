@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Available permissions/actions for authorization
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Permission {
     View,
     Manage,
@@ -10,8 +10,20 @@ pub enum Permission {
     Logs,
     Create,
     Destroy,
+    /// Read-only admin access
+    #[serde(alias = "adminread")]
     AdminRead,
+    /// Write admin access
+    #[serde(alias = "adminwrite")]
     AdminWrite,
+    /// Permission to execute safe/read-only actions (no side effects)
+    ActionRead,
+    /// Permission to execute actions that modify state
+    ActionWrite,
+    /// Permission to create, list, and delete custom actions for apps in user's scope
+    ActionManage,
+    /// Permission to approve/reject pending custom actions (admin-level)
+    ActionApprove,
 }
 
 impl Permission {
@@ -24,6 +36,10 @@ impl Permission {
             Permission::Destroy,
             Permission::Shell,
             Permission::Logs,
+            Permission::ActionRead,
+            Permission::ActionWrite,
+            Permission::ActionManage,
+            Permission::ActionApprove,
             Permission::AdminRead,
             Permission::AdminWrite,
         ]
@@ -40,6 +56,10 @@ impl Permission {
             Permission::Destroy => "destroy",
             Permission::AdminRead => "admin_read",
             Permission::AdminWrite => "admin_write",
+            Permission::ActionRead => "action_read",
+            Permission::ActionWrite => "action_write",
+            Permission::ActionManage => "action_manage",
+            Permission::ActionApprove => "action_approve",
         }
     }
 
@@ -55,6 +75,10 @@ impl Permission {
             "destroy" => Some(Permission::Destroy),
             "admin_read" => Some(Permission::AdminRead),
             "admin_write" => Some(Permission::AdminWrite),
+            "action_read" => Some(Permission::ActionRead),
+            "action_write" => Some(Permission::ActionWrite),
+            "action_manage" => Some(Permission::ActionManage),
+            "action_approve" => Some(Permission::ActionApprove),
             _ => None,
         }
     }

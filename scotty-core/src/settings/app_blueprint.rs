@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::authorization::Permission;
+
 #[derive(Clone, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
 pub enum ActionType {
     Lifecycle,
@@ -92,6 +94,9 @@ pub struct Action {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
     pub commands: HashMap<String, Vec<String>>,
+    /// Required permission to execute this action (defaults to ActionWrite)
+    #[serde(default = "Action::default_permission")]
+    pub permission: Permission,
 }
 
 impl Action {
@@ -103,7 +108,25 @@ impl Action {
         Self {
             description,
             commands,
+            permission: Self::default_permission(),
         }
+    }
+
+    pub fn with_permission(
+        description: String,
+        commands: HashMap<String, Vec<String>>,
+        permission: Permission,
+    ) -> Self {
+        Self {
+            description,
+            commands,
+            permission,
+        }
+    }
+
+    /// Default permission for actions (ActionWrite for backwards compatibility)
+    fn default_permission() -> Permission {
+        Permission::ActionWrite
     }
 }
 

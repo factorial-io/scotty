@@ -23,6 +23,9 @@ pub enum AppError {
     #[error("Invalid input")]
     InvalidInput,
 
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
     #[error("App not found: {0}")]
     AppNotFound(String),
 
@@ -117,6 +120,7 @@ impl AppError {
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::FileCompressionCorrupted(_, _) => StatusCode::BAD_REQUEST,
             AppError::FileDecompressedSizeExceeded(_, _) => StatusCode::BAD_REQUEST,
             AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
