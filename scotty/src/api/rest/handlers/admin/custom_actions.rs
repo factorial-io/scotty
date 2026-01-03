@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO: Remove when routes are wired up
-
 use axum::{
     debug_handler,
     extract::{Path, State},
