@@ -7,6 +7,7 @@ use axum::{
 use tracing::info;
 
 use crate::{api::error::AppError, app_state::SharedAppState};
+use scotty_core::authorization::Permission;
 use scotty_core::settings::custom_action::{
     CreateCustomActionRequest, CustomAction, CustomActionList,
 };
@@ -45,12 +46,20 @@ pub async fn create_custom_action_handler(
         None => return Err(AppError::AppNotFound(app_name)),
     };
 
+    // Parse permission string
+    let permission = Permission::from_str(&payload.permission).ok_or_else(|| {
+        AppError::BadRequest(format!(
+            "Invalid permission '{}'. Use 'action_read' or 'action_write'",
+            payload.permission
+        ))
+    })?;
+
     // Create the custom action
     let action = CustomAction::new(
         payload.name.clone(),
         payload.description,
         payload.commands,
-        payload.permission,
+        permission,
         user_id,
     );
 

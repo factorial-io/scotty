@@ -38,6 +38,12 @@ impl ActionStatus {
     }
 }
 
+impl std::fmt::Display for ActionStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// A custom action created for a specific app
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CustomAction {
@@ -52,6 +58,7 @@ pub struct CustomAction {
     pub commands: HashMap<String, Vec<String>>,
 
     /// Required permission to execute this action (ActionRead or ActionWrite)
+    #[serde(default = "default_action_permission")]
     pub permission: Permission,
 
     /// User who created this action
@@ -169,8 +176,13 @@ pub struct CreateCustomActionRequest {
     #[serde(default)]
     pub description: String,
     pub commands: HashMap<String, Vec<String>>,
-    #[serde(default = "default_action_permission")]
-    pub permission: Permission,
+    /// Permission as string for API flexibility (e.g., "action_read" or "action_write")
+    #[serde(default = "default_permission_string")]
+    pub permission: String,
+}
+
+fn default_permission_string() -> String {
+    "action_write".to_string()
 }
 
 fn default_action_permission() -> Permission {

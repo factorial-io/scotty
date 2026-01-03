@@ -9,3 +9,6 @@ pub mod output;
 pub mod rate_limiting;
 pub mod scheduler_interval;
 pub mod shell;
+
+#[cfg(test)]
+mod custom_action_tests;
