@@ -15,8 +15,7 @@ use crate::{
     services::AuthorizationService,
 };
 use scotty_core::{
-    authorization::Permission,
-    settings::app_blueprint::ActionName,
+    authorization::Permission, settings::app_blueprint::ActionName,
     tasks::running_app_context::RunningAppContext,
 };
 
@@ -111,10 +110,9 @@ fn get_action_permission(
         .ok_or_else(|| AppError::AppSettingsNotFound(app.name.to_string()))?;
 
     // Get blueprint name
-    let blueprint_name = app_settings
-        .app_blueprint
-        .as_ref()
-        .ok_or_else(|| AppError::AppBlueprintMismatch("App doesn't have a blueprint".to_string()))?;
+    let blueprint_name = app_settings.app_blueprint.as_ref().ok_or_else(|| {
+        AppError::AppBlueprintMismatch("App doesn't have a blueprint".to_string())
+    })?;
 
     // Get blueprint
     let blueprint = state
