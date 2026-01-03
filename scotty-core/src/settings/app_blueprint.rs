@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::authorization::Permission;
+
 #[derive(Clone, Debug, Hash, Eq, PartialEq, utoipa::ToSchema, utoipa::ToResponse)]
 pub enum ActionType {
     Lifecycle,
@@ -87,11 +89,23 @@ impl ActionName {
 
 // ServiceCommands struct no longer needed since we're using a HashMap directly
 
+/// A blueprint action that can be executed on apps using this blueprint.
+///
+/// Blueprint actions use the same permission model as per-app custom actions:
+/// - `action_read` permission allows executing read-only actions
+/// - `action_write` permission allows executing actions that modify state
+///
+/// The key difference is that blueprint actions are always executable (no approval
+/// workflow), while per-app custom actions require approval before they can be run.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
 pub struct Action {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
     pub commands: HashMap<String, Vec<String>>,
+    /// Required permission to execute this action (defaults to ActionWrite).
+    /// Both blueprint actions and per-app custom actions use the same permission types.
+    #[serde(default = "Action::default_permission")]
+    pub permission: Permission,
 }
 
 impl Action {
@@ -103,7 +117,25 @@ impl Action {
         Self {
             description,
             commands,
+            permission: Self::default_permission(),
         }
+    }
+
+    pub fn with_permission(
+        description: String,
+        commands: HashMap<String, Vec<String>>,
+        permission: Permission,
+    ) -> Self {
+        Self {
+            description,
+            commands,
+            permission,
+        }
+    }
+
+    /// Default permission for actions (ActionWrite for backwards compatibility)
+    fn default_permission() -> Permission {
+        Permission::ActionWrite
     }
 }
 
