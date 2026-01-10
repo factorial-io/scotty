@@ -14,7 +14,7 @@ license-file = "LICENSE"
 [workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.8.0", default-features = false, features = ["http1", "http2", "tokio", "tower-log", "matched-path", "json", "ws", "macros"] }
-bollard = { version = "0.19.0", default-features = false, features = ["ssl", "chrono", "http", "pipe"] }
+bollard = { version = "0.20.0", default-features = false, features = ["ssl", "chrono", "http", "pipe"] }
 config = { version = "0.15.0", default-features = false, features = ["yaml", "toml"] }
 readonly = "0.2.12"
 serde = { version = "1.0.210", features = ["derive"] }
