@@ -94,7 +94,7 @@
     },
     {
       "matchManagers": [
-        "npm"
+        "bun"
       ],
       "automerge": true,
       "platformAutomerge": true,
@@ -102,7 +102,7 @@
       "matchUpdateTypes": [
         "patch"
       ],
-      "groupName": "Npm dependencies auto-merge (patch)"
+      "groupName": "Bun dependencies auto-merge (patch)"
     },
     {
       "matchManagers": [
