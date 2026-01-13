@@ -74,6 +74,18 @@ pub enum Commands {
     /// Run a custom action on an app
     #[command(name = "app:action")]
     Action(ActionCommand),
+    /// List custom actions for an app
+    #[command(name = "action:list")]
+    ActionList(ActionListCommand),
+    /// Get details of a custom action
+    #[command(name = "action:get")]
+    ActionGet(ActionGetCommand),
+    /// Create a custom action for an app
+    #[command(name = "action:create")]
+    ActionCreate(ActionCreateCommand),
+    /// Delete a custom action from an app
+    #[command(name = "action:delete")]
+    ActionDelete(ActionDeleteCommand),
     /// View logs for an app service
     #[command(name = "app:logs")]
     Logs(LogsCommand),
@@ -157,6 +169,22 @@ pub enum Commands {
     #[command(name = "admin:permissions:user")]
     AdminPermissionsUser(GetUserPermissionsRequest),
 
+    /// List pending custom actions awaiting approval
+    #[command(name = "admin:actions:pending")]
+    AdminActionsPending,
+    /// Get details of a pending custom action
+    #[command(name = "admin:actions:get")]
+    AdminActionsGet(AdminActionGetCommand),
+    /// Approve a pending custom action
+    #[command(name = "admin:actions:approve")]
+    AdminActionsApprove(AdminActionReviewCommand),
+    /// Reject a pending custom action
+    #[command(name = "admin:actions:reject")]
+    AdminActionsReject(AdminActionReviewCommand),
+    /// Revoke an approved custom action
+    #[command(name = "admin:actions:revoke")]
+    AdminActionsRevoke(AdminActionReviewCommand),
+
     #[command(name = "test")]
     Test,
 }
@@ -211,6 +239,73 @@ pub struct ActionCommand {
 
     /// Name of the custom action to run
     pub action_name: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct ActionListCommand {
+    /// Name of the app
+    pub app_name: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct ActionGetCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action
+    pub action_name: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct ActionCreateCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action
+    pub action_name: String,
+
+    /// Description of the action
+    #[arg(long)]
+    pub description: String,
+
+    /// Permission level required (action_read or action_write)
+    #[arg(long, default_value = "action_write")]
+    pub permission: String,
+
+    /// Commands to execute (format: service:command, can be repeated)
+    #[arg(long = "command", value_name = "SERVICE:COMMAND")]
+    pub commands: Vec<String>,
+}
+
+#[derive(Debug, Parser)]
+pub struct ActionDeleteCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action
+    pub action_name: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct AdminActionGetCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action
+    pub action_name: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct AdminActionReviewCommand {
+    /// Name of the app
+    pub app_name: String,
+
+    /// Name of the custom action
+    pub action_name: String,
+
+    /// Optional comment for the review
+    #[arg(long)]
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Parser)]

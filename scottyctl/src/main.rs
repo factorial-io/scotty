@@ -71,6 +71,14 @@ async fn main() -> anyhow::Result<()> {
         Commands::Info(cmd) => commands::apps::info_app(&app_context, cmd).await,
         Commands::Create(cmd) => commands::apps::create_app(&app_context, cmd).await,
         Commands::Action(cmd) => commands::apps::run_custom_action(&app_context, cmd).await,
+        Commands::ActionList(cmd) => commands::apps::list_custom_actions(&app_context, cmd).await,
+        Commands::ActionGet(cmd) => commands::apps::get_custom_action(&app_context, cmd).await,
+        Commands::ActionCreate(cmd) => {
+            commands::apps::create_custom_action(&app_context, cmd).await
+        }
+        Commands::ActionDelete(cmd) => {
+            commands::apps::delete_custom_action(&app_context, cmd).await
+        }
         Commands::Logs(cmd) => commands::apps::logs_app(&app_context, cmd).await,
         Commands::Shell(cmd) => commands::apps::shell_app(&app_context, cmd).await,
         Commands::NotifyAdd(cmd) => commands::notify::add_notification(&app_context, cmd).await,
@@ -107,6 +115,19 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::AdminPermissionsUser(cmd) => {
             commands::admin::get_user_permissions(&app_context, cmd).await
+        }
+        Commands::AdminActionsPending => commands::admin::list_pending_actions(&app_context).await,
+        Commands::AdminActionsGet(cmd) => {
+            commands::admin::get_action_details(&app_context, cmd).await
+        }
+        Commands::AdminActionsApprove(cmd) => {
+            commands::admin::approve_action(&app_context, cmd).await
+        }
+        Commands::AdminActionsReject(cmd) => {
+            commands::admin::reject_action(&app_context, cmd).await
+        }
+        Commands::AdminActionsRevoke(cmd) => {
+            commands::admin::revoke_action(&app_context, cmd).await
         }
         Commands::Test => commands::test::run_tests(&app_context).await,
     };

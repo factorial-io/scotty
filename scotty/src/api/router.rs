@@ -17,6 +17,9 @@ use scotty_core::notification_types::GitlabContext;
 use scotty_core::notification_types::MattermostContext;
 use scotty_core::notification_types::NotificationReceiver;
 use scotty_core::notification_types::WebhookContext;
+use scotty_core::settings::custom_action::{
+    ActionStatus, CreateCustomActionRequest, CustomAction, CustomActionList, ReviewActionRequest,
+};
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
 use utoipa::openapi::security::SecurityScheme;
@@ -28,6 +31,10 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::api::rest::handlers::apps::create::__path_create_app_handler;
 use crate::api::rest::handlers::apps::custom_action::__path_run_custom_action_handler;
+use crate::api::rest::handlers::apps::custom_action_management::{
+    __path_create_custom_action_handler, __path_delete_custom_action_handler,
+    __path_get_custom_action_handler, __path_list_custom_actions_handler,
+};
 use crate::api::rest::handlers::apps::list::__path_list_apps_handler;
 use crate::api::rest::handlers::apps::list::list_apps_handler;
 use crate::api::rest::handlers::apps::notify::__path_add_notification_handler;
@@ -54,6 +61,11 @@ use scotty_core::settings::api_server::AuthMode;
 use crate::api::rest::handlers::admin::assignments::{
     __path_create_assignment_handler, __path_list_assignments_handler,
     __path_remove_assignment_handler,
+};
+use crate::api::rest::handlers::admin::custom_actions::{
+    PendingActionInfo, PendingActionsResponse, __path_approve_action_handler,
+    __path_get_action_details_handler, __path_list_pending_actions_handler,
+    __path_reject_action_handler, __path_revoke_action_handler,
 };
 use crate::api::rest::handlers::admin::permissions::{
     __path_get_user_permissions_handler, __path_list_available_permissions_handler,
@@ -84,6 +96,10 @@ use super::rate_limiting::{
 use super::rest::handlers::admin::assignments::{
     create_assignment_handler, list_assignments_handler, remove_assignment_handler,
 };
+use super::rest::handlers::admin::custom_actions::{
+    approve_action_handler, get_action_details_handler, list_pending_actions_handler,
+    reject_action_handler, revoke_action_handler,
+};
 use super::rest::handlers::admin::permissions::{
     get_user_permissions_handler, list_available_permissions_handler, test_permission_handler,
 };
@@ -91,6 +107,10 @@ use super::rest::handlers::admin::roles::{create_role_handler, list_roles_handle
 use super::rest::handlers::admin::scopes::{create_scope_handler, list_scopes_handler};
 use super::rest::handlers::apps::create::create_app_handler;
 use super::rest::handlers::apps::custom_action::run_custom_action_handler;
+use super::rest::handlers::apps::custom_action_management::{
+    create_custom_action_handler, delete_custom_action_handler, get_custom_action_handler,
+    list_custom_actions_handler,
+};
 use super::rest::handlers::apps::notify::add_notification_handler;
 use super::rest::handlers::apps::notify::remove_notification_handler;
 use super::rest::handlers::apps::run::adopt_app_handler;
@@ -142,6 +162,11 @@ use scotty_core::admin::{
         remove_notification_handler,
         adopt_app_handler,
         run_custom_action_handler,
+        // Custom action management endpoints
+        create_custom_action_handler,
+        list_custom_actions_handler,
+        get_custom_action_handler,
+        delete_custom_action_handler,
         // Admin endpoints
         list_scopes_handler,
         create_scope_handler,
@@ -153,6 +178,12 @@ use scotty_core::admin::{
         test_permission_handler,
         get_user_permissions_handler,
         list_available_permissions_handler,
+        // Admin custom action endpoints
+        list_pending_actions_handler,
+        get_action_details_handler,
+        approve_action_handler,
+        reject_action_handler,
+        revoke_action_handler,
     ),
     components(
         schemas(
@@ -167,7 +198,10 @@ use scotty_core::admin::{
             RoleInfo, RolesListResponse, CreateRoleRequest, CreateRoleResponse,
             AssignmentInfo, AssignmentsListResponse, CreateAssignmentRequest, CreateAssignmentResponse,
             RemoveAssignmentRequest, RemoveAssignmentResponse, Assignment,
-            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse
+            TestPermissionRequest, TestPermissionResponse, UserPermissionsResponse, AvailablePermissionsResponse,
+            // Custom action schemas
+            CustomAction, ActionStatus, CreateCustomActionRequest, CustomActionList, ReviewActionRequest,
+            PendingActionInfo, PendingActionsResponse
         )
     ),
     tags(
@@ -285,12 +319,38 @@ impl ApiRoutes {
                 "/api/v1/authenticated/apps/notify/remove",
                 post(remove_notification_handler),
             )
+            // Note: Permission checking for actions is done dynamically in the handler
+            // based on the action's permission field (ActionRead or ActionWrite)
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
-                post(run_custom_action_handler).layer(middleware::from_fn_with_state(
-                    state.clone(),
-                    require_permission(Permission::Manage),
-                )),
+                post(run_custom_action_handler),
+            )
+            // Custom action management routes
+            .route(
+                "/api/v1/authenticated/apps/{app_name}/custom-actions",
+                post(create_custom_action_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::ActionManage),
+                    ))
+                    .get(list_custom_actions_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::View),
+                    )),
+            )
+            .route(
+                "/api/v1/authenticated/apps/{app_name}/custom-actions/{action_name}",
+                get(get_custom_action_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::View),
+                    ))
+                    .delete(delete_custom_action_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::ActionManage),
+                    )),
             )
             // Admin API routes - require AdminRead/AdminWrite permissions
             .route(
@@ -356,6 +416,42 @@ impl ApiRoutes {
                 get(get_user_permissions_handler).layer(middleware::from_fn_with_state(
                     state.clone(),
                     require_permission(Permission::AdminRead),
+                )),
+            )
+            // Admin custom action approval routes
+            .route(
+                "/api/v1/authenticated/admin/actions/pending",
+                get(list_pending_actions_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::ActionApprove),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/actions/{app_name}/{action_name}",
+                get(get_action_details_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::ActionApprove),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/approve",
+                post(approve_action_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::ActionApprove),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/reject",
+                post(reject_action_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::ActionApprove),
+                )),
+            )
+            .route(
+                "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/revoke",
+                post(revoke_action_handler).layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_permission(Permission::ActionApprove),
                 )),
             )
             // Apply authorization middleware to all authenticated routes

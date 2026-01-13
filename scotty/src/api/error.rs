@@ -23,6 +23,9 @@ pub enum AppError {
     #[error("Invalid input")]
     InvalidInput,
 
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
     #[error("App not found: {0}")]
     AppNotFound(String),
 
@@ -77,6 +80,12 @@ pub enum AppError {
     #[error("{0}")]
     ActionNotFound(String),
 
+    #[error("Action not executable: {0}")]
+    ActionNotExecutable(String),
+
+    #[error("Action already exists: {0}")]
+    ActionAlreadyExists(String),
+
     #[error("Found invalid notification service ids: {0}")]
     InvalidNotificationServiceIds(String),
 
@@ -117,12 +126,15 @@ impl AppError {
             AppError::TaskNotFound(_) => StatusCode::NOT_FOUND,
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::FileCompressionCorrupted(_, _) => StatusCode::BAD_REQUEST,
             AppError::FileDecompressedSizeExceeded(_, _) => StatusCode::BAD_REQUEST,
             AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,
             AppError::MiddlewareNotAllowed(_) => StatusCode::BAD_REQUEST,
             AppError::AppNotRunning(_) => StatusCode::CONFLICT,
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::ActionNotExecutable(_) => StatusCode::FORBIDDEN,
+            AppError::ActionAlreadyExists(_) => StatusCode::CONFLICT,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
             AppError::AuthorizationNotConfigured => StatusCode::SERVICE_UNAVAILABLE,
