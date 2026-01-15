@@ -1,0 +1,933 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> OAuth Authentication with OIDC</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" OAuth Authentication with OIDC">
+        <meta name="twitter:title" content=" OAuth Authentication with OIDC">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/oauth-authentication.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#overview" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Overview</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#how-oauth-mode-works" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> How OAuth Mode Works</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#setup-instructions" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Setup Instructions</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#oauth-endpoints" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Endpoints</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#user-information" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> User Information</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#development-vs-production" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Development vs Production</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#hybrid-authentication%3A-oauth-%2B-bearer-tokens" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Hybrid Authentication: OAuth + Bearer Tokens</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#frontend-integration" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Frontend Integration</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#cli-integration-(scottyctl)" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> CLI Integration (scottyctl)</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#security-features" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Security Features</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#troubleshooting-1" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Troubleshooting</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#urls-and-access" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> URLs and Access</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="oauth-authentication-with-oidc" tabindex="-1"><a class="header-anchor" href="#oauth-authentication-with-oidc">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OAuth Authentication with OIDC</h1>
+<p>Scotty provides built-in OAuth authentication with OIDC (OpenID Connect) integration. This setup offers secure authentication that protects your Scotty API endpoints while providing a seamless user experience through the web interface.</p>
+<h2 id="overview" tabindex="-1"><a class="header-anchor" href="#overview">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Overview</h2>
+<p>Scotty supports three authentication modes configured via <code>auth_mode</code>:</p>
+<ul>
+<li><strong><code>dev</code></strong>: Development mode with no authentication (uses fixed dev user)</li>
+<li><strong><code>oauth</code></strong>: Native OAuth authentication with OIDC provider integration</li>
+<li><strong><code>bearer</code></strong>: Traditional token-based authentication</li>
+</ul>
+<p>In OAuth mode, Scotty handles the complete OAuth 2.0 Authorization Code flow with PKCE (Proof Key for Code Exchange) for enhanced security.</p>
+<h2 id="how-oauth-mode-works" tabindex="-1"><a class="header-anchor" href="#how-oauth-mode-works">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> How OAuth Mode Works</h2>
+<h3 id="architecture" tabindex="-1"><a class="header-anchor" href="#architecture">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Architecture</h3>
+<pre><code>User → Frontend SPA → Scotty OAuth Endpoints → OIDC Provider
+                              ↓
+                        Session Management
+                              ↓  
+                         User Authentication
+</code></pre>
+<h3 id="authentication-flow" tabindex="-1"><a class="header-anchor" href="#authentication-flow">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authentication Flow</h3>
+<ol>
+<li><strong>User initiates login</strong> via the Scotty frontend</li>
+<li><strong>Frontend redirects</strong> to Scotty's <code>/oauth/authorize</code> endpoint</li>
+<li><strong>Scotty generates</strong> authorization URL with PKCE challenge and redirects to OIDC provider</li>
+<li><strong>User authenticates</strong> with OIDC provider</li>
+<li><strong>OIDC provider redirects</strong> back to Scotty's <code>/api/oauth/callback</code> endpoint with authorization code</li>
+<li><strong>Scotty exchanges</strong> authorization code for access token using PKCE verifier</li>
+<li><strong>User information</strong> is extracted via OIDC <code>/oauth/userinfo</code> endpoint and session is created</li>
+<li><strong>Frontend exchanges</strong> session for tokens and stores OAuth tokens and user info in localStorage</li>
+</ol>
+<h3 id="route-protection" tabindex="-1"><a class="header-anchor" href="#route-protection">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Route Protection</h3>
+<ul>
+<li><strong>Public</strong>: <code>/</code>, <code>/api/v1/health</code>, <code>/api/v1/info</code>, <code>/api/v1/login</code>, <code>/oauth/*</code>, static assets, SPA routes</li>
+<li><strong>Protected</strong>: <code>/api/v1/authenticated/*</code> - all API operations that modify state</li>
+</ul>
+<h2 id="setup-instructions" tabindex="-1"><a class="header-anchor" href="#setup-instructions">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Setup Instructions</h2>
+<h3 id="1.-oidc-provider-oauth-application" tabindex="-1"><a class="header-anchor" href="#1.-oidc-provider-oauth-application">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 1. OIDC Provider OAuth Application</h3>
+<p>Configure your OIDC provider (GitLab, Auth0, Keycloak, etc.):</p>
+<h4 id="gitlab-example%3A" tabindex="-1"><a class="header-anchor" href="#gitlab-example%3A">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> GitLab Example:</h4>
+<ol>
+<li>Go to GitLab → Settings → Applications</li>
+<li>Create new application:
+<ul>
+<li><strong>Name</strong>: Scotty</li>
+<li><strong>Redirect URI</strong>: <code>http://localhost:21342/api/oauth/callback</code></li>
+<li><strong>Scopes</strong>: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>read_user</code></li>
+</ul>
+</li>
+<li>Save the <strong>Application ID</strong> and <strong>Secret</strong></li>
+</ol>
+<h4 id="other-oidc-providers%3A" tabindex="-1"><a class="header-anchor" href="#other-oidc-providers%3A">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Other OIDC Providers:</h4>
+<ul>
+<li><strong>Auth0</strong>: Create application in Auth0 dashboard</li>
+<li><strong>Keycloak</strong>: Create client in Keycloak admin console</li>
+<li><strong>Google</strong>: Use Google Cloud Console OAuth 2.0 setup</li>
+</ul>
+<h3 id="2.-scotty-configuration" tabindex="-1"><a class="header-anchor" href="#2.-scotty-configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 2. Scotty Configuration</h3>
+<p>Configure Scotty for OAuth mode in <code>config/local.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">bind_address</span><span class="token punctuation">:</span> <span class="token string">"0.0.0.0:21342"</span>
+  <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> <span class="token string">"oauth"</span>
+  <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+    <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>  <span class="token comment"># or your OIDC provider URL</span>
+    <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_id"</span>
+    <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span>
+    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
+    <span class="token key atrule">frontend_base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span>  <span class="token comment"># Base URL for frontend redirects (default: http://localhost:21342)</span></code></pre>
+<p><strong>Provider-specific examples:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># GitLab</span>
+<span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+  <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
+
+<span class="token comment"># Auth0  </span>
+<span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+  <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://your-domain.auth0.com"</span>
+
+<span class="token comment"># Keycloak</span>
+<span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+  <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://your-keycloak.com/auth/realms/your-realm"</span>
+
+<span class="token comment"># Google</span>
+<span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+  <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://accounts.google.com"</span></code></pre>
+<h3 id="3.-environment-variables" tabindex="-1"><a class="header-anchor" href="#3.-environment-variables">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 3. Environment Variables</h3>
+<p>Alternatively, you can use environment variables:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set authentication mode</span>
+<span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
+
+<span class="token comment"># OIDC OAuth Application credentials  </span>
+<span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_oidc_application_id
+<span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_oidc_application_secret
+
+<span class="token comment"># OAuth configuration</span>
+<span class="token assign-left variable">SCOTTY__API__OAUTH__OIDC_ISSUER_URL</span><span class="token operator">=</span>https://gitlab.com
+<span class="token assign-left variable">SCOTTY__API__OAUTH__REDIRECT_URL</span><span class="token operator">=</span>http://localhost:21342/api/oauth/callback
+<span class="token assign-left variable">SCOTTY__API__OAUTH__FRONTEND_BASE_URL</span><span class="token operator">=</span>http://localhost:21342</code></pre>
+<h3 id="understanding-oauth-urls" tabindex="-1"><a class="header-anchor" href="#understanding-oauth-urls">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Understanding OAuth URLs</h3>
+<p>Scotty uses two different URL configurations for OAuth:</p>
+<h4 id="redirect_url---backend-oauth-callback" tabindex="-1"><a class="header-anchor" href="#redirect_url---backend-oauth-callback">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <code>redirect_url</code> - Backend OAuth Callback</h4>
+<ul>
+<li><strong>Purpose</strong>: The OAuth callback endpoint where the OIDC provider redirects after user authentication</li>
+<li><strong>Used by</strong>: OIDC provider (GitLab, Auth0, etc.)</li>
+<li><strong>Must match</strong>: The redirect URI configured in your OIDC provider's OAuth application settings</li>
+<li><strong>Example</strong>: <code>http://localhost:21342/api/oauth/callback</code></li>
+<li><strong>Format</strong>: Full URL to Scotty's backend <code>/api/oauth/callback</code> endpoint</li>
+</ul>
+<h4 id="frontend_base_url---frontend-application-base-url" tabindex="-1"><a class="header-anchor" href="#frontend_base_url---frontend-application-base-url">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <code>frontend_base_url</code> - Frontend Application Base URL</h4>
+<ul>
+<li><strong>Purpose</strong>: The base URL of your frontend application where users are redirected after OAuth completes</li>
+<li><strong>Used by</strong>: Scotty backend to redirect users back to the frontend with session ID</li>
+<li><strong>Must match</strong>: The actual URL where your users access Scotty's web interface</li>
+<li><strong>Example</strong>: <code>http://localhost:21342</code> (development) or <code>https://scotty.example.com</code> (production)</li>
+<li><strong>Format</strong>: Base URL only (no path) - Scotty appends <code>/oauth/callback?session_id=xyz</code></li>
+</ul>
+<p><strong>Production Example:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+  <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"https://scotty.example.com/api/oauth/callback"</span>
+  <span class="token key atrule">frontend_base_url</span><span class="token punctuation">:</span> <span class="token string">"https://scotty.example.com"</span></code></pre>
+<p><strong>Important</strong>: Both URLs must match your production domain. Using <code>localhost</code> in production will break the OAuth flow.</p>
+<h2 id="oauth-endpoints" tabindex="-1"><a class="header-anchor" href="#oauth-endpoints">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OAuth Endpoints</h2>
+<p>Scotty provides the following OAuth endpoints:</p>
+<h3 id="get-%2Foauth%2Fauthorize" tabindex="-1"><a class="header-anchor" href="#get-%2Foauth%2Fauthorize">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <code>GET /oauth/authorize</code></h3>
+<p>Initiates the OAuth authorization flow. Redirects to OIDC provider with proper PKCE parameters.</p>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>redirect_uri</code> (optional): Where to redirect after successful authentication</li>
+</ul>
+<h3 id="get-%2Fapi%2Foauth%2Fcallback" tabindex="-1"><a class="header-anchor" href="#get-%2Fapi%2Foauth%2Fcallback">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <code>GET /api/oauth/callback</code></h3>
+<p>Handles the OAuth callback from OIDC provider. Exchanges authorization code for access token and creates temporary session.</p>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>code</code>: Authorization code from OIDC provider</li>
+<li><code>state</code>: CSRF protection token with embedded session ID</li>
+</ul>
+<h3 id="post-%2Foauth%2Fexchange" tabindex="-1"><a class="header-anchor" href="#post-%2Foauth%2Fexchange">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <code>POST /oauth/exchange</code></h3>
+<p>Exchanges temporary session for OAuth tokens (used by frontend).</p>
+<p><strong>Request Body:</strong></p>
+<ul>
+<li><code>session_id</code>: Temporary session identifier</li>
+</ul>
+<h2 id="user-information" tabindex="-1"><a class="header-anchor" href="#user-information">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> User Information</h2>
+<p>After successful OAuth authentication, Scotty provides OIDC-standard user information:</p>
+<ul>
+<li><strong>Subject (sub)</strong>: OIDC user ID (typically a string)</li>
+<li><strong>Username</strong>: Preferred username (optional)</li>
+<li><strong>Name</strong>: User's display name (optional)</li>
+<li><strong>Email</strong>: User's email address (optional)</li>
+<li><strong>Access Token</strong>: OAuth access token for API calls</li>
+</ul>
+<p>This information is available to both the frontend (stored in sessionStorage) and backend (through authentication middleware).</p>
+<h2 id="development-vs-production" tabindex="-1"><a class="header-anchor" href="#development-vs-production">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Development vs Production</h2>
+<h3 id="development-setup" tabindex="-1"><a class="header-anchor" href="#development-setup">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Development Setup</h3>
+<p>For local development, start Scotty with OAuth configuration:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set OAuth configuration</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_client_id
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_client_secret
+
+<span class="token comment"># Run Scotty</span>
+<span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty</code></pre>
+<h3 id="development-mode-alternative" tabindex="-1"><a class="header-anchor" href="#development-mode-alternative">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Development Mode Alternative</h3>
+<p>For faster iteration during development, you can use <code>auth_mode: "dev"</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> <span class="token string">"dev"</span>
+  <span class="token key atrule">dev_user_email</span><span class="token punctuation">:</span> <span class="token string">"developer@localhost"</span>
+  <span class="token key atrule">dev_user_name</span><span class="token punctuation">:</span> <span class="token string">"Local Developer"</span>  </code></pre>
+<p>This bypasses OAuth and uses a fixed development user.</p>
+<h3 id="production-considerations" tabindex="-1"><a class="header-anchor" href="#production-considerations">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Production Considerations</h3>
+<ol>
+<li><strong>Use HTTPS</strong>: Configure TLS for your domain and update redirect URLs</li>
+<li><strong>Proper domains</strong>: Replace <code>localhost</code> with your actual domain in all configurations</li>
+<li><strong>Secure secrets</strong>: Use environment variables or secret management systems</li>
+<li><strong>CORS configuration</strong>: Ensure proper CORS settings for your domain</li>
+<li><strong>Session security</strong>: Configure appropriate session timeouts</li>
+</ol>
+<h2 id="hybrid-authentication%3A-oauth-%2B-bearer-tokens" tabindex="-1"><a class="header-anchor" href="#hybrid-authentication%3A-oauth-%2B-bearer-tokens">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Hybrid Authentication: OAuth + Bearer Tokens</h2>
+<p><strong>Use Case:</strong> OAuth for human users + bearer tokens for service accounts (CI/CD, monitoring, automation).</p>
+<h3 id="overview-1" tabindex="-1"><a class="header-anchor" href="#overview-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Overview</h3>
+<p>When <code>auth_mode</code> is set to <code>oauth</code>, Scotty supports an optional <strong>bearer token fallback</strong> for service accounts. This hybrid approach provides:</p>
+<ul>
+<li><strong>OAuth authentication</strong> for human users (web UI, CLI via device flow)</li>
+<li><strong>Bearer token authentication</strong> for service accounts (CI/CD pipelines, monitoring tools, automation scripts)</li>
+<li><strong>Single authentication mode</strong> - no need to switch between modes</li>
+</ul>
+<h3 id="how-hybrid-authentication-works" tabindex="-1"><a class="header-anchor" href="#how-hybrid-authentication-works">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> How Hybrid Authentication Works</h3>
+<p><strong>Authentication Flow (Optimized for Performance):</strong></p>
+<ol>
+<li><strong>Extract token</strong> from <code>Authorization: Bearer &lt;token&gt;</code> header</li>
+<li><strong>Check bearer tokens FIRST</strong> (fast HashMap lookup) → If found, authenticate as service account</li>
+<li><strong>Try OAuth validation</strong> (network call to OIDC provider) → If bearer check fails</li>
+<li><strong>Return authentication result</strong> or 401 Unauthorized</li>
+</ol>
+<p>This order ensures <strong>service accounts experience zero OAuth latency</strong> while still supporting OAuth for human users.</p>
+<h3 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration</h3>
+<p>Enable hybrid authentication by configuring both OAuth and bearer tokens:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> oauth  <span class="token comment"># Enable OAuth mode</span>
+
+  <span class="token comment"># OAuth configuration for human users</span>
+  <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+    <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
+    <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_id"</span>
+    <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span>
+    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
+    <span class="token key atrule">frontend_base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span>
+
+  <span class="token comment"># Bearer tokens for service accounts (checked first for performance)</span>
+  <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+    <span class="token key atrule">ci-bot</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>        <span class="token comment"># CI/CD pipeline</span>
+    <span class="token key atrule">monitoring</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>    <span class="token comment"># Monitoring service</span>
+    <span class="token key atrule">deployment</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>    <span class="token comment"># Deployment automation</span></code></pre>
+<p><strong>Environment Variable Configuration:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set OAuth credentials</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_client_id
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_client_secret
+
+<span class="token comment"># Set bearer tokens for service accounts (IMPORTANT: Use secure random tokens!)</span>
+<span class="token comment"># Note: Hyphens in config keys (ci-bot) become underscores in env vars (CI_BOT)</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__CI_BOT</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__MONITORING</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__DEPLOYMENT</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>
+
+<span class="token comment"># Start Scotty</span>
+<span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty</code></pre>
+<h3 id="rbac-configuration-for-service-accounts" tabindex="-1"><a class="header-anchor" href="#rbac-configuration-for-service-accounts">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> RBAC Configuration for Service Accounts</h3>
+<p>Configure authorization for bearer token identifiers in <code>config/casbin/policy.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Scopes and roles definitions</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token key atrule">production</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Production environment
+  <span class="token key atrule">staging</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Staging environment
+
+<span class="token key atrule">roles</span><span class="token punctuation">:</span>
+  <span class="token key atrule">deployer</span><span class="token punctuation">:</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>view<span class="token punctuation">,</span> manage<span class="token punctuation">,</span> create<span class="token punctuation">]</span>
+  <span class="token key atrule">monitor</span><span class="token punctuation">:</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>view<span class="token punctuation">,</span> logs<span class="token punctuation">]</span>
+
+<span class="token comment"># Authorization assignments</span>
+<span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token comment"># OAuth users (human users)</span>
+  <span class="token key atrule">"alice@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> admin
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+
+  <span class="token comment"># Bearer token service accounts</span>
+  <span class="token comment"># Format: identifier:&lt;token_name&gt; (matches bearer_tokens key)</span>
+  <span class="token key atrule">"identifier:ci-bot"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> deployer
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>staging<span class="token punctuation">,</span> production<span class="token punctuation">]</span>
+
+  <span class="token key atrule">"identifier:monitoring"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> monitor
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+
+  <span class="token key atrule">"identifier:deployment"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> deployer
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>production<span class="token punctuation">]</span></code></pre>
+<p><strong>Key Concept:</strong> The <code>identifier:&lt;name&gt;</code> in policy.yaml maps to the key in <code>bearer_tokens</code> configuration, NOT the actual token value.</p>
+<p><strong>Example mapping:</strong></p>
+<ul>
+<li>Configuration: <code>bearer_tokens.ci-bot: "secret-token-abc123"</code></li>
+<li>Policy: <code>identifier:ci-bot: [role: deployer, ...]</code></li>
+<li>API call: <code>Authorization: Bearer secret-token-abc123</code></li>
+<li>Scotty maps: token → identifier "ci-bot" → role "deployer"</li>
+</ul>
+<h3 id="usage-examples" tabindex="-1"><a class="header-anchor" href="#usage-examples">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Usage Examples</h3>
+<p><strong>Human User (OAuth):</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Web UI: Click "Login with OAuth" button</span>
+<span class="token comment"># CLI: Use device flow</span>
+scottyctl auth:login <span class="token parameter variable">--server</span> https://scotty.example.com
+
+<span class="token comment"># Use authenticated commands</span>
+scottyctl app:list</code></pre>
+<p><strong>Service Account (Bearer Token):</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># CI/CD Pipeline</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token string">"<span class="token variable">${CI_BOT_TOKEN}</span>"</span>  <span class="token comment"># From CI/CD secrets</span>
+scottyctl <span class="token parameter variable">--server</span> https://scotty.example.com app:create my-app
+
+<span class="token comment"># Monitoring Script</span>
+<span class="token function">curl</span> <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer <span class="token variable">${MONITORING_TOKEN}</span>"</span> <span class="token punctuation">\</span>
+  https://scotty.example.com/api/v1/authenticated/apps
+
+<span class="token comment"># Deployment Automation</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_SERVER</span><span class="token operator">=</span>https://scotty.example.com
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token string">"<span class="token variable">${DEPLOYMENT_TOKEN}</span>"</span>
+scottyctl app:restart production-app</code></pre>
+<h3 id="security-best-practices" tabindex="-1"><a class="header-anchor" href="#security-best-practices">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security Best Practices</h3>
+<ol>
+<li>
+<p><strong>Generate Strong Tokens for Service Accounts</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Use cryptographically secure random tokens</span>
+openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span></code></pre>
+</li>
+<li>
+<p><strong>Never Commit Tokens to Git</strong></p>
+<ul>
+<li>Use environment variables exclusively</li>
+<li>Store in CI/CD secret management</li>
+<li>Rotate regularly</li>
+</ul>
+</li>
+<li>
+<p><strong>Use Descriptive Identifiers</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Good: Semantic, descriptive names</span>
+<span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+  <span class="token key atrule">ci-bot</span><span class="token punctuation">:</span> <span class="token string">"..."</span>
+  <span class="token key atrule">monitoring-service</span><span class="token punctuation">:</span> <span class="token string">"..."</span>
+  <span class="token key atrule">deployment-automation</span><span class="token punctuation">:</span> <span class="token string">"..."</span>
+
+<span class="token comment"># Bad: Confusing, token-like names</span>
+<span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+  <span class="token key atrule">test-bearer-token-123</span><span class="token punctuation">:</span> <span class="token string">"..."</span>  <span class="token comment"># Looks like a token value!</span></code></pre>
+</li>
+<li>
+<p><strong>Apply Least Privilege via RBAC</strong></p>
+<ul>
+<li>CI/CD bot: <code>deployer</code> role (no destroy permission)</li>
+<li>Monitoring: <code>monitor</code> role (view and logs only)</li>
+<li>Deployment: Limited to specific scopes</li>
+</ul>
+</li>
+<li>
+<p><strong>Monitor and Audit</strong></p>
+<ul>
+<li>Track which authentication method is used (logs show "Bearer token authentication successful" vs "OAuth authentication successful")</li>
+<li>Monitor for suspicious activity</li>
+<li>Rotate tokens on compromise</li>
+</ul>
+</li>
+</ol>
+<h3 id="migration-from-pure-oauth" tabindex="-1"><a class="header-anchor" href="#migration-from-pure-oauth">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Migration from Pure OAuth</h3>
+<p><strong>Scenario:</strong> You have an existing OAuth-only deployment and want to add service accounts.</p>
+<p><strong>Steps:</strong></p>
+<ol>
+<li>
+<p><strong>Add bearer_tokens configuration</strong> (without changing auth_mode)</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> oauth  <span class="token comment"># Keep OAuth mode</span>
+  <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
+    <span class="token comment"># ... existing OAuth config ...</span>
+  <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>  <span class="token comment"># ADD service account tokens</span>
+    <span class="token key atrule">ci-bot</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span></code></pre>
+</li>
+<li>
+<p><strong>Configure RBAC for service accounts</strong> in <code>policy.yaml</code></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"identifier:ci-bot"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> deployer
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>staging<span class="token punctuation">]</span></code></pre>
+</li>
+<li>
+<p><strong>Set environment variables</strong> for bearer tokens</p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__CI_BOT</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span></code></pre>
+</li>
+<li>
+<p><strong>Restart Scotty</strong> - No breaking changes to existing OAuth users!</p>
+</li>
+<li>
+<p><strong>Update CI/CD pipelines</strong> to use bearer tokens</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># .gitlab-ci.yml example</span>
+<span class="token key atrule">deploy</span><span class="token punctuation">:</span>
+  <span class="token key atrule">script</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> export SCOTTY_ACCESS_TOKEN="$<span class="token punctuation">{</span>CI_BOT_TOKEN<span class="token punctuation">}</span>"
+    <span class="token punctuation">-</span> scottyctl app<span class="token punctuation">:</span>create <span class="token punctuation">...</span></code></pre>
+</li>
+<li>
+<p><strong>Test both authentication paths</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Test OAuth (human)</span>
+scottyctl auth:login
+scottyctl app:list
+
+<span class="token comment"># Test bearer token (service account)</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token string">"<span class="token variable">${CI_BOT_TOKEN}</span>"</span>
+scottyctl app:list</code></pre>
+</li>
+</ol>
+<p><strong>Zero Downtime:</strong> Existing OAuth users continue working without any changes. Service accounts can be added incrementally.</p>
+<h3 id="troubleshooting" tabindex="-1"><a class="header-anchor" href="#troubleshooting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Troubleshooting</h3>
+<p><strong>Issue: Service account bearer token not working</strong></p>
+<pre><code>Error: 401 Unauthorized
+</code></pre>
+<p><strong>Diagnosis:</strong></p>
+<ol>
+<li>
+<p>Check token is correctly set:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">echo</span> <span class="token variable">$SCOTTY_ACCESS_TOKEN</span>  <span class="token comment"># Should show token value</span></code></pre>
+</li>
+<li>
+<p>Check identifier exists in policy.yaml:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"identifier:ci-bot"</span><span class="token punctuation">:</span>  <span class="token comment"># Must match bearer_tokens key</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> deployer
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>staging<span class="token punctuation">]</span></code></pre>
+</li>
+<li>
+<p>Check bearer_tokens configuration:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Verify token mapping</span>
+<span class="token function">curl</span> http://localhost:21342/api/v1/info  <span class="token comment"># Should not show token values</span></code></pre>
+</li>
+<li>
+<p>Check logs with debug mode:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token assign-left variable">RUST_LOG</span><span class="token operator">=</span>debug <span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty
+<span class="token comment"># Look for: "Bearer token authentication successful" or "OAuth authentication successful"</span></code></pre>
+</li>
+<li>
+<p>Verify expected behavior matches tests:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># See test_oauth_bearer_token_fallback_with_valid_token in:</span>
+<span class="token comment"># scotty/src/api/bearer_auth_tests.rs:233-257</span>
+<span class="token function">cargo</span> <span class="token builtin class-name">test</span> test_oauth_bearer_token_fallback_with_valid_token -- <span class="token parameter variable">--nocapture</span></code></pre>
+</li>
+</ol>
+<p><strong>Issue: OAuth users can't authenticate</strong></p>
+<pre><code>Error: OAuth validation failed
+</code></pre>
+<p><strong>Diagnosis:</strong></p>
+<ul>
+<li>Verify OAuth configuration is still correct (client_id, client_secret, etc.)</li>
+<li>Check OIDC provider is accessible</li>
+<li>Verify redirect URLs match</li>
+</ul>
+<p><strong>Issue: Unclear which authentication method was used</strong></p>
+<p><strong>Solution:</strong> Check Scotty logs - authentication method is logged:</p>
+<pre><code>DEBUG Bearer token authentication successful
+DEBUG OAuth authentication successful
+</code></pre>
+<h3 id="when-to-use-hybrid-authentication" tabindex="-1"><a class="header-anchor" href="#when-to-use-hybrid-authentication">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> When to Use Hybrid Authentication</h3>
+<p><strong>Use Hybrid Mode When:</strong></p>
+<ul>
+<li>✅ You have both human users (web UI) and service accounts (CI/CD)</li>
+<li>✅ You want centralized authentication with OIDC</li>
+<li>✅ You need service accounts with zero OAuth latency</li>
+<li>✅ You want fine-grained RBAC for different actors</li>
+</ul>
+<p><strong>Use Pure OAuth When:</strong></p>
+<ul>
+<li>✅ Only human users access Scotty</li>
+<li>✅ All access is via web UI or CLI with device flow</li>
+<li>✅ No automation or service accounts needed</li>
+</ul>
+<p><strong>Use Pure Bearer Mode When:</strong></p>
+<ul>
+<li>✅ Only service accounts/automation access Scotty</li>
+<li>✅ No human interactive access needed</li>
+<li>✅ Simpler deployment without OAuth infrastructure</li>
+</ul>
+<p>See <a href="configuration.html">Configuration Documentation</a> for complete configuration reference and <a href="../../config/">config/README.md</a> for detailed security best practices.</p>
+<h2 id="frontend-integration" tabindex="-1"><a class="header-anchor" href="#frontend-integration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Frontend Integration</h2>
+<p>The Scotty frontend automatically detects OAuth mode and provides:</p>
+<h3 id="login-flow" tabindex="-1"><a class="header-anchor" href="#login-flow">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Login Flow</h3>
+<ul>
+<li><strong>Login page</strong> shows "Continue with OAuth" button</li>
+<li><strong>OAuth callback page</strong> handles the return from OIDC provider</li>
+<li><strong>User info component</strong> displays authenticated user with logout option</li>
+</ul>
+<h3 id="token-management" tabindex="-1"><a class="header-anchor" href="#token-management">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Token Management</h3>
+<ul>
+<li><strong>Automatic token storage</strong> in browser sessionStorage</li>
+<li><strong>Token validation</strong> on each API request</li>
+<li><strong>Automatic logout</strong> on token expiration or validation failure</li>
+</ul>
+<h2 id="cli-integration-(scottyctl)" tabindex="-1"><a class="header-anchor" href="#cli-integration-(scottyctl)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CLI Integration (scottyctl)</h2>
+<p>For CLI usage with OAuth-enabled Scotty, you have two options:</p>
+<h3 id="device-flow-(recommended)" tabindex="-1"><a class="header-anchor" href="#device-flow-(recommended)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Device Flow (Recommended)</h3>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Use OAuth device flow for CLI authentication</span>
+scottyctl login <span class="token parameter variable">--server</span> http://localhost:21342</code></pre>
+<h3 id="manual-token" tabindex="-1"><a class="header-anchor" href="#manual-token">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Manual Token</h3>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Extract token from browser sessionStorage and use manually</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span>your_oauth_token
+scottyctl <span class="token parameter variable">--server</span> http://localhost:21342 app:list</code></pre>
+<h2 id="security-features" tabindex="-1"><a class="header-anchor" href="#security-features">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security Features</h2>
+<h3 id="pkce-(proof-key-for-code-exchange)" tabindex="-1"><a class="header-anchor" href="#pkce-(proof-key-for-code-exchange)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> PKCE (Proof Key for Code Exchange)</h3>
+<ul>
+<li><strong>Enhanced security</strong> for public clients (SPAs) - prevents authorization code interception attacks</li>
+<li><strong>SHA256 code challenge</strong> - cryptographically secure random verifier with SHA256 hashing</li>
+<li><strong>Protected storage</strong> - PKCE verifier stored in memory using <code>MaskedSecret</code> type (protected from memory dumps and logs)</li>
+<li><strong>Single-use verification</strong> - verifier is removed from session store after successful token exchange</li>
+</ul>
+<h3 id="csrf-protection" tabindex="-1"><a class="header-anchor" href="#csrf-protection">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CSRF Protection</h3>
+<ul>
+<li><strong>State parameter validation</strong> - combines session ID and CSRF token (<code>session_id:csrf_token</code> format)</li>
+<li><strong>Session-based tracking</strong> - each OAuth flow gets a unique session with secure token storage</li>
+<li><strong>Automatic cleanup</strong> - expired sessions removed every 5 minutes by background task</li>
+<li><strong>Time-limited sessions</strong> - web flow sessions expire after 10 minutes, OAuth sessions after 5 minutes</li>
+</ul>
+<h3 id="token-security" tabindex="-1"><a class="header-anchor" href="#token-security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Token Security</h3>
+<ul>
+<li><strong>Token validation on every request</strong> - authentication middleware validates tokens before allowing access to protected endpoints</li>
+<li><strong>OIDC provider validation</strong> - OAuth tokens validated against OIDC provider's userinfo endpoint</li>
+<li><strong>Session expiration</strong> - OAuth sessions expire after 5 minutes of token exchange</li>
+<li><strong>Memory protection</strong> - CSRF tokens and PKCE verifiers stored using <code>MaskedSecret</code> type with automatic zeroization</li>
+<li><strong>Secure storage</strong> - tokens stored in browser sessionStorage (cleared when tab closes)</li>
+</ul>
+<h2 id="troubleshooting-1" tabindex="-1"><a class="header-anchor" href="#troubleshooting-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Troubleshooting</h2>
+<h3 id="common-issues" tabindex="-1"><a class="header-anchor" href="#common-issues">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Common Issues</h3>
+<p><strong>Redirect URI Mismatch</strong></p>
+<pre><code>Error: redirect_uri mismatch in OIDC provider
+</code></pre>
+<ul>
+<li>Ensure OIDC provider OAuth app redirect URI exactly matches Scotty configuration</li>
+<li>Check for trailing slashes, HTTP vs HTTPS, and port numbers</li>
+<li>Verify the redirect URI is <code>http://localhost:21342/api/oauth/callback</code></li>
+</ul>
+<p><strong>Invalid Client Credentials</strong></p>
+<pre><code>Error: Invalid client credentials
+</code></pre>
+<ul>
+<li>Verify <code>client_id</code> and <code>client_secret</code> match OIDC provider OAuth application</li>
+<li>Ensure credentials are correctly set in configuration or environment variables</li>
+</ul>
+<p><strong>PKCE Validation Failed</strong></p>
+<pre><code>Error: PKCE code challenge validation failed
+</code></pre>
+<ul>
+<li>This indicates a potential security issue or session corruption</li>
+<li>Clear browser data and retry the authentication flow</li>
+</ul>
+<p><strong>Session Expired</strong></p>
+<pre><code>Error: OAuth session not found or expired
+</code></pre>
+<ul>
+<li>OAuth sessions have a limited lifetime</li>
+<li>Restart the authentication flow from the beginning</li>
+</ul>
+<h3 id="debug-commands" tabindex="-1"><a class="header-anchor" href="#debug-commands">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Debug Commands</h3>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Check Scotty configuration</span>
+<span class="token function">curl</span> http://localhost:21342/api/v1/info
+
+<span class="token comment"># Test OAuth endpoints</span>
+<span class="token function">curl</span> <span class="token parameter variable">-I</span> http://localhost:21342/oauth/authorize
+
+<span class="token comment"># Verify authentication (with valid token)</span>
+<span class="token function">curl</span> <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer YOUR_TOKEN"</span> http://localhost:21342/api/v1/authenticated/apps</code></pre>
+<h3 id="debug-logging" tabindex="-1"><a class="header-anchor" href="#debug-logging">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Debug Logging</h3>
+<p>Enable debug logging to troubleshoot OAuth issues:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token assign-left variable">RUST_LOG</span><span class="token operator">=</span>debug <span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty</code></pre>
+<h2 id="urls-and-access" tabindex="-1"><a class="header-anchor" href="#urls-and-access">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> URLs and Access</h2>
+<ul>
+<li><strong>Application</strong>: http://localhost:21342</li>
+<li><strong>OAuth Authorization</strong>: http://localhost:21342/oauth/authorize</li>
+<li><strong>OAuth Callback</strong>: http://localhost:21342/api/oauth/callback</li>
+<li><strong>OAuth Session Exchange</strong>: http://localhost:21342/oauth/exchange</li>
+<li><strong>API Documentation</strong>: http://localhost:21342/rapidoc</li>
+<li><strong>Health Check</strong>: http://localhost:21342/api/v1/health (public)</li>
+</ul>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/cli.html"> The command line interface</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/authorization.html"> Authorization System</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
