@@ -1,5 +1,5 @@
 # Base Rust environment with cargo-chef
-FROM rust:1.92-slim-bookworm AS chef
+FROM rust:1.93-slim-bookworm AS chef
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y pkg-config make g++ libssl-dev curl jq && \
     rustup target add x86_64-unknown-linux-gnu && \
