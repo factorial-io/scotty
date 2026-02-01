@@ -310,9 +310,9 @@ dependencies = [
 
 [[package]]
 name = "bollard"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6ae2b41d5596b7b0db9942973d7da42109f2abaa34aa929a2d5362a38fb37ce"
+checksum = "227aa051deec8d16bd9c34605e7aaf153f240e35483dd42f6f78903847934738"
 dependencies = [
  "base64 0.22.1",
  "bollard-stubs",
@@ -337,7 +337,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_repr",
  "serde_urlencoded",
  "thiserror 2.0.18",
  "tokio",
@@ -349,15 +348,14 @@ dependencies = [
 
 [[package]]
 name = "bollard-stubs"
-version = "1.52.0-rc.29.1.3"
+version = "1.52.1-rc.29.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "712904cb6b941e87a6f00f330132daedb6b4054d140547876e06dbac6f1e55e7"
+checksum = "0f0a8ca8799131c1837d1282c3f81f31e76ceb0ce426e04a7fe1ccee3287c066"
 dependencies = [
  "chrono",
  "serde",
  "serde_json",
  "serde_repr",
- "serde_with",
 ]
 
 [[package]]
@@ -772,7 +770,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
- "serde",
 ]
 
 [[package]]
@@ -1168,7 +1165,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.7.0",
+ "indexmap",
  "slab",
  "tokio",
  "tokio-util",
@@ -1187,18 +1184,12 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http 1.4.0",
- "indexmap 2.7.0",
+ "indexmap",
  "slab",
  "tokio",
  "tokio-util",
  "tracing",
 ]
-
-[[package]]
-name = "hashbrown"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
@@ -1473,7 +1464,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.0",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -1689,17 +1680,6 @@ checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
 dependencies = [
  "proc-macro2",
  "quote",
-]
-
-[[package]]
-name = "indexmap"
-version = "1.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
-dependencies = [
- "autocfg",
- "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -2314,7 +2294,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
- "indexmap 2.7.0",
+ "indexmap",
 ]
 
 [[package]]
@@ -3192,7 +3172,7 @@ version = "0.9.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e408f29489b5fd500fab51ff1484fc859bb655f32c671f307dcd733b72e8168c"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap",
  "itoa",
  "ryu",
  "serde",
@@ -3239,23 +3219,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_with"
-version = "3.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b6f7f2fcb69f747921f79f3926bd1e203fce4fef62c268dd3abfb6d86029aa"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "indexmap 2.7.0",
- "serde",
- "serde_derive",
- "serde_json",
- "time",
 ]
 
 [[package]]
@@ -3855,7 +3818,7 @@ checksum = "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
 dependencies = [
  "futures-core",
  "futures-util",
- "indexmap 2.7.0",
+ "indexmap",
  "pin-project-lite",
  "slab",
  "sync_wrapper 1.0.2",
@@ -4189,7 +4152,7 @@ version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fcc29c80c21c31608227e0912b2d7fddba57ad76b606890627ba8ee7964e993"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap",
  "serde",
  "serde_json",
  "utoipa-gen",
@@ -4491,7 +4454,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4979,7 +4942,7 @@ dependencies = [
  "arbitrary",
  "crc32fast",
  "flate2",
- "indexmap 2.7.0",
+ "indexmap",
  "memchr",
  "zopfli",
 ]
