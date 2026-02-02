@@ -16,36 +16,38 @@ pub struct CurrentUser {
 
 /// Authenticate a user from a token based on the configured auth mode
 ///
-/// This function handles all authentication modes and can accept tokens with or without "Bearer " prefix
+/// Accepts tokens with or without "Bearer " prefix (prefix is stripped if present).
+///
+/// Authentication flow by mode:
+/// - Development: No token needed, returns dev user
+/// - Bearer: Validates against configured bearer tokens (fast HashMap lookup)
+/// - OAuth: Tries bearer tokens first (fast), falls back to OIDC validation (network call)
 pub async fn authenticate_user_from_token(
     state: &SharedAppState,
     token: &str,
 ) -> anyhow::Result<CurrentUser> {
+    // Strip "Bearer " prefix if present - accept both formats
+    let raw_token = token.strip_prefix("Bearer ").unwrap_or(token);
+
     match state.settings.api.auth_mode {
         AuthMode::Development => Ok(authenticate_dev_user(state)),
         AuthMode::Bearer => {
-            // Handle both "Bearer token" and raw "token" formats
-            let clean_token = if token.starts_with("Bearer ") {
-                token
-            } else {
-                &format!("Bearer {}", token)
-            };
-
             // Use warning-level logging for Bearer mode (failures are unexpected)
-            match authorize_bearer_user(state.clone(), clean_token, true).await {
+            match authorize_bearer_user(state.clone(), raw_token, true).await {
                 Some(user) => Ok(user),
                 None => Err(anyhow::anyhow!("Invalid bearer token")),
             }
         }
         AuthMode::OAuth => {
-            // Handle both "Bearer token" and raw "token" formats
-            let clean_token = if token.starts_with("Bearer ") {
-                token
-            } else {
-                &format!("Bearer {}", token)
-            };
+            // Try bearer token authentication first (fast HashMap lookup)
+            // This avoids network latency for service accounts
+            // Use debug-level logging since this is a fallback check before OAuth
+            if let Some(user) = authorize_bearer_user(state.clone(), raw_token, false).await {
+                return Ok(user);
+            }
 
-            match authorize_oauth_user_native(state.clone(), clean_token).await {
+            // Fall back to OAuth validation (network call to OIDC provider)
+            match authorize_oauth_user_native(state.clone(), raw_token).await {
                 Some(user) => Ok(user),
                 None => Err(anyhow::anyhow!("Invalid OAuth token")),
             }
@@ -80,31 +82,14 @@ pub fn authenticate_dev_user(state: &SharedAppState) -> CurrentUser {
 ///
 /// # Arguments
 /// * `shared_app_state` - Application state with settings and auth service
-/// * `auth_token` - Authorization header value (e.g., "Bearer <token>")
+/// * `token` - Raw token value (without "Bearer " prefix)
 /// * `log_failures_as_warnings` - If true, log failures as warnings. If false, use debug level.
 ///   Set to true for Bearer auth mode, false for OAuth fallback mode.
 pub async fn authorize_bearer_user(
     shared_app_state: SharedAppState,
-    auth_token: &str,
+    token: &str,
     log_failures_as_warnings: bool,
 ) -> Option<CurrentUser> {
-    // Extract Bearer token
-    let token = match auth_token.strip_prefix("Bearer ") {
-        Some(token) => token,
-        None => {
-            if log_failures_as_warnings {
-                warn!("Bearer token authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
-                      auth_token.chars().take(20).collect::<String>());
-            } else {
-                debug!(
-                    "Invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
-                    auth_token.chars().take(20).collect::<String>()
-                );
-            }
-            return None;
-        }
-    };
-
     // Reverse lookup: find which identifier maps to this token
     let identifier = match find_token_identifier(&shared_app_state, token) {
         Some(id) => id,
@@ -150,21 +135,15 @@ pub async fn authorize_bearer_user(
 }
 
 /// Native OAuth token validation
+///
+/// # Arguments
+/// * `shared_app_state` - Application state with OAuth client
+/// * `token` - Raw token value (without "Bearer " prefix)
 pub async fn authorize_oauth_user_native(
     shared_app_state: SharedAppState,
-    auth_header: &str,
+    token: &str,
 ) -> Option<CurrentUser> {
-    // Extract Bearer token
-    let token = match auth_header.strip_prefix("Bearer ") {
-        Some(token) => token,
-        None => {
-            warn!("OAuth authentication failed - invalid Authorization header format (expected 'Bearer <token>', got: {}...)",
-                  auth_header.chars().take(20).collect::<String>());
-            return None;
-        }
-    };
-
-    debug!("Validating OAuth Bearer token");
+    debug!("Validating OAuth token");
 
     // Get OAuth client for token validation
     let oauth_state = match shared_app_state.oauth_state.as_ref() {
