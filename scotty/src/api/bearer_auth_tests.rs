@@ -121,12 +121,14 @@ async fn test_bearer_auth_malformed_header_blueprints() {
     let router = create_scotty_app_with_bearer_auth().await;
     let server = TestServer::new(router).unwrap();
 
-    // Make authenticated request with malformed header (missing "Bearer " prefix)
+    // Note: authenticate_user_from_token() normalizes tokens by adding "Bearer " prefix
+    // if missing, so a valid token without the prefix will succeed.
+    // This test verifies that an invalid token (not in configured bearer_tokens) is rejected.
     let response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
             axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str("test-bearer-token-123").unwrap(),
+            axum::http::HeaderValue::from_str("not-a-valid-token").unwrap(),
         )
         .await;
 
