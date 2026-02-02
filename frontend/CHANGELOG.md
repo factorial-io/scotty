@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7]
+
+### Bug Fixes
+
+- Update dependency @iconify/svelte to v5 ✔️
+
+### Dependencies
+
+- Update bun lockfile ✔️
+- Update dependency typescript-eslint to v8.53.0 ✔️
+- Update dependency svelte to v5.46.3 ✔️
+- Update dependency globals to v17 ✔️
+- Update dependency typescript-eslint to v8.52.0 ✔️
+- Update dependency @iconify/svelte to v5.2.1 ✔️
+- Update dependency eslint-plugin-svelte to v3.14.0 ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v6.2.4 ✔️
+- Update dependency @sveltejs/kit to v2.49.4 ✔️
+- Update npm dependencies auto-merge (patch) (#670) ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v6.2.2 (#667) ✔️
+- Update dependency @sveltejs/kit to v2.49.3 (#664) ✔️
+- Update dependency typescript-eslint to v8.51.0 ✔️
+- Update dependency svelte to v5.46.1 ✔️
+- Update dependency typescript-eslint to v8.50.1 (#648) ✔️
+- Update dependency typescript-eslint to v8.50.0 ✔️
+- Update dependency vite to v7 ✔️
+- Update dependency svelte-check to v4.3.5 ✔️
+- Update dependency prettier-plugin-svelte to v3.4.1 ✔️
+- Update dependency daisyui to v5.5.14 (#633) ✔️
+- Update dependency svelte to v5.46.0 ✔️
+- Update dependency eslint to v9.39.2 ✔️
+
 ## [0.2.6]
 
 ### Dependencies

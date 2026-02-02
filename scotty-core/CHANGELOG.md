@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7]
+
+### Bug Fixes
+
+- Disable HTTP redirects and return helpful error message ✔️
+
 ## [0.2.4]
 
 ### Bug Fixes

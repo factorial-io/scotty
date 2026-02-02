@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7]
+
+### Bug Fixes
+
+- Resolve clippy unnecessary_unwrap warning in app info display ✔️
+
 ## [0.2.5]
 
 ### Bug Fixes

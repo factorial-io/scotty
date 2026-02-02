@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7]
+
+### Bug Fixes
+
+- Centralize authentication logic for REST and WebSocket ✔️
+
 ## [0.2.6]
 
 ### Bug Fixes
