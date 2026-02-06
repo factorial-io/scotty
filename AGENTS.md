@@ -139,7 +139,7 @@ Uses Casbin for RBAC with three concepts:
 
 **Configuration**: `config/casbin/policy.yaml`
 
-**Available Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`
+**Available Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`, `action_read`, `action_write`, `action_manage`, `action_approve`
 
 #### Assignment Types
 
@@ -269,6 +269,147 @@ admin@factorial.io:
 - **Security**: Domain patterns validated to prevent attacks
 - **Location**: `scotty/src/services/authorization/casbin.rs`
 - **Tests**: `scotty/tests/authorization_domain_test.rs`
+
+### Custom Actions
+
+Custom actions allow users to define and execute arbitrary commands on app services. They support an approval workflow for security control.
+
+#### Permission Model
+
+Custom actions use four dedicated permissions:
+
+| Permission | Description |
+|------------|-------------|
+| `action_read` | Execute read-only actions (no side effects) |
+| `action_write` | Execute actions that modify state |
+| `action_manage` | Create, list, and delete custom actions for apps in user's scope |
+| `action_approve` | Approve/reject pending actions (admin-level) |
+
+#### Action Status Workflow
+
+Actions go through an approval workflow:
+
+```
+┌─────────┐     approve      ┌──────────┐
+│ Pending │ ───────────────► │ Approved │ ◄─── Can be executed
+└─────────┘                  └──────────┘
+     │                            │
+     │ reject                     │ revoke
+     ▼                            ▼
+┌──────────┐                ┌─────────┐
+│ Rejected │                │ Revoked │
+└──────────┘                └─────────┘
+
+Actions can also expire if a TTL is configured → Expired
+```
+
+Only **Approved** actions can be executed.
+
+#### CLI Commands
+
+**Creating a custom action:**
+```bash
+# Create an action that requires action_write permission
+scottyctl action:create my-app deploy-db \
+  --description "Run database migrations" \
+  --permission action_write \
+  --command "web:php artisan migrate" \
+  --command "worker:php artisan queue:restart"
+
+# Create a read-only action (action_read permission)
+scottyctl action:create my-app check-status \
+  --description "Check application health" \
+  --permission action_read \
+  --command "web:php artisan health:check"
+```
+
+**Listing actions:**
+```bash
+# List all custom actions for an app
+scottyctl action:list my-app
+```
+
+**Getting action details:**
+```bash
+# View full details of an action
+scottyctl action:get my-app deploy-db
+```
+
+**Running an action:**
+```bash
+# Execute an approved action
+scottyctl app:action my-app deploy-db
+```
+
+**Deleting an action:**
+```bash
+# Remove a custom action
+scottyctl action:delete my-app deploy-db
+```
+
+#### Admin Commands
+
+Users with `action_approve` permission can manage the approval workflow:
+
+```bash
+# List all pending actions across all apps
+scottyctl admin:actions:pending
+
+# View details of a pending action
+scottyctl admin:actions:get my-app deploy-db
+
+# Approve an action (with optional comment)
+scottyctl admin:actions:approve my-app deploy-db --comment "Reviewed and approved"
+
+# Reject an action
+scottyctl admin:actions:reject my-app deploy-db --comment "Security concern with command"
+
+# Revoke a previously approved action
+scottyctl admin:actions:revoke my-app deploy-db --comment "No longer needed"
+```
+
+#### Role Configuration
+
+To grant custom action permissions, update `config/casbin/policy.yaml`:
+
+```yaml
+roles:
+  # Developers can manage and execute actions
+  developer:
+    permissions: ['view', 'manage', 'action_read', 'action_write', 'action_manage']
+    description: Developer with action management
+
+  # Action approvers (security team)
+  action_approver:
+    permissions: ['view', 'action_approve']
+    description: Can approve/reject custom actions
+
+  # Full admin
+  admin:
+    permissions: ['*']
+    description: Full access including action approval
+```
+
+#### API Endpoints
+
+| Method | Endpoint | Permission | Description |
+|--------|----------|------------|-------------|
+| `POST` | `/api/v1/authenticated/apps/{app}/custom-actions` | `action_manage` | Create action |
+| `GET` | `/api/v1/authenticated/apps/{app}/custom-actions` | `action_manage` | List actions |
+| `GET` | `/api/v1/authenticated/apps/{app}/custom-actions/{name}` | `action_manage` | Get action details |
+| `DELETE` | `/api/v1/authenticated/apps/{app}/custom-actions/{name}` | `action_manage` | Delete action |
+| `POST` | `/api/v1/authenticated/apps/{app}/actions` | `action_read` or `action_write` | Execute action |
+| `GET` | `/api/v1/authenticated/admin/actions/pending` | `action_approve` | List pending |
+| `POST` | `/api/v1/authenticated/admin/actions/{app}/{name}/approve` | `action_approve` | Approve action |
+| `POST` | `/api/v1/authenticated/admin/actions/{app}/{name}/reject` | `action_approve` | Reject action |
+| `POST` | `/api/v1/authenticated/admin/actions/{app}/{name}/revoke` | `action_approve` | Revoke action |
+
+#### Implementation Details
+
+- **Data Model**: `scotty-core/src/settings/custom_action.rs`
+- **API Handlers**: `scotty/src/api/rest/handlers/apps/custom_action*.rs`
+- **CLI**: `scottyctl/src/commands/apps/actions.rs`, `scottyctl/src/commands/admin.rs`
+- **Tests**: `scotty-core/src/settings/custom_action_tests.rs`
 
 ### scottyctl Architecture
 

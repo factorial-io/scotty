@@ -34,6 +34,66 @@ pub(crate) enum RunAppCustomActionStates {
     Done,
 }
 
+/// Check if the action exists - either as a per-app custom action or in the blueprint.
+/// Returns Ok(()) if the action is found, Err otherwise.
+fn validate_action_exists(
+    state: &SharedAppState,
+    app: &AppData,
+    action: &ActionName,
+) -> Result<(), AppError> {
+    let app_settings = app
+        .settings
+        .as_ref()
+        .ok_or_else(|| AppError::AppSettingsNotFound(app.name.to_string()))?;
+
+    // Extract the action name string from ActionName enum
+    let action_name_str = match action {
+        ActionName::Custom(name) => name.as_str(),
+        _ => {
+            // For built-in actions, check blueprint
+            return validate_blueprint_action(state, app_settings, action);
+        }
+    };
+
+    // First, check per-app custom actions
+    if app_settings.get_custom_action(action_name_str).is_some() {
+        return Ok(());
+    }
+
+    // Fall back to blueprint actions
+    validate_blueprint_action(state, app_settings, action)
+}
+
+/// Validate that an action exists in the blueprint
+fn validate_blueprint_action(
+    state: &SharedAppState,
+    app_settings: &scotty_core::apps::app_data::AppSettings,
+    action: &ActionName,
+) -> Result<(), AppError> {
+    let blueprint_name = app_settings.app_blueprint.as_ref().ok_or_else(|| {
+        AppError::ActionNotFound(format!(
+            "Action {:?} not found: app has no custom actions and no blueprint",
+            action
+        ))
+    })?;
+
+    let blueprint = state
+        .settings
+        .apps
+        .blueprints
+        .get(blueprint_name)
+        .ok_or_else(|| AppError::AppBlueprintNotFound(blueprint_name.clone()))?;
+
+    if !blueprint.actions.contains_key(action) {
+        return Err(AppError::ActionNotFound(format!(
+            "Action {:?} not found in app custom actions or blueprint '{}'",
+            action, blueprint_name
+        )));
+    }
+
+    Ok(())
+}
+
 #[allow(private_interfaces)]
 #[instrument(skip(state))]
 pub async fn run_app_custom_action_prepare(
@@ -45,41 +105,12 @@ pub async fn run_app_custom_action_prepare(
         return Err(AppError::AppNotRunning(app.name.to_string()).into());
     }
 
-    // Check if the app has a blueprint with the custom action
-    let app_settings = app.settings.clone();
-    if app_settings.is_none() {
-        return Err(AppError::AppSettingsNotFound(app.name.to_string()).into());
-    }
-
-    let blueprint_name = &app_settings.as_ref().unwrap().app_blueprint;
-    if blueprint_name.is_none() {
-        return Err(
-            AppError::AppBlueprintMismatch("App doesn't have a blueprint".to_string()).into(),
-        );
-    }
-
-    let blueprint = state
-        .settings
-        .apps
-        .blueprints
-        .get(blueprint_name.as_ref().unwrap());
-    if blueprint.is_none() {
-        return Err(
-            AppError::AppBlueprintNotFound(blueprint_name.as_ref().unwrap().clone()).into(),
-        );
-    }
-
-    // Verify the custom action exists in the blueprint
-    if !blueprint.unwrap().actions.contains_key(&action) {
-        return Err(
-            AppError::ActionNotFound(format!("Action not found in blueprint: {action:?}")).into(),
-        );
-    }
+    // Validate that the action exists (either per-app or in blueprint)
+    validate_action_exists(state, app, &action)?;
 
     info!(
         app_name = %app.name,
         action = ?action,
-        blueprint = ?blueprint_name.as_ref().unwrap(),
         "Starting custom action execution"
     );
 

@@ -5,6 +5,7 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::{
     api::{delete, get, post},
+    cli::{AdminActionGetCommand, AdminActionReviewCommand},
     context::AppContext,
     utils::ui::Ui,
 };
@@ -403,4 +404,217 @@ pub async fn get_user_permissions(
         ))
     })
     .await
+}
+
+// Custom Actions Admin Management
+
+/// List all pending custom actions awaiting approval
+pub async fn list_pending_actions(context: &AppContext) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Getting list of pending custom actions from {} ...",
+        context.server().server
+    ));
+    ui.run(async || {
+        let result = get(context.server(), "admin/actions/pending").await?;
+
+        let response: serde_json::Value = result;
+        let actions = response["actions"]
+            .as_array()
+            .context("Failed to parse pending actions list")?;
+
+        if actions.is_empty() {
+            return Ok("No pending custom actions found.".to_string());
+        }
+
+        let mut builder = Builder::default();
+        builder.push_record(vec![
+            "App",
+            "Action",
+            "Description",
+            "Created By",
+            "Created At",
+        ]);
+
+        for action in actions {
+            builder.push_record(vec![
+                action["app_name"].as_str().unwrap_or(""),
+                action["action_name"].as_str().unwrap_or(""),
+                action["description"].as_str().unwrap_or(""),
+                action["created_by"].as_str().unwrap_or(""),
+                action["created_at"].as_str().unwrap_or(""),
+            ]);
+        }
+
+        let mut table = builder.build();
+        table.with(Style::rounded());
+        ui.success("Pending actions retrieved successfully!");
+        Ok(table.to_string())
+    })
+    .await
+}
+
+/// Get details of a pending custom action
+pub async fn get_action_details(
+    context: &AppContext,
+    cmd: &AdminActionGetCommand,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Getting action '{}' for app '{}' ...",
+        cmd.action_name.bright_blue(),
+        cmd.app_name.bright_blue()
+    ));
+    ui.run(async || {
+        let endpoint = format!("admin/actions/{}/{}", cmd.app_name, cmd.action_name);
+        let result = get(context.server(), &endpoint).await?;
+
+        let action: serde_json::Value = result;
+
+        let mut output = format!(
+            "Custom action '{}' for app '{}':\n\n",
+            cmd.action_name.bright_blue(),
+            cmd.app_name.bright_blue()
+        );
+        output += &format!("  Name:        {}\n", action["name"].as_str().unwrap_or(""));
+        output += &format!(
+            "  Description: {}\n",
+            action["description"].as_str().unwrap_or("")
+        );
+        output += &format!(
+            "  Status:      {}\n",
+            action["status"].as_str().unwrap_or("")
+        );
+        output += &format!(
+            "  Permission:  {}\n",
+            action["permission"].as_str().unwrap_or("")
+        );
+        output += &format!(
+            "  Created By:  {}\n",
+            action["created_by"].as_str().unwrap_or("")
+        );
+        output += &format!(
+            "  Created At:  {}\n",
+            action["created_at"].as_str().unwrap_or("")
+        );
+
+        if let Some(reviewed_by) = action["reviewed_by"].as_str() {
+            output += &format!("  Reviewed By: {}\n", reviewed_by);
+        }
+        if let Some(reviewed_at) = action["reviewed_at"].as_str() {
+            output += &format!("  Reviewed At: {}\n", reviewed_at);
+        }
+        if let Some(comment) = action["review_comment"].as_str() {
+            output += &format!("  Comment:     {}\n", comment);
+        }
+
+        output += "\n  Commands:\n";
+        if let Some(commands) = action["commands"].as_object() {
+            for (service, cmds) in commands {
+                output += &format!("    {}:\n", service.bright_blue());
+                if let Some(cmd_list) = cmds.as_array() {
+                    for cmd in cmd_list {
+                        output += &format!("      - {}\n", cmd.as_str().unwrap_or(""));
+                    }
+                }
+            }
+        }
+
+        ui.success("Action details retrieved successfully!");
+        Ok(output)
+    })
+    .await
+}
+
+/// Approve a pending custom action
+pub async fn approve_action(
+    context: &AppContext,
+    cmd: &AdminActionReviewCommand,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Approving action '{}' for app '{}' ...",
+        cmd.action_name.bright_blue(),
+        cmd.app_name.bright_blue()
+    ));
+
+    let payload = json!({
+        "comment": cmd.comment
+    });
+
+    let endpoint = format!("admin/actions/{}/{}/approve", cmd.app_name, cmd.action_name);
+    let result = post(context.server(), &endpoint, payload).await?;
+
+    handle_success_response(
+        ui,
+        result,
+        format!(
+            "Action '{}' for app '{}' has been approved.",
+            cmd.action_name.bright_green(),
+            cmd.app_name.bright_green()
+        ),
+        "Failed to approve action",
+    )
+}
+
+/// Reject a pending custom action
+pub async fn reject_action(
+    context: &AppContext,
+    cmd: &AdminActionReviewCommand,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Rejecting action '{}' for app '{}' ...",
+        cmd.action_name.bright_blue(),
+        cmd.app_name.bright_blue()
+    ));
+
+    let payload = json!({
+        "comment": cmd.comment
+    });
+
+    let endpoint = format!("admin/actions/{}/{}/reject", cmd.app_name, cmd.action_name);
+    let result = post(context.server(), &endpoint, payload).await?;
+
+    handle_success_response(
+        ui,
+        result,
+        format!(
+            "Action '{}' for app '{}' has been rejected.",
+            cmd.action_name.bright_red(),
+            cmd.app_name.bright_blue()
+        ),
+        "Failed to reject action",
+    )
+}
+
+/// Revoke an approved custom action
+pub async fn revoke_action(
+    context: &AppContext,
+    cmd: &AdminActionReviewCommand,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    ui.new_status_line(format!(
+        "Revoking action '{}' for app '{}' ...",
+        cmd.action_name.bright_blue(),
+        cmd.app_name.bright_blue()
+    ));
+
+    let payload = json!({
+        "comment": cmd.comment
+    });
+
+    let endpoint = format!("admin/actions/{}/{}/revoke", cmd.app_name, cmd.action_name);
+    let result = post(context.server(), &endpoint, payload).await?;
+
+    handle_success_response(
+        ui,
+        result,
+        format!(
+            "Action '{}' for app '{}' has been revoked.",
+            cmd.action_name.bright_yellow(),
+            cmd.app_name.bright_blue()
+        ),
+        "Failed to revoke action",
+    )
 }

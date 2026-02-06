@@ -37,6 +37,12 @@ Granular actions users can perform on applications and the system:
 - `create` - Create new apps in scope
 - `destroy` - Delete apps from scope
 
+**Custom Action Permissions** (for per-app custom actions):
+- `action_read` - Execute read-only custom actions (no side effects)
+- `action_write` - Execute custom actions that modify state
+- `action_manage` - Create, list, and delete custom actions for apps in scope
+- `action_approve` - Approve, reject, or revoke pending custom actions (admin-level)
+
 **Global Permissions** (not tied to specific apps):
 - `admin_read` - Read authorization configuration (scopes, roles, assignments, permissions)
 - `admin_write` - Modify authorization configuration (create/update scopes, roles, assignments)
@@ -46,10 +52,11 @@ Granular actions users can perform on applications and the system:
 Named collections of permissions for common access patterns:
 
 - **`admin`** - All permissions (wildcard `*`)
-- **`developer`** - Full access except destroy: `[view, manage, shell, logs, create]`
-- **`operator`** - Operations without shell: `[view, manage, logs]`
+- **`developer`** - Full access except destroy: `[view, manage, shell, logs, create, action_read, action_write, action_manage]`
+- **`operator`** - Operations without shell: `[view, manage, logs, action_read]`
 - **`viewer`** - Read-only access: `[view]`
 - **`system_admin`** - Authorization management: `[admin_read, admin_write]`
+- **`action_approver`** - Can approve/reject custom actions: `[view, action_approve]`
 
 ### Assignments
 
@@ -91,10 +98,13 @@ roles:
     permissions: ["*"]
   developer:
     description: "Full development access"
-    permissions: ["view", "manage", "shell", "logs", "create"]
+    permissions: ["view", "manage", "shell", "logs", "create", "action_read", "action_write", "action_manage"]
   operator:
     description: "Operations access without shell"
-    permissions: ["view", "manage", "logs"]
+    permissions: ["view", "manage", "logs", "action_read"]
+  action_approver:
+    description: "Can approve/reject custom actions"
+    permissions: ["view", "action_approve"]
   system_admin:
     description: "System administration access"
     permissions: ["admin_read", "admin_write"]
