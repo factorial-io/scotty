@@ -68,14 +68,14 @@ if [ -n "$NEW_VERSION" ]; then
   LATEST_TAG=$(git tag --sort=-creatordate | grep -E '^v[0-9]' | head -1)
   
   # Generate unreleased section with new version
-  git cliff "$LATEST_TAG..HEAD" --unreleased --tag "$NEW_VERSION" -p CHANGELOG.md
+  git cliff "$LATEST_TAG..HEAD" --tag "$NEW_VERSION" -p CHANGELOG.md
   
   # Generate for each crate/directory (only if there are commits for that path)
   for dir in "${CRATE_DIRS[@]}"; do
     # Check if there are any unreleased commits that touch this directory
     COMMIT_COUNT=$(git log "$LATEST_TAG..HEAD" --oneline -- "$dir/" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$COMMIT_COUNT" -gt 0 ]; then
-      git cliff "$LATEST_TAG..HEAD" --unreleased --tag "$NEW_VERSION" --include-path "$dir/*" -p "$dir/CHANGELOG.md" 2>/dev/null || true
+      git cliff "$LATEST_TAG..HEAD" --tag "$NEW_VERSION" --include-path "$dir/*" -p "$dir/CHANGELOG.md" 2>/dev/null || true
     fi
   done
   
