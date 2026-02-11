@@ -385,13 +385,19 @@ scottyctl --server <SERVER> --access-token <TOKEN> blueprint:info <BLUEPRINT>
 
 This command displays detailed information about a specific blueprint, including its configuration, services, and required parameters.
 
-## Run a custom action
+## Custom Actions
+
+Custom actions allow you to define and execute arbitrary commands on app services. They support an approval workflow for security control.
+
+### Run a custom action
 
 ```shell
 scottyctl --server <SERVER> --access-token <TOKEN> app:action <APP> <ACTION>
 ```
 
-Execute a custom action defined in the app's `.scotty.yml` file. Custom actions allow you to run predefined commands or scripts within your application containers.
+Execute an approved custom action. Only actions with `approved` status can be executed.
+
+**Note:** Executing an action requires either `action_read` or `action_write` permission, depending on the action's permission level.
 
 Example:
 ```shell
@@ -401,6 +407,92 @@ scottyctl app:action my-app db:migrate
 # Clear application cache
 scottyctl app:action my-app cache:clear
 ```
+
+### List custom actions for an app
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> action:list <APP>
+```
+
+Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator.
+
+Example:
+```shell
+scottyctl action:list my-app
+```
+
+### Get custom action details
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> action:get <APP> <ACTION>
+```
+
+Displays detailed information about a specific custom action, including its commands, review status, and metadata.
+
+Example:
+```shell
+scottyctl action:get my-app db:migrate
+```
+
+### Create a custom action
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> action:create <APP> <ACTION> \
+  --description <DESCRIPTION> \
+  --permission <PERMISSION> \
+  --command <SERVICE:COMMAND> [--command <SERVICE:COMMAND> ...]
+```
+
+Creates a new custom action for an app. The action will be in `pending` status until approved by an administrator with `action_approve` permission.
+
+**Options:**
+- `--description` (required): Human-readable description of what the action does
+- `--permission`: Required permission level (`action_read` or `action_write`, default: `action_write`)
+- `--command`: Command to execute in format `service:command`. Can be specified multiple times.
+
+**Examples:**
+
+Create a write action (modifies state):
+```shell
+scottyctl action:create my-app db:migrate \
+  --description "Run database migrations" \
+  --permission action_write \
+  --command "web:php artisan migrate" \
+  --command "worker:php artisan queue:restart"
+```
+
+Create a read-only action (safe to run anytime):
+```shell
+scottyctl action:create my-app health:check \
+  --description "Check application health status" \
+  --permission action_read \
+  --command "web:php artisan health:check"
+```
+
+### Delete a custom action
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> action:delete <APP> <ACTION>
+```
+
+Removes a custom action from an app.
+
+Example:
+```shell
+scottyctl action:delete my-app old-action
+```
+
+### Action Approval Workflow
+
+Custom actions go through an approval workflow:
+
+1. **Pending**: Newly created actions await approval
+2. **Approved**: Action can be executed
+3. **Rejected**: Action was rejected and cannot be executed
+4. **Revoked**: Previously approved action was revoked
+5. **Expired**: Action expired due to TTL (if configured)
+
+See [Admin Commands](#custom-action-approval-admin) for approval workflow management.
 
 ## Add a notification service to an app
 
@@ -553,6 +645,65 @@ Displays all effective permissions for a user across all scopes.
 Example:
 ```shell
 scottyctl admin:permissions:user alice@example.com
+```
+
+### Custom Action Approval (Admin) {#custom-action-approval-admin}
+
+These commands require `action_approve` permission and are used to manage the approval workflow for custom actions.
+
+**List pending actions:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:actions:pending
+```
+
+Lists all custom actions awaiting approval across all apps.
+
+**Get action details:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:actions:get <APP> <ACTION>
+```
+
+Displays detailed information about a pending action for review.
+
+Example:
+```shell
+scottyctl admin:actions:get my-app db:migrate
+```
+
+**Approve an action:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:actions:approve <APP> <ACTION> [--comment <COMMENT>]
+```
+
+Approves a pending action, allowing it to be executed.
+
+Example:
+```shell
+scottyctl admin:actions:approve my-app db:migrate --comment "Reviewed and approved for production"
+```
+
+**Reject an action:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:actions:reject <APP> <ACTION> [--comment <COMMENT>]
+```
+
+Rejects a pending action. Rejected actions cannot be executed.
+
+Example:
+```shell
+scottyctl admin:actions:reject my-app dangerous-action --comment "Security concern: command allows arbitrary file access"
+```
+
+**Revoke an action:**
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> admin:actions:revoke <APP> <ACTION> [--comment <COMMENT>]
+```
+
+Revokes a previously approved action. Use this when an action should no longer be available.
+
+Example:
+```shell
+scottyctl admin:actions:revoke my-app old-migration --comment "Migration completed, no longer needed"
 ```
 
 ## Shell Completion

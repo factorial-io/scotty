@@ -1,6 +1,7 @@
 pub mod api_server;
 pub mod app_blueprint;
 pub mod apps;
+pub mod custom_action;
 pub mod docker;
 pub mod loadbalancer;
 pub mod notification_services;
@@ -8,3 +9,6 @@ pub mod output;
 pub mod rate_limiting;
 pub mod scheduler_interval;
 pub mod shell;
+
+#[cfg(test)]
+mod custom_action_tests;

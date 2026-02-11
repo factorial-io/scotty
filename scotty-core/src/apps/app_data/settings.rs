@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
+use std::{collections::HashMap, collections::HashSet, fs::File, io::BufReader, path::Path};
 
 use anyhow;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use utoipa::{ToResponse, ToSchema};
 
 use crate::{
     notification_types::NotificationReceiver,
-    settings::{app_blueprint::AppBlueprintMap, apps::Apps},
+    settings::{app_blueprint::AppBlueprintMap, apps::Apps, custom_action::CustomAction},
     utils::{domain_hash, secret::SecretHashMap},
 };
 
@@ -38,6 +38,9 @@ pub struct AppSettings {
     pub middlewares: Vec<String>,
     #[serde(default = "default_scopes", alias = "groups")]
     pub scopes: Vec<String>,
+    /// Custom actions defined for this app (action_name -> CustomAction)
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub custom_actions: HashMap<String, CustomAction>,
 }
 
 impl Default for AppSettings {
@@ -55,6 +58,7 @@ impl Default for AppSettings {
             notify: HashSet::new(),
             middlewares: Vec::new(),
             scopes: default_scopes(),
+            custom_actions: HashMap::new(),
         }
     }
 }
@@ -169,6 +173,35 @@ impl AppSettings {
         })?;
 
         Ok(())
+    }
+
+    /// Get a custom action by name
+    pub fn get_custom_action(&self, name: &str) -> Option<&CustomAction> {
+        self.custom_actions.get(name)
+    }
+
+    /// Get a mutable reference to a custom action by name
+    pub fn get_custom_action_mut(&mut self, name: &str) -> Option<&mut CustomAction> {
+        self.custom_actions.get_mut(name)
+    }
+
+    /// Add a custom action
+    pub fn add_custom_action(&mut self, action: CustomAction) -> Result<(), String> {
+        if self.custom_actions.contains_key(&action.name) {
+            return Err(format!("Action '{}' already exists", action.name));
+        }
+        self.custom_actions.insert(action.name.clone(), action);
+        Ok(())
+    }
+
+    /// Remove a custom action by name
+    pub fn remove_custom_action(&mut self, name: &str) -> Option<CustomAction> {
+        self.custom_actions.remove(name)
+    }
+
+    /// List all custom actions
+    pub fn list_custom_actions(&self) -> Vec<&CustomAction> {
+        self.custom_actions.values().collect()
     }
 }
 
