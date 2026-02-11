@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.8]
+
+### Bug Fixes
+
+- Enable crossterm use-dev-tty feature for shell sessions spawned by parent processes ✔️
+
+## [0.2.7]
+
+### Bug Fixes
+
+- Resolve clippy unnecessary_unwrap warning in app info display ✔️
+
+## [0.2.5]
+
+### Bug Fixes
+
+- Resolve race conditions in task output streaming ✔️
+
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Clear status line before command exits ✔️
+- Add Default implementations for StatusLine and Ui to satisfy clippy ✔️
+- Validate token in auth:status and return exit code 1 when invalid (GH#607) ✔️
+- Address code review feedback for HttpError ✔️
+- Prioritize explicit access token over cached OAuth tokens in scottyctl ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
+### Refactor
+
+- Improve status line cleanup documentation and consistency ✔️
+- Improve status messages for auth commands ✔️
+- Improve error handling with custom ApiError type ✔️
+- Remove duplicate retry logic from scottyctl ✔️
+
+### Testing
+
+- Add comprehensive test coverage for auth:status token validation ✔️
+
 ## [0.2.7]
 
 ### Bug Fixes

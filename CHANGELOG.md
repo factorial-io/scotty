@@ -2,6 +2,203 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.8]
+
+### Bug Fixes
+
+- Enable crossterm use-dev-tty feature for shell sessions spawned by parent processes ✔️
+- Derive override filename from compose file for Docker Compose compatibility ✔️
+
+### Dependencies
+
+- Update rust dependencies auto-merge (patch) (#712) ✔️
+- Update rust crate tempfile to v3.25.0 ✔️
+- Update rust crate sysinfo to v0.38.1 (#708) ✔️
+- Update rust crate anyhow to v1.0.101 ✔️
+- Bump time from 0.3.37 to 0.3.47 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.145.0 ✔️
+- Bump bytes from 1.11.0 to 1.11.1 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update rust crate flate2 to v1.1.9 ✔️
+
+## [0.2.7]
+
+### Bug Fixes
+
+- Centralize authentication logic for REST and WebSocket ✔️
+- Resolve clippy unnecessary_unwrap warning in app info display ✔️
+- Disable HTTP redirects and return helpful error message ✔️
+- Update dependency @iconify/svelte to v5 ✔️
+
+### Dependencies
+
+- Update rust crate bollard to v0.20.1 (#697) ✔️
+- Update rust crate clap to v4.5.56 (#695) ✔️
+- Update rust crate clap to v4.5.55 (#694) ✔️
+- Update rust crate uuid to v1.20.0 ✔️
+- Update rust crate sysinfo to 0.38 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.144.0 ✔️
+- Update rust crate thiserror to v2.0.18 ✔️
+- Update rust docker tag to v1.93 ✔️
+- Update rust crate axum-test to v18.7.0 ✔️
+- Update rust crate tokio-metrics to v0.4.7 ✔️
+- Update rust crate chrono to v0.4.43 ✔️
+- Update bun lockfile ✔️
+- Update dependency typescript-eslint to v8.53.0 ✔️
+- Update dependency svelte to v5.46.3 ✔️
+- Update rust crate tower to v0.5.3 ✔️
+- Update rust dependencies auto-merge (patch) ✔️
+- Update dependency globals to v17 ✔️
+- Update dependency typescript-eslint to v8.52.0 ✔️
+- Update dependency @iconify/svelte to v5.2.1 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.143.1 ✔️
+- Update rust crate bcrypt to 0.18.0 ✔️
+- Update dependency eslint-plugin-svelte to v3.14.0 ✔️
+- Update rust crate axum-test to v18.6.0 ✔️
+- Update rust crate bollard to 0.20.0 ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v6.2.4 ✔️
+- Update dependency @sveltejs/kit to v2.49.4 ✔️
+- Update rust crate clap_complete to v4.5.65 (#671) ✔️
+- Update npm dependencies auto-merge (patch) (#670) ✔️
+- Update rust crate serde_json to v1.0.149 (#668) ✔️
+- Update dependency @sveltejs/vite-plugin-svelte to v6.2.2 (#667) ✔️
+- Update rust crate url to v2.5.8 (#666) ✔️
+- Update dependency @sveltejs/kit to v2.49.3 (#664) ✔️
+- Update rust dependencies auto-merge (patch) (#662) ✔️
+- Update rust crate tokio to v1.49.0 ✔️
+- Update rust crate clap to v4.5.54 (#659) ✔️
+- Update dependency typescript-eslint to v8.51.0 ✔️
+- Update rust crate axum-test to v18.5.0 ✔️
+- Update rust crate casbin to v2.19.1 (#657) ✔️
+- Update rust crate clap_complete to v4.5.64 (#655) ✔️
+- Update rust crate clap_complete to v4.5.63 (#652) ✔️
+- Update rust crate serde_json to v1.0.148 ✔️
+- Update dependency svelte to v5.46.1 ✔️
+- Update rust crate tempfile to v3.24.0 ✔️
+- Update rust dependencies auto-merge (patch) (#647) ✔️
+- Update dependency typescript-eslint to v8.50.1 (#648) ✔️
+- Update actions/checkout action to v6 ✔️
+- Update dependency typescript-eslint to v8.50.0 ✔️
+- Update dependency vite to v7 ✔️
+- Update rust docker tag to v1.92 ✔️
+- Update rust crate casbin to v2.19.0 ✔️
+- Update dependency svelte-check to v4.3.5 ✔️
+- Update rust dependencies auto-merge (patch) (#641) ✔️
+- Update rust crate governor to v0.10.4 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.142.0 ✔️
+- Update rust crate reqwest to v0.12.26 (#636) ✔️
+- Update dependency prettier-plugin-svelte to v3.4.1 ✔️
+- Update rust crate bollard to v0.19.5 ✔️
+- Update dependency daisyui to v5.5.14 (#633) ✔️
+- Update dependency svelte to v5.46.0 ✔️
+- Update dependency eslint to v9.39.2 ✔️
+
+### Documentation
+
+- Add end-user documentation for logs and shell features ✔️
+
+## [0.2.6]
+
+### Bug Fixes
+
+- Enable rustls-tls for oauth2 crate to support HTTPS token endpoints ✔️
+
+### Dependencies
+
+- Update dependency svelte to v5.45.10 ✔️
+- Update dependency daisyui to v5.5.13 (#628) ✔️
+- Update npm dependencies auto-merge (patch) ✔️
+- Update dependency node to 24.12 ✔️
+- Update dependency daisyui to v5.5.11 ✔️
+
+## [0.2.5]
+
+### Bug Fixes
+
+- Resolve race conditions in task output streaming ✔️
+
+### Dependencies
+
+- Update dependency svelte to v5.45.8 (#623) ✔️
+- Update dependency @sveltejs/kit to v2.49.2 (#622) ✔️
+- Update dependency svelte to v5.45.7 ✔️
+- Update rust crate reqwest to v0.12.25 ✔️
+- Update rust crate tower-http to v0.6.8 ✔️
+- Update dependency typescript-eslint to v8.49.0 ✔️
+
+### Documentation
+
+- Add new beads for new features ✔️
+
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Use tag timestamp for changelog dates and clarify release process ✔️
+- Clear status line before command exits ✔️
+- Add Default implementations for StatusLine and Ui to satisfy clippy ✔️
+- Validate token in auth:status and return exit code 1 when invalid (GH#607) ✔️
+- Clippy warning in test and strengthen pre-push hook ✔️
+- Address code review feedback for HttpError ✔️
+- Prioritize explicit access token over cached OAuth tokens in scottyctl ✔️
+- Restore frontend/build/.gitkeep to fix CI builds ✔️
+- Enable std feature for serde in scotty-types to support String deserialization ✔️
+- Add ts-rs tag/content attributes to WebSocketMessage for proper TypeScript generation ✔️
+- Address MR feedback - remove duplicate counter, fix naming confusion, optimize hot path ✔️
+- Make metrics() return trait object with no-op fallback for tests ✔️
+- Restore OAuth session count metrics ✔️
+- Refresh app state on task completion for both success and failure ✔️
+
+### Dependencies
+
+- Update rust dependencies auto-merge (patch) ✔️
+- Update npm dependencies auto-merge (patch) (#611) ✔️
+- Update rust crate uuid to v1.19.0 ✔️
+- Update rust crate axum-test to v18.4.1 ✔️
+- Update otel/opentelemetry-collector docker tag to v0.141.0 ✔️
+- Update dependency typescript-eslint to v8.48.1 (#603) ✔️
+- Update dependency svelte to v5.45.3 (#600) ✔️
+- Update rust docker tag to v1.91 ✔️
+- Update rust crate sysinfo to 0.37 ✔️
+- Update dependency prettier to v3.7.3 ✔️
+- Update dependency svelte to v5.45.2 ✔️
+- Update rust dependencies auto-merge (patch) (#597) ✔️
+- Update dependency prettier to v3.7.2 ✔️
+
+### Documentation
+
+- Close issue tracking for scotty-28453 and scotty-a2dce - GH#607 complete ✔️
+- Update issue tracking - close scotty-0791a, scotty-46245, create scotty-28453, scotty-6f06c, scotty-a2dce ✔️
+- Track scottyctl auth precedence bug (scotty-a84a4, GH #609) ✔️
+- Update AGENTS.md to clarify both telemetry transports can be enabled ✔️
+- Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+- Implement metrics tracking for task output streams ✔️
+- Implement task output streaming metrics ✔️
+- Add no-telemetry feature flag for minimal builds without OpenTelemetry ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
+### Refactor
+
+- Improve status line cleanup documentation and consistency ✔️
+- Improve status messages for auth commands ✔️
+- Improve error handling with custom ApiError type ✔️
+- Remove duplicate retry logic from scottyctl ✔️
+- Move active count atomics from static to OtelRecorder instance ✔️
+- Simplify telemetry feature logic and test all configurations in CI ✔️
+- Remove redundant inherent methods from OtelRecorder ✔️
+
+### Testing
+
+- Add comprehensive test coverage for auth:status token validation ✔️
+
 ## [0.2.7]
 
 ### Bug Fixes
@@ -1522,4 +1719,6 @@ stdout ❌
 ### CI
 
 - Enable changelog for ci changes ✔️
+
+## [0.1.0-alpha.3]
 

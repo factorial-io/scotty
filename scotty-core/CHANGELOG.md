@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.8]
+
+### Bug Fixes
+
+- Derive override filename from compose file for Docker Compose compatibility ✔️
+
+## [0.2.7]
+
+### Bug Fixes
+
+- Disable HTTP redirects and return helpful error message ✔️
+
+## [0.2.4]
+
+### Bug Fixes
+
+- Remove dates from changelog template to avoid timestamp issues ✔️
+- Clippy warning in test and strengthen pre-push hook ✔️
+- Address code review feedback for HttpError ✔️
+
+### Features
+
+- Preserve HTTP status codes with custom error types ✔️
+
+### Performance
+
+- Optimize compile times by disabling default features and adding telemetry feature flags ✔️
+
 ## [0.2.7]
 
 ### Bug Fixes
