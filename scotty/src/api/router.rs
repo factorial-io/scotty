@@ -51,6 +51,7 @@ use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, 
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
+use super::rest::handlers::landing::landing_or_frontend_handler;
 use crate::api::rest::handlers::admin::assignments::{
     __path_create_assignment_handler, __path_list_assignments_handler,
     __path_remove_assignment_handler,
@@ -73,7 +74,6 @@ use crate::api::rest::handlers::tasks::__path_task_detail_handler;
 use crate::api::rest::handlers::tasks::__path_task_list_handler;
 use crate::api::websocket::client::ws_handler;
 use crate::app_state::SharedAppState;
-use super::rest::handlers::landing::landing_or_frontend_handler;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;

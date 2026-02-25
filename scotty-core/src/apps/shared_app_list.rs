@@ -115,8 +115,7 @@ impl SharedAppList {
                     }
                     // Check auto-generated domain: {service_name}.{settings.domain}
                     if !settings.domain.is_empty() {
-                        let auto_domain =
-                            format!("{}.{}", service.service, settings.domain);
+                        let auto_domain = format!("{}.{}", service.service, settings.domain);
                         if auto_domain == domain {
                             return Some(app.clone());
                         }
@@ -138,11 +137,13 @@ impl SharedAppList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::apps::app_data::{
-        ContainerState, ContainerStatus, ServicePortMapping, AppSettings,
-    };
+    use crate::apps::app_data::{AppSettings, ContainerState, ContainerStatus, ServicePortMapping};
 
-    fn make_app_with_settings(name: &str, domain: &str, services: Vec<ServicePortMapping>) -> AppData {
+    fn make_app_with_settings(
+        name: &str,
+        domain: &str,
+        services: Vec<ServicePortMapping>,
+    ) -> AppData {
         AppData {
             name: name.to_string(),
             settings: Some(AppSettings {
