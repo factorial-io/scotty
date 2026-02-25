@@ -43,11 +43,16 @@
 				const { loadUserPermissions } = await import('../../../stores/permissionStore');
 				await loadUserPermissions();
 
-				// Check if we came from the landing page flow
+				// Check if we came from the landing page flow.
+				// The sessionStorage key is read-then-removed here so that the
+				// landing page receives the autostart=true query param instead of
+				// re-reading from sessionStorage. This avoids a stale entry if the
+				// user later visits the landing page for a different app.
 				const pendingStart = sessionStorage.getItem('scotty_landing_pending_start');
 				if (pendingStart) {
 					try {
 						const pending = JSON.parse(pendingStart);
+						sessionStorage.removeItem('scotty_landing_pending_start');
 						const returnUrlParam = pending.returnUrl
 							? `&return_url=${encodeURIComponent(pending.returnUrl)}`
 							: '';

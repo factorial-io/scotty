@@ -89,7 +89,7 @@
 			} else {
 				appInfo = result as App;
 				// If the app is already running, redirect immediately
-				if (appInfo.status === 'Running' && data.returnUrl) {
+				if (appInfo.status === 'Running' && safeReturnUrl) {
 					state = 'ready';
 					startRedirectCountdown();
 				}
@@ -148,13 +148,13 @@
 	}
 
 	function startRedirectCountdown() {
-		if (!data.returnUrl) return;
+		if (!safeReturnUrl) return;
 		redirectCountdown = 3;
 		countdownInterval = setInterval(() => {
 			redirectCountdown -= 1;
 			if (redirectCountdown <= 0) {
 				if (countdownInterval) clearInterval(countdownInterval);
-				window.location.href = data.returnUrl!;
+				window.location.href = safeReturnUrl!;
 			}
 		}, 1000);
 	}
@@ -165,6 +165,23 @@
 		taskId = null;
 		taskOutputRequested = false;
 	}
+
+	/**
+	 * Validate that the return URL uses http(s) and does not point to a
+	 * different origin than the one we originally came from. Only scheme +
+	 * host are checked so that paths / query strings are preserved.
+	 */
+	function isValidReturnUrl(url: string | null): url is string {
+		if (!url) return false;
+		try {
+			const parsed = new URL(url);
+			return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+		} catch {
+			return false;
+		}
+	}
+
+	$: safeReturnUrl = isValidReturnUrl(data.returnUrl) ? data.returnUrl : null;
 </script>
 
 <svelte:head>
@@ -202,13 +219,13 @@
 			<div class="card-body items-center text-center">
 				<div class="text-success text-5xl mb-4">&#10003;</div>
 				<h2 class="card-title text-2xl">App is ready!</h2>
-				{#if data.returnUrl}
+				{#if safeReturnUrl}
 					<p class="text-gray-500 mt-2">
 						Redirecting in {redirectCountdown}...
 					</p>
 					<div class="card-actions mt-4">
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-						<a href={data.returnUrl} class="btn btn-primary">Go to App</a>
+						<a href={safeReturnUrl} class="btn btn-primary">Go to App</a>
 					</div>
 				{:else}
 					<p class="text-gray-500 mt-2">
@@ -249,9 +266,9 @@
 			<div class="card-body items-center text-center">
 				<h2 class="card-title text-2xl">{data.appName}</h2>
 				<p class="text-gray-500 mt-2">This app is currently not running.</p>
-				{#if data.returnUrl}
+				{#if safeReturnUrl}
 					<p class="text-sm text-gray-400 mt-1">
-						<span class="font-mono">{data.returnUrl}</span>
+						<span class="font-mono">{safeReturnUrl}</span>
 					</p>
 				{/if}
 				{#if appInfo}

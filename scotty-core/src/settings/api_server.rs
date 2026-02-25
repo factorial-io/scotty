@@ -86,8 +86,11 @@ fn default_device_flow_enabled() -> bool {
     true
 }
 
+/// Default frontend base URL used when no explicit configuration is provided.
+pub const DEFAULT_FRONTEND_BASE_URL: &str = "http://localhost:21342";
+
 fn default_frontend_base_url() -> String {
-    "http://localhost:21342".to_string()
+    DEFAULT_FRONTEND_BASE_URL.to_string()
 }
 
 impl Default for ApiServer {

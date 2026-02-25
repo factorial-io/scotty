@@ -103,6 +103,7 @@ impl SharedAppList {
     ///
     /// Searches through all apps' settings (configured and auto-generated domains)
     /// and container states (runtime domains from Traefik labels).
+    /// Domain comparison is case-insensitive per RFC 4343.
     pub async fn find_app_by_domain(&self, domain: &str) -> Option<AppData> {
         let apps = self.apps.read().await;
         for app in apps.values() {
@@ -110,13 +111,17 @@ impl SharedAppList {
             if let Some(settings) = &app.settings {
                 for service in &settings.public_services {
                     // Check explicit custom domains
-                    if service.domains.iter().any(|d| d == domain) {
+                    if service
+                        .domains
+                        .iter()
+                        .any(|d| d.eq_ignore_ascii_case(domain))
+                    {
                         return Some(app.clone());
                     }
                     // Check auto-generated domain: {service_name}.{settings.domain}
                     if !settings.domain.is_empty() {
                         let auto_domain = format!("{}.{}", service.service, settings.domain);
-                        if auto_domain == domain {
+                        if auto_domain.eq_ignore_ascii_case(domain) {
                             return Some(app.clone());
                         }
                     }
@@ -125,7 +130,11 @@ impl SharedAppList {
 
             // Check container-level domains (from running/previously-running state)
             for container in &app.services {
-                if container.domains.iter().any(|d| d == domain) {
+                if container
+                    .domains
+                    .iter()
+                    .any(|d| d.eq_ignore_ascii_case(domain))
+                {
                     return Some(app.clone());
                 }
             }
@@ -249,5 +258,30 @@ mod tests {
         let list = SharedAppList::new();
         let found = list.find_app_by_domain("any.example.com").await;
         assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_domain_case_insensitive() {
+        let list = SharedAppList::new();
+        let app = make_app_with_settings(
+            "myapp",
+            "myapp.example.com",
+            vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+                domains: vec!["Custom.Example.COM".to_string()],
+            }],
+        );
+        list.add_app(app).await.unwrap();
+
+        // Lowercase lookup should match uppercase stored domain
+        let found = list.find_app_by_domain("custom.example.com").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "myapp");
+
+        // Uppercase lookup should match auto-generated domain
+        let found = list.find_app_by_domain("WEB.MYAPP.EXAMPLE.COM").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "myapp");
     }
 }
