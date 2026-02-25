@@ -264,9 +264,7 @@
 				</div>
 
 				{#if !$isAuthenticated}
-					<p class="text-sm text-gray-400 mt-4">
-						You will be asked to log in first.
-					</p>
+					<p class="text-sm text-gray-400 mt-4">You will be asked to log in first.</p>
 				{/if}
 			</div>
 		</div>
