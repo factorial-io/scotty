@@ -207,6 +207,7 @@
 						Redirecting in {redirectCountdown}...
 					</p>
 					<div class="card-actions mt-4">
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 						<a href={data.returnUrl} class="btn btn-primary">Go to App</a>
 					</div>
 				{:else}
