@@ -59,6 +59,9 @@ pub async fn landing_or_frontend_handler(
             return Response::builder()
                 .status(StatusCode::FOUND)
                 .header("Location", redirect_url)
+                .header("Cache-Control", "no-store, no-cache, must-revalidate")
+                .header("Pragma", "no-cache")
+                .header("Expires", "0")
                 .body(Body::empty())
                 .unwrap();
         }
@@ -77,6 +80,9 @@ pub async fn landing_or_frontend_handler(
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .header("content-type", "text/html; charset=utf-8")
+        .header("Cache-Control", "no-store, no-cache, must-revalidate")
+        .header("Pragma", "no-cache")
+        .header("Expires", "0")
         .body(Body::from(
             "<h1>Not Found</h1><p>No application is configured for this domain.</p>",
         ))
