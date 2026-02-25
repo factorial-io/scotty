@@ -98,4 +98,155 @@ impl SharedAppList {
         let t = self.apps.read().await;
         t.is_empty()
     }
+
+    /// Look up an app by one of its domains.
+    ///
+    /// Searches through all apps' settings (configured and auto-generated domains)
+    /// and container states (runtime domains from Traefik labels).
+    pub async fn find_app_by_domain(&self, domain: &str) -> Option<AppData> {
+        let apps = self.apps.read().await;
+        for app in apps.values() {
+            // Check settings-based domains
+            if let Some(settings) = &app.settings {
+                for service in &settings.public_services {
+                    // Check explicit custom domains
+                    if service.domains.iter().any(|d| d == domain) {
+                        return Some(app.clone());
+                    }
+                    // Check auto-generated domain: {service_name}.{settings.domain}
+                    if !settings.domain.is_empty() {
+                        let auto_domain =
+                            format!("{}.{}", service.service, settings.domain);
+                        if auto_domain == domain {
+                            return Some(app.clone());
+                        }
+                    }
+                }
+            }
+
+            // Check container-level domains (from running/previously-running state)
+            for container in &app.services {
+                if container.domains.iter().any(|d| d == domain) {
+                    return Some(app.clone());
+                }
+            }
+        }
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::apps::app_data::{
+        ContainerState, ContainerStatus, ServicePortMapping, AppSettings,
+    };
+
+    fn make_app_with_settings(name: &str, domain: &str, services: Vec<ServicePortMapping>) -> AppData {
+        AppData {
+            name: name.to_string(),
+            settings: Some(AppSettings {
+                domain: domain.to_string(),
+                public_services: services,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn make_app_with_containers(name: &str, containers: Vec<ContainerState>) -> AppData {
+        AppData {
+            name: name.to_string(),
+            services: containers,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_custom_domain() {
+        let list = SharedAppList::new();
+        let app = make_app_with_settings(
+            "myapp",
+            "myapp.example.com",
+            vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+                domains: vec!["custom.example.com".to_string()],
+            }],
+        );
+        list.add_app(app).await.unwrap();
+
+        let found = list.find_app_by_domain("custom.example.com").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "myapp");
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_auto_generated_domain() {
+        let list = SharedAppList::new();
+        let app = make_app_with_settings(
+            "myapp",
+            "myapp.example.com",
+            vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+                domains: vec![],
+            }],
+        );
+        list.add_app(app).await.unwrap();
+
+        // Auto-generated domain is {service}.{settings.domain}
+        let found = list.find_app_by_domain("web.myapp.example.com").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "myapp");
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_container_domain() {
+        let list = SharedAppList::new();
+        let app = make_app_with_containers(
+            "myapp",
+            vec![ContainerState {
+                status: ContainerStatus::Running,
+                id: None,
+                service: "web".to_string(),
+                domains: vec!["runtime.example.com".to_string()],
+                use_tls: false,
+                port: Some(8080),
+                started_at: None,
+                used_registry: None,
+                basic_auth: None,
+            }],
+        );
+        list.add_app(app).await.unwrap();
+
+        let found = list.find_app_by_domain("runtime.example.com").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "myapp");
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_domain_not_found() {
+        let list = SharedAppList::new();
+        let app = make_app_with_settings(
+            "myapp",
+            "myapp.example.com",
+            vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 8080,
+                domains: vec![],
+            }],
+        );
+        list.add_app(app).await.unwrap();
+
+        let found = list.find_app_by_domain("unknown.example.com").await;
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_app_by_domain_empty_list() {
+        let list = SharedAppList::new();
+        let found = list.find_app_by_domain("any.example.com").await;
+        assert!(found.is_none());
+    }
 }

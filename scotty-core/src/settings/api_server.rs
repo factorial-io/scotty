@@ -71,6 +71,11 @@ pub struct ApiServer {
     pub bearer_tokens: HashMap<String, String>,
     #[serde(default)]
     pub rate_limiting: RateLimitingConfig,
+    /// Public-facing base URL for Scotty (e.g., "https://scotty.example.com").
+    /// Used by the landing page feature to redirect stopped-app requests
+    /// back to Scotty's domain.
+    #[serde(default)]
+    pub base_url: Option<String>,
 }
 
 fn default_oauth_redirect_url() -> String {
@@ -97,6 +102,7 @@ impl Default for ApiServer {
             oauth: OAuthSettings::default(),
             bearer_tokens: HashMap::new(),
             rate_limiting: RateLimitingConfig::default(),
+            base_url: None,
         }
     }
 }

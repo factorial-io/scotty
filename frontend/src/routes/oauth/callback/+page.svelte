@@ -43,7 +43,24 @@
 				const { loadUserPermissions } = await import('../../../stores/permissionStore');
 				await loadUserPermissions();
 
-				// Redirect to dashboard
+				// Check if we came from the landing page flow
+				const pendingStart = sessionStorage.getItem('scotty_landing_pending_start');
+				if (pendingStart) {
+					try {
+						const pending = JSON.parse(pendingStart);
+						const returnUrlParam = pending.returnUrl
+							? `&return_url=${encodeURIComponent(pending.returnUrl)}`
+							: '';
+						await goto(
+							resolve(`/landing/${pending.appName}?autostart=true${returnUrlParam}`)
+						);
+						return;
+					} catch {
+						sessionStorage.removeItem('scotty_landing_pending_start');
+					}
+				}
+
+				// Default: redirect to dashboard
 				await goto(resolve('/dashboard'));
 			} else {
 				error = result.error || 'Authentication failed';
