@@ -104,6 +104,9 @@ impl SharedAppList {
     /// Searches through all apps' settings (configured and auto-generated domains)
     /// and container states (runtime domains from Traefik labels).
     /// Domain comparison is case-insensitive per RFC 4343.
+    ///
+    /// Note: holds the read lock for the entire scan including `.clone()` on match.
+    /// This is acceptable for a micro-PaaS with a small number of apps.
     pub async fn find_app_by_domain(&self, domain: &str) -> Option<AppData> {
         let apps = self.apps.read().await;
         for app in apps.values() {
@@ -119,6 +122,8 @@ impl SharedAppList {
                         return Some(app.clone());
                     }
                     // Check auto-generated domain: {service_name}.{settings.domain}
+                    // Must match the Traefik label format in
+                    // scotty/src/docker/loadbalancer/traefik.rs
                     if !settings.domain.is_empty() {
                         let auto_domain = format!("{}.{}", service.service, settings.domain);
                         if auto_domain.eq_ignore_ascii_case(domain) {

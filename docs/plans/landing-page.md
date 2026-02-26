@@ -373,12 +373,12 @@ This validation should happen both:
 | `frontend/src/routes/landing/[slug]/+page.svelte` | Create | Landing page UI |
 | `frontend/src/routes/landing/[slug]/+page.ts` | Create | Page load function |
 
-## Open Questions
+## Resolved Design Decisions
 
-1. **Landing page layout:** Standalone minimal page, or within the existing dashboard shell (sidebar, header)?
+1. **Landing page layout:** Standalone minimal page (no dashboard shell). Keeps the UI focused and works for unauthenticated users.
 
-2. **Task output detail level:** Full docker-compose log output, or simplified progress steps?
+2. **Task output detail level:** Full docker-compose log output via existing WebSocket task streaming.
 
-3. **Unknown domain behavior:** 404, redirect to dashboard, or generic "no app here" page?
+3. **Unknown domain behavior:** Returns 404 with "No application is configured for this domain" HTML page.
 
-4. **Deep path preservation:** Should `myapp.example.com/admin/settings` preserve the full path in `return_url`? (Current plan: yes)
+4. **Deep path preservation:** Yes — the full path and query string are preserved in `return_url`.

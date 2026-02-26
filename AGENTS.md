@@ -146,7 +146,7 @@ Runs `scripts/generate-changelogs.sh`, updates versions in all Cargo.toml files,
 
 ## Project Management
 
-Uses **beans**, an agentic-first issue tracker. Issues ("beans") are managed via the `beans` CLI. Agents should use beans instead of todo lists to track work, create/update issues, and manage task dependencies.
+Uses **beans**, an agentic-first issue tracker. Issues ("beans") are managed via the `beans` CLI. The `.beans/` directory is committed to the repository. Agents should use beans instead of todo lists to track work, create/update issues, and manage task dependencies.
 
 ## Git Rules
 

@@ -27,6 +27,7 @@
 	let taskOutputRequested = false;
 	let redirectCountdown = 3;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+	let destroyed = false;
 
 	$: taskOutput = taskId ? getTaskOutput(taskId) : null;
 
@@ -41,45 +42,36 @@
 	onMount(async () => {
 		setTitle(`Start: ${data.appName}`);
 
-		// Check if we're returning from OAuth with a pending start
-		const pendingStart = sessionStorage.getItem('scotty_landing_pending_start');
-		if (pendingStart) {
-			try {
-				const pending = JSON.parse(pendingStart);
-				if (pending.appName === data.appName) {
-					sessionStorage.removeItem('scotty_landing_pending_start');
-					// Auto-trigger start after OAuth return
-					if ($isAuthenticated) {
-						await startApp();
-						return;
-					}
-				}
-			} catch {
-				sessionStorage.removeItem('scotty_landing_pending_start');
-			}
+		// Always load app info first when authenticated — this populates
+		// appInfo which is needed for return_url domain validation.
+		if ($isAuthenticated) {
+			await loadAppInfo();
+			// If app was already running, loadAppInfo triggers redirect — stop here.
+			if (state === 'ready') return;
 		}
 
-		// If autostart param is set and user is authenticated, start immediately
+		// If autostart param is set and user is authenticated, start immediately.
+		// The OAuth callback redirects here with ?autostart=true after login.
 		if (data.autostart && $isAuthenticated) {
 			await startApp();
 			return;
 		}
-
-		// Try to load app info (requires auth)
-		if ($isAuthenticated) {
-			await loadAppInfo();
-		}
 	});
 
 	onDestroy(() => {
-		if (taskId) {
-			webSocketStore.stopTaskOutputStream(taskId);
-			setTaskOutputSubscribed(taskId, false);
-		}
+		destroyed = true;
+		cleanupTask();
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 		}
 	});
+
+	function cleanupTask() {
+		if (taskId) {
+			webSocketStore.stopTaskOutputStream(taskId);
+			setTaskOutputSubscribed(taskId, false);
+		}
+	}
 
 	async function loadAppInfo() {
 		try {
@@ -88,10 +80,12 @@
 				appError = 'App not found';
 			} else {
 				appInfo = result as App;
-				// If the app is already running, redirect immediately
-				if (appInfo.status === 'Running' && safeReturnUrl) {
+				// Evaluate inline instead of relying on $: reactive statement,
+				// which wouldn't update until after this synchronous block.
+				const validUrl = isValidReturnUrl(data.returnUrl, appInfo) ? data.returnUrl : null;
+				if (appInfo.status === 'Running' && validUrl) {
 					state = 'ready';
-					startRedirectCountdown();
+					startRedirectCountdown(validUrl);
 				}
 			}
 		} catch {
@@ -126,13 +120,23 @@
 		state = 'starting';
 		appError = null;
 
+		// Ensure appInfo is loaded so safeReturnUrl can be validated after
+		// the task completes. Without this, if loadAppInfo() failed earlier
+		// (e.g. network issue), the ready-state redirect would silently
+		// fall back to the dashboard link instead of the original URL.
+		if (!appInfo && $isAuthenticated) {
+			await loadAppInfo();
+		}
+
 		try {
 			const id = await runApp(data.appName);
 			taskId = id;
 			initializeTaskOutput(id);
 
-			// Monitor task completion
+			// Monitor task completion. The callback may fire after the component
+			// is destroyed (e.g. user navigates away), so guard with `destroyed`.
 			monitorTask(id, async (result) => {
+				if (destroyed) return;
 				if (result.state === 'Finished') {
 					state = 'ready';
 					startRedirectCountdown();
@@ -147,19 +151,21 @@
 		}
 	}
 
-	function startRedirectCountdown() {
-		if (!safeReturnUrl) return;
+	function startRedirectCountdown(url?: string) {
+		const redirectTo = url ?? safeReturnUrl;
+		if (!redirectTo) return;
 		redirectCountdown = 3;
 		countdownInterval = setInterval(() => {
 			redirectCountdown -= 1;
 			if (redirectCountdown <= 0) {
 				if (countdownInterval) clearInterval(countdownInterval);
-				window.location.href = safeReturnUrl!;
+				window.location.href = redirectTo;
 			}
 		}, 1000);
 	}
 
 	function handleRetry() {
+		cleanupTask();
 		state = 'idle';
 		appError = null;
 		taskId = null;
@@ -167,21 +173,54 @@
 	}
 
 	/**
-	 * Validate that the return URL uses http(s) and does not point to a
-	 * different origin than the one we originally came from. Only scheme +
-	 * host are checked so that paths / query strings are preserved.
+	 * Validate the return URL for safe redirect:
+	 * - Must be http or https (rejects javascript:, data:, etc.)
+	 * - If app info is loaded, hostname must match one of the app's known domains
+	 *   (both runtime container domains and settings-based domains)
+	 * - If app info is not loaded, reject the URL (require domain validation)
 	 */
-	function isValidReturnUrl(url: string | null): url is string {
+	function isValidReturnUrl(url: string | null, app: App | null): url is string {
 		if (!url) return false;
 		try {
 			const parsed = new URL(url);
-			return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+			if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+				return false;
+			}
+			// Require app info for domain validation — without it we cannot
+			// verify the return URL belongs to the app, so reject it.
+			if (!app) return false;
+
+			const hostname = parsed.hostname.toLowerCase();
+
+			// Runtime container domains (from running/previously-running state)
+			const runtimeDomains = app.services.flatMap((s) =>
+				s.domains.map((d) => d.toLowerCase())
+			);
+
+			// Settings-based domains: explicit + auto-generated {service}.{domain}
+			// Auto-generated format must match Traefik label generation in
+			// scotty/src/docker/loadbalancer/traefik.rs
+			const settingsDomains = (app.settings?.public_services ?? []).flatMap((s) => {
+				const explicit = s.domains.map((d) => d.toLowerCase());
+				const autoGen = app.settings?.domain
+					? [`${s.service}.${app.settings.domain}`.toLowerCase()]
+					: [];
+				return [...explicit, ...autoGen];
+			});
+
+			const appDomains = [...new Set([...runtimeDomains, ...settingsDomains])];
+
+			// Reject if the app has no known domains or hostname doesn't match
+			if (appDomains.length === 0 || !appDomains.includes(hostname)) {
+				return false;
+			}
+			return true;
 		} catch {
 			return false;
 		}
 	}
 
-	$: safeReturnUrl = isValidReturnUrl(data.returnUrl) ? data.returnUrl : null;
+	$: safeReturnUrl = isValidReturnUrl(data.returnUrl, appInfo) ? data.returnUrl : null;
 </script>
 
 <svelte:head>
@@ -266,9 +305,9 @@
 			<div class="card-body items-center text-center">
 				<h2 class="card-title text-2xl">{data.appName}</h2>
 				<p class="text-gray-500 mt-2">This app is currently not running.</p>
-				{#if safeReturnUrl}
+				{#if data.returnUrl}
 					<p class="text-sm text-gray-400 mt-1">
-						<span class="font-mono">{safeReturnUrl}</span>
+						<span class="font-mono">{data.returnUrl}</span>
 					</p>
 				{/if}
 				{#if appInfo}

@@ -24,7 +24,14 @@ export type AppTtl =
 	  }
 	| 'Forever';
 
+export interface ServicePortMapping {
+	service: string;
+	port: number;
+	domains: string[];
+}
+
 export interface AppSettings {
+	public_services: ServicePortMapping[];
 	time_to_live: AppTtl;
 	domain: string;
 	registry: string;

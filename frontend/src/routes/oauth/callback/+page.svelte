@@ -53,11 +53,13 @@
 					try {
 						const pending = JSON.parse(pendingStart);
 						sessionStorage.removeItem('scotty_landing_pending_start');
-						const returnUrlParam = pending.returnUrl
-							? `&return_url=${encodeURIComponent(pending.returnUrl)}`
-							: '';
+						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive context
+						const params = new URLSearchParams({ autostart: 'true' });
+						if (pending.returnUrl) {
+							params.set('return_url', pending.returnUrl);
+						}
 						await goto(
-							resolve(`/landing/${pending.appName}?autostart=true${returnUrlParam}`)
+							resolve(`/landing/${encodeURIComponent(pending.appName)}?${params}`)
 						);
 						return;
 					} catch {
