@@ -4,354 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Scotty is a micro Platform-as-a-Service (PaaS) for managing Docker Compose-based applications. The codebase consists of:
+Scotty is a micro Platform-as-a-Service (PaaS) for managing Docker Compose-based applications:
 
-- **scotty**: HTTP server providing REST API and WebSocket support for managing Docker Compose applications
-- **scottyctl**: CLI application for interacting with the scotty server
-- **scotty-core**: Shared business logic and utilities
+- **scotty**: HTTP server (REST API + WebSocket) for managing Docker Compose apps
+- **scottyctl**: CLI client for the scotty server
+- **scotty-core**: Shared business logic (Docker operations, settings, tasks)
 - **scotty-types**: Shared type definitions (TypeScript-compatible via ts-rs)
-- **frontend**: SvelteKit-based web interface (tightly coupled with the API - no backwards compatibility required)
+- **frontend**: SvelteKit web interface (tightly coupled with API, no backwards compatibility needed)
+- **ts-generator**: Utility for generating TypeScript bindings from Rust types
 
 ## Development Commands
 
-### Running Tests
 ```bash
-# Run all tests
-cargo test
+# Tests
+cargo test                                              # Run all tests
+cargo test test_name -- --nocapture                     # Specific test with output
+RUST_LOG=debug cargo test test_name -p scotty -- --nocapture  # With debug logging
 
-# Run specific test with output
-cargo test test_name -- --nocapture
+# Server (use .env file for SCOTTY__API__AUTH_MODE=dev etc.)
+SCOTTY__API__AUTH_MODE=dev cargo run --bin scotty        # Dev mode (no auth)
+RUST_LOG=info cargo run --bin scotty                     # With logging
+cargo run --bin scotty -- config                         # View configuration
 
-# Run with backtrace
-RUST_BACKTRACE=1 cargo test test_name -- --nocapture
-
-# Run with debug logging
-RUST_LOG=debug cargo test test_name -p scotty -- --nocapture
-```
-
-### Running the Server
-```bash
-# Development mode (no authentication required)
-SCOTTY__API__AUTH_MODE=dev cargo run --bin scotty
-
-# Or use .env file for local configuration (recommended)
-# Create a .env file with:
-#   SCOTTY__API__AUTH_MODE=dev
-#   SCOTTY__DOCKER__REGISTRIES__MYREGISTRY__PASSWORD=secret
-cargo run --bin scotty
-
-# With info logging
-RUST_LOG=info cargo run --bin scotty
-
-# With telemetry enabled
-SCOTTY__TELEMETRY=metrics,traces cargo run --bin scotty
-
-# View current configuration
-cargo run --bin scotty -- config
-
-# Choose telemetry transport(s) - can enable one or both (default: telemetry-grpc)
-cargo build                                                            # gRPC only (default)
-cargo build --no-default-features --features telemetry-http            # HTTP only
-cargo build --no-default-features --features telemetry-grpc,telemetry-http  # Both (runtime config)
-```
-
-### Running scottyctl
-```bash
-# Basic command structure
+# scottyctl
 cargo run --bin scottyctl -- <command>
-
-# With server and auth (via command-line args)
 cargo run --bin scottyctl -- --server http://localhost:21342 --access-token <token> app:list
+# Or via env: SCOTTY_SERVER=http://localhost:21342 SCOTTY_ACCESS_TOKEN=<token>
 
-# With server and auth (via environment variables)
-export SCOTTY_SERVER=http://localhost:21342
-export SCOTTY_ACCESS_TOKEN=<token>
-cargo run --bin scottyctl -- app:list
+# Frontend (uses bun, not npm)
+cd frontend && bun install && bun run dev               # Development server
+bun run build                                           # Production build
+bun run check                                           # Type checking
+bun run lint                                            # Prettier + ESLint (must pass before push)
 
-# When server is running in dev mode (SCOTTY__API__AUTH_MODE=dev), no token needed
-cargo run --bin scottyctl -- app:list
-```
-
-### Frontend Development
-```bash
-cd frontend
-npm install
-npm run dev        # Development server
-npm run build      # Production build
-npm run check      # Type checking
-```
-
-### Prerequisites
-Start Traefik (required for local development):
-```bash
-cd apps/traefik
-docker-compose up -d
+# Prerequisites: start Traefik for local development
+cd apps/traefik && docker compose up -d
 ```
 
 ## Architecture
 
-### Workspace Structure
+### Scotty Server (`scotty/src/`)
 
-The project uses a Cargo workspace with the following members:
-- `scotty`: Main server binary and API implementation
-- `scottyctl`: CLI client
-- `scotty-core`: Shared business logic (Docker operations, settings, tasks)
-- `scotty-types`: Type definitions (uses ts-rs for TypeScript generation)
-- `ts-generator`: Utility for generating TypeScript bindings
-
-### Scotty Server Architecture
-
-**Entry Point**: `scotty/src/main.rs`
-- Initializes `AppState` with settings, Docker client, task manager
-- Sets up telemetry (OpenTelemetry for metrics and tracing)
-- Spawns HTTP server, Docker integration, and background tasks
+**Entry Point**: `main.rs` — initializes AppState (settings, Docker client, task manager), sets up OpenTelemetry, spawns HTTP server and background tasks.
 
 **Key Modules**:
-- `api/`: HTTP API layer
-  - `router.rs`: Axum router with OpenAPI documentation (utoipa)
-  - `rest/handlers/`: REST endpoint handlers organized by domain (apps, admin, tasks, etc.)
-  - `websocket/`: WebSocket handlers for real-time features (logs, shell, task output)
-  - `middleware/`: Authorization middleware using Casbin RBAC
-  - `rate_limiting/`: Rate limiting per authentication tier
-- `docker/`: Core Docker Compose orchestration
-  - `state_machine_handlers/`: Task execution steps (create directory, run compose, etc.)
-  - `services/`: Long-running services (log streaming, shell sessions)
-  - `loadbalancer/`: Traefik/HAProxy configuration generation
-- `services/authorization/`: Casbin-based RBAC with scopes, roles, and permissions
-- `oauth/`: OAuth 2.0 device flow and web flow implementation
+- `api/router.rs`: Axum router with OpenAPI docs (utoipa)
+- `api/rest/handlers/`: REST endpoints — `apps/` (create, list, run, actions, notifications), `admin/` (assignments, permissions, roles, scopes), `scopes/` (user-facing), `blueprints.rs`, `landing.rs` (Traefik fallback routing), `login.rs`, `tasks.rs`, `health.rs`, `info.rs`
+- `api/websocket/`: Real-time features — `handlers/` (auth, logs, shell, tasks), `messaging.rs` (protocol), `client.rs` (connection mgmt)
+- `api/auth_core.rs`: Core authentication logic
+- `api/middleware/`: Casbin RBAC authorization
+- `api/rate_limiting/`: Per-tier rate limiting
+- `docker/state_machine_handlers/`: App lifecycle steps (create dir, save files, docker login, compose up, load balancer config, post actions, wait for containers, etc.)
+- `docker/services/`: Long-running log streaming and shell sessions
+- `docker/loadbalancer/`: Traefik/HAProxy config generation
+- `onepassword/`: 1Password secrets — resolves `op://` URIs in app env vars (two-pass: 1Password lookup, then env var substitution)
+- `oauth/`: OAuth 2.0 — device flow (CLI) and web flow (`/oauth/authorize`, `/api/oauth/callback`, `/oauth/exchange`)
+- `services/authorization/`: Casbin RBAC (scopes, roles, permissions)
 - `tasks/`: Task execution and output streaming
 - `notification/`: Webhook, Mattermost, GitLab notifications
+- `static_files.rs`: Embedded frontend serving
+- `metrics/`: Collectors for log streaming, shell sessions, WebSocket connections, etc.
 
-**State Management**:
-- `AppState` (shared via `Arc`) contains:
-  - Settings (loaded from config files and env vars)
-  - Docker client (Bollard)
-  - Task manager for async operations
-  - Authorization service
-  - Metrics collectors
+**AppState** (shared via `Arc`): Settings, Docker client (Bollard), task manager, authorization service, metrics collectors.
 
 ### Authorization System
 
-Uses Casbin for RBAC with three concepts:
-- **Scopes**: Logical groupings (e.g., `client-a`, `qa`, `default`)
-- **Roles**: Permission sets (e.g., `admin`, `developer`, `viewer`)
-- **Assignments**: Map users to roles+scopes
+Uses Casbin for RBAC. Config: `config/casbin/policy.yaml`. Implementation: `scotty/src/services/authorization/casbin.rs`. Tests: `scotty/tests/authorization_domain_test.rs`.
 
-**Configuration**: `config/casbin/policy.yaml`
+**Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`
 
-**Available Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`
-
-#### Assignment Types
-
-Scotty supports three types of user assignments with a specific precedence order:
-
-1. **Exact email match** (highest priority)
-   - Syntax: `user@factorial.io`
-   - Matches specific user email (case-insensitive per RFC 5321)
-   - Use for: Individual users requiring specific permissions
-
-2. **Domain pattern match** (fallback)
-   - Syntax: `@factorial.io`
-   - Matches all users from a specific email domain
-   - Use for: Granting consistent permissions to all users from an organization
-   - Validation rules:
-     - Must start with `@`
-     - Must contain at least one dot (e.g., `@factorial.io`)
-     - Cannot contain additional `@` symbols
-   - Security: Prevents subdomain attacks (`user@evil.factorial.io` does NOT match `@factorial.io`)
-
-3. **Wildcard match** (baseline)
-   - Syntax: `*`
-   - Matches all users regardless of identity
-   - Use for: Default baseline permissions for anonymous or unassigned users
-   - Always additive (combined with exact/domain matches)
-
-#### Assignment Precedence
-
-When a user authenticates, Scotty resolves their permissions using this precedence:
-
-1. **Exact email match** - If found, use these assignments
-2. **Domain match** - If no exact match, check for domain pattern (e.g., `@factorial.io`)
-3. **Wildcard** - Always added to all users (additive, not exclusive)
-
-**Example**: User `developer@factorial.io` authenticates:
-- Has exact assignment: Uses exact + wildcard assignments
-- No exact, has domain `@factorial.io`: Uses domain + wildcard assignments
-- No exact, no domain: Uses only wildcard assignments
-
-#### Configuration Example
+**Assignment matching** (by precedence): exact email (`user@factorial.io`) > domain pattern (`@factorial.io`) > wildcard (`*`). Wildcard is always additive. Domain patterns prevent subdomain attacks. Case-insensitive per RFC 5321.
 
 ```yaml
 # config/casbin/policy.yaml
 scopes:
-  client-a:
-    description: Client A Production
-  qa:
-    description: QA Environment
-  default:
-    description: Default scope for public apps
-
+  client-a: { description: "Client A Production" }
+  qa: { description: "QA Environment" }
 roles:
-  admin:
-    permissions: ['*']
-    description: Full system access
-  developer:
-    permissions: ['view', 'manage', 'create', 'shell', 'logs']
-    description: Developer access (no destroy)
-  viewer:
-    permissions: ['view']
-    description: Read-only access
-
+  admin: { permissions: ['*'], description: "Full access" }
+  developer: { permissions: ['view', 'manage', 'create', 'shell', 'logs'], description: "Dev access" }
+  viewer: { permissions: ['view'], description: "Read-only" }
 assignments:
-  # Exact email - highest priority
-  stephan@factorial.io:
-    - role: admin
-      scopes: ['*']  # Access to all scopes
-
-  # Domain pattern - applies to all @factorial.io users
-  # Only used if no exact email match exists
-  '@factorial.io':
-    - role: developer
-      scopes: ['client-a', 'qa']
-
-  # Wildcard - baseline for everyone
-  # Always combined with exact/domain assignments
-  '*':
-    - role: viewer
-      scopes: ['default']
+  stephan@factorial.io:                     # Exact match (highest priority)
+    - { role: admin, scopes: ['*'] }
+  '@factorial.io':                          # Domain match (fallback)
+    - { role: developer, scopes: ['client-a', 'qa'] }
+  '*':                                      # Wildcard (always additive)
+    - { role: viewer, scopes: ['default'] }
 ```
 
-#### Use Cases
+### scottyctl (`scottyctl/src/`)
 
-**Individual Admin Access**:
-```yaml
-stephan@factorial.io:
-  - role: admin
-    scopes: ['*']
-```
+**Commands** (colon-separated namespace):
+- `app:` list, create, destroy, run, start, stop, rebuild, purge, adopt, info, action, logs, shell
+- `admin:` scopes:\*, roles:\*, assignments:\*, permissions:\*
+- `auth:` login, logout, status, refresh
+- `blueprint:` list, info
+- `notify:` add, remove
+- `completion`, `test`
 
-**Organization-Wide Developer Access**:
-```yaml
-'@factorial.io':
-  - role: developer
-    scopes: ['client-a', 'qa', 'staging']
-```
+**Global flags**: `--server`, `--access-token`, `--debug`, `--bypass-version-check`
 
-**Public Read-Only Access**:
-```yaml
-'*':
-  - role: viewer
-    scopes: ['public-demos']
-```
+**Preflight** (`preflight.rs`): Checks client/server version compatibility via `/api/v1/info` before running commands. Bypass with `--bypass-version-check`.
 
-**Mixed Access Levels**:
-```yaml
-# Admin gets special access
-admin@factorial.io:
-  - role: admin
-    scopes: ['production']
+**File upload** (`app:create`): Files collected via `utils/files.rs:collect_files()`, base64-encoded. Supports `.scottyignore` (gitignore-style patterns via `ignore` crate). Auto-excludes `.DS_Store`, `.git/`.
 
-# All other @factorial.io users get developer
-'@factorial.io':
-  - role: developer
-    scopes: ['staging', 'qa']
+**Auth**: OAuth device flow + bearer tokens via env vars or CLI args. Core logic in `auth/` (device flow, token storage, caching).
 
-# Everyone gets viewer access to demos
-'*':
-  - role: viewer
-    scopes: ['demos']
-```
+### Blueprints
 
-#### Implementation Details
-
-- **Custom Casbin matcher**: Uses `user_match()` function for domain/wildcard matching
-- **Case-insensitive**: Email matching follows RFC 5321 (case-insensitive)
-- **Security**: Domain patterns validated to prevent attacks
-- **Location**: `scotty/src/services/authorization/casbin.rs`
-- **Tests**: `scotty/tests/authorization_domain_test.rs`
-
-### scottyctl Architecture
-
-**Command Structure**: Commands are organized hierarchically:
-- `commands/`: Top-level command modules (apps, admin, auth)
-  - `apps/`: App management commands (create, destroy, shell, logs, etc.)
-  - `admin/`: Admin commands (scopes, roles, assignments)
-  - `auth/`: OAuth login/logout
-
-**Authentication**: Supports OAuth device flow and bearer tokens via environment variables or command-line args.
-
-**File Upload (app:create)**:
-- File collection happens in `scottyctl/src/utils/files.rs:collect_files()`
-- Supports `.scottyignore` files using gitignore-style patterns (via the `ignore` crate)
-- Files are base64-encoded and sent to the server
-- Automatically excludes: `.DS_Store`, `.git/` directory
-- `.scottyignore` patterns: `*.log`, `target`, `!important.log`, `**/*.tmp`, etc.
-
-### Frontend-Backend Coupling
-
-The Svelte frontend and Rust API are **tightly coupled** - breaking changes are acceptable. TypeScript types are generated from Rust using `ts-rs`. No API versioning or backwards compatibility needed.
+Reusable app templates defining required/public services, port mappings, lifecycle actions (PostCreate, PostRun, PostRebuild), and custom actions per service. Available via `blueprint:list`/`blueprint:info` and `GET /api/v1/authenticated/blueprints`.
 
 ## Configuration
 
-### Server Configuration
+Settings loaded via `config` crate: 1) defaults in code, 2) config files (YAML/TOML), 3) env vars (prefix: `SCOTTY__`).
 
-Settings are loaded via the `config` crate:
-1. Default values in code
-2. Config files (YAML/JSON)
-3. Environment variables (prefix: `SCOTTY__`)
+**Server env vars**: `SCOTTY__API__AUTH_MODE=dev` (disable auth), `SCOTTY__TELEMETRY=metrics,traces`, `SCOTTY__API__BEARER_TOKENS__<NAME>` (use env vars, not config files).
 
-Key server environment variables:
-- `SCOTTY__API__AUTH_MODE`: Set to `dev` for local development (disables auth)
-- `SCOTTY__TELEMETRY`: Enable metrics/traces (`metrics,traces`)
-- `SCOTTY__API__BEARER_TOKENS__<NAME>`: Bearer token values (use env vars, not config files)
-
-### scottyctl Configuration
-
-scottyctl uses different environment variables:
-- `SCOTTY_SERVER`: Server URL (default: `http://localhost:21342`)
-- `SCOTTY_ACCESS_TOKEN`: Bearer token for authentication
+**scottyctl env vars**: `SCOTTY_SERVER` (default: `http://localhost:21342`), `SCOTTY_ACCESS_TOKEN`.
 
 ## Testing
 
-- Unit tests are colocated with implementation
-- Integration tests in `scotty/tests/`
-- Use `axum-test` for HTTP endpoint testing
-- Use `wiremock` for mocking external services
+Unit tests colocated with implementation. Integration tests in `scotty/tests/`. Uses `axum-test` for HTTP testing, `wiremock` for mocking external services.
 
 ## Observability
 
-Run the observability stack (Grafana, Jaeger, VictoriaMetrics):
 ```bash
-cd observability
-docker-compose up -d
+cd observability && docker compose up -d
 ```
-
-Access:
-- Grafana: http://grafana.ddev.site (admin/admin)
-- Jaeger: http://jaeger.ddev.site
-- VictoriaMetrics: http://vm.ddev.site
-
-Metrics include: log streaming, shell sessions, WebSocket connections, task execution, HTTP performance, memory usage.
+Grafana: http://grafana.ddev.site (admin/admin) | Jaeger: http://jaeger.ddev.site | VictoriaMetrics: http://vm.ddev.site
 
 ## Release Process
 
-Uses `cargo-release` with automatic changelog generation via `git-cliff`.
-
-**Important**: Do not manually update changelogs. They are automatically generated during the release process from git history.
+Uses `cargo-release` with `git-cliff` for automatic changelog generation. Do not manually update changelogs.
 
 ```bash
-# Create new release (example)
 cargo release --no-publish alpha -x --tag-prefix ""
 ```
 
-The release process:
-1. Runs `scripts/generate-changelogs.sh` with the new version (via pre-release-hook)
-2. Generates changelogs for workspace root and all crates from git history
-3. Updates version numbers in all Cargo.toml files
-4. Creates and signs git tags
-5. Commits all changes
+Runs `scripts/generate-changelogs.sh`, updates versions in all Cargo.toml files, creates signed git tags. Pre-push hook via `cargo-husky` enforces quality checks.
 
-Pre-push hook via `cargo-husky` runs automatically to enforce quality checks.
+## Project Management
+
+Uses **beans**, an agentic-first issue tracker. Issues ("beans") are managed via the `beans` CLI. Agents should use beans instead of todo lists to track work, create/update issues, and manage task dependencies.
 
 ## Git Rules
 

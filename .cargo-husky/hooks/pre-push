@@ -32,13 +32,13 @@ if git diff --name-only @{upstream}..HEAD 2>/dev/null | grep -q "^frontend/" || 
     echo ""
 
     echo "🎨 Linting frontend code..."
-    cd frontend && npm run lint
+    cd frontend && bun run lint
     cd ..
     echo "✅ Frontend linting passed"
     echo ""
 
     echo "🔎 Type-checking frontend code..."
-    cd frontend && npm run check
+    cd frontend && bun run check
     cd ..
     echo "✅ Frontend type checking passed"
     echo ""
