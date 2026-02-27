@@ -110,25 +110,15 @@ impl SharedAppList {
     pub async fn find_app_by_domain(&self, domain: &str) -> Option<AppData> {
         let apps = self.apps.read().await;
         for app in apps.values() {
-            // Check settings-based domains
+            // Check settings-based domains (custom and auto-generated)
             if let Some(settings) = &app.settings {
                 for service in &settings.public_services {
-                    // Check explicit custom domains
                     if service
-                        .domains
+                        .get_domains(&settings.domain)
                         .iter()
                         .any(|d| d.eq_ignore_ascii_case(domain))
                     {
                         return Some(app.clone());
-                    }
-                    // Check auto-generated domain: {service_name}.{settings.domain}
-                    // Must match the Traefik label format in
-                    // scotty/src/docker/loadbalancer/traefik.rs
-                    if !settings.domain.is_empty() {
-                        let auto_domain = format!("{}.{}", service.service, settings.domain);
-                        if auto_domain.eq_ignore_ascii_case(domain) {
-                            return Some(app.clone());
-                        }
                     }
                 }
             }
@@ -268,7 +258,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_app_by_domain_case_insensitive() {
         let list = SharedAppList::new();
-        let app = make_app_with_settings(
+        let app_custom = make_app_with_settings(
             "myapp",
             "myapp.example.com",
             vec![ServicePortMapping {
@@ -277,16 +267,26 @@ mod tests {
                 domains: vec!["Custom.Example.COM".to_string()],
             }],
         );
-        list.add_app(app).await.unwrap();
+        let app_auto = make_app_with_settings(
+            "otherapp",
+            "otherapp.example.com",
+            vec![ServicePortMapping {
+                service: "api".to_string(),
+                port: 3000,
+                domains: vec![],
+            }],
+        );
+        list.add_app(app_custom).await.unwrap();
+        list.add_app(app_auto).await.unwrap();
 
-        // Lowercase lookup should match uppercase stored domain
+        // Lowercase lookup should match uppercase stored custom domain
         let found = list.find_app_by_domain("custom.example.com").await;
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "myapp");
 
         // Uppercase lookup should match auto-generated domain
-        let found = list.find_app_by_domain("WEB.MYAPP.EXAMPLE.COM").await;
+        let found = list.find_app_by_domain("API.OTHERAPP.EXAMPLE.COM").await;
         assert!(found.is_some());
-        assert_eq!(found.unwrap().name, "myapp");
+        assert_eq!(found.unwrap().name, "otherapp");
     }
 }
