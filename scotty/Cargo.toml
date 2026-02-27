@@ -93,7 +93,7 @@ oauth2 = { version = "4.4", default-features = false, features = ["reqwest", "ru
 url.workspace = true
 
 [dev-dependencies]
-axum-test = "18.1.0"
+axum-test = "19.0.0"
 tokio-test = "0.4.4"
 wiremock = "0.6"
 tokio-tungstenite.workspace = true
