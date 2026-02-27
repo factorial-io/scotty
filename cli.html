@@ -1,0 +1,941 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> The command line interface</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" The command line interface">
+        <meta name="twitter:title" content=" The command line interface">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/cli.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#authentication" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authentication</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#list-all-apps" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> List all apps</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#get-info-about-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Get info about an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#view-logs-from-an-app-service" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> View logs from an app service</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#open-an-interactive-shell-in-an-app-service" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Open an interactive shell in an app service</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#start%2Frun-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Start/run an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#stop-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Stop an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#rebuild-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Rebuild an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#purge-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Purge an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#create-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Create an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#adopt-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Adopt an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#destroy-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Destroy an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#list-all-blueprints" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> List all blueprints</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#get-blueprint-details" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Get blueprint details</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#run-a-custom-action" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Run a custom action</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#add-a-notification-service-to-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Add a notification service to an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#remove-a-notification-service-from-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Remove a notification service from an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#list-all-notification-services-of-an-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> List all notification services of an app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#authorization-management-(admin-commands)" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization Management (Admin Commands)</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#shell-completion" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Shell Completion</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#web-ui%3A-viewing-logs" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Web UI: Viewing Logs</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#security-best-practices" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Security Best Practices</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/cli.html#troubleshooting" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Troubleshooting</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="the-command-line-interface" tabindex="-1"><a class="header-anchor" href="#the-command-line-interface">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> The command line interface</h1>
+<p>The CLI provides a thin wrapper to access the REST API of Scotty. It is
+written in Rust and provides a simple interface to list, create, update and
+destroy apps, as well as manage authorization (scopes, roles, assignments).</p>
+<p>You can get help by running <code>scottyctl --help</code> and <code>scottyctl --help &lt;command&gt;</code>.</p>
+<h2 id="authentication" tabindex="-1"><a class="header-anchor" href="#authentication">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authentication</h2>
+<p>Scotty supports two authentication methods:</p>
+<h3 id="oauth-authentication-(recommended)" tabindex="-1"><a class="header-anchor" href="#oauth-authentication-(recommended)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OAuth Authentication (Recommended)</h3>
+<p>Use the device flow to authenticate interactively:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> https://scotty.example.com auth:login</code></pre>
+<p>This command will:</p>
+<ol>
+<li>Open your browser to authenticate with the OIDC provider</li>
+<li>Store the OAuth token securely for future commands</li>
+<li>Automatically refresh tokens when they expire</li>
+</ol>
+<p><strong>Managing OAuth sessions:</strong></p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Check authentication status</span>
+scottyctl auth:status
+
+<span class="token comment"># Refresh the token</span>
+scottyctl auth:refresh
+
+<span class="token comment"># Logout and clear stored credentials</span>
+scottyctl auth:logout</code></pre>
+<h3 id="bearer-token-authentication" tabindex="-1"><a class="header-anchor" href="#bearer-token-authentication">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bearer Token Authentication</h3>
+<p>For service accounts, CI/CD, or when OAuth is not available, use bearer tokens:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Via command line argument</span>
+scottyctl <span class="token parameter variable">--server</span> https://scotty.example.com --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:list
+
+<span class="token comment"># Via environment variable (recommended)</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_SERVER</span><span class="token operator">=</span>https://scotty.example.com
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span>
+scottyctl app:list</code></pre>
+<p><strong>Note:</strong> For the rest of this documentation, command examples use <code>--server</code> and <code>--access-token</code> for clarity, but you can always use OAuth via <code>auth:login</code> or environment variables instead.</p>
+<h2 id="list-all-apps" tabindex="-1"><a class="header-anchor" href="#list-all-apps">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> List all apps</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:list</code></pre>
+<p>Example output:
+<picture>
+        <source type="image/webp" srcset="/assets/cli/app-list.webp">
+  <source type="image/png" srcset="/assets/cli/app-list.png">
+        <img src="/assets/cli/app-list.png" width="2318" height="752" alt="Example output of app:list" loading="lazy" decoding="async">
+      </picture></p>
+<p>The table contains all apps with their status, uptime and URLs. The URLs are the
+public URLs of the apps. The status can be one of the following:</p>
+<ul>
+<li>Running: The app is running</li>
+<li>Stopped: The app is stopped</li>
+<li>Unsupported: The app is not supported by the server</li>
+</ul>
+<h2 id="get-info-about-an-app" tabindex="-1"><a class="header-anchor" href="#get-info-about-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Get info about an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:info <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>Example output:
+<picture>
+        <source type="image/webp" srcset="/assets/cli/app-info.webp">
+  <source type="image/png" srcset="/assets/cli/app-info.png">
+        <img src="/assets/cli/app-info.png" width="1980" height="942" alt="Example output of app:info" loading="lazy" decoding="async">
+      </picture></p>
+<p>The command lists all services of a specific app and their status. The output
+also contains the enabled notification services for that app.</p>
+<h2 id="view-logs-from-an-app-service" tabindex="-1"><a class="header-anchor" href="#view-logs-from-an-app-service">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> View logs from an app service</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:logs <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SERVICE<span class="token operator">&gt;</span></code></pre>
+<p>This command displays logs from a specific service within an app. By default, it shows all available logs and exits.</p>
+<h3 id="options" tabindex="-1"><a class="header-anchor" href="#options">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Options</h3>
+<ul>
+<li><code>-f, --follow</code>: Follow log output in real-time (like <code>tail -f</code>)</li>
+<li><code>-n, --lines &lt;LINES&gt;</code>: Show only the last N lines</li>
+<li><code>--since &lt;SINCE&gt;</code>: Show logs since a timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")</li>
+<li><code>--until &lt;UNTIL&gt;</code>: Show logs until a timestamp (e.g., "1h", "2023-01-01T11:00:00Z")</li>
+<li><code>-t, --timestamps</code>: Include timestamps in the log output</li>
+</ul>
+<h3 id="examples" tabindex="-1"><a class="header-anchor" href="#examples">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Examples</h3>
+<p>View all logs:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:logs my-app web</code></pre>
+<p>Follow logs in real-time:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:logs my-app web <span class="token parameter variable">--follow</span></code></pre>
+<p>Show last 100 lines with timestamps:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:logs my-app web <span class="token parameter variable">--lines</span> <span class="token number">100</span> <span class="token parameter variable">--timestamps</span></code></pre>
+<p>Show logs from the last 2 hours:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:logs my-app web <span class="token parameter variable">--since</span> 2h <span class="token parameter variable">--follow</span></code></pre>
+<h2 id="open-an-interactive-shell-in-an-app-service" tabindex="-1"><a class="header-anchor" href="#open-an-interactive-shell-in-an-app-service">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Open an interactive shell in an app service</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:shell <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SERVICE<span class="token operator">&gt;</span></code></pre>
+<p>This command opens an interactive shell session inside a running container. This is useful for debugging, inspecting files, or running commands inside the container environment.</p>
+<p><strong>Note:</strong> The shell command requires the <code>shell</code> permission in the authorization system.</p>
+<h3 id="options-1" tabindex="-1"><a class="header-anchor" href="#options-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Options</h3>
+<ul>
+<li><code>-c, --command &lt;COMMAND&gt;</code>: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.</li>
+<li><code>--shell &lt;SHELL&gt;</code>: Specify which shell to use (default: <code>/bin/bash</code>)</li>
+</ul>
+<h3 id="examples-1" tabindex="-1"><a class="header-anchor" href="#examples-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Examples</h3>
+<p>Open an interactive shell:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web</code></pre>
+<p>Execute a single command:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">--command</span> <span class="token string">"ls -la /app"</span></code></pre>
+<p>Use a different shell:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">--shell</span> /bin/sh</code></pre>
+<p>Change to a specific directory and run commands:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">--command</span> <span class="token string">"cd /var/www &amp;&amp; pwd &amp;&amp; ls -la"</span></code></pre>
+<p>Run a script and capture its exit code:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">--command</span> <span class="token string">"/app/scripts/healthcheck.sh"</span>
+<span class="token builtin class-name">echo</span> <span class="token string">"Exit code: <span class="token variable">$?</span>"</span></code></pre>
+<h2 id="start%2Frun-an-app" tabindex="-1"><a class="header-anchor" href="#start%2Frun-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Start/run an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:start <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span>
+scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:run <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>The command will start an app and print the output of the start process. After
+the command succeeds, it will print the app info.</p>
+<h2 id="stop-an-app" tabindex="-1"><a class="header-anchor" href="#stop-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Stop an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:stop <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>The command will stop an app and print the output of the stop process. After
+the command succeeds, it will print the app info.</p>
+<h2 id="rebuild-an-app" tabindex="-1"><a class="header-anchor" href="#rebuild-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Rebuild an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:rebuild <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>The command will rebuild an app and print the output of the rebuild process.
+Part of the rebuild process is rewriting the proxy configuration, pulling new
+images for the app and rebuilding local images if necessary. The app itself will
+also be powered off and on again.</p>
+<h2 id="purge-an-app" tabindex="-1"><a class="header-anchor" href="#purge-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Purge an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:purge <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>The command will purge all temporary data of an app, especially logs,
+temporary docker containers and other ephemeral data. It will not delete any
+persistent data like volumes or databases. If the app was running, it will be
+stopped by this command.</p>
+<h2 id="create-an-app" tabindex="-1"><a class="header-anchor" href="#create-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Create an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:create <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token parameter variable">--folder</span> <span class="token operator">&lt;</span>FOLDER<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--service</span> <span class="token operator">&lt;</span>SERVICE:PORT<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--service <span class="token operator">&lt;</span>SERVICE:PORT<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--app-blueprint <span class="token operator">&lt;</span>BLUEPRINT<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--ttl <span class="token operator">&lt;</span>LIFETIME<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--basic-auth <span class="token operator">&lt;</span>USERNAME:PASSWORD<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--allow-robots<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--destroy-on-ttl<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--custom-domain <span class="token operator">&lt;</span>DOMAIN:SERVICE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--custom-domain <span class="token operator">&lt;</span>DOMAIN:SERVICE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--env-file <span class="token operator">&lt;</span>FILE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--registry <span class="token operator">&lt;</span>REGISTRY<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span></code></pre>
+<p>This command will create a new app on the server. The <code>--folder</code> argument is
+mandatory and should point to a folder containing at least a <code>compose.yml</code>
+file. The complete folder will be uploaded to the server (size limits may apply).</p>
+<h3 id="controlling-file-uploads-with-.scottyignore" tabindex="-1"><a class="header-anchor" href="#controlling-file-uploads-with-.scottyignore">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Controlling File Uploads with .scottyignore</h3>
+<p>You can control which files are uploaded by creating a <code>.scottyignore</code> file in your project folder. This file uses gitignore-style patterns to exclude files from being uploaded.</p>
+<p><strong>Pattern Examples:</strong></p>
+<pre class="language-scottyignore"><code class="language-scottyignore"># Ignore log files
+*.log
+
+# Ignore build artifacts
+target/
+node_modules/
+dist/
+
+# Ignore environment files
+.env
+.env.local
+
+# Re-include specific files using ! (negation)
+!important.log
+
+# Ignore files in any subdirectory
+**/*.tmp
+**/.cache/</code></pre>
+<p><strong>Common patterns:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*.log</code></td>
+<td>Ignore all .log files in any directory</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>Ignore the target directory and all its contents</td>
+</tr>
+<tr>
+<td><code>!important.log</code></td>
+<td>Re-include important.log even if *.log is ignored</td>
+</tr>
+<tr>
+<td><code>**/*.tmp</code></td>
+<td>Ignore .tmp files in any subdirectory</td>
+</tr>
+<tr>
+<td><code>.env*</code></td>
+<td>Ignore .env, .env.local, etc.</td>
+</tr>
+<tr>
+<td><code># comment</code></td>
+<td>Comments (ignored)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note:</strong> The following files are always ignored automatically:</p>
+<ul>
+<li><code>.DS_Store</code> (macOS system file)</li>
+<li><code>.git/</code> directory and its contents</li>
+</ul>
+<p>You either need to declare a public service via <code>--service</code> or use the
+<code>--app-blueprint</code> argument (You can get a list of available blueprints with
+<code>scottyctl blueprint:list</code>). When declaring a public service, you need to
+provide a service name and a port. The service name should match a service in the
+compose.yml file. The port should be the port the service is listening on.</p>
+<p>The <code>--ttl</code> argument is optional and will set the lifetime of the app in hours,
+days or forever.</p>
+<p>You can add basic auth to the app with the <code>--basic-auth</code> argument. The argument
+should contain a username and a password separated by a colon.</p>
+<p>The <code>--allow-robots</code> argument will inject a <code>X-Robots-Tag: noindex</code> header into
+all responses of the app. This will prevent search engines from indexing the app.
+(Not supported by all proxies)</p>
+<p>The <code>--destroy-on-ttl</code> argument will destroy the app after the specified ttl
+instead of just stopping it. Suitable for apps that are not expected to be used
+for a long time.
+Tbhe <code>--env-file</code> argument will load environment variables from a file. The file
+should contain key-value pairs separated by an equal sign.</p>
+<p>You can add custom domains to the app with the <code>--custom-domain</code> argument. The
+argument should contain a domain and a service name separated by a colon. The
+service name should match a service in the compose.yml file.</p>
+<p>The <code>--env-file</code> argument will load environment variables from a file. The file
+should contain key-value pairs separated by an equal sign.</p>
+<p>You can add environment variables to the app with the <code>--env</code> argument. The
+argument should contain a key and a value separated by an equal sign. You can
+reference secrets from 1Password with the <code>OP</code>-uri-scheme. The value should be
+a URL like <code>op://&lt;connect-instance-name&gt;/&lt;vault-uuid&gt;/&lt;item-uuid&gt;/&lt;field-name&gt;</code>.
+The server needs to be configured accordingly.</p>
+<p>You can use a private registry for the images with the <code>--registry</code> argument. The
+argument should contain the name of the registry. The server needs to be
+configured accordingly.</p>
+<p>You can add middleware to the app with the <code>--middleware</code> argument. The argument
+should contain the name of the middleware. Middleware must be in the allow-list in
+the server configuration before they can be used. You can specify multiple
+middleware by using the <code>--middleware</code> argument multiple times. (This is only
+supported for traefik)</p>
+<h3 id="some-examples%3A" tabindex="-1"><a class="header-anchor" href="#some-examples%3A">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Some examples:</h3>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:create my-nginx-test <span class="token punctuation">\</span>
+  <span class="token parameter variable">--folder</span> <span class="token builtin class-name">.</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--service</span> nginx:80</code></pre>
+<p>will beam up the current folder to the server and start the nginx service on port 80.</p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:create my-nginx-test <span class="token punctuation">\</span>
+  <span class="token parameter variable">--folder</span> <span class="token builtin class-name">.</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--service</span> nginx:80 <span class="token punctuation">\</span>
+  --basic-auth user:password <span class="token punctuation">\</span>
+  --allow-robots <span class="token punctuation">\</span>
+  <span class="token parameter variable">--ttl</span> forever</code></pre>
+<p>will beam up the current folder to the server and start the nginx service on port 80.
+It will add basic auth with the username <code>user</code> and the password <code>password</code> and
+won't add a <code>X-Robots-Tag</code> header to all responses. The app will run forever.</p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:create my-nginx-test <span class="token punctuation">\</span>
+  <span class="token parameter variable">--folder</span> <span class="token builtin class-name">.</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--service</span> nginx:80 <span class="token punctuation">\</span>
+  --custom-domain nginx.example.com:nginx</code></pre>
+<p>will beam up the current folder to the server and start the nginx service on port 80.
+The app will be reachable under <code>http://nginx.example.com</code>.</p>
+<h2 id="adopt-an-app" tabindex="-1"><a class="header-anchor" href="#adopt-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Adopt an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:adopt <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>This command will adopt an unsupported app. For this to work, the app needs to
+be already in the server's app directory. The command will create a <code>.scotty.yml</code>
+file in the app directory and add the app to the server's database.</p>
+<p>Scotty will also try to reuse the existing config from the load balancer and add
+that information to the <code>.scotty.yml</code> file. It will also dump all found
+environment variables into the <code>.scotty.yml</code> file.</p>
+<p>After adopting an app, it is strongly advised to check the <code>.scotty.yml</code> file and
+remove any unnecessary information from it and double-check the configuration.</p>
+<h2 id="destroy-an-app" tabindex="-1"><a class="header-anchor" href="#destroy-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Destroy an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:destroy <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>This command will destroy only a supported app. It will stop the app, remove
+all ephemeral and persistent data and remove the app from the Scotty server.
+It will also delete the used images if they are not used somewhere else.</p>
+<p>Caution: This command is irreversible! You might lose data if you run this command.</p>
+<h2 id="list-all-blueprints" tabindex="-1"><a class="header-anchor" href="#list-all-blueprints">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> List all blueprints</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> blueprint:list</code></pre>
+<p>This will list all available blueprints on the server.</p>
+<h2 id="get-blueprint-details" tabindex="-1"><a class="header-anchor" href="#get-blueprint-details">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Get blueprint details</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> blueprint:info <span class="token operator">&lt;</span>BLUEPRINT<span class="token operator">&gt;</span></code></pre>
+<p>This command displays detailed information about a specific blueprint, including its configuration, services, and required parameters.</p>
+<h2 id="run-a-custom-action" tabindex="-1"><a class="header-anchor" href="#run-a-custom-action">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Run a custom action</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:action <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
+<p>Execute a custom action defined in the app's <code>.scotty.yml</code> file. Custom actions allow you to run predefined commands or scripts within your application containers.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Run a database migration action</span>
+scottyctl app:action my-app db:migrate
+
+<span class="token comment"># Clear application cache</span>
+scottyctl app:action my-app cache:clear</code></pre>
+<h2 id="add-a-notification-service-to-an-app" tabindex="-1"><a class="header-anchor" href="#add-a-notification-service-to-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Add a notification service to an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> notify:add <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  --service-id <span class="token operator">&lt;</span>SERVICE_TYPE://SERVICE_ID/CHANNEL<span class="token operator">|</span>PROJECT_ID/MR_ID<span class="token operator">&gt;</span></code></pre>
+<p>This command will add a notification service to an app. That means scotty will
+send a notification for every action on that app to the selected service. The
+service needs to be configured on the server.</p>
+<p>Currently there are three service types available:</p>
+<ul>
+<li><code>mattermost://SERVICE_ID/CHANNEL</code>: Send a message to a mattermost channel</li>
+<li><code>gitlab://SERVICE_ID/PROJECT_ID/MR_ID</code>: Add a comment to a gitlab merge request</li>
+<li><code>webhook://SERVICE_ID</code>: Send a webhook to a configured URL</li>
+</ul>
+<h2 id="remove-a-notification-service-from-an-app" tabindex="-1"><a class="header-anchor" href="#remove-a-notification-service-from-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Remove a notification service from an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> notify:remove <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  --service-id <span class="token operator">&lt;</span>SERVICE_TYPE://SERVICE_ID/CHANNEL<span class="token operator">|</span>PROJECT_ID/MR_ID<span class="token operator">&gt;</span></code></pre>
+<p>This command will remove a notification service from an app. The format of
+<code>SERVICE_ID</code> is the same as in the <code>notify:add</code> command.</p>
+<h2 id="list-all-notification-services-of-an-app" tabindex="-1"><a class="header-anchor" href="#list-all-notification-services-of-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> List all notification services of an app</h2>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:info <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>For more info, see the help for <a href="http://localhost:8080/cli.html#get-info-about-an-app"><code>app:info</code></a>.</p>
+<h2 id="authorization-management-(admin-commands)" tabindex="-1"><a class="header-anchor" href="#authorization-management-(admin-commands)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authorization Management (Admin Commands)</h2>
+<p>These commands require <code>admin_read</code> or <code>admin_write</code> permissions. See the <a href="authorization.html">Authorization documentation</a> for more details.</p>
+<h3 id="scopes-management" tabindex="-1"><a class="header-anchor" href="#scopes-management">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Scopes Management</h3>
+<p><strong>List all scopes:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:scopes:list</code></pre>
+<p>Lists all authorization scopes with their descriptions and creation timestamps.</p>
+<p><strong>Create a new scope:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:scopes:create <span class="token operator">&lt;</span>NAME<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>DESCRIPTION<span class="token operator">&gt;</span></code></pre>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:scopes:create staging <span class="token string">"Staging environment applications"</span></code></pre>
+<h3 id="roles-management" tabindex="-1"><a class="header-anchor" href="#roles-management">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Roles Management</h3>
+<p><strong>List all roles:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:roles:list</code></pre>
+<p>Lists all roles with their descriptions and associated permissions.</p>
+<p><strong>Create a new role:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:roles:create <span class="token operator">&lt;</span>NAME<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>DESCRIPTION<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>PERMISSIONS<span class="token operator">&gt;</span></code></pre>
+<p>Permissions should be comma-separated. Use <code>*</code> for all permissions.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Create a developer role with specific permissions</span>
+scottyctl admin:roles:create developer <span class="token string">"Developer access"</span> view,manage,shell,logs,create
+
+<span class="token comment"># Create an admin role with all permissions</span>
+scottyctl admin:roles:create admin <span class="token string">"Full access"</span> <span class="token string">"*"</span></code></pre>
+<h3 id="assignments-management" tabindex="-1"><a class="header-anchor" href="#assignments-management">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Assignments Management</h3>
+<p><strong>List all user assignments:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:assignments:list</code></pre>
+<p>Lists all user-to-role assignments with their assigned scopes.</p>
+<p><strong>Create a new assignment:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:assignments:create <span class="token operator">&lt;</span><span class="token environment constant">USER</span><span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ROLE<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SCOPES<span class="token operator">&gt;</span></code></pre>
+<p>Scopes should be comma-separated. Use <code>*</code> for all scopes.</p>
+<p>Examples:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Assign user to developer role in staging scope</span>
+scottyctl admin:assignments:create alice@example.com developer staging
+
+<span class="token comment"># Assign bearer token to admin role across all scopes</span>
+scottyctl admin:assignments:create identifier:ci-bot admin <span class="token string">"*"</span>
+
+<span class="token comment"># Assign user to multiple scopes</span>
+scottyctl admin:assignments:create bob@example.com operator staging,production</code></pre>
+<p><strong>Remove an assignment:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:assignments:remove <span class="token operator">&lt;</span><span class="token environment constant">USER</span><span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ROLE<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SCOPES<span class="token operator">&gt;</span></code></pre>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:assignments:remove alice@example.com developer staging</code></pre>
+<h3 id="permissions-management" tabindex="-1"><a class="header-anchor" href="#permissions-management">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permissions Management</h3>
+<p><strong>List all available permissions:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:permissions:list</code></pre>
+<p>Lists all permissions that can be assigned to roles.</p>
+<p><strong>Test permission for a user:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:permissions:test <span class="token operator">&lt;</span><span class="token environment constant">USER</span><span class="token operator">&gt;</span> <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>PERMISSION<span class="token operator">&gt;</span></code></pre>
+<p>Tests whether a specific user has a particular permission on an app.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:permissions:test alice@example.com my-app manage</code></pre>
+<p><strong>Get all permissions for a user:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:permissions:user <span class="token operator">&lt;</span><span class="token environment constant">USER</span><span class="token operator">&gt;</span></code></pre>
+<p>Displays all effective permissions for a user across all scopes.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:permissions:user alice@example.com</code></pre>
+<h2 id="shell-completion" tabindex="-1"><a class="header-anchor" href="#shell-completion">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Shell Completion</h2>
+<p>Generate shell completion scripts for bash, zsh, fish, or PowerShell:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl completion <span class="token operator">&lt;</span><span class="token environment constant">SHELL</span><span class="token operator">&gt;</span></code></pre>
+<p>Examples:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Bash</span>
+scottyctl completion <span class="token function">bash</span> <span class="token operator">&gt;</span> /etc/bash_completion.d/scottyctl
+
+<span class="token comment"># Zsh</span>
+scottyctl completion <span class="token function">zsh</span> <span class="token operator">&gt;</span> ~/.zsh/completion/_scottyctl
+
+<span class="token comment"># Fish</span>
+scottyctl completion fish <span class="token operator">&gt;</span> ~/.config/fish/completions/scottyctl.fish
+
+<span class="token comment"># PowerShell</span>
+scottyctl completion powershell <span class="token operator">&gt;</span> scottyctl.ps1</code></pre>
+<p>After installing the completion script, restart your shell or source the completion file.</p>
+<h2 id="web-ui%3A-viewing-logs" tabindex="-1"><a class="header-anchor" href="#web-ui%3A-viewing-logs">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Web UI: Viewing Logs</h2>
+<p>In addition to the CLI, Scotty provides a web interface for viewing container logs in real-time.</p>
+<h3 id="accessing-service-logs" tabindex="-1"><a class="header-anchor" href="#accessing-service-logs">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Accessing Service Logs</h3>
+<ol>
+<li>Navigate to the <strong>Dashboard</strong> at <code>/dashboard</code></li>
+</ol>
+<p><picture>
+        <source type="image/webp" srcset="/assets/cli/dashboard.webp">
+  <source type="image/png" srcset="/assets/cli/dashboard.png">
+        <img src="/assets/cli/dashboard.png" width="2990" height="1970" alt="Dashboard showing list of apps" loading="lazy" decoding="async">
+      </picture></p>
+<ol start="2">
+<li>Click on an application to view its details</li>
+</ol>
+<p><picture>
+        <source type="image/webp" srcset="/assets/cli/app-detail-page.webp">
+  <source type="image/png" srcset="/assets/cli/app-detail-page.png">
+        <img src="/assets/cli/app-detail-page.png" width="2990" height="1970" alt="App detail page showing services" loading="lazy" decoding="async">
+      </picture></p>
+<ol start="3">
+<li>In the <strong>Available Services</strong> section, click on a service name (e.g., "nginx", "web")</li>
+<li>The service detail page displays live-streaming logs</li>
+</ol>
+<p><picture>
+        <source type="image/webp" srcset="/assets/cli/log-viewer.webp">
+  <source type="image/png" srcset="/assets/cli/log-viewer.png">
+        <img src="/assets/cli/log-viewer.png" width="2990" height="1970" alt="Log viewer showing real-time container logs" loading="lazy" decoding="async">
+      </picture></p>
+<h3 id="log-viewer-features" tabindex="-1"><a class="header-anchor" href="#log-viewer-features">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Log Viewer Features</h3>
+<p>The web-based log viewer provides:</p>
+<ul>
+<li><strong>Real-time streaming</strong>: Logs are streamed via WebSocket as they are generated</li>
+<li><strong>Line numbers</strong>: Each log line is numbered for easy reference</li>
+<li><strong>Auto-scroll</strong>: New log entries automatically scroll into view (can be toggled)</li>
+<li><strong>Timestamps</strong>: Option to show/hide timestamps in log output</li>
+<li><strong>Line count</strong>: Shows total number of log lines received</li>
+<li><strong>Streaming indicator</strong>: Shows when actively streaming new logs</li>
+<li><strong>Service information</strong>: The page shows service status, start time, and domain information</li>
+</ul>
+<h3 id="permission-requirements" tabindex="-1"><a class="header-anchor" href="#permission-requirements">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permission Requirements</h3>
+<p>To view logs in the web UI, you need the <code>logs</code> permission for the application's scope. If you don't have this permission, you'll be redirected to the application detail page.</p>
+<p>See the <a href="authorization.html">Authorization documentation</a> for details on configuring permissions.</p>
+<h2 id="security-best-practices" tabindex="-1"><a class="header-anchor" href="#security-best-practices">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security Best Practices</h2>
+<h3 id="shell-access-security" tabindex="-1"><a class="header-anchor" href="#shell-access-security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Shell Access Security</h3>
+<p>The <code>app:shell</code> command provides direct access to running containers. Consider these security practices:</p>
+<p><strong>Permission Management:</strong></p>
+<ul>
+<li>Grant <code>shell</code> permission only to users who require debugging access</li>
+<li>Use scope-based authorization to limit shell access to specific environments (e.g., staging only, not production)</li>
+<li>Regularly audit which users have shell access</li>
+</ul>
+<p><strong>Operational Security:</strong></p>
+<ul>
+<li>Shell sessions run as the container's default user (often root)</li>
+<li>Commands executed via shell are not logged by Scotty—consider container-level audit logging if needed</li>
+<li>Shell access bypasses application-level authentication</li>
+</ul>
+<p><strong>Container Isolation:</strong></p>
+<ul>
+<li>Shell sessions are isolated to the specific container</li>
+<li>Users cannot access other containers or the host system directly</li>
+<li>Network access from within the container follows the container's network configuration</li>
+</ul>
+<h3 id="logs-access-security" tabindex="-1"><a class="header-anchor" href="#logs-access-security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Logs Access Security</h3>
+<p><strong>Permission Management:</strong></p>
+<ul>
+<li>The <code>logs</code> permission grants access to all log output from a service</li>
+<li>Logs may contain sensitive information (API keys, user data, error details)</li>
+<li>Consider the sensitivity of log content when granting access</li>
+</ul>
+<p><strong>Data Considerations:</strong></p>
+<ul>
+<li>Log streaming is real-time only—historical logs depend on Docker's log retention</li>
+<li>Logs are transmitted over WebSocket connections (encrypted if using HTTPS)</li>
+</ul>
+<h2 id="troubleshooting" tabindex="-1"><a class="header-anchor" href="#troubleshooting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Troubleshooting</h2>
+<h3 id="common-issues" tabindex="-1"><a class="header-anchor" href="#common-issues">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Common Issues</h3>
+<h4 id="websocket-connection-failures" tabindex="-1"><a class="header-anchor" href="#websocket-connection-failures">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> WebSocket Connection Failures</h4>
+<p><strong>Symptoms:</strong> Logs not streaming, shell not connecting, "WebSocket error" messages</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify the Scotty server is running and accessible</li>
+<li>Check that your network allows WebSocket connections (some proxies block them)</li>
+<li>Ensure you're using the correct protocol (<code>wss://</code> for HTTPS, <code>ws://</code> for HTTP)</li>
+<li>Check browser console for specific error messages</li>
+</ol>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Test basic connectivity</span>
+<span class="token function">curl</span> <span class="token parameter variable">-v</span> https://your-scotty-server/api/health</code></pre>
+<h4 id="permission-denied-errors" tabindex="-1"><a class="header-anchor" href="#permission-denied-errors">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permission Denied Errors</h4>
+<p><strong>Symptoms:</strong> "Permission denied" or "Forbidden" when accessing logs or shell</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify your authentication is valid:<pre class="language-shell"><code class="language-shell">scottyctl auth:status</code></pre>
+</li>
+<li>Check your assigned permissions:<pre class="language-shell"><code class="language-shell">scottyctl admin:permissions:user your@email.com</code></pre>
+</li>
+<li>Ensure you have the correct permission (<code>logs</code> or <code>shell</code>) for the app's scope</li>
+<li>Contact your administrator to request the necessary permissions</li>
+</ol>
+<h4 id="log-stream-not-starting" tabindex="-1"><a class="header-anchor" href="#log-stream-not-starting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Log Stream Not Starting</h4>
+<p><strong>Symptoms:</strong> Log viewer shows loading state but no logs appear</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify the service is running:<pre class="language-shell"><code class="language-shell">scottyctl app:info <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+</li>
+<li>Check that the container is producing logs:<pre class="language-shell"><code class="language-shell">scottyctl app:logs <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SERVICE<span class="token operator">&gt;</span> <span class="token parameter variable">--lines</span> <span class="token number">10</span></code></pre>
+</li>
+<li>Ensure you have the <code>logs</code> permission for the application</li>
+<li>Try refreshing the page to re-establish the WebSocket connection</li>
+</ol>
+<h4 id="shell-session-issues" tabindex="-1"><a class="header-anchor" href="#shell-session-issues">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Shell Session Issues</h4>
+<p><strong>Symptoms:</strong> Shell connects but commands don't work, or session terminates unexpectedly</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify the container has the required shell:<pre class="language-shell"><code class="language-shell"><span class="token comment"># Try a different shell if /bin/bash is not available</span>
+scottyctl app:shell <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>SERVICE<span class="token operator">&gt;</span> <span class="token parameter variable">--shell</span> /bin/sh</code></pre>
+</li>
+<li>Check if the container is healthy and running:<pre class="language-shell"><code class="language-shell">scottyctl app:info <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+</li>
+<li>For Alpine-based images, use <code>/bin/sh</code> instead of <code>/bin/bash</code></li>
+<li>If the session terminates, check container logs for crash information</li>
+</ol>
+<h4 id="shell-exit-codes" tabindex="-1"><a class="header-anchor" href="#shell-exit-codes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Shell Exit Codes</h4>
+<p>When using <code>--command</code>, the exit code is passed through:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token comment"># Check if a file exists (exit 0 = exists, exit 1 = not found)</span>
+scottyctl app:shell my-app web <span class="token parameter variable">--command</span> <span class="token string">"test -f /app/config.yml"</span>
+<span class="token builtin class-name">echo</span> <span class="token variable">$status</span>  <span class="token comment"># Fish shell</span>
+<span class="token builtin class-name">echo</span> <span class="token variable">$?</span>       <span class="token comment"># Bash/Zsh</span></code></pre>
+<h3 id="getting-help" tabindex="-1"><a class="header-anchor" href="#getting-help">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Getting Help</h3>
+<p>If you encounter issues not covered here:</p>
+<ol>
+<li>Check the server logs for error details</li>
+<li>Enable debug logging: <code>RUST_LOG=debug scottyctl ...</code></li>
+<li>Verify your scottyctl version matches the server version</li>
+<li>Report issues at the project repository</li>
+</ol>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/observability.html"> Observability</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/oauth-authentication.html"> OAuth Authentication with OIDC</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>

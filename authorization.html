@@ -1,0 +1,633 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Authorization System</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" Authorization System">
+        <meta name="twitter:title" content=" Authorization System">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/authorization.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#overview" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Overview</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#core-concepts" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Core Concepts</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#configuration" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#authentication-integration" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authentication Integration</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#permission-enforcement" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Permission Enforcement</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#examples" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Examples</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#best-practices" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Best Practices</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/authorization.html#migration" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Migration</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="authorization-system" tabindex="-1"><a class="header-anchor" href="#authorization-system">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authorization System</h1>
+<p>Scotty includes a powerful scope-based authorization system that controls access to applications and their features. This system allows you to restrict sensitive operations, isolate applications by team or environment, and support multi-tenant scenarios.</p>
+<h2 id="overview" tabindex="-1"><a class="header-anchor" href="#overview">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Overview</h2>
+<p>The authorization system is built on <strong>Casbin RBAC</strong> and provides:</p>
+<ul>
+<li><strong>Scope-based access control</strong>: Organize apps into logical scopes</li>
+<li><strong>Role-based permissions</strong>: Define what actions users can perform</li>
+<li><strong>Flexible assignments</strong>: Assign users to roles within specific scopes</li>
+<li><strong>Bearer token integration</strong>: Secure API access with granular permissions</li>
+<li><strong>Automatic synchronization</strong>: Apps declare scope membership via configuration</li>
+</ul>
+<h2 id="core-concepts" tabindex="-1"><a class="header-anchor" href="#core-concepts">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Core Concepts</h2>
+<h3 id="app-scopes" tabindex="-1"><a class="header-anchor" href="#app-scopes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> App Scopes</h3>
+<p>Collections of applications organized by purpose:</p>
+<ul>
+<li><strong>Environment-based</strong>: <code>production</code>, <code>staging</code>, <code>development</code></li>
+<li><strong>Team-based</strong>: <code>team-frontend</code>, <code>team-backend</code>, <code>platform</code></li>
+<li><strong>Client-based</strong>: <code>client-acme</code>, <code>client-widgets</code></li>
+<li><strong>Purpose-based</strong>: <code>databases</code>, <code>services</code>, <code>tools</code></li>
+</ul>
+<p>Apps can belong to multiple scopes simultaneously (e.g., an app could be in both <code>production</code> and <code>team-frontend</code> scopes).</p>
+<h3 id="permissions" tabindex="-1"><a class="header-anchor" href="#permissions">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permissions</h3>
+<p>Granular actions users can perform on applications and the system:</p>
+<p><strong>App-Specific Permissions</strong> (require app context):</p>
+<ul>
+<li><code>view</code> - See app status and information</li>
+<li><code>manage</code> - Start, stop, restart applications</li>
+<li><code>logs</code> - View application logs</li>
+<li><code>shell</code> - Execute shell commands in containers</li>
+<li><code>create</code> - Create new apps in scope</li>
+<li><code>destroy</code> - Delete apps from scope</li>
+</ul>
+<p><strong>Global Permissions</strong> (not tied to specific apps):</p>
+<ul>
+<li><code>admin_read</code> - Read authorization configuration (scopes, roles, assignments, permissions)</li>
+<li><code>admin_write</code> - Modify authorization configuration (create/update scopes, roles, assignments)</li>
+</ul>
+<h3 id="roles" tabindex="-1"><a class="header-anchor" href="#roles">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Roles</h3>
+<p>Named collections of permissions for common access patterns:</p>
+<ul>
+<li><strong><code>admin</code></strong> - All permissions (wildcard <code>*</code>)</li>
+<li><strong><code>developer</code></strong> - Full access except destroy: <code>[view, manage, shell, logs, create]</code></li>
+<li><strong><code>operator</code></strong> - Operations without shell: <code>[view, manage, logs]</code></li>
+<li><strong><code>viewer</code></strong> - Read-only access: <code>[view]</code></li>
+<li><strong><code>system_admin</code></strong> - Authorization management: <code>[admin_read, admin_write]</code></li>
+</ul>
+<h3 id="assignments" tabindex="-1"><a class="header-anchor" href="#assignments">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Assignments</h3>
+<p>Map users or bearer tokens to roles within specific scopes:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"frontend-dev@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"staging"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"bearer:dev-token"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span> 
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"development"</span><span class="token punctuation">]</span></code></pre>
+<h2 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration</h2>
+<h3 id="authorization-setup" tabindex="-1"><a class="header-anchor" href="#authorization-setup">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authorization Setup</h3>
+<p>Create <code>/config/casbin/policy.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Scope definitions</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token key atrule">frontend</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Frontend applications"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">backend</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Backend services"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">production</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Production environment"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+
+<span class="token comment"># Role definitions</span>
+<span class="token key atrule">roles</span><span class="token punctuation">:</span>
+  <span class="token key atrule">admin</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Full administrative access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">developer</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Full development access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"shell"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"create"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">operator</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Operations access without shell"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">system_admin</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"System administration access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"admin_read"</span><span class="token punctuation">,</span> <span class="token string">"admin_write"</span><span class="token punctuation">]</span>
+
+<span class="token comment"># User assignments</span>
+<span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"frontend-dev@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"backend-dev@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"backend"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"ops@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"operator"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"backend"</span><span class="token punctuation">,</span> <span class="token string">"production"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"admin@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>  <span class="token comment"># Global access</span>
+  <span class="token key atrule">"system-admin@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"system_admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>  <span class="token comment"># Can manage authorization but not apps</span>
+
+<span class="token comment"># App scope mappings (managed automatically)</span>
+<span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"my-frontend-app"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"my-backend-api"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"backend"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"shared-service"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"backend"</span><span class="token punctuation">]</span></code></pre>
+<h3 id="app-scope-assignment" tabindex="-1"><a class="header-anchor" href="#app-scope-assignment">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> App Scope Assignment</h3>
+<p>Apps declare scope membership in their <code>.scotty.yml</code> file:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># App belongs to frontend and staging scopes</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token string">"frontend"</span>
+  <span class="token punctuation">-</span> <span class="token string">"staging"</span>
+
+<span class="token key atrule">public_services</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">service</span><span class="token punctuation">:</span> <span class="token string">"web"</span>
+    <span class="token key atrule">port</span><span class="token punctuation">:</span> <span class="token number">3000</span>
+    <span class="token key atrule">domains</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+
+<span class="token key atrule">environment</span><span class="token punctuation">:</span>
+  <span class="token key atrule">NODE_ENV</span><span class="token punctuation">:</span> <span class="token string">"development"</span></code></pre>
+<p>Apps without explicit scopes are assigned to the <code>default</code> scope.</p>
+<h2 id="authentication-integration" tabindex="-1"><a class="header-anchor" href="#authentication-integration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authentication Integration</h2>
+<h3 id="bearer-token-authentication" tabindex="-1"><a class="header-anchor" href="#bearer-token-authentication">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bearer Token Authentication</h3>
+<p>The authorization system requires explicit bearer token assignments:</p>
+<ol>
+<li><strong>RBAC Only</strong>: Only tokens explicitly assigned in authorization configuration are accepted</li>
+<li><strong>No Legacy Fallback</strong>: The <code>api.access_token</code> configuration is no longer used</li>
+<li><strong>Token Format</strong>: Bearer tokens are identified as <code>bearer:&lt;token&gt;</code> in assignments</li>
+</ol>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Using a bearer token with authorization (token must be in assignments)</span>
+<span class="token function">curl</span> <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer admin"</span> <span class="token punctuation">\</span>
+  https://scotty.example.com/api/v1/authenticated/apps/list</code></pre>
+<p><strong>Important</strong>: Bearer tokens that are not explicitly listed in the <code>assignments</code> section will be rejected with a 401 Unauthorized response.</p>
+<h3 id="oauth-integration" tabindex="-1"><a class="header-anchor" href="#oauth-integration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OAuth Integration</h3>
+<p>OAuth users are identified by their email address and can be assigned to roles:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"alice@company.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">"bob@company.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"team-frontend"</span><span class="token punctuation">]</span></code></pre>
+<h2 id="permission-enforcement" tabindex="-1"><a class="header-anchor" href="#permission-enforcement">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permission Enforcement</h2>
+<h3 id="api-endpoints" tabindex="-1"><a class="header-anchor" href="#api-endpoints">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> API Endpoints</h3>
+<p>All API endpoints are protected by permission checks:</p>
+<p><strong>App Management Endpoints:</strong></p>
+<ul>
+<li><strong>App List</strong>: <code>/api/v1/authenticated/apps/list</code> - Requires <code>view</code> permission, shows only accessible apps</li>
+<li><strong>App Management</strong>: Start/stop/restart operations - Requires <code>manage</code> permission</li>
+<li><strong>App Creation</strong>: <code>/api/v1/authenticated/apps</code> (POST) - Requires <code>create</code> permission</li>
+<li><strong>Shell Access</strong>: WebSocket shell sessions - Requires <code>shell</code> permission</li>
+<li><strong>App Destruction</strong>: Delete operations - Requires <code>destroy</code> permission</li>
+</ul>
+<p><strong>Admin API Endpoints</strong> (require global permissions):</p>
+<ul>
+<li><strong>Scopes</strong>: <code>/api/v1/authenticated/admin/scopes</code>
+<ul>
+<li>GET - Requires <code>admin_read</code> - List all scopes</li>
+<li>POST - Requires <code>admin_write</code> - Create new scope</li>
+</ul>
+</li>
+<li><strong>Roles</strong>: <code>/api/v1/authenticated/admin/roles</code>
+<ul>
+<li>GET - Requires <code>admin_read</code> - List all roles</li>
+<li>POST - Requires <code>admin_write</code> - Create new role</li>
+</ul>
+</li>
+<li><strong>Assignments</strong>: <code>/api/v1/authenticated/admin/assignments</code>
+<ul>
+<li>GET - Requires <code>admin_read</code> - List all assignments</li>
+<li>POST - Requires <code>admin_write</code> - Create new assignment</li>
+<li>DELETE - Requires <code>admin_write</code> - Remove assignment</li>
+</ul>
+</li>
+<li><strong>Permissions</strong>: <code>/api/v1/authenticated/admin/permissions</code>
+<ul>
+<li>GET - Requires <code>admin_read</code> - List available permissions</li>
+<li>POST <code>/test</code> - Requires <code>admin_read</code> - Test permission for user/app combination</li>
+</ul>
+</li>
+<li><strong>User Permissions</strong>: <code>/api/v1/authenticated/admin/users/:user_id/permissions</code>
+<ul>
+<li>GET - Requires <code>admin_read</code> - Get permissions for specific user</li>
+</ul>
+</li>
+</ul>
+<h3 id="denied-access" tabindex="-1"><a class="header-anchor" href="#denied-access">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Denied Access</h3>
+<p>When access is denied, users receive:</p>
+<ul>
+<li><strong>HTTP 403 Forbidden</strong> responses</li>
+<li><strong>Clear error messages</strong> explaining required permissions</li>
+<li><strong>Empty results</strong> for list operations (apps they cannot access are hidden)</li>
+</ul>
+<h2 id="examples" tabindex="-1"><a class="header-anchor" href="#examples">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Examples</h2>
+<h3 id="multi-team-setup" tabindex="-1"><a class="header-anchor" href="#multi-team-setup">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Multi-Team Setup</h3>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Teams with separate environments</span>
+<span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token key atrule">team-alpha</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Team Alpha applications"</span>
+  <span class="token key atrule">team-beta</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Team Beta applications"</span>
+  <span class="token key atrule">production</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Production environment"</span>
+
+<span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token comment"># Team Alpha developer</span>
+  <span class="token key atrule">"alice@company.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"team-alpha"</span><span class="token punctuation">]</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"viewer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"production"</span><span class="token punctuation">]</span>
+      
+  <span class="token comment"># Team Beta developer</span>
+  <span class="token key atrule">"bob@company.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"team-beta"</span><span class="token punctuation">]</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"viewer"</span> 
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"production"</span><span class="token punctuation">]</span>
+      
+  <span class="token comment"># Platform engineer</span>
+  <span class="token key atrule">"charlie@company.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"operator"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"production"</span><span class="token punctuation">]</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"team-alpha"</span><span class="token punctuation">,</span> <span class="token string">"team-beta"</span><span class="token punctuation">]</span></code></pre>
+<h3 id="system-administration-example" tabindex="-1"><a class="header-anchor" href="#system-administration-example">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> System Administration Example</h3>
+<p>Separate authorization management from app management:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token comment"># System administrator - can manage authorization but NOT apps</span>
+  <span class="token key atrule">"auth-admin@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"system_admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
+
+  <span class="token comment"># App administrator - can manage apps but NOT authorization</span>
+  <span class="token key atrule">"app-admin@example.com"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"production"</span><span class="token punctuation">,</span> <span class="token string">"staging"</span><span class="token punctuation">]</span></code></pre>
+<p>This separation allows you to:</p>
+<ul>
+<li>Grant authorization management (creating users/roles) without app access</li>
+<li>Grant app management without ability to change authorization</li>
+<li>Implement least privilege principle for admin roles</li>
+</ul>
+<h3 id="bearer-token-access" tabindex="-1"><a class="header-anchor" href="#bearer-token-access">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bearer Token Access</h3>
+<p>Configure bearer tokens in authorization assignments using their logical identifiers:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token comment"># CI/CD deployment token (maps to bearer_tokens.deployment in API config)</span>
+  <span class="token key atrule">"identifier:deployment"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"staging"</span><span class="token punctuation">]</span>
+      
+  <span class="token comment"># Monitoring token (maps to bearer_tokens.monitoring in API config)</span>
+  <span class="token key atrule">"identifier:monitoring"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"viewer"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"production"</span><span class="token punctuation">,</span> <span class="token string">"staging"</span><span class="token punctuation">]</span>
+      
+  <span class="token comment"># Admin token (maps to bearer_tokens.admin in API config)</span>
+  <span class="token key atrule">"identifier:admin"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span></code></pre>
+<p><strong>Security Reminder</strong>: The actual bearer tokens should be configured via environment variables:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set secure tokens via environment variables</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__DEPLOYMENT</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__MONITORING</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span> 
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span></code></pre>
+<h2 id="best-practices" tabindex="-1"><a class="header-anchor" href="#best-practices">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Best Practices</h2>
+<h3 id="security" tabindex="-1"><a class="header-anchor" href="#security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security</h3>
+<ol>
+<li><strong>Principle of Least Privilege</strong>: Grant minimum required permissions</li>
+<li><strong>Scope Isolation</strong>: Use scopes to separate sensitive environments</li>
+<li><strong>Regular Audits</strong>: Review assignments and remove unused access</li>
+<li><strong>Emergency Access</strong>: Maintain admin access for critical situations</li>
+</ol>
+<h3 id="organization" tabindex="-1"><a class="header-anchor" href="#organization">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Organization</h3>
+<ol>
+<li><strong>Clear Naming</strong>: Use descriptive scope and role names</li>
+<li><strong>Documentation</strong>: Document scope purposes and access patterns</li>
+<li><strong>Consistency</strong>: Establish naming conventions for scopes</li>
+<li><strong>Automation</strong>: Integrate with CI/CD for app scope assignment</li>
+</ol>
+<h3 id="performance" tabindex="-1"><a class="header-anchor" href="#performance">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Performance</h3>
+<ol>
+<li><strong>Scope Structure</strong>: Keep scope hierarchies simple</li>
+<li><strong>Assignment Scope</strong>: Avoid overly broad assignments</li>
+<li><strong>Caching</strong>: Authorization checks are cached for performance</li>
+<li><strong>Regular Cleanup</strong>: Remove obsolete scopes and assignments</li>
+</ol>
+<h2 id="migration" tabindex="-1"><a class="header-anchor" href="#migration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Migration</h2>
+<h3 id="existing-installations" tabindex="-1"><a class="header-anchor" href="#existing-installations">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Existing Installations</h3>
+<p>For existing Scotty installations:</p>
+<ol>
+<li><strong>Breaking Change</strong>: Bearer token authentication now requires RBAC assignments</li>
+<li><strong>Migration Required</strong>: Existing <code>api.access_token</code> must be added to assignments</li>
+<li><strong>App Discovery</strong>: Existing apps are assigned to <code>default</code> scope automatically</li>
+<li><strong>OAuth Compatibility</strong>: OAuth authentication continues to work unchanged</li>
+</ol>
+<h3 id="enabling-authorization" tabindex="-1"><a class="header-anchor" href="#enabling-authorization">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Enabling Authorization</h3>
+<ol>
+<li>Create <code>/config/casbin/model.conf</code> and <code>/config/casbin/policy.yaml</code></li>
+<li>Define initial scopes, roles, and assignments</li>
+<li><strong>Add existing bearer tokens to assignments</strong> (if using bearer authentication)</li>
+<li>Apps will automatically sync their scope memberships</li>
+<li>API endpoints begin enforcing permissions immediately</li>
+</ol>
+<p><strong>Migration Example</strong>: If you currently use <code>api.access_token: "my-secret-token"</code>, follow these steps:</p>
+<ol>
+<li><strong>Update API configuration</strong> to use <code>api.bearer_tokens</code> with a logical identifier:</li>
+</ol>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
+  <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
+    <span class="token key atrule">legacy</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>  <span class="token comment"># Will be overridden by environment variable</span></code></pre>
+<ol start="2">
+<li><strong>Set the actual token via environment variable</strong>:</li>
+</ol>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__LEGACY</span><span class="token operator">=</span><span class="token string">"my-secret-token"</span></code></pre>
+<ol start="3">
+<li><strong>Add the identifier to authorization policy.yaml</strong>:</li>
+</ol>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">"identifier:legacy"</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"admin"</span>
+      <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span></code></pre>
+<p><strong>Recommended</strong>: Generate a new secure token instead of reusing the old one:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span>"</span></code></pre>
+<p><strong>Warning</strong>: The authorization system no longer falls back to legacy configuration. Missing token assignments will result in authentication failures.</p>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/oauth-authentication.html"> OAuth Authentication with OIDC</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/changelog.html"> Changelog</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
