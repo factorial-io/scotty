@@ -1,6 +1,7 @@
 debug: false
 api:
     bind_address: "0.0.0.0:21342"
+    # base_url: "https://scotty.example.com"  # Public-facing URL for landing page redirects
     auth_mode: bearer
     create_app_max_size: "50M"
     bearer_tokens:

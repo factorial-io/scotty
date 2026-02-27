@@ -89,10 +89,14 @@ async function handleUnauthorized(): Promise<void> {
 	// Clear invalid session
 	await sessionStore.clearInvalidSession();
 
-	// Don't redirect if already on login or OAuth pages
+	// Don't redirect if already on login, OAuth, or landing pages
 	if (typeof window !== 'undefined') {
 		const currentPath = window.location.pathname;
-		if (currentPath === '/login' || currentPath.startsWith('/oauth/')) {
+		if (
+			currentPath === '/login' ||
+			currentPath.startsWith('/oauth/') ||
+			currentPath.startsWith('/landing/')
+		) {
 			return;
 		}
 
