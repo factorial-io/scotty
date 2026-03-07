@@ -28,7 +28,10 @@ export default [
 		},
 		rules: {
 			// Disable infinite-reactive-loop as it has false positives with proper guards
-			'svelte/infinite-reactive-loop': 'off'
+			'svelte/infinite-reactive-loop': 'off',
+			// Disable no-useless-assignment for Svelte files as it false-positives on
+			// reactive let declarations used in $: blocks
+			'no-useless-assignment': 'off'
 		}
 	},
 	{
