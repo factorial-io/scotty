@@ -8,6 +8,17 @@ use crate::app_state::AppState;
 use config::Config;
 use std::sync::Arc;
 
+/// Create a Docker client for testing
+///
+/// Tries local socket first, falls back to HTTP connection for environments
+/// without a Docker socket (e.g. CI).
+#[allow(dead_code)]
+pub fn create_test_docker_client() -> bollard::Docker {
+    bollard::Docker::connect_with_local_defaults()
+        .or_else(|_| bollard::Docker::connect_with_http_defaults())
+        .unwrap()
+}
+
 /// Create test WebSocket messenger
 ///
 /// Creates a WebSocketMessenger with an empty client map for use in tests.
@@ -51,7 +62,7 @@ pub async fn create_test_app_state_with_settings(
     settings: crate::settings::config::Settings,
     oauth_state: Option<crate::oauth::handlers::OAuthState>,
 ) -> Arc<AppState> {
-    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
+    let docker = create_test_docker_client();
 
     Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),

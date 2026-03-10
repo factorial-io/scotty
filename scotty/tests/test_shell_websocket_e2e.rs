@@ -45,7 +45,7 @@ async fn test_shell_session_creation_and_termination() {
         scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
             .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router).unwrap();
+    let server = axum_test::TestServer::new(router);
 
     // Connect to WebSocket
     let server_addr = server.server_address().expect("Server should have address");
@@ -150,7 +150,7 @@ async fn test_shell_command_execution_with_exit_code() {
         scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
             .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router).unwrap();
+    let server = axum_test::TestServer::new(router);
 
     // Connect to WebSocket
     let server_addr = server.server_address().expect("Server should have address");
@@ -232,7 +232,7 @@ async fn test_shell_bidirectional_io() {
         scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
             .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router).unwrap();
+    let server = axum_test::TestServer::new(router);
 
     // Connect to WebSocket
     let server_addr = server.server_address().expect("Server should have address");
@@ -338,7 +338,7 @@ async fn test_shell_tty_resize() {
         scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
             .await;
     let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router).unwrap();
+    let server = axum_test::TestServer::new(router);
 
     // Connect to WebSocket
     let server_addr = server.server_address().expect("Server should have address");

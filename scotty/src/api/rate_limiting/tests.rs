@@ -59,7 +59,7 @@ mod integration_tests {
         let state = create_test_app_state_with_settings(settings, None).await;
 
         let app = ApiRoutes::create(state);
-        TestServer::new(app).unwrap()
+        TestServer::new(app)
     }
 
     #[tokio::test]
