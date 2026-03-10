@@ -19,9 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to get workspace root");
     let export_dir = workspace_root.join("frontend/src/generated");
 
-    // Set the export directory for ts-rs and create config
-    std::env::set_var("TS_RS_EXPORT_DIR", export_dir.to_str().unwrap());
-    let cfg = Config::from_env();
+    let cfg = Config::new().with_out_dir(&export_dir);
 
     println!("🔧 Generating TypeScript bindings for WebSocket messages...");
 
