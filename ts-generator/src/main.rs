@@ -8,7 +8,10 @@
  * Usage: cargo run (from ts-generator directory)
  */
 
-use scotty_types::{ts_rs::{Config, TS}, *};
+use scotty_types::{
+    ts_rs::{Config, TS},
+    *,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build absolute path to frontend generated types folder
