@@ -39,9 +39,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         _ => None,
     };
 
-    let docker = bollard::Docker::connect_with_local_defaults()
-        .or_else(|_| bollard::Docker::connect_with_http_defaults())
-        .unwrap();
+    let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
@@ -534,9 +532,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         _ => None,
     };
 
-    let docker = bollard::Docker::connect_with_local_defaults()
-        .or_else(|_| bollard::Docker::connect_with_http_defaults())
-        .unwrap();
+    let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
