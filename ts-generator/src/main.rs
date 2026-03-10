@@ -8,7 +8,10 @@
  * Usage: cargo run (from ts-generator directory)
  */
 
-use scotty_types::{ts_rs::TS, *};
+use scotty_types::{
+    ts_rs::{Config, TS},
+    *,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build absolute path to frontend generated types folder
@@ -19,37 +22,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to get workspace root");
     let export_dir = workspace_root.join("frontend/src/generated");
 
-    // Set the export directory for ts-rs
-    std::env::set_var("TS_RS_EXPORT_DIR", export_dir.to_str().unwrap());
+    let cfg = Config::new().with_out_dir(&export_dir);
 
     println!("🔧 Generating TypeScript bindings for WebSocket messages...");
 
     // Core output types
-    OutputStreamType::export()?;
-    OutputLine::export()?;
+    OutputStreamType::export(&cfg)?;
+    OutputLine::export(&cfg)?;
 
     // Task types
-    State::export()?;
-    TaskDetails::export()?;
-    TaskOutputData::export()?;
+    State::export(&cfg)?;
+    TaskDetails::export(&cfg)?;
+    TaskOutputData::export(&cfg)?;
 
     // Log streaming types
-    LogStreamRequest::export()?;
-    LogsStreamInfo::export()?;
-    LogsStreamData::export()?;
-    LogsStreamEnd::export()?;
-    LogsStreamError::export()?;
+    LogStreamRequest::export(&cfg)?;
+    LogsStreamInfo::export(&cfg)?;
+    LogsStreamData::export(&cfg)?;
+    LogsStreamEnd::export(&cfg)?;
+    LogsStreamError::export(&cfg)?;
 
     // Shell session types
-    ShellDataType::export()?;
-    ShellSessionRequest::export()?;
-    ShellSessionInfo::export()?;
-    ShellSessionData::export()?;
-    ShellSessionEnd::export()?;
-    ShellSessionError::export()?;
+    ShellDataType::export(&cfg)?;
+    ShellSessionRequest::export(&cfg)?;
+    ShellSessionInfo::export(&cfg)?;
+    ShellSessionData::export(&cfg)?;
+    ShellSessionEnd::export(&cfg)?;
+    ShellSessionError::export(&cfg)?;
 
     // WebSocket message types
-    WebSocketMessage::export()?;
+    WebSocketMessage::export(&cfg)?;
 
     println!("✅ TypeScript bindings generated successfully!");
     println!("📁 Generated files location: {}", export_dir.display());
