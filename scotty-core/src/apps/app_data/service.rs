@@ -8,6 +8,22 @@ pub struct ServicePortMapping {
     pub domains: Vec<String>,
 }
 
+impl ServicePortMapping {
+    /// Returns the effective domains for this service.
+    ///
+    /// If custom domains are configured, returns those.
+    /// Otherwise, returns the auto-generated domain: `{service}.{app_domain}`.
+    pub fn get_domains(&self, app_domain: &str) -> Vec<String> {
+        if !self.domains.is_empty() {
+            self.domains.clone()
+        } else if !app_domain.is_empty() {
+            vec![format!("{}.{}", self.service, app_domain)]
+        } else {
+            vec![]
+        }
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum DomainField {
@@ -89,5 +105,42 @@ mod tests {
         assert_eq!(mapping.service, "api");
         assert_eq!(mapping.port, 3000);
         assert_eq!(mapping.domains, vec!["api1.com", "api2.com"]);
+    }
+
+    #[test]
+    fn test_get_domains_with_custom_domains() {
+        let mapping = ServicePortMapping {
+            service: "web".to_string(),
+            port: 8080,
+            domains: vec!["custom.example.com".to_string()],
+        };
+        assert_eq!(
+            mapping.get_domains("myapp.apps.example.com"),
+            vec!["custom.example.com"]
+        );
+    }
+
+    #[test]
+    fn test_get_domains_auto_generated() {
+        let mapping = ServicePortMapping {
+            service: "web".to_string(),
+            port: 8080,
+            domains: vec![],
+        };
+        assert_eq!(
+            mapping.get_domains("myapp.apps.example.com"),
+            vec!["web.myapp.apps.example.com"]
+        );
+    }
+
+    #[test]
+    fn test_get_domains_empty_app_domain() {
+        let mapping = ServicePortMapping {
+            service: "web".to_string(),
+            port: 8080,
+            domains: vec![],
+        };
+        let result: Vec<String> = vec![];
+        assert_eq!(mapping.get_domains(""), result);
     }
 }

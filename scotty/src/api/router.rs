@@ -51,6 +51,7 @@ use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, 
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
+use super::rest::handlers::landing::landing_or_frontend_handler;
 use crate::api::rest::handlers::admin::assignments::{
     __path_create_assignment_handler, __path_list_assignments_handler,
     __path_remove_assignment_handler,
@@ -73,7 +74,6 @@ use crate::api::rest::handlers::tasks::__path_task_detail_handler;
 use crate::api::rest::handlers::tasks::__path_task_list_handler;
 use crate::api::websocket::client::ws_handler;
 use crate::app_state::SharedAppState;
-use crate::static_files::serve_embedded_file;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
@@ -429,15 +429,14 @@ impl ApiRoutes {
             .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
             .with_state(state.clone());
 
-        let router = Router::new()
+        // Serve embedded frontend files, or redirect to landing page for stopped apps
+        tracing::info!("Serving embedded frontend files with landing page support");
+        Router::new()
             .merge(authenticated_router)
             .merge(login_router)
             .merge(oauth_router)
             .merge(public_router)
-            .with_state(state.clone());
-
-        // Always use embedded frontend files
-        tracing::info!("Serving embedded frontend files");
-        router.fallback(|uri: axum::http::Uri| async move { serve_embedded_file(uri).await })
+            .fallback(landing_or_frontend_handler)
+            .with_state(state.clone())
     }
 }

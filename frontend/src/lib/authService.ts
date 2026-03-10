@@ -151,8 +151,12 @@ export class AuthService {
 			return true;
 		}
 
-		// Skip auth check on login and OAuth pages
-		if (currentPath === '/login' || currentPath.startsWith('/oauth/')) {
+		// Skip auth check on login, OAuth, and landing pages
+		if (
+			currentPath === '/login' ||
+			currentPath.startsWith('/oauth/') ||
+			currentPath.startsWith('/landing/')
+		) {
 			return true;
 		}
 

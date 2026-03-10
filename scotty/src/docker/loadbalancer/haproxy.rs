@@ -103,10 +103,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
-                match &service.domains.is_empty() {
-                    false => service.domains.join(" "),
-                    true => format!("{}.{}", &service.service, &settings.domain),
-                },
+                service.get_domains(&settings.domain).join(" "),
             );
             environment.insert("VPORT".into(), format!("{}", &service.port));
 
