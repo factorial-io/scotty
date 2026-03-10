@@ -253,7 +253,9 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             }
         }
 
-        let docker = bollard::Docker::connect_with_local_defaults().unwrap();
+        let docker = bollard::Docker::connect_with_local_defaults()
+            .or_else(|_| bollard::Docker::connect_with_http_defaults())
+            .unwrap();
         let app_state = Arc::new(AppState {
             stop_flag: stop_flag::StopFlag::new(),
             messenger: create_test_websocket_messenger(),
