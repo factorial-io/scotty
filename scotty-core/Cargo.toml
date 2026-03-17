@@ -31,6 +31,7 @@ utoipa.workspace = true
 clokwerk.workspace = true
 readonly.workspace = true
 bollard.workspace = true
+bollard-stubs.workspace = true
 deunicode.workspace = true
 url.workspace = true
 reqwest.workspace = true
