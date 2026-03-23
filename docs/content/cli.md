@@ -220,6 +220,50 @@ This command will create a new app on the server. The `--folder` argument is
 mandatory and should point to a folder containing at least a `compose.yml`
 file. The complete folder will be uploaded to the server (size limits may apply).
 
+You either need to declare a public service via `--service` or use the
+`--app-blueprint` argument (You can get a list of available blueprints with
+`scottyctl blueprint:list`). When declaring a public service, you need to
+provide a service name and a port. The service name should match a service in the
+compose.yml file. The port should be the port the service is listening on.
+
+The `--ttl` argument is optional and will set the lifetime of the app in hours,
+days or forever.
+
+You can add basic auth to the app with the `--basic-auth` argument. The argument
+should contain a username and a password separated by a colon.
+
+By default, Scotty injects a `X-Robots-Tag: noindex` header into all responses
+to prevent search engines from indexing the app. The `--allow-robots` argument
+disables this behavior, allowing search engines to index the app.
+(Not supported by all proxies)
+
+The `--destroy-on-ttl` argument will destroy the app after the specified ttl
+instead of just stopping it. Suitable for apps that are not expected to be used
+for a long time.
+
+The `--env-file` argument will load environment variables from a file. The file
+should contain key-value pairs separated by an equal sign.
+
+You can add custom domains to the app with the `--custom-domain` argument. The
+argument should contain a domain and a service name separated by a colon. The
+service name should match a service in the compose.yml file.
+
+You can add environment variables to the app with the `--env` argument. The
+argument should contain a key and a value separated by an equal sign. You can
+reference secrets from 1Password with the `OP`-uri-scheme. The value should be
+a URL like `op://<connect-instance-name>/<vault-uuid>/<item-uuid>/<field-name>`.
+The server needs to be configured accordingly.
+
+You can use a private registry for the images with the `--registry` argument. The
+argument should contain the name of the registry. The server needs to be
+configured accordingly.
+
+You can add middleware to the app with the `--middleware` argument. The argument
+should contain the name of the middleware. Middleware must be in the allow-list in
+the server configuration before they can be used. You can specify multiple
+middleware by using the `--middleware` argument multiple times. (This is only
+supported for traefik)
+
 ### Controlling File Uploads with .scottyignore
 
 You can control which files are uploaded by creating a `.scottyignore` file in your project folder. This file uses gitignore-style patterns to exclude files from being uploaded.
@@ -261,49 +305,6 @@ dist/
 **Note:** The following files are always ignored automatically:
 - `.DS_Store` (macOS system file)
 - `.git/` directory and its contents
-
-You either need to declare a public service via `--service` or use the
-`--app-blueprint` argument (You can get a list of available blueprints with
-`scottyctl blueprint:list`). When declaring a public service, you need to
-provide a service name and a port. The service name should match a service in the
-compose.yml file. The port should be the port the service is listening on.
-
-The `--ttl` argument is optional and will set the lifetime of the app in hours,
-days or forever.
-
-You can add basic auth to the app with the `--basic-auth` argument. The argument
-should contain a username and a password separated by a colon.
-
-By default, Scotty injects a `X-Robots-Tag: noindex` header into all responses
-to prevent search engines from indexing the app. The `--allow-robots` argument
-disables this behavior, allowing search engines to index the app.
-(Not supported by all proxies)
-
-The `--destroy-on-ttl` argument will destroy the app after the specified ttl
-instead of just stopping it. Suitable for apps that are not expected to be used
-for a long time.
-The `--env-file` argument will load environment variables from a file. The file
-should contain key-value pairs separated by an equal sign.
-
-You can add custom domains to the app with the `--custom-domain` argument. The
-argument should contain a domain and a service name separated by a colon. The
-service name should match a service in the compose.yml file.
-
-You can add environment variables to the app with the `--env` argument. The
-argument should contain a key and a value separated by an equal sign. You can
-reference secrets from 1Password with the `OP`-uri-scheme. The value should be
-a URL like `op://<connect-instance-name>/<vault-uuid>/<item-uuid>/<field-name>`.
-The server needs to be configured accordingly.
-
-You can use a private registry for the images with the `--registry` argument. The
-argument should contain the name of the registry. The server needs to be
-configured accordingly.
-
-You can add middleware to the app with the `--middleware` argument. The argument
-should contain the name of the middleware. Middleware must be in the allow-list in
-the server configuration before they can be used. You can specify multiple
-middleware by using the `--middleware` argument multiple times. (This is only
-supported for traefik)
 
 ### Some examples:
 
