@@ -274,22 +274,20 @@ days or forever.
 You can add basic auth to the app with the `--basic-auth` argument. The argument
 should contain a username and a password separated by a colon.
 
-The `--allow-robots` argument will inject a `X-Robots-Tag: noindex` header into
-all responses of the app. This will prevent search engines from indexing the app.
+By default, Scotty injects a `X-Robots-Tag: noindex` header into all responses
+to prevent search engines from indexing the app. The `--allow-robots` argument
+disables this behavior, allowing search engines to index the app.
 (Not supported by all proxies)
 
 The `--destroy-on-ttl` argument will destroy the app after the specified ttl
 instead of just stopping it. Suitable for apps that are not expected to be used
 for a long time.
-Tbhe `--env-file` argument will load environment variables from a file. The file
+The `--env-file` argument will load environment variables from a file. The file
 should contain key-value pairs separated by an equal sign.
 
 You can add custom domains to the app with the `--custom-domain` argument. The
 argument should contain a domain and a service name separated by a colon. The
 service name should match a service in the compose.yml file.
-
-The `--env-file` argument will load environment variables from a file. The file
-should contain key-value pairs separated by an equal sign.
 
 You can add environment variables to the app with the `--env` argument. The
 argument should contain a key and a value separated by an equal sign. You can
@@ -328,7 +326,7 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
 
 will beam up the current folder to the server and start the nginx service on port 80.
 It will add basic auth with the username `user` and the password `password` and
-won't add a `X-Robots-Tag` header to all responses. The app will run forever.
+allow search engines to index the app (no `X-Robots-Tag: noindex` header). The app will run forever.
 
 ```shell
 scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
@@ -470,7 +468,7 @@ Lists all roles with their descriptions and associated permissions.
 
 **Create a new role:**
 ```shell
-scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:create <NAME> <DESCRIPTION> <PERMISSIONS>
+scottyctl --server <SERVER> --access-token <TOKEN> admin:roles:create <NAME> <DESCRIPTION> --permissions <PERMISSIONS>
 ```
 
 Permissions should be comma-separated. Use `*` for all permissions.
@@ -478,10 +476,10 @@ Permissions should be comma-separated. Use `*` for all permissions.
 Example:
 ```shell
 # Create a developer role with specific permissions
-scottyctl admin:roles:create developer "Developer access" view,manage,shell,logs,create
+scottyctl admin:roles:create developer "Developer access" --permissions view,manage,shell,logs,create
 
 # Create an admin role with all permissions
-scottyctl admin:roles:create admin "Full access" "*"
+scottyctl admin:roles:create admin "Full access" --permissions "*"
 ```
 
 ### Assignments Management
@@ -495,7 +493,7 @@ Lists all user-to-role assignments with their assigned scopes.
 
 **Create a new assignment:**
 ```shell
-scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:create <USER> <ROLE> <SCOPES>
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:create <USER> <ROLE> --scopes <SCOPES>
 ```
 
 Scopes should be comma-separated. Use `*` for all scopes.
@@ -503,23 +501,23 @@ Scopes should be comma-separated. Use `*` for all scopes.
 Examples:
 ```shell
 # Assign user to developer role in staging scope
-scottyctl admin:assignments:create alice@example.com developer staging
+scottyctl admin:assignments:create alice@example.com developer --scopes staging
 
 # Assign bearer token to admin role across all scopes
-scottyctl admin:assignments:create identifier:ci-bot admin "*"
+scottyctl admin:assignments:create identifier:ci-bot admin --scopes "*"
 
 # Assign user to multiple scopes
-scottyctl admin:assignments:create bob@example.com operator staging,production
+scottyctl admin:assignments:create bob@example.com operator --scopes staging,production
 ```
 
 **Remove an assignment:**
 ```shell
-scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:remove <USER> <ROLE> <SCOPES>
+scottyctl --server <SERVER> --access-token <TOKEN> admin:assignments:remove <USER> <ROLE> --scopes <SCOPES>
 ```
 
 Example:
 ```shell
-scottyctl admin:assignments:remove alice@example.com developer staging
+scottyctl admin:assignments:remove alice@example.com developer --scopes staging
 ```
 
 ### Permissions Management
@@ -533,14 +531,14 @@ Lists all permissions that can be assigned to roles.
 
 **Test permission for a user:**
 ```shell
-scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:test <USER> <APP> <PERMISSION>
+scottyctl --server <SERVER> --access-token <TOKEN> admin:permissions:test <APP> <PERMISSION> [--user-id <USER>]
 ```
 
-Tests whether a specific user has a particular permission on an app.
+Tests whether a specific user has a particular permission on an app. If `--user-id` is not specified, tests the current user.
 
 Example:
 ```shell
-scottyctl admin:permissions:test alice@example.com my-app manage
+scottyctl admin:permissions:test my-app manage --user-id alice@example.com
 ```
 
 **Get all permissions for a user:**
