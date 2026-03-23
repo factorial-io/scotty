@@ -61,9 +61,9 @@ cd apps/traefik && docker compose up -d
 - `oauth/`: OAuth 2.0 — device flow (CLI) and web flow (`/oauth/authorize`, `/api/oauth/callback`, `/oauth/exchange`)
 - `services/authorization/`: Casbin RBAC (scopes, roles, permissions)
 - `tasks/`: Task execution and output streaming
-- `notification/`: Webhook, Mattermost, GitLab notifications
+- `notification/`: Log, Webhook, Mattermost, GitLab notifications
 - `static_files.rs`: Embedded frontend serving
-- `metrics/`: Collectors for log streaming, shell sessions, WebSocket connections, etc.
+- `metrics/`: Collectors for app list, HTTP requests, memory usage, Tokio runtime, etc.
 
 **AppState** (shared via `Arc`): Settings, Docker client (Bollard), task manager, authorization service, metrics collectors.
 
@@ -107,7 +107,7 @@ assignments:
 
 **Preflight** (`preflight.rs`): Checks client/server version compatibility via `/api/v1/info` before running commands. Bypass with `--bypass-version-check`.
 
-**File upload** (`app:create`): Files collected via `utils/files.rs:collect_files()`, base64-encoded. Supports `.scottyignore` (gitignore-style patterns via `ignore` crate). Auto-excludes `.DS_Store`, `.git/`.
+**File upload** (`app:create`): Files collected via `utils/files.rs:collect_files()`, gzip-compressed and base64-encoded. Supports `.scottyignore` (gitignore-style patterns via `ignore` crate). Auto-excludes `.DS_Store`, `.git/`.
 
 **Auth**: OAuth device flow + bearer tokens via env vars or CLI args. Core logic in `auth/` (device flow, token storage, caching).
 
