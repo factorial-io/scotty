@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use bollard::secret::ContainerStateStatusEnum;
+use bollard_stubs::models::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToResponse, ToSchema};

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bollard::secret::ContainerInspectResponse;
+use bollard_stubs::models::ContainerInspectResponse;
 use regex::Regex;
 
 use crate::settings::config::Settings;
