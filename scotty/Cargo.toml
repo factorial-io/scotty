@@ -64,7 +64,7 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_norway.workspace = true
-sha2 = { version = "0.11", default-features = false, features = ["std"] }
+sha2 = "0.11"
 subtle.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
