@@ -1,0 +1,1011 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Observability</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" Observability">
+        <meta name="twitter:title" content=" Observability">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/observability.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#architecture" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#prometheus-compatibility-%26-flexibility" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Prometheus Compatibility &amp; Flexibility</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#quick-start" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Quick Start</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#available-metrics" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Available Metrics</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#grafana-dashboard" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Grafana Dashboard</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#promql-query-examples" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> PromQL Query Examples</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#distributed-tracing" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Distributed Tracing</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#troubleshooting" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Troubleshooting</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#configuration" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#production-recommendations" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Production Recommendations</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/observability.html#further-reading" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Further Reading</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="observability" tabindex="-1"><a class="header-anchor" href="#observability">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Observability</h1>
+<p>Scotty includes a comprehensive observability stack for monitoring application health, performance, and behavior. The stack provides metrics, distributed tracing, and visualization through industry-standard tools.</p>
+<h2 id="architecture" tabindex="-1"><a class="header-anchor" href="#architecture">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Architecture</h2>
+<pre><code>Scotty Application
+       ↓ (OTLP over gRPC)
+OpenTelemetry Collector (port 4317)
+       ├─→ Jaeger (distributed traces)
+       └─→ VictoriaMetrics (metrics storage)
+              ↓
+           Grafana (visualization &amp; dashboards)
+</code></pre>
+<h3 id="components" tabindex="-1"><a class="header-anchor" href="#components">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Components</h3>
+<ul>
+<li><strong>OpenTelemetry Collector</strong>: Receives telemetry data from Scotty via OTLP protocol and routes it to appropriate backends</li>
+<li><strong>VictoriaMetrics</strong>: High-performance time-series database for metrics storage (30-day retention)</li>
+<li><strong>Jaeger</strong>: Distributed tracing backend for request traces and spans</li>
+<li><strong>Grafana</strong>: Visualization platform with pre-configured dashboards</li>
+</ul>
+<h3 id="resource-usage" tabindex="-1"><a class="header-anchor" href="#resource-usage">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Resource Usage</h3>
+<p>The observability stack requires approximately:</p>
+<ul>
+<li><strong>Memory</strong>: 180-250 MB total</li>
+<li><strong>CPU</strong>: Minimal (&lt; 5% on modern systems)</li>
+<li><strong>Disk</strong>: ~1-2 GB for 30 days of metrics retention</li>
+</ul>
+<h2 id="prometheus-compatibility-%26-flexibility" tabindex="-1"><a class="header-anchor" href="#prometheus-compatibility-%26-flexibility">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Prometheus Compatibility &amp; Flexibility</h2>
+<p><strong>All metrics are fully Prometheus-compatible.</strong> The stack uses open standards (OTLP, PromQL, W3C Trace Context) and components are interchangeable.</p>
+<h3 id="metric-format" tabindex="-1"><a class="header-anchor" href="#metric-format">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Metric Format</h3>
+<ul>
+<li>OpenTelemetry format (<code>scotty.metric.name</code>) → Prometheus format (<code>scotty_metric_name_total</code>)</li>
+<li>Standard types: Counter, Gauge, Histogram, UpDownCounter</li>
+<li>Attributes become labels (<code>method</code>, <code>status</code>, <code>path</code>)</li>
+</ul>
+<h3 id="replace-components-as-needed" tabindex="-1"><a class="header-anchor" href="#replace-components-as-needed">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Replace Components as Needed</h3>
+<p><strong>Use Prometheus instead of VictoriaMetrics:</strong>
+Update <code>otel-collector-config.yaml</code> exporter from <code>prometheusremotewrite</code> to <code>prometheus</code> endpoint, then swap VictoriaMetrics for Prometheus in docker-compose.</p>
+<p><strong>Alternative backends:</strong> Thanos, Cortex, M3DB, InfluxDB, Datadog, New Relic, Honeycomb, Grafana Cloud</p>
+<p><strong>Alternative visualization:</strong> Prometheus UI, VictoriaMetrics vmui, Chronograf, commercial dashboards</p>
+<p><strong>Alternative tracing:</strong> Zipkin, Tempo, Elasticsearch + Jaeger, Lightstep, Honeycomb</p>
+<p><strong>Multi-backend export example:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># otel-collector-config.yaml - export to multiple destinations</span>
+<span class="token key atrule">service</span><span class="token punctuation">:</span>
+  <span class="token key atrule">pipelines</span><span class="token punctuation">:</span>
+    <span class="token key atrule">metrics</span><span class="token punctuation">:</span>
+      <span class="token key atrule">exporters</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>prometheusremotewrite/victoria<span class="token punctuation">,</span> prometheusremotewrite/thanos<span class="token punctuation">,</span> otlp/datadog<span class="token punctuation">]</span></code></pre>
+<h3 id="integration-patterns" tabindex="-1"><a class="header-anchor" href="#integration-patterns">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Integration Patterns</h3>
+<p><strong>Remote write to existing Prometheus:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">exporters</span><span class="token punctuation">:</span>
+  <span class="token key atrule">prometheusremotewrite</span><span class="token punctuation">:</span>
+    <span class="token key atrule">endpoint</span><span class="token punctuation">:</span> <span class="token string">"https://your-prometheus.company.com/api/v1/write"</span></code></pre>
+<p><strong>Federation from VictoriaMetrics:</strong></p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># prometheus.yml</span>
+<span class="token key atrule">scrape_configs</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">job_name</span><span class="token punctuation">:</span> <span class="token string">'scotty'</span>
+    <span class="token key atrule">metrics_path</span><span class="token punctuation">:</span> <span class="token string">'/api/v1/export/prometheus'</span>
+    <span class="token key atrule">params</span><span class="token punctuation">:</span>
+      match<span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">'{__name__=~"scotty_.*"}'</span><span class="token punctuation">]</span>
+    <span class="token key atrule">static_configs</span><span class="token punctuation">:</span>
+      <span class="token punctuation">-</span> <span class="token key atrule">targets</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">'victoriametrics:8428'</span><span class="token punctuation">]</span></code></pre>
+<p><strong>Service discovery:</strong> Standard Kubernetes/Consul Prometheus SD works with VictoriaMetrics API.</p>
+<h3 id="why-victoriametrics-default" tabindex="-1"><a class="header-anchor" href="#why-victoriametrics-default">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Why VictoriaMetrics Default</h3>
+<p>Chosen for development convenience: lower memory usage, single binary, Prometheus-compatible, free. Swap for Prometheus in production if preferred.</p>
+<h2 id="quick-start" tabindex="-1"><a class="header-anchor" href="#quick-start">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Quick Start</h2>
+<h3 id="prerequisites" tabindex="-1"><a class="header-anchor" href="#prerequisites">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Prerequisites</h3>
+<p>The observability stack requires Traefik for .ddev.site domain routing. Start Traefik first:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">cd</span> apps/traefik
+<span class="token function">docker-compose</span> up <span class="token parameter variable">-d</span></code></pre>
+<h3 id="starting-the-observability-stack" tabindex="-1"><a class="header-anchor" href="#starting-the-observability-stack">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Starting the Observability Stack</h3>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">cd</span> observability
+<span class="token function">docker-compose</span> up <span class="token parameter variable">-d</span></code></pre>
+<p>This will start all four services:</p>
+<ul>
+<li>OpenTelemetry Collector</li>
+<li>VictoriaMetrics</li>
+<li>Jaeger</li>
+<li>Grafana</li>
+</ul>
+<h3 id="enabling-metrics-in-scotty" tabindex="-1"><a class="header-anchor" href="#enabling-metrics-in-scotty">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Enabling Metrics in Scotty</h3>
+<p>Configure Scotty to export telemetry data using the <code>SCOTTY__TELEMETRY</code> environment variable:</p>
+<p><strong>Enable both metrics and traces:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token assign-left variable">SCOTTY__TELEMETRY</span><span class="token operator">=</span>metrics,traces <span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty</code></pre>
+<p><strong>Enable only metrics:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token assign-left variable">SCOTTY__TELEMETRY</span><span class="token operator">=</span>metrics <span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty</code></pre>
+<p><strong>Production deployment</strong> (in docker-compose.yml or .env):</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">environment</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> SCOTTY__TELEMETRY=metrics<span class="token punctuation">,</span>traces</code></pre>
+<h3 id="accessing-services" tabindex="-1"><a class="header-anchor" href="#accessing-services">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Accessing Services</h3>
+<p>Once running, access the services at:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>URL</th>
+<th>Credentials</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Grafana</td>
+<td>http://grafana.ddev.site</td>
+<td>admin/admin</td>
+</tr>
+<tr>
+<td>Jaeger UI</td>
+<td>http://jaeger.ddev.site</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td>VictoriaMetrics</td>
+<td>http://vm.ddev.site</td>
+<td>(none)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="available-metrics" tabindex="-1"><a class="header-anchor" href="#available-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Available Metrics</h2>
+<p>Scotty exports comprehensive metrics covering all major subsystems. All metrics use the <code>scotty.</code> prefix.</p>
+<h3 id="log-streaming-metrics" tabindex="-1"><a class="header-anchor" href="#log-streaming-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Log Streaming Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_log_streams_active</code></td>
+<td>Gauge</td>
+<td>Number of active log streams</td>
+</tr>
+<tr>
+<td><code>scotty_log_streams_total</code></td>
+<td>Counter</td>
+<td>Total log streams created</td>
+</tr>
+<tr>
+<td><code>scotty_log_stream_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Duration of log streaming sessions</td>
+</tr>
+<tr>
+<td><code>scotty_log_stream_lines_total</code></td>
+<td>Counter</td>
+<td>Total log lines streamed to clients</td>
+</tr>
+<tr>
+<td><code>scotty_log_stream_errors_total</code></td>
+<td>Counter</td>
+<td>Log streaming errors</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor concurrent log stream load</li>
+<li>Detect log streaming errors</li>
+<li>Analyze log stream duration patterns</li>
+</ul>
+<h3 id="shell-session-metrics" tabindex="-1"><a class="header-anchor" href="#shell-session-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Shell Session Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_shell_sessions_active</code></td>
+<td>Gauge</td>
+<td>Number of active shell sessions</td>
+</tr>
+<tr>
+<td><code>scotty_shell_sessions_total</code></td>
+<td>Counter</td>
+<td>Total shell sessions created</td>
+</tr>
+<tr>
+<td><code>scotty_shell_session_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Shell session duration</td>
+</tr>
+<tr>
+<td><code>scotty_shell_session_errors_total</code></td>
+<td>Counter</td>
+<td>Shell session errors</td>
+</tr>
+<tr>
+<td><code>scotty_shell_session_timeouts_total</code></td>
+<td>Counter</td>
+<td>Sessions ended due to timeout</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor active shell connections</li>
+<li>Track session timeout rates</li>
+<li>Identify shell session errors</li>
+</ul>
+<h3 id="websocket-metrics" tabindex="-1"><a class="header-anchor" href="#websocket-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> WebSocket Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_websocket_connections_active</code></td>
+<td>Gauge</td>
+<td>Active WebSocket connections</td>
+</tr>
+<tr>
+<td><code>scotty_websocket_messages_sent_total</code></td>
+<td>Counter</td>
+<td>Messages sent to clients</td>
+</tr>
+<tr>
+<td><code>scotty_websocket_messages_received_total</code></td>
+<td>Counter</td>
+<td>Messages received from clients</td>
+</tr>
+<tr>
+<td><code>scotty_websocket_auth_failures_total</code></td>
+<td>Counter</td>
+<td>WebSocket authentication failures</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor real-time connection count</li>
+<li>Track message throughput</li>
+<li>Detect authentication issues</li>
+</ul>
+<h3 id="task-output-streaming-metrics" tabindex="-1"><a class="header-anchor" href="#task-output-streaming-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Task Output Streaming Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_tasks_active</code></td>
+<td>Gauge</td>
+<td>Active task output streams</td>
+</tr>
+<tr>
+<td><code>scotty_tasks_total</code></td>
+<td>Counter</td>
+<td>Total tasks executed</td>
+</tr>
+<tr>
+<td><code>scotty_task_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Task execution duration</td>
+</tr>
+<tr>
+<td><code>scotty_task_failures_total</code></td>
+<td>Counter</td>
+<td>Failed tasks</td>
+</tr>
+<tr>
+<td><code>scotty_task_output_lines_total</code></td>
+<td>Counter</td>
+<td>Task output lines streamed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor task execution load</li>
+<li>Track task failure rates</li>
+<li>Analyze output streaming performance</li>
+</ul>
+<h3 id="http-server-metrics" tabindex="-1"><a class="header-anchor" href="#http-server-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> HTTP Server Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_http_requests_active</code></td>
+<td>UpDownCounter</td>
+<td>Currently processing requests</td>
+</tr>
+<tr>
+<td><code>scotty_http_requests_total</code></td>
+<td>Counter</td>
+<td>Total HTTP requests</td>
+</tr>
+<tr>
+<td><code>scotty_http_request_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Request processing time</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Attributes:</strong></p>
+<ul>
+<li><code>method</code>: HTTP method (GET, POST, etc.)</li>
+<li><code>path</code>: Request path</li>
+<li><code>status</code>: HTTP status code</li>
+</ul>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor API endpoint performance</li>
+<li>Track request rates by endpoint</li>
+<li>Identify slow requests</li>
+</ul>
+<h3 id="memory-metrics" tabindex="-1"><a class="header-anchor" href="#memory-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Memory Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_memory_rss_bytes</code></td>
+<td>Gauge</td>
+<td>Resident Set Size (RSS) in bytes</td>
+</tr>
+<tr>
+<td><code>scotty_memory_virtual_bytes</code></td>
+<td>Gauge</td>
+<td>Virtual memory size in bytes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor memory consumption</li>
+<li>Detect memory leaks</li>
+<li>Capacity planning</li>
+</ul>
+<h3 id="application-metrics" tabindex="-1"><a class="header-anchor" href="#application-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Application Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_apps_total</code></td>
+<td>Gauge</td>
+<td>Total managed applications</td>
+</tr>
+<tr>
+<td><code>scotty_apps_by_status</code></td>
+<td>Gauge</td>
+<td>Apps grouped by status</td>
+</tr>
+<tr>
+<td><code>scotty_app_services_count</code></td>
+<td>Histogram</td>
+<td>Services per application distribution</td>
+</tr>
+<tr>
+<td><code>scotty_app_last_check_age_seconds</code></td>
+<td>Histogram</td>
+<td>Time since last health check</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Attributes:</strong></p>
+<ul>
+<li><code>status</code>: Application status (running, stopped, etc.)</li>
+</ul>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor application fleet size</li>
+<li>Track application health check timeliness</li>
+<li>Analyze service distribution</li>
+</ul>
+<h3 id="tokio-runtime-metrics" tabindex="-1"><a class="header-anchor" href="#tokio-runtime-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Tokio Runtime Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_tokio_workers_count</code></td>
+<td>Gauge</td>
+<td>Number of Tokio worker threads</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_tasks_active</code></td>
+<td>Gauge</td>
+<td>Active instrumented tasks</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_tasks_dropped_total</code></td>
+<td>Counter</td>
+<td>Completed/dropped tasks</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_poll_count_total</code></td>
+<td>Counter</td>
+<td>Total task polls</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_poll_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Task poll duration</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_slow_poll_count_total</code></td>
+<td>Counter</td>
+<td>Slow task polls (&gt;1ms)</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_idle_duration_seconds</code></td>
+<td>Histogram</td>
+<td>Task idle time between polls</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_scheduled_count_total</code></td>
+<td>Counter</td>
+<td>Task scheduling events</td>
+</tr>
+<tr>
+<td><code>scotty_tokio_first_poll_delay_seconds</code></td>
+<td>Histogram</td>
+<td>Delay from creation to first poll</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Monitor async runtime health</li>
+<li>Detect slow tasks blocking the runtime</li>
+<li>Optimize task scheduling</li>
+</ul>
+<h2 id="grafana-dashboard" tabindex="-1"><a class="header-anchor" href="#grafana-dashboard">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Grafana Dashboard</h2>
+<p>Scotty includes a pre-configured Grafana dashboard (<code>scotty-metrics.json</code>) that visualizes all available metrics.</p>
+<h3 id="dashboard-sections" tabindex="-1"><a class="header-anchor" href="#dashboard-sections">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dashboard Sections</h3>
+<ol>
+<li><strong>Log Streaming</strong>: Active streams, throughput, duration percentiles, errors</li>
+<li><strong>Shell Sessions</strong>: Active sessions, creation rate, duration, errors &amp; timeouts</li>
+<li><strong>WebSocket &amp; Tasks</strong>: Connection metrics, message rates, task execution</li>
+<li><strong>Memory Usage</strong>: RSS and virtual memory trends</li>
+<li><strong>HTTP Server</strong>: Request rates, active requests, latencies</li>
+<li><strong>Tokio Runtime</strong>: Worker threads, task lifecycle, poll metrics</li>
+<li><strong>Application Metrics</strong>: App count, status distribution, health checks</li>
+</ol>
+<h3 id="accessing-the-dashboard" tabindex="-1"><a class="header-anchor" href="#accessing-the-dashboard">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Accessing the Dashboard</h3>
+<ol>
+<li>Open Grafana: http://grafana.ddev.site</li>
+<li>Login with <code>admin</code> / <code>admin</code> (change on first login)</li>
+<li>Navigate to <strong>Dashboards</strong> → <strong>Scotty Metrics</strong></li>
+</ol>
+<p>The dashboard auto-refreshes every 5 seconds and shows data from the last hour by default.</p>
+<h2 id="promql-query-examples" tabindex="-1"><a class="header-anchor" href="#promql-query-examples">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> PromQL Query Examples</h2>
+<h3 id="request-rate-by-http-status" tabindex="-1"><a class="header-anchor" href="#request-rate-by-http-status">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Request Rate by HTTP Status</h3>
+<pre class="language-promql"><code class="language-promql"><span class="token keyword">sum</span> <span class="token keyword">by</span> <span class="token vector-match"><span class="token punctuation">(</span><span class="token label-key attr-name">status</span><span class="token punctuation">)</span></span> <span class="token punctuation">(</span><span class="token function">rate</span><span class="token punctuation">(</span>scotty_http_requests_total<span class="token context-range"><span class="token punctuation">[</span><span class="token range-duration number">5m</span><span class="token punctuation">]</span></span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre>
+<h3 id="p95-request-latency" tabindex="-1"><a class="header-anchor" href="#p95-request-latency">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> P95 Request Latency</h3>
+<pre class="language-promql"><code class="language-promql"><span class="token function">histogram_quantile</span><span class="token punctuation">(</span><span class="token number">0.95</span><span class="token punctuation">,</span> <span class="token function">rate</span><span class="token punctuation">(</span>scotty_http_request_duration_seconds_bucket<span class="token context-range"><span class="token punctuation">[</span><span class="token range-duration number">5m</span><span class="token punctuation">]</span></span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre>
+<h3 id="websocket-connection-churn" tabindex="-1"><a class="header-anchor" href="#websocket-connection-churn">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> WebSocket Connection Churn</h3>
+<pre class="language-promql"><code class="language-promql"><span class="token function">rate</span><span class="token punctuation">(</span>scotty_websocket_connections_total<span class="token context-range"><span class="token punctuation">[</span><span class="token range-duration number">5m</span><span class="token punctuation">]</span></span><span class="token punctuation">)</span></code></pre>
+<h3 id="memory-growth-rate" tabindex="-1"><a class="header-anchor" href="#memory-growth-rate">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Memory Growth Rate</h3>
+<pre class="language-promql"><code class="language-promql"><span class="token function">deriv</span><span class="token punctuation">(</span>scotty_memory_rss_bytes<span class="token context-range"><span class="token punctuation">[</span><span class="token range-duration number">10m</span><span class="token punctuation">]</span></span><span class="token punctuation">)</span></code></pre>
+<h3 id="active-resources-summary" tabindex="-1"><a class="header-anchor" href="#active-resources-summary">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Active Resources Summary</h3>
+<pre class="language-promql"><code class="language-promql"><span class="token comment"># All active resources</span>
+scotty_log_streams_active <span class="token operator">+</span>
+scotty_shell_sessions_active <span class="token operator">+</span>
+scotty_websocket_connections_active <span class="token operator">+</span>
+scotty_tasks_active</code></pre>
+<h2 id="distributed-tracing" tabindex="-1"><a class="header-anchor" href="#distributed-tracing">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Distributed Tracing</h2>
+<p>When traces are enabled (<code>SCOTTY__TELEMETRY=traces</code> or <code>metrics,traces</code>), Scotty exports distributed traces to Jaeger.</p>
+<h3 id="viewing-traces" tabindex="-1"><a class="header-anchor" href="#viewing-traces">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Viewing Traces</h3>
+<ol>
+<li>Open Jaeger UI: http://jaeger.ddev.site</li>
+<li>Select <strong>scotty</strong> service</li>
+<li>Search for traces by operation or timeframe</li>
+</ol>
+<h3 id="key-operations" tabindex="-1"><a class="header-anchor" href="#key-operations">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Key Operations</h3>
+<ul>
+<li><code>HTTP POST /apps/create</code>: Application creation</li>
+<li><code>HTTP GET /apps/info/{name}</code>: Application info retrieval</li>
+<li><code>log_stream_handler</code>: Log streaming operations</li>
+<li><code>shell_session_handler</code>: Shell session management</li>
+</ul>
+<p>Traces include timing information, error status, and contextual metadata for debugging request flows.</p>
+<h2 id="troubleshooting" tabindex="-1"><a class="header-anchor" href="#troubleshooting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Troubleshooting</h2>
+<h3 id="no-metrics-appearing-in-grafana" tabindex="-1"><a class="header-anchor" href="#no-metrics-appearing-in-grafana">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> No Metrics Appearing in Grafana</h3>
+<ol>
+<li>
+<p><strong>Check Scotty is exporting metrics:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Verify SCOTTY__TELEMETRY is set</span>
+<span class="token builtin class-name">echo</span> <span class="token variable">$SCOTTY__TELEMETRY</span>
+
+<span class="token comment"># Should be 'metrics' or 'metrics,traces'</span></code></pre>
+</li>
+<li>
+<p><strong>Verify OpenTelemetry Collector is receiving data:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token function">docker</span> logs otel-collector
+<span class="token comment"># Look for: "Trace received"</span></code></pre>
+</li>
+<li>
+<p><strong>Check VictoriaMetrics has data:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token function">curl</span> http://vm.ddev.site/api/v1/label/__name__/values <span class="token operator">|</span> jq
+<span class="token comment"># Should list scotty_* metrics</span></code></pre>
+</li>
+<li>
+<p><strong>Restart the stack:</strong></p>
+<pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">cd</span> observability
+<span class="token function">docker-compose</span> restart</code></pre>
+</li>
+</ol>
+<h3 id="high-memory-usage" tabindex="-1"><a class="header-anchor" href="#high-memory-usage">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> High Memory Usage</h3>
+<p>If VictoriaMetrics uses too much memory, adjust retention:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># observability/docker-compose.yml</span>
+<span class="token key atrule">services</span><span class="token punctuation">:</span>
+  <span class="token key atrule">victoriametrics</span><span class="token punctuation">:</span>
+    <span class="token key atrule">command</span><span class="token punctuation">:</span>
+      <span class="token punctuation">-</span> <span class="token string">'-retentionPeriod=14d'</span>  <span class="token comment"># Reduce from 30d</span></code></pre>
+<h3 id="connection-refused-errors" tabindex="-1"><a class="header-anchor" href="#connection-refused-errors">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Connection Refused Errors</h3>
+<p>Ensure Traefik is running:</p>
+<pre class="language-bash"><code class="language-bash"><span class="token function">docker</span> <span class="token function">ps</span> <span class="token operator">|</span> <span class="token function">grep</span> traefik
+<span class="token builtin class-name">cd</span> apps/traefik
+<span class="token function">docker-compose</span> up <span class="token parameter variable">-d</span></code></pre>
+<h3 id="grafana-dashboard-not-loading" tabindex="-1"><a class="header-anchor" href="#grafana-dashboard-not-loading">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Grafana Dashboard Not Loading</h3>
+<ol>
+<li>Check dashboard file exists: <code>observability/grafana/dashboards/scotty-metrics.json</code></li>
+<li>Restart Grafana: <code>docker-compose restart grafana</code></li>
+<li>Check Grafana logs: <code>docker logs grafana</code></li>
+</ol>
+<h2 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Configuration</h2>
+<h3 id="opentelemetry-collector" tabindex="-1"><a class="header-anchor" href="#opentelemetry-collector">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OpenTelemetry Collector</h3>
+<p>Configuration file: <code>observability/otel-collector-config.yaml</code></p>
+<p>Key settings:</p>
+<ul>
+<li><strong>OTLP Receiver</strong>: Port 4317 (gRPC)</li>
+<li><strong>Exporters</strong>: Jaeger (traces), Prometheus Remote Write (metrics to VictoriaMetrics)</li>
+<li><strong>Batch Processor</strong>: Batches telemetry for efficiency</li>
+</ul>
+<h3 id="victoriametrics" tabindex="-1"><a class="header-anchor" href="#victoriametrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> VictoriaMetrics</h3>
+<p>Configuration via docker-compose environment:</p>
+<ul>
+<li><strong>Retention</strong>: 30 days (<code>-retentionPeriod=30d</code>)</li>
+<li><strong>Storage path</strong>: <code>/victoria-metrics-data</code></li>
+<li><strong>HTTP port</strong>: 8428</li>
+</ul>
+<h3 id="grafana" tabindex="-1"><a class="header-anchor" href="#grafana">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Grafana</h3>
+<p>Configuration in <code>observability/grafana/provisioning/</code>:</p>
+<ul>
+<li><strong>Datasources</strong>: VictoriaMetrics (Prometheus type)</li>
+<li><strong>Dashboards</strong>: Auto-provisioned from <code>dashboards/</code> directory</li>
+</ul>
+<h2 id="production-recommendations" tabindex="-1"><a class="header-anchor" href="#production-recommendations">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Production Recommendations</h2>
+<h3 id="resource-allocation" tabindex="-1"><a class="header-anchor" href="#resource-allocation">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Resource Allocation</h3>
+<p>For production deployments, allocate resources based on scale:</p>
+<p><strong>Small deployment</strong> (&lt; 10 apps):</p>
+<ul>
+<li>VictoriaMetrics: 256 MB memory</li>
+<li>OpenTelemetry Collector: 128 MB memory</li>
+<li>Grafana: 256 MB memory</li>
+</ul>
+<p><strong>Medium deployment</strong> (10-50 apps):</p>
+<ul>
+<li>VictoriaMetrics: 512 MB memory</li>
+<li>OpenTelemetry Collector: 256 MB memory</li>
+<li>Grafana: 512 MB memory</li>
+</ul>
+<p><strong>Large deployment</strong> (50+ apps):</p>
+<ul>
+<li>VictoriaMetrics: 1 GB+ memory</li>
+<li>OpenTelemetry Collector: 512 MB memory</li>
+<li>Grafana: 512 MB memory</li>
+</ul>
+<h3 id="alerting" tabindex="-1"><a class="header-anchor" href="#alerting">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Alerting</h3>
+<p>Configure Grafana alerts for critical metrics:</p>
+<ul>
+<li><strong>High error rate</strong>: <code>rate(scotty_http_requests_total{status="500"}[5m]) &gt; 0.1</code></li>
+<li><strong>Memory leak</strong>: <code>deriv(scotty_memory_rss_bytes[30m]) &gt; 1000000</code></li>
+<li><strong>High WebSocket failures</strong>: <code>rate(scotty_websocket_auth_failures_total[5m]) &gt; 1</code></li>
+<li><strong>Task failures</strong>: <code>rate(scotty_task_failures_total[5m]) &gt; 0.5</code></li>
+</ul>
+<h3 id="data-retention" tabindex="-1"><a class="header-anchor" href="#data-retention">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Data Retention</h3>
+<p>Adjust retention based on compliance and capacity:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token comment"># observability/docker-compose.yml</span>
+<span class="token key atrule">services</span><span class="token punctuation">:</span>
+  <span class="token key atrule">victoriametrics</span><span class="token punctuation">:</span>
+    <span class="token key atrule">command</span><span class="token punctuation">:</span>
+      <span class="token punctuation">-</span> <span class="token string">'-retentionPeriod=90d'</span>  <span class="token comment"># 3 months for compliance</span></code></pre>
+<h3 id="security" tabindex="-1"><a class="header-anchor" href="#security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security</h3>
+<p><strong>Production checklist:</strong></p>
+<ul>
+<li>[ ] Change Grafana default password</li>
+<li>[ ] Enable Grafana authentication (OAuth, LDAP, etc.)</li>
+<li>[ ] Use TLS for Grafana access</li>
+<li>[ ] Restrict Jaeger UI access</li>
+<li>[ ] Firewall VictoriaMetrics port (8428)</li>
+<li>[ ] Use secure networks for OTLP traffic</li>
+</ul>
+<h2 id="further-reading" tabindex="-1"><a class="header-anchor" href="#further-reading">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Further Reading</h2>
+<ul>
+<li><a href="https://opentelemetry.io/docs/">OpenTelemetry Documentation</a></li>
+<li><a href="https://docs.victoriametrics.com/">VictoriaMetrics Documentation</a></li>
+<li><a href="https://grafana.com/docs/">Grafana Documentation</a></li>
+<li><a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL Tutorial</a></li>
+</ul>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/configuration.html"> Configuration</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/cli.html"> The command line interface</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
