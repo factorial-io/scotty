@@ -32,7 +32,7 @@ tokio = { version = "1.44.2", default-features = false, features = [
     "signal",
     "process",
 ] }
-tokio-metrics = "0.4"
+tokio-metrics = "0.5"
 tracing = { version = "0.1.40", default-features = false, features = ["std", "attributes"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log", "std"] }
 ts-rs = "12.0"
