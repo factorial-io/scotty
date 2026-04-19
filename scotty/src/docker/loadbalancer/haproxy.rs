@@ -35,10 +35,8 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                                 result.port = Some(port);
                             }
                         }
-                        "HTTPS_ONLY" => {
-                            if value.to_lowercase() == "true" || value == "1" {
-                                result.tls_enabled = true;
-                            }
+                        "HTTPS_ONLY" if value.to_lowercase() == "true" || value == "1" => {
+                            result.tls_enabled = true;
                         }
                         "HTTP_AUTH_USER" => {
                             result.basic_auth_user = Some(value.to_string());
