@@ -69,9 +69,9 @@ use crate::api::rest::handlers::admin::scopes::{
 use crate::api::rest::handlers::blueprints::__path_blueprints_handler;
 use crate::api::rest::handlers::health::health_checker_handler;
 use crate::api::rest::handlers::scopes::list::__path_list_user_scopes_handler;
-use crate::api::rest::handlers::tasks::TaskList;
 use crate::api::rest::handlers::tasks::__path_task_detail_handler;
 use crate::api::rest::handlers::tasks::__path_task_list_handler;
+use crate::api::rest::handlers::tasks::TaskList;
 use crate::api::websocket::client::ws_handler;
 use crate::app_state::SharedAppState;
 use scotty_core::tasks::task_details::TaskDetails;
