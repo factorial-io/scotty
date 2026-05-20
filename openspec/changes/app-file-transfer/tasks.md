@@ -1,20 +1,20 @@
 ## 1. Shared types and config
 
-- [ ] 1.1 Add `tar = "0.4"` to `scotty/Cargo.toml` and `scottyctl/Cargo.toml` (workspace dep if appropriate)
-- [ ] 1.2 Add `SCOTTY__FILES__MAX_TRANSFER_SIZE` (default 1 GiB) to settings module with config + env loader
-- [ ] 1.3 Add shared request/response/error types in `scotty-types` (FileTransferError variants, MAX_TRANSFER_SIZE constant) with ts-rs derives
+- [x] 1.1 Add `tar = "0.4"` to `scotty/Cargo.toml` and `scottyctl/Cargo.toml` (workspace dep if appropriate)
+- [x] 1.2 Add `SCOTTY__FILES__MAX_TRANSFER_SIZE` (default 1 GiB) to settings module with config + env loader
+- [x] 1.3 Add shared request/response/error types in `scotty-types` (FileTransferError variants, MAX_TRANSFER_SIZE constant) with ts-rs derives
 
 ## 2. Server endpoints
 
-- [ ] 2.1 Create `scotty/src/api/rest/handlers/files.rs` with `download_files` and `upload_files` handlers
-- [ ] 2.2 Implement absolute-path + non-empty validation on the `path` query param
-- [ ] 2.3 Wire `download_files` to `bollard::Docker::download_from_container`, returning an `axum::body::Body` from the tar stream
-- [ ] 2.4 Wire `upload_files` to `bollard::Docker::upload_to_container`, consuming the request body as a stream
-- [ ] 2.5 Implement counting stream wrapper that aborts with `413` when `SCOTTY__FILES__MAX_TRANSFER_SIZE` is exceeded (both directions)
-- [ ] 2.6 Map "service not running" / "no such container" Bollard errors to `409` with code `service_not_running`
-- [ ] 2.7 Register routes in `scotty/src/api/router.rs` under `/api/v1/apps/{app}/services/{service}/files` with auth metadata: `view` for GET, `manage` for PUT
-- [ ] 2.8 Add OpenAPI annotations via utoipa for both endpoints
-- [ ] 2.9 Integration tests in `scotty/tests/`: download single file, upload + extract, 403 unauthorized, 404 unknown service, 409 not running, 413 size limit
+- [x] 2.1 Create `scotty/src/api/rest/handlers/files.rs` with `download_files` and `upload_files` handlers
+- [x] 2.2 Implement absolute-path + non-empty validation on the `path` query param
+- [x] 2.3 Wire `download_files` to `bollard::Docker::download_from_container`, returning an `axum::body::Body` from the tar stream
+- [x] 2.4 Wire `upload_files` to `bollard::Docker::upload_to_container`, consuming the request body as a stream
+- [x] 2.5 Implement counting stream wrapper that aborts with `413` when `SCOTTY__FILES__MAX_TRANSFER_SIZE` is exceeded (both directions)
+- [x] 2.6 Map "service not running" / "no such container" Bollard errors to `409` with code `service_not_running`
+- [x] 2.7 Register routes in `scotty/src/api/router.rs` under `/api/v1/apps/{app}/services/{service}/files` with auth metadata: `view` for GET, `manage` for PUT
+- [x] 2.8 Add OpenAPI annotations via utoipa for both endpoints
+- [x] 2.9 Integration tests in `scotty/tests/`: download single file, upload + extract, 403 unauthorized, 404 unknown service, 409 not running, 413 size limit
 
 ## 3. scottyctl: path-spec parser and shared helpers
 

@@ -87,6 +87,7 @@ clokwerk.workspace = true
 casbin.workspace = true
 bcrypt.workspace = true
 sysinfo.workspace = true
+tar.workspace = true
 once_cell.workspace = true
 num_cpus.workspace = true
 http-body-util = { version = "0.1.3", default-features = false }

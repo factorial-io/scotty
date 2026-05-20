@@ -67,6 +67,10 @@ use crate::api::rest::handlers::admin::scopes::{
     __path_create_scope_handler, __path_list_scopes_handler,
 };
 use crate::api::rest::handlers::blueprints::__path_blueprints_handler;
+use crate::api::rest::handlers::files::{
+    __path_download_files_handler, __path_upload_files_handler, download_files_handler,
+    upload_files_handler,
+};
 use crate::api::rest::handlers::health::health_checker_handler;
 use crate::api::rest::handlers::scopes::list::__path_list_user_scopes_handler;
 use crate::api::rest::handlers::tasks::__path_task_detail_handler;
@@ -153,6 +157,8 @@ use scotty_core::admin::{
         test_permission_handler,
         get_user_permissions_handler,
         list_available_permissions_handler,
+        download_files_handler,
+        upload_files_handler,
     ),
     components(
         schemas(
@@ -291,6 +297,26 @@ impl ApiRoutes {
                     state.clone(),
                     require_permission(Permission::Manage),
                 )),
+            )
+            // File transfer endpoints (download + upload) for a service's
+            // container. GET requires `view`, PUT requires `manage`.
+            .route(
+                "/api/v1/apps/{app_id}/services/{service}/files",
+                get(download_files_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::View),
+                    ))
+                    .put(upload_files_handler)
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::Manage),
+                    ))
+                    // Disable the default 2 MiB request body limit for
+                    // uploads; transfers are bounded by
+                    // `Settings.files.max_transfer_size` via a counting
+                    // stream wrapper.
+                    .route_layer(DefaultBodyLimit::disable()),
             )
             // Admin API routes - require AdminRead/AdminWrite permissions
             .route(
