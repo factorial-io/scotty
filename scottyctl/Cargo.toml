@@ -33,6 +33,10 @@ tokio-tungstenite.workspace = true
 futures-util.workspace = true
 uuid.workspace = true
 flate2.workspace = true
+tar.workspace = true
+tokio-stream.workspace = true
+urlencoding.workspace = true
+bytes = "1"
 
 [lib]
 name = "scottyctl"

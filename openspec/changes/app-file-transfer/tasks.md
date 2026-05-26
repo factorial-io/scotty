@@ -18,23 +18,23 @@
 
 ## 3. scottyctl: path-spec parser and shared helpers
 
-- [ ] 3.1 Create `scottyctl/src/commands/apps/cp/mod.rs` + submodules (`spec.rs`, `stream.rs`)
-- [ ] 3.2 Implement `PathSpec` enum and parser with the heuristic (Windows drive letter, existing local path, `-` for stdio)
-- [ ] 3.3 Implement service resolution helper: fetch app blueprint via existing API client; pick the single `public: true` service or error with candidate list
-- [ ] 3.4 Implement tar pack helper for local directories/files using `tokio::task::spawn_blocking` + bounded channel adapter
-- [ ] 3.5 Implement tar unpack helper for download streams using the same blocking-task pattern
-- [ ] 3.6 Implement pipe-mode pack: wrap stdin into a synthetic single-entry tar with the destination basename
-- [ ] 3.7 Implement pipe-mode unpack: extract the first regular-file entry to stdout; error if more than one regular-file entry exists
-- [ ] 3.8 Unit tests for parser (each `PathSpec` case, both-remote/both-local rejection, Windows-drive disambiguation)
+- [x] 3.1 Create `scottyctl/src/commands/apps/cp/mod.rs` + submodules (`spec.rs`, `stream.rs`)
+- [x] 3.2 Implement `PathSpec` enum and parser with the heuristic (Windows drive letter, existing local path, `-` for stdio)
+- [x] 3.3 Implement service resolution helper: fetch app blueprint via existing API client; pick the single `public: true` service or error with candidate list
+- [x] 3.4 Implement tar pack helper for local directories/files using `tokio::task::spawn_blocking` + bounded channel adapter
+- [x] 3.5 Implement tar unpack helper for download streams using the same blocking-task pattern
+- [x] 3.6 Implement pipe-mode pack: wrap stdin into a synthetic single-entry tar with the destination basename
+- [x] 3.7 Implement pipe-mode unpack: extract the first regular-file entry to stdout; error if more than one regular-file entry exists
+- [x] 3.8 Unit tests for parser (each `PathSpec` case, both-remote/both-local rejection, Windows-drive disambiguation)
 
 ## 4. scottyctl: `app:cp` command
 
-- [ ] 4.1 Add `CopyCommand` variant to `scottyctl/src/cli.rs` Commands enum with two positional args + help text/examples
-- [ ] 4.2 Implement `execute` function: parse both args, validate exactly one is `Remote`, dispatch to download or upload flow
-- [ ] 4.3 Download flow: build URL with encoded path, `reqwest` GET with bearer token, stream body into local tar unpack or stdio unpack
-- [ ] 4.4 Upload flow: build URL, stream local tar pack or stdio pack as `reqwest` PUT body with `Content-Type: application/x-tar`
-- [ ] 4.5 Surface server errors (403/404/409/413) as user-friendly stderr messages with non-zero exit code
-- [ ] 4.6 Implement byte counter that writes to stderr (e.g., `1.2 GiB transferred`) when stderr is a tty
+- [x] 4.1 Add `CopyCommand` variant to `scottyctl/src/cli.rs` Commands enum with two positional args + help text/examples
+- [x] 4.2 Implement `execute` function: parse both args, validate exactly one is `Remote`, dispatch to download or upload flow
+- [x] 4.3 Download flow: build URL with encoded path, `reqwest` GET with bearer token, stream body into local tar unpack or stdio unpack
+- [x] 4.4 Upload flow: build URL, stream local tar pack or stdio pack as `reqwest` PUT body with `Content-Type: application/x-tar`
+- [x] 4.5 Surface server errors (403/404/409/413) as user-friendly stderr messages with non-zero exit code
+- [x] 4.6 Implement byte counter that writes to stderr (e.g., `1.2 GiB transferred`) when stderr is a tty
 
 ## 5. End-to-end verification
 
