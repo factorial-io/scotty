@@ -36,6 +36,16 @@ scottyctl help
 will show some help and a list of available commands. You can get help
 with `scottyctl help <command>`. A complete list of commands is available [here](docs/content/cli.md)
 
+Move files between your workstation and a service container with `app:cp`:
+
+```shell
+# Copy a file out of a container
+scottyctl app:cp my-app:web:/var/log/app.log ./app.log
+
+# Pipe a database dump into a container
+mysqldump mydb | scottyctl app:cp - my-app:db:/tmp/dump.sql
+```
+
 ### Shell autocompletion
 
 Make sure to leverage `scottyctl completion $SHELL` to get autocompletion for

@@ -48,7 +48,7 @@
 
 ## 6. Docs and bean cleanup
 
-- [ ] 6.1 Update `docs/content/cli.md` with an `app:cp` section, including pipe-mode examples (matches `scotty-qcv7` scope)
-- [ ] 6.2 Update `README.md` quick-start with one `app:cp` example
-- [ ] 6.3 Ensure `scottyctl app:cp --help` text is complete (syntax, `-` semantics, implicit service)
-- [ ] 6.4 Mark beans: complete `scotty-fad6` epic, complete `scotty-kqlr` and `scotty-qcv7`, scrap `scotty-54nc` with rationale
+- [x] 6.1 Update `docs/content/cli.md` with an `app:cp` section, including pipe-mode examples (matches `scotty-qcv7` scope)
+- [x] 6.2 Update `README.md` quick-start with one `app:cp` example
+- [x] 6.3 Ensure `scottyctl app:cp --help` text is complete (syntax, `-` semantics, implicit service)
+- [x] 6.4 Mark beans: complete `scotty-fad6` epic, complete `scotty-kqlr` and `scotty-qcv7`, scrap `scotty-54nc` with rationale
