@@ -15,6 +15,37 @@ use scotty_core::settings::custom_action::{
 /// Maximum length allowed for a custom action name.
 const MAX_ACTION_NAME_LEN: usize = 255;
 
+/// Validate and normalize a custom action name.
+///
+/// The name is used as a `HashMap` key and is embedded directly into URL path
+/// segments (e.g. `/apps/{app}/custom-actions/{name}` and the admin
+/// approve/reject/revoke routes), so it must be non-empty, bounded in length,
+/// and restricted to URL-safe characters. A `/`, `?`, `#` or `%` would split or
+/// corrupt the path and make the action unreachable. Surrounding whitespace is
+/// trimmed so the stored key is clean.
+fn validate_action_name(raw: &str) -> Result<String, AppError> {
+    let name = raw.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest(
+            "Custom action name must not be empty".to_string(),
+        ));
+    }
+    if name.len() > MAX_ACTION_NAME_LEN {
+        return Err(AppError::BadRequest(format!(
+            "Custom action name must be at most {MAX_ACTION_NAME_LEN} characters"
+        )));
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | ':'))
+    {
+        return Err(AppError::BadRequest(format!(
+            "Invalid custom action name '{name}'. Use only letters, digits, and the characters '_', '-', '.', ':'"
+        )));
+    }
+    Ok(name.to_string())
+}
+
 /// Create a new custom action for an app
 #[debug_handler]
 #[utoipa::path(
@@ -23,9 +54,10 @@ const MAX_ACTION_NAME_LEN: usize = 255;
     request_body = CreateCustomActionRequest,
     responses(
         (status = 201, description = "Custom action created", body = CustomAction),
-        (status = 400, description = "Invalid request or action already exists"),
+        (status = 400, description = "Invalid request (e.g. bad name or permission)"),
         (status = 401, description = "Access token is missing or invalid"),
         (status = 404, description = "App not found"),
+        (status = 409, description = "An action with this name already exists"),
         (status = 500, description = "Internal server error"),
     ),
     security(
@@ -49,21 +81,7 @@ pub async fn create_custom_action_handler(
         None => return Err(AppError::AppNotFound(app_name)),
     };
 
-    // Validate the action name. It is used as a HashMap key and appears in API
-    // paths and log lines, so reject empty/whitespace-only and overly long
-    // names. Trim surrounding whitespace so the stored key is clean.
-    let name = payload.name.trim();
-    if name.is_empty() {
-        return Err(AppError::BadRequest(
-            "Custom action name must not be empty".to_string(),
-        ));
-    }
-    if name.len() > MAX_ACTION_NAME_LEN {
-        return Err(AppError::BadRequest(format!(
-            "Custom action name must be at most {MAX_ACTION_NAME_LEN} characters"
-        )));
-    }
-    let name = name.to_string();
+    let name = validate_action_name(&payload.name)?;
 
     // Parse permission string and restrict it to the two permissions that
     // gate action *execution*. Management/approval permissions
@@ -244,5 +262,47 @@ pub async fn get_custom_action_handler(
             "Custom action '{}' not found in app '{}'",
             action_name, app_name
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_action_name_trims_and_accepts_safe_names() {
+        assert_eq!(validate_action_name("  deploy-db  ").unwrap(), "deploy-db");
+        assert_eq!(
+            validate_action_name("web:migrate.v2").unwrap(),
+            "web:migrate.v2"
+        );
+        assert_eq!(validate_action_name("Action_1").unwrap(), "Action_1");
+    }
+
+    #[test]
+    fn validate_action_name_rejects_empty() {
+        assert!(matches!(
+            validate_action_name("   "),
+            Err(AppError::BadRequest(_))
+        ));
+    }
+
+    #[test]
+    fn validate_action_name_rejects_too_long() {
+        let long = "a".repeat(MAX_ACTION_NAME_LEN + 1);
+        assert!(matches!(
+            validate_action_name(&long),
+            Err(AppError::BadRequest(_))
+        ));
+    }
+
+    #[test]
+    fn validate_action_name_rejects_url_unsafe_chars() {
+        for bad in ["my/action", "a?b", "a#b", "a%2f", "with space", "emoji😀"] {
+            assert!(
+                matches!(validate_action_name(bad), Err(AppError::BadRequest(_))),
+                "expected '{bad}' to be rejected"
+            );
+        }
     }
 }

@@ -268,7 +268,7 @@ pub struct ActionCreateCommand {
     pub action_name: String,
 
     /// Description of the action
-    #[arg(long)]
+    #[arg(long, default_value = "")]
     pub description: String,
 
     /// Permission level required (action_read or action_write)

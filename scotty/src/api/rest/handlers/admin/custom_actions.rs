@@ -47,6 +47,10 @@ pub async fn list_pending_actions_handler(
     let apps = state.apps.get_apps().await;
     let mut pending_actions = Vec::new();
 
+    // Note: this intentionally lists pending actions across *all* apps,
+    // regardless of the approver's scope assignments. Approvers are expected to
+    // have system-wide visibility into what needs review. If scope-scoped
+    // approval is needed later, filter here by the caller's accessible scopes.
     for app in apps.apps.iter() {
         if let Some(settings) = &app.settings {
             for action in settings.custom_actions.values() {
@@ -59,6 +63,14 @@ pub async fn list_pending_actions_handler(
             }
         }
     }
+
+    // `custom_actions` is a HashMap and apps iterate in arbitrary order, so sort
+    // for deterministic output (consistent with the per-app list endpoint).
+    pending_actions.sort_by(|a, b| {
+        a.app_name
+            .cmp(&b.app_name)
+            .then_with(|| a.action.name.cmp(&b.action.name))
+    });
 
     Ok(Json(PendingActionsResponse { pending_actions }))
 }

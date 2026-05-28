@@ -151,7 +151,13 @@ impl CustomAction {
         matches!(self.expires_at, Some(expires_at) if Utc::now() > expires_at)
     }
 
-    /// Check if this action can be executed
+    /// Check if this action can be executed.
+    ///
+    /// Expiry is evaluated live here rather than persisted: there is currently
+    /// no background task that sweeps stale actions and calls [`Self::expire`],
+    /// so an expired action keeps its stored `Approved` status but is reported
+    /// as non-executable. `is_expired()` is the source of truth for runtime
+    /// executability; the stored `status` reflects the approval decision.
     pub fn can_execute(&self) -> bool {
         self.status.is_executable() && !self.is_expired()
     }
