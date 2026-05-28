@@ -358,7 +358,11 @@ async fn upload(
 fn annotate_download_error(err: io::Error) -> anyhow::Error {
     // Prefer the structured `ErrorKind` (locale-independent): a truncated tar
     // surfaces as `UnexpectedEof`. Fall back to substring matching for the
-    // reqwest/hyper body errors that do not map onto a dedicated kind.
+    // reqwest/hyper body errors that do not map onto a dedicated kind. The
+    // server-side `SizeLimitExceeded` sentinel cannot be matched directly here
+    // because it never crosses the wire — the response body is simply aborted.
+    // The substrings below were verified against reqwest 0.12 / hyper 1.x; if a
+    // hint stops appearing after a dependency bump, re-check these messages.
     let text = err.to_string().to_lowercase();
     let looks_truncated = matches!(err.kind(), io::ErrorKind::UnexpectedEof)
         || text.contains("unexpected eof")
@@ -378,6 +382,11 @@ fn annotate_download_error(err: io::Error) -> anyhow::Error {
 }
 
 /// Wrap a byte stream so each chunk's length is added to `counter`.
+///
+/// Note: this counts the bytes of the tar stream, which includes tar headers
+/// and 512-byte block padding on top of the actual file contents. The progress
+/// figure is therefore the on-the-wire transfer size, not the file size (a
+/// 1-byte file reports ~1 KiB). This matches `docker cp` and is intentional.
 fn count_bytes<S, E>(
     stream: S,
     counter: Arc<AtomicU64>,

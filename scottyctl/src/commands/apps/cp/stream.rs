@@ -344,7 +344,8 @@ where
                 // precise total — phrase the message accordingly rather than
                 // claiming a fixed count.
                 return Err(io::Error::other(
-                    "pipe mode requires a single file, but the archive contains more than one file entry",
+                    "pipe mode requires a single file, but the archive contains more than one \
+                     file entry; use a local destination path instead of '-' to extract a directory",
                 ));
             }
             io::copy(&mut entry, &mut stdout)?;

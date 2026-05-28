@@ -217,13 +217,17 @@ where
         ("path" = String, Query, description = "Absolute container path to download"),
     ),
     responses(
-        (status = 200, description = "Tar archive of the requested container path", content_type = "application/x-tar"),
+        // Note: there is no 413 response for downloads. The 200 status line is
+        // committed before the body is streamed, so a transfer that exceeds
+        // `Settings.files.max_transfer_size` cannot switch to 413 — instead the
+        // response body is aborted mid-stream (the client observes a truncated
+        // archive / connection reset). See `download_files_handler` for details.
+        (status = 200, description = "Tar archive of the requested container path. The stream is aborted mid-transfer if the configured maximum size is exceeded.", content_type = "application/x-tar"),
         (status = 400, description = "Invalid path query parameter", body = FileTransferError),
         (status = 401, description = "Access token is missing or invalid"),
         (status = 403, description = "Caller lacks the `view` permission", body = FileTransferError),
         (status = 404, description = "App, service, or path not found", body = FileTransferError),
         (status = 409, description = "Service container is not running", body = FileTransferError),
-        (status = 413, description = "Configured maximum transfer size exceeded", body = FileTransferError),
         (status = 500, description = "Docker daemon error", body = FileTransferError),
     ),
     security(
