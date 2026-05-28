@@ -6,9 +6,14 @@ pub mod metrics;
 
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    DeviceAuthorizationUrl, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse,
-    TokenUrl,
+    DeviceAuthorizationUrl, EndpointNotSet, EndpointSet, PkceCodeChallenge, PkceCodeVerifier,
+    RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
+
+/// Concrete `BasicClient` typestate for our configuration: auth URL, device
+/// authorization URL and token URL are set; introspection and revocation are not.
+type ConfiguredOAuthClient =
+    BasicClient<EndpointSet, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 use scotty_core::utils::secret::MaskedSecret;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -18,7 +23,7 @@ use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct OAuthClient {
-    pub client: BasicClient,
+    pub client: ConfiguredOAuthClient,
     pub oidc_issuer_url: String,
     pub client_id: String,
     pub client_secret: SecretString,
@@ -88,13 +93,11 @@ impl OAuthClient {
         let token_url = format!("{}/oauth/token", oidc_issuer_url);
         let device_auth_url = format!("{}/oauth/authorize_device", oidc_issuer_url);
 
-        let client = BasicClient::new(
-            ClientId::new(client_id.clone()),
-            Some(ClientSecret::new(client_secret.expose_secret().to_string())),
-            AuthUrl::new(auth_url)?,
-            Some(TokenUrl::new(token_url)?),
-        )
-        .set_device_authorization_url(DeviceAuthorizationUrl::new(device_auth_url)?);
+        let client = BasicClient::new(ClientId::new(client_id.clone()))
+            .set_client_secret(ClientSecret::new(client_secret.expose_secret().to_string()))
+            .set_auth_uri(AuthUrl::new(auth_url)?)
+            .set_token_uri(TokenUrl::new(token_url)?)
+            .set_device_authorization_url(DeviceAuthorizationUrl::new(device_auth_url)?);
 
         let http_client =
             scotty_core::http::HttpClient::with_timeout(std::time::Duration::from_secs(30))
@@ -153,7 +156,7 @@ impl OAuthClient {
         let token_result = client
             .exchange_code(code)
             .set_pkce_verifier(pkce_verifier)
-            .request_async(oauth2::reqwest::async_http_client)
+            .request_async(self.http_client.inner())
             .await
             .map_err(|e| OAuthError::OAuth2(format!("Token exchange failed: {:?}", e)))?;
 

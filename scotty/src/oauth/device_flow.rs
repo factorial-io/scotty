@@ -19,15 +19,12 @@ impl OAuthClient {
         let details: oauth2::StandardDeviceAuthorizationResponse = self
             .client
             .exchange_device_code()
-            .map_err(|e| {
-                OAuthError::OAuth2(format!("Failed to create device auth request: {:?}", e))
-            })?
             .add_scope(Scope::new("read_user".to_string()))
             .add_scope(Scope::new("read_api".to_string()))
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("profile".to_string()))
             .add_scope(Scope::new("email".to_string()))
-            .request_async(oauth2::reqwest::async_http_client)
+            .request_async(self.http_client.inner())
             .await
             .map_err(|e| {
                 OAuthError::OAuth2(format!("Device authorization request failed: {:?}", e))
