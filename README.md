@@ -205,7 +205,7 @@ Use [conventional commits](https://www.conventionalcommits.org) on `main` (the s
 
 #### 2. Review the release PR
 
-On every push to `main`, the `release-please` GitHub Actions workflow opens (and keeps updating) a **release PR** titled `chore: release <version>`. It contains the version bump (`Cargo.toml`, `Cargo.lock`) and the regenerated `CHANGELOG.md`. Inspect this PR to preview exactly what will ship.
+On every push to `main`, the `release-please` GitHub Actions workflow opens (and keeps updating) a **release PR** titled `chore: release <version>`. It contains the version bump (`[workspace.package].version` in `Cargo.toml`) and the regenerated `CHANGELOG.md`. Inspect this PR to preview exactly what will ship.
 
 #### 3. Merge to ship
 

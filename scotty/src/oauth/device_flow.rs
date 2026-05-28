@@ -24,7 +24,7 @@ impl OAuthClient {
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("profile".to_string()))
             .add_scope(Scope::new("email".to_string()))
-            .request_async(self.http_client.inner())
+            .request_async(&self.oauth_http_client)
             .await
             .map_err(|e| {
                 OAuthError::OAuth2(format!("Device authorization request failed: {:?}", e))

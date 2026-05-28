@@ -28,6 +28,11 @@ pub struct OAuthClient {
     pub client_id: String,
     pub client_secret: SecretString,
     pub http_client: scotty_core::http::HttpClient,
+    // Dedicated reqwest client from oauth2's bundled reqwest version, used for
+    // oauth2 `request_async` calls. The workspace reqwest may differ in major
+    // version from the one oauth2 implements `AsyncHttpClient` for, so we cannot
+    // reuse `http_client`'s inner client here.
+    oauth_http_client: oauth2::reqwest::Client,
 }
 
 // Custom Debug implementation to prevent leaking client_secret
@@ -39,6 +44,7 @@ impl std::fmt::Debug for OAuthClient {
             .field("client_id", &self.client_id)
             .field("client_secret", &"[REDACTED]")
             .field("http_client", &self.http_client)
+            .field("oauth_http_client", &self.oauth_http_client)
             .finish()
     }
 }
@@ -103,12 +109,20 @@ impl OAuthClient {
             scotty_core::http::HttpClient::with_timeout(std::time::Duration::from_secs(30))
                 .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
+        // Disable redirects to prevent auth credentials from being forwarded on
+        // redirect, matching the policy used by the shared HttpClient.
+        let oauth_http_client = oauth2::reqwest::Client::builder()
+            .redirect(oauth2::reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| format!("Failed to create OAuth HTTP client: {}", e))?;
+
         Ok(Self {
             client,
             oidc_issuer_url: oidc_issuer_url.clone(),
             client_id,
             client_secret,
             http_client,
+            oauth_http_client,
         })
     }
 
@@ -156,7 +170,7 @@ impl OAuthClient {
         let token_result = client
             .exchange_code(code)
             .set_pkce_verifier(pkce_verifier)
-            .request_async(self.http_client.inner())
+            .request_async(&self.oauth_http_client)
             .await
             .map_err(|e| OAuthError::OAuth2(format!("Token exchange failed: {:?}", e)))?;
 
