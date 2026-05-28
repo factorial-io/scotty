@@ -133,8 +133,8 @@
         <span class="Nav-listItemLinkLabel"> Get blueprint details</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
-            <a href="/cli.html#run-a-custom-action" class="Nav-listItemLink">
-        <span class="Nav-listItemLinkLabel"> Run a custom action</span>
+            <a href="/cli.html#custom-actions" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Custom Actions</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
             <a href="/cli.html#add-a-notification-service-to-an-app" class="Nav-listItemLink">
@@ -562,18 +562,88 @@ It will also delete the used images if they are not used somewhere else.</p>
       </a> Get blueprint details</h2>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> blueprint:info <span class="token operator">&lt;</span>BLUEPRINT<span class="token operator">&gt;</span></code></pre>
 <p>This command displays detailed information about a specific blueprint, including its configuration, services, and required parameters.</p>
-<h2 id="run-a-custom-action" tabindex="-1"><a class="header-anchor" href="#run-a-custom-action">
+<h2 id="custom-actions" tabindex="-1"><a class="header-anchor" href="#custom-actions">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> Run a custom action</h2>
+      </a> Custom Actions</h2>
+<p>Custom actions allow you to define and execute arbitrary commands on app services. They support an approval workflow for security control.</p>
+<h3 id="run-a-custom-action" tabindex="-1"><a class="header-anchor" href="#run-a-custom-action">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Run a custom action</h3>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:action <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
-<p>Execute a custom action defined in the app's <code>.scotty.yml</code> file. Custom actions allow you to run predefined commands or scripts within your application containers.</p>
+<p>Execute an approved custom action. Only actions with <code>approved</code> status can be executed.</p>
+<p><strong>Note:</strong> Executing an action requires either <code>action_read</code> or <code>action_write</code> permission, depending on the action's permission level.</p>
 <p>Example:</p>
 <pre class="language-shell"><code class="language-shell"><span class="token comment"># Run a database migration action</span>
 scottyctl app:action my-app db:migrate
 
 <span class="token comment"># Clear application cache</span>
 scottyctl app:action my-app cache:clear</code></pre>
+<h3 id="list-custom-actions-for-an-app" tabindex="-1"><a class="header-anchor" href="#list-custom-actions-for-an-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> List custom actions for an app</h3>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:list <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
+<p>Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl action:list my-app</code></pre>
+<h3 id="get-custom-action-details" tabindex="-1"><a class="header-anchor" href="#get-custom-action-details">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Get custom action details</h3>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:get <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
+<p>Displays detailed information about a specific custom action, including its commands, review status, and metadata.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl action:get my-app db:migrate</code></pre>
+<h3 id="create-a-custom-action" tabindex="-1"><a class="header-anchor" href="#create-a-custom-action">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Create a custom action</h3>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:create <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--description</span> <span class="token operator">&lt;</span>DESCRIPTION<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--permission</span> <span class="token operator">&lt;</span>PERMISSION<span class="token operator">&gt;</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--command</span> <span class="token operator">&lt;</span>SERVICE:COMMAND<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--command <span class="token operator">&lt;</span>SERVICE:COMMAND<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span></code></pre>
+<p>Creates a new custom action for an app. The action will be in <code>pending</code> status until approved by an administrator with <code>action_approve</code> permission.</p>
+<p><strong>Options:</strong></p>
+<ul>
+<li><code>--description</code> (required): Human-readable description of what the action does</li>
+<li><code>--permission</code>: Required permission level (<code>action_read</code> or <code>action_write</code>, default: <code>action_write</code>)</li>
+<li><code>--command</code>: Command to execute in format <code>service:command</code>. Can be specified multiple times.</li>
+</ul>
+<p><strong>Examples:</strong></p>
+<p>Create a write action (modifies state):</p>
+<pre class="language-shell"><code class="language-shell">scottyctl action:create my-app db:migrate <span class="token punctuation">\</span>
+  <span class="token parameter variable">--description</span> <span class="token string">"Run database migrations"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--permission</span> action_write <span class="token punctuation">\</span>
+  <span class="token parameter variable">--command</span> <span class="token string">"web:php artisan migrate"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--command</span> <span class="token string">"worker:php artisan queue:restart"</span></code></pre>
+<p>Create a read-only action (safe to run anytime):</p>
+<pre class="language-shell"><code class="language-shell">scottyctl action:create my-app health:check <span class="token punctuation">\</span>
+  <span class="token parameter variable">--description</span> <span class="token string">"Check application health status"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">--permission</span> action_read <span class="token punctuation">\</span>
+  <span class="token parameter variable">--command</span> <span class="token string">"web:php artisan health:check"</span></code></pre>
+<h3 id="delete-a-custom-action" tabindex="-1"><a class="header-anchor" href="#delete-a-custom-action">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Delete a custom action</h3>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:delete <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
+<p>Removes a custom action from an app.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl action:delete my-app old-action</code></pre>
+<h3 id="action-approval-workflow" tabindex="-1"><a class="header-anchor" href="#action-approval-workflow">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Action Approval Workflow</h3>
+<p>Custom actions go through an approval workflow:</p>
+<ol>
+<li><strong>Pending</strong>: Newly created actions await approval</li>
+<li><strong>Approved</strong>: Action can be executed</li>
+<li><strong>Rejected</strong>: Action was rejected and cannot be executed</li>
+<li><strong>Revoked</strong>: Previously approved action was revoked</li>
+<li><strong>Expired</strong>: Action expired due to TTL (if configured)</li>
+</ol>
+<p>See <a href="#custom-action-approval-admin">Admin Commands</a> for approval workflow management.</p>
 <h2 id="add-a-notification-service-to-an-app" tabindex="-1"><a class="header-anchor" href="#add-a-notification-service-to-an-app">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -675,6 +745,34 @@ scottyctl admin:assignments:create bob@example.com operator <span class="token p
 <p>Displays all effective permissions for a user across all scopes.</p>
 <p>Example:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl admin:permissions:user alice@example.com</code></pre>
+<h3 id="custom-action-approval-(admin)-%7B%23custom-action-approval-admin%7D" tabindex="-1"><a class="header-anchor" href="#custom-action-approval-(admin)-%7B%23custom-action-approval-admin%7D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Custom Action Approval (Admin) {#custom-action-approval-admin}</h3>
+<p>These commands require <code>action_approve</code> permission and are used to manage the approval workflow for custom actions.</p>
+<p><strong>List pending actions:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:actions:pending</code></pre>
+<p>Lists all custom actions awaiting approval across all apps.</p>
+<p><strong>Get action details:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:actions:get <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
+<p>Displays detailed information about a pending action for review.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:actions:get my-app db:migrate</code></pre>
+<p><strong>Approve an action:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:actions:approve <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--comment <span class="token operator">&lt;</span>COMMENT<span class="token operator">&gt;</span><span class="token punctuation">]</span></code></pre>
+<p>Approves a pending action, allowing it to be executed.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:actions:approve my-app db:migrate <span class="token parameter variable">--comment</span> <span class="token string">"Reviewed and approved for production"</span></code></pre>
+<p><strong>Reject an action:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:actions:reject <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--comment <span class="token operator">&lt;</span>COMMENT<span class="token operator">&gt;</span><span class="token punctuation">]</span></code></pre>
+<p>Rejects a pending action. Rejected actions cannot be executed.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:actions:reject my-app dangerous-action <span class="token parameter variable">--comment</span> <span class="token string">"Security concern: command allows arbitrary file access"</span></code></pre>
+<p><strong>Revoke an action:</strong></p>
+<pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> admin:actions:revoke <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--comment <span class="token operator">&lt;</span>COMMENT<span class="token operator">&gt;</span><span class="token punctuation">]</span></code></pre>
+<p>Revokes a previously approved action. Use this when an action should no longer be available.</p>
+<p>Example:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl admin:actions:revoke my-app old-migration <span class="token parameter variable">--comment</span> <span class="token string">"Migration completed, no longer needed"</span></code></pre>
 <h2 id="shell-completion" tabindex="-1"><a class="header-anchor" href="#shell-completion">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

@@ -175,6 +175,13 @@
 <li><code>create</code> - Create new apps in scope</li>
 <li><code>destroy</code> - Delete apps from scope</li>
 </ul>
+<p><strong>Custom Action Permissions</strong> (for per-app custom actions):</p>
+<ul>
+<li><code>action_read</code> - Execute read-only custom actions (no side effects)</li>
+<li><code>action_write</code> - Execute custom actions that modify state</li>
+<li><code>action_manage</code> - Create, list, and delete custom actions for apps in scope</li>
+<li><code>action_approve</code> - Approve, reject, or revoke pending custom actions (admin-level)</li>
+</ul>
 <p><strong>Global Permissions</strong> (not tied to specific apps):</p>
 <ul>
 <li><code>admin_read</code> - Read authorization configuration (scopes, roles, assignments, permissions)</li>
@@ -187,10 +194,11 @@
 <p>Named collections of permissions for common access patterns:</p>
 <ul>
 <li><strong><code>admin</code></strong> - All permissions (wildcard <code>*</code>)</li>
-<li><strong><code>developer</code></strong> - Full access except destroy: <code>[view, manage, shell, logs, create]</code></li>
-<li><strong><code>operator</code></strong> - Operations without shell: <code>[view, manage, logs]</code></li>
+<li><strong><code>developer</code></strong> - Full access except destroy: <code>[view, manage, shell, logs, create, action_read, action_write, action_manage]</code></li>
+<li><strong><code>operator</code></strong> - Operations without shell: <code>[view, manage, logs, action_read]</code></li>
 <li><strong><code>viewer</code></strong> - Read-only access: <code>[view]</code></li>
 <li><strong><code>system_admin</code></strong> - Authorization management: <code>[admin_read, admin_write]</code></li>
+<li><strong><code>action_approver</code></strong> - Can approve/reject custom actions: <code>[view, action_approve]</code></li>
 </ul>
 <h3 id="assignments" tabindex="-1"><a class="header-anchor" href="#assignments">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -232,10 +240,13 @@
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
   <span class="token key atrule">developer</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Full development access"</span>
-    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"shell"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"create"</span><span class="token punctuation">]</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"shell"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"create"</span><span class="token punctuation">,</span> <span class="token string">"action_read"</span><span class="token punctuation">,</span> <span class="token string">"action_write"</span><span class="token punctuation">,</span> <span class="token string">"action_manage"</span><span class="token punctuation">]</span>
   <span class="token key atrule">operator</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Operations access without shell"</span>
-    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">]</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"action_read"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">action_approver</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Can approve/reject custom actions"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"action_approve"</span><span class="token punctuation">]</span>
   <span class="token key atrule">system_admin</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"System administration access"</span>
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"admin_read"</span><span class="token punctuation">,</span> <span class="token string">"admin_write"</span><span class="token punctuation">]</span>
