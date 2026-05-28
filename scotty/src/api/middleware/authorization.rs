@@ -99,11 +99,13 @@ pub fn require_permission(
                         .check_permission(&user_id, &app_name, &permission)
                         .await
                 } else {
-                    warn!(
-                        "Could not extract app name from path for app-specific permission: {}",
-                        req.uri().path()
-                    );
-                    false
+                    // No app name in the path: this is a cross-app/global operation
+                    // (e.g. listing pending custom actions across all apps). Fall back
+                    // to a global permission check so the user only needs the permission
+                    // in at least one of their scopes rather than being denied outright.
+                    auth_service
+                        .check_global_permission(&user_id, &permission)
+                        .await
                 }
             };
 
@@ -232,6 +234,15 @@ mod tests {
         );
 
         assert_eq!(extract_app_name_from_path("/health"), None);
+
+        // Cross-app admin routes carry no app name in the path. `require_permission`
+        // must fall back to a global permission check for these, otherwise the
+        // app-specific permission (e.g. ActionApprove) could never be satisfied and
+        // the endpoint would always return 403.
+        assert_eq!(
+            extract_app_name_from_path("/api/v1/authenticated/admin/actions/pending"),
+            None
+        );
     }
 
     #[test]
