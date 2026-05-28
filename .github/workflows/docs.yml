@@ -4,7 +4,7 @@ name: Build and deploy documentation
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push events but only for the main branch
   push:
     branches: [main]
 
@@ -17,11 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@master
-      - name: Build and Deploy
-        uses: stmh/vuepress-github-actions-deploy@master
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: cd docs && bun install --frozen-lockfile
+
+      - name: Build documentation
+        run: cd docs && bun run docs:build
         env:
-          ACCESS_TOKEN: ${{ secrets.PAT }}
-          BUILD_DIR: _site
-          BUILD_SCRIPT: cd docs && export FDOCS_HOST=https://scotty.factorial.io && yarn install --ignore-engines && yarn run docs:build
-          PAGES_CNAME: scotty.factorial.io
+          FDOCS_HOST: https://scotty.factorial.io
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.PAT }}
+          folder: docs/_site
+          clean: true
+          cname: scotty.factorial.io

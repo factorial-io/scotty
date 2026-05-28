@@ -14,5 +14,8 @@
   "scripts": {
     "docs:dev": "export FDOCS_HOST=http://localhost:8080 && fdocs --config=.fdocs.js --serve",
     "docs:build": "fdocs --config=.fdocs.js"
+  },
+  "overrides": {
+    "minimatch": "^3.1.5"
   }
 }
