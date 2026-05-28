@@ -495,10 +495,23 @@ async fn test_app_filtering_with_multiple_scopes() {
 
 #[tokio::test]
 async fn test_live_policy_file_app_filtering() {
-    // Use the actual live policy file from config/casbin
-    // When tests run from cargo, they need to find the config relative to the workspace root
-    let mut config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    config_path.push("../config/casbin");
+    // Use the actual live policy file from config/casbin, but operate on a
+    // throwaway copy: `set_app_scopes` below persists changes back to disk, so
+    // pointing the service at the committed `config/casbin/policy.yaml` would
+    // rewrite (and reorder) it on every test run, dirtying the working tree.
+    let mut src_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    src_dir.push("../config/casbin");
+
+    let temp_dir = tempdir().expect("Failed to create temp dir");
+    for entry in std::fs::read_dir(&src_dir).expect("read config/casbin") {
+        let entry = entry.expect("dir entry");
+        let path = entry.path();
+        if path.is_file() {
+            std::fs::copy(&path, temp_dir.path().join(entry.file_name()))
+                .expect("copy config file");
+        }
+    }
+    let config_path = temp_dir.path();
 
     let service = AuthorizationService::new(config_path.to_str().unwrap())
         .await

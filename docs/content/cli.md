@@ -161,6 +161,53 @@ scottyctl app:shell my-app web --command "/app/scripts/healthcheck.sh"
 echo "Exit code: $?"
 ```
 
+## Copy files to or from an app service
+
+```shell
+scottyctl --server <SERVER> --access-token <TOKEN> app:cp <SOURCE> <DESTINATION>
+```
+
+Stream files between your workstation and a service container. Exactly one of `<SOURCE>` and `<DESTINATION>` must be a remote spec; the other is either a local path or `-` (stdin/stdout).
+
+Remote spec formats:
+
+* `<APP>:<SERVICE>:<PATH>` — fully qualified
+* `<APP>::<PATH>` or `<APP>:<PATH>` — service is resolved from the app's public services; fails if zero or more than one candidate exists
+
+**Note:** Downloads require the `view` permission; uploads require `manage`. Transfers are bounded by the server-side `SCOTTY__FILES__MAX_TRANSFER_SIZE` (default 1 GiB).
+
+### Examples
+
+Copy a single file out of a container:
+```shell
+scottyctl app:cp my-app:web:/var/log/app.log ./app.log
+```
+
+Copy a local directory into a container:
+```shell
+scottyctl app:cp ./assets my-app:web:/var/www/public/assets
+```
+
+Pipe a database dump into a container:
+```shell
+mysqldump mydb | scottyctl app:cp - my-app:db:/tmp/dump.sql
+```
+
+Stream a remote file to stdout:
+```shell
+scottyctl app:cp my-app:web:/var/log/app.log - | gzip > app.log.gz
+```
+
+Implicit service on a single-service app:
+```shell
+scottyctl app:cp my-app::/etc/hostname ./hostname
+```
+
+Round-trip a backup via the shell (alternative when you need server-side processing):
+```shell
+scottyctl app:shell my-app db --command "mysqldump mydb" | gzip > backup.sql.gz
+```
+
 ## Start/run an app
 
 ```shell

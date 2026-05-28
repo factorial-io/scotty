@@ -3,6 +3,7 @@ pub mod app_blueprint;
 pub mod apps;
 pub mod custom_action;
 pub mod docker;
+pub mod files;
 pub mod loadbalancer;
 pub mod notification_services;
 pub mod output;

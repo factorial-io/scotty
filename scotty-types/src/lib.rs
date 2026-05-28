@@ -18,6 +18,8 @@ pub use serde;
 pub use ts_rs;
 pub use uuid;
 
+pub mod files;
+
 // Output types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS, utoipa::ToSchema)]
 #[ts(export)]

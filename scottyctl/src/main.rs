@@ -81,6 +81,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Logs(cmd) => commands::apps::logs_app(&app_context, cmd).await,
         Commands::Shell(cmd) => commands::apps::shell_app(&app_context, cmd).await,
+        Commands::Cp(cmd) => commands::apps::cp::copy(&app_context, cmd).await,
         Commands::NotifyAdd(cmd) => commands::notify::add_notification(&app_context, cmd).await,
         Commands::NotifyRemove(cmd) => {
             commands::notify::remove_notification(&app_context, cmd).await
