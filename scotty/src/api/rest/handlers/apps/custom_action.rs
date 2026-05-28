@@ -76,13 +76,26 @@ pub async fn run_custom_action_handler(
             // CRITICAL: Validate that per-app custom actions are approved before execution
             if !custom_action.can_execute() {
                 warn!(
-                    "Action '{}' on app '{}' is not executable (status: {})",
-                    payload.action_name, app_name, custom_action.status
+                    "Action '{}' on app '{}' is not executable (status: {}, expired: {})",
+                    payload.action_name,
+                    app_name,
+                    custom_action.status,
+                    custom_action.is_expired()
                 );
-                return Err(AppError::ActionNotExecutable(format!(
-                    "Action '{}' cannot be executed (status: {}). Only approved actions can be executed.",
-                    payload.action_name, custom_action.status
-                )));
+                // Distinguish expiry from an unapproved status so the caller knows
+                // whether to wait for approval or recreate the action.
+                let reason = if custom_action.is_expired() {
+                    format!(
+                        "Action '{}' has expired and can no longer be executed. Recreate the action to run it again.",
+                        payload.action_name
+                    )
+                } else {
+                    format!(
+                        "Action '{}' cannot be executed (status: {}). Only approved actions can be executed.",
+                        payload.action_name, custom_action.status
+                    )
+                };
+                return Err(AppError::ActionNotExecutable(reason));
             }
             custom_action.permission
         }

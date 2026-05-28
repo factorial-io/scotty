@@ -12,6 +12,9 @@ use scotty_core::settings::custom_action::{
     CreateCustomActionRequest, CustomAction, CustomActionList,
 };
 
+/// Maximum length allowed for a custom action name.
+const MAX_ACTION_NAME_LEN: usize = 255;
+
 /// Create a new custom action for an app
 #[debug_handler]
 #[utoipa::path(
@@ -46,6 +49,22 @@ pub async fn create_custom_action_handler(
         None => return Err(AppError::AppNotFound(app_name)),
     };
 
+    // Validate the action name. It is used as a HashMap key and appears in API
+    // paths and log lines, so reject empty/whitespace-only and overly long
+    // names. Trim surrounding whitespace so the stored key is clean.
+    let name = payload.name.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest(
+            "Custom action name must not be empty".to_string(),
+        ));
+    }
+    if name.len() > MAX_ACTION_NAME_LEN {
+        return Err(AppError::BadRequest(format!(
+            "Custom action name must be at most {MAX_ACTION_NAME_LEN} characters"
+        )));
+    }
+    let name = name.to_string();
+
     // Parse permission string and restrict it to the two permissions that
     // gate action *execution*. Management/approval permissions
     // (`action_manage`, `action_approve`) must not be usable as the bar for
@@ -66,7 +85,7 @@ pub async fn create_custom_action_handler(
 
     // Create the custom action
     let action = CustomAction::new(
-        payload.name.clone(),
+        name,
         payload.description,
         payload.commands,
         permission,

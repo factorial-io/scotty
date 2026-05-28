@@ -478,49 +478,7 @@ pub async fn get_action_details(
             cmd.action_name.bright_blue(),
             cmd.app_name.bright_blue()
         );
-        output += &format!("  Name:        {}\n", action["name"].as_str().unwrap_or(""));
-        output += &format!(
-            "  Description: {}\n",
-            action["description"].as_str().unwrap_or("")
-        );
-        output += &format!(
-            "  Status:      {}\n",
-            action["status"].as_str().unwrap_or("")
-        );
-        output += &format!(
-            "  Permission:  {}\n",
-            action["permission"].as_str().unwrap_or("")
-        );
-        output += &format!(
-            "  Created By:  {}\n",
-            action["created_by"].as_str().unwrap_or("")
-        );
-        output += &format!(
-            "  Created At:  {}\n",
-            action["created_at"].as_str().unwrap_or("")
-        );
-
-        if let Some(reviewed_by) = action["reviewed_by"].as_str() {
-            output += &format!("  Reviewed By: {}\n", reviewed_by);
-        }
-        if let Some(reviewed_at) = action["reviewed_at"].as_str() {
-            output += &format!("  Reviewed At: {}\n", reviewed_at);
-        }
-        if let Some(comment) = action["review_comment"].as_str() {
-            output += &format!("  Comment:     {}\n", comment);
-        }
-
-        output += "\n  Commands:\n";
-        if let Some(commands) = action["commands"].as_object() {
-            for (service, cmds) in commands {
-                output += &format!("    {}:\n", service.bright_blue());
-                if let Some(cmd_list) = cmds.as_array() {
-                    for cmd in cmd_list {
-                        output += &format!("      - {}\n", cmd.as_str().unwrap_or(""));
-                    }
-                }
-            }
-        }
+        output += &crate::utils::formatting::format_custom_action_details(&action);
 
         ui.success("Action details retrieved successfully!");
         Ok(output)

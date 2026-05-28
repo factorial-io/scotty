@@ -146,21 +146,14 @@ impl CustomAction {
         self.status = ActionStatus::Expired;
     }
 
+    /// Check whether this action has a TTL that has already passed.
+    pub fn is_expired(&self) -> bool {
+        matches!(self.expires_at, Some(expires_at) if Utc::now() > expires_at)
+    }
+
     /// Check if this action can be executed
     pub fn can_execute(&self) -> bool {
-        // Check status
-        if !self.status.is_executable() {
-            return false;
-        }
-
-        // Check expiration
-        if let Some(expires_at) = self.expires_at {
-            if Utc::now() > expires_at {
-                return false;
-            }
-        }
-
-        true
+        self.status.is_executable() && !self.is_expired()
     }
 
     /// Get commands for a specific service

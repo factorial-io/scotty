@@ -303,6 +303,21 @@ mod tests {
     }
 
     #[test]
+    fn test_is_expired() {
+        use chrono::Duration;
+
+        let mut action = create_test_action();
+        // No expiry set -> never expired.
+        assert!(!action.is_expired(), "Action without TTL is never expired");
+
+        action.expires_at = Some(Utc::now() + Duration::hours(1));
+        assert!(!action.is_expired(), "Future expiry is not expired yet");
+
+        action.expires_at = Some(Utc::now() - Duration::hours(1));
+        assert!(action.is_expired(), "Past expiry is expired");
+    }
+
+    #[test]
     fn test_approve_sets_reviewer_info() {
         let mut action = create_test_action();
         action.approve("admin@example.com".to_string(), Some("LGTM".to_string()));
