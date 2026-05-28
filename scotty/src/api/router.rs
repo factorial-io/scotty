@@ -64,9 +64,9 @@ use crate::api::rest::handlers::admin::assignments::{
     __path_remove_assignment_handler,
 };
 use crate::api::rest::handlers::admin::custom_actions::{
-    PendingActionInfo, PendingActionsResponse, __path_approve_action_handler,
-    __path_get_action_details_handler, __path_list_pending_actions_handler,
-    __path_reject_action_handler, __path_revoke_action_handler,
+    __path_approve_action_handler, __path_get_action_details_handler,
+    __path_list_pending_actions_handler, __path_reject_action_handler,
+    __path_revoke_action_handler, PendingActionInfo, PendingActionsResponse,
 };
 use crate::api::rest::handlers::admin::permissions::{
     __path_get_user_permissions_handler, __path_list_available_permissions_handler,

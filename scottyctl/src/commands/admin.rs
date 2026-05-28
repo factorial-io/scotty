@@ -419,7 +419,7 @@ pub async fn list_pending_actions(context: &AppContext) -> anyhow::Result<()> {
         let result = get(context.server(), "admin/actions/pending").await?;
 
         let response: serde_json::Value = result;
-        let actions = response["actions"]
+        let actions = response["pending_actions"]
             .as_array()
             .context("Failed to parse pending actions list")?;
 
@@ -436,10 +436,12 @@ pub async fn list_pending_actions(context: &AppContext) -> anyhow::Result<()> {
             "Created At",
         ]);
 
-        for action in actions {
+        for entry in actions {
+            // Each entry is a PendingActionInfo: { app_name, action: CustomAction }
+            let action = &entry["action"];
             builder.push_record(vec![
-                action["app_name"].as_str().unwrap_or(""),
-                action["action_name"].as_str().unwrap_or(""),
+                entry["app_name"].as_str().unwrap_or(""),
+                action["name"].as_str().unwrap_or(""),
                 action["description"].as_str().unwrap_or(""),
                 action["created_by"].as_str().unwrap_or(""),
                 action["created_at"].as_str().unwrap_or(""),

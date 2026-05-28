@@ -281,7 +281,7 @@ async fn update_action_status(
         Some(action) => {
             let required_status = operation.required_status();
             if action.status != required_status {
-                return Err(AppError::ActionNotFound(format!(
+                return Err(AppError::ActionInvalidState(format!(
                     "Cannot {} action '{}': action is in '{}' state, expected '{}'",
                     operation.name(),
                     action_name,

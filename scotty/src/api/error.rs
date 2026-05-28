@@ -86,6 +86,9 @@ pub enum AppError {
     #[error("Action already exists: {0}")]
     ActionAlreadyExists(String),
 
+    #[error("{0}")]
+    ActionInvalidState(String),
+
     #[error("Found invalid notification service ids: {0}")]
     InvalidNotificationServiceIds(String),
 
@@ -135,6 +138,7 @@ impl AppError {
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             AppError::ActionNotExecutable(_) => StatusCode::FORBIDDEN,
             AppError::ActionAlreadyExists(_) => StatusCode::CONFLICT,
+            AppError::ActionInvalidState(_) => StatusCode::BAD_REQUEST,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
             AppError::AuthorizationNotConfigured => StatusCode::SERVICE_UNAVAILABLE,
