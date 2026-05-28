@@ -44,7 +44,7 @@
 	},
 	"overrides": {
 		"brace-expansion": "^5.0.6",
-		"cookie": "^0.7.2",
+		"cookie": "^1.0.0",
 		"flatted": "^3.4.2",
 		"postcss": "^8.5.15",
 		"uuid": "^11.1.1",
