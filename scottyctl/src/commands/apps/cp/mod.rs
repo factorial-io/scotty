@@ -154,8 +154,12 @@ async fn resolve_service(
 /// Build the absolute URL for the file-transfer endpoint.
 fn build_url(server: &ServerSettings, app: &str, service: &str, path: &str) -> String {
     let base = server.server.trim_end_matches('/');
+    // Percent-encode every user-supplied segment so app or service names
+    // containing `/`, `?`, or `#` cannot break the URL structure.
     format!(
-        "{base}/api/v1/apps/{app}/services/{service}/files?path={}",
+        "{base}/api/v1/apps/{}/services/{}/files?path={}",
+        urlencoding::encode(app),
+        urlencoding::encode(service),
         urlencoding::encode(path)
     )
 }

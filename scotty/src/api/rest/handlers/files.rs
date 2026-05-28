@@ -67,14 +67,18 @@ fn validate_path(raw: &str) -> Result<(), Response> {
             "path query parameter must be an absolute path starting with '/'",
         ));
     }
-    // Reject `..` traversal components. Docker resolves the path inside the
-    // container's own namespace so this is not a host-side vulnerability, but
-    // a `..` component almost always means the path resolves somewhere the
-    // user did not intend. Rejecting it keeps the behaviour predictable.
-    if raw.split('/').any(|component| component == "..") {
+    // Reject `.` and `..` traversal components. Docker resolves the path
+    // inside the container's own namespace so this is not a host-side
+    // vulnerability, but such components almost always mean the path resolves
+    // somewhere the user did not intend. Rejecting them keeps the behaviour
+    // predictable.
+    if raw
+        .split('/')
+        .any(|component| component == ".." || component == ".")
+    {
         return Err(error_response(
             FileTransferErrorCode::InvalidPath,
-            "path query parameter must not contain '..' traversal components",
+            "path query parameter must not contain '.' or '..' traversal components",
         ));
     }
     Ok(())
@@ -409,12 +413,20 @@ mod tests {
 
     #[test]
     fn validate_path_rejects_traversal() {
-        let resp = validate_path("/etc/../etc/shadow").unwrap_err();
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-        // A path whose final component merely contains dots (but is not the
-        // `..` component itself) is still allowed.
+        assert_eq!(
+            validate_path("/etc/../etc/shadow").unwrap_err().status(),
+            StatusCode::BAD_REQUEST
+        );
+        // A bare `.` component is rejected too.
+        assert_eq!(
+            validate_path("/./etc/passwd").unwrap_err().status(),
+            StatusCode::BAD_REQUEST
+        );
+        // A path whose component merely contains dots (but is not a `.`/`..`
+        // component itself) is still allowed.
         assert!(validate_path("/etc/..hidden").is_ok());
         assert!(validate_path("/var/log/app..log").is_ok());
+        assert!(validate_path("/etc/.config").is_ok());
     }
 
     #[test]
