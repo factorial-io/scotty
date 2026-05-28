@@ -136,13 +136,13 @@ Grafana: http://grafana.ddev.site (admin/admin) | Jaeger: http://jaeger.ddev.sit
 
 ## Release Process
 
-Uses `cargo-release` with `git-cliff` for automatic changelog generation. Do not manually update changelogs.
+Uses [release-please](https://github.com/googleapis/release-please) (PR-driven, fully in CI). Do not manually bump versions or edit changelogs.
 
-```bash
-cargo release --no-publish alpha -x --tag-prefix ""
-```
+- Write [conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `feat!:`/`BREAKING CHANGE:` for majors). The commit type determines the version bump and the changelog section.
+- On every push to `main`, the `release-please` workflow maintains a standing **release PR** that bumps the shared workspace version (`[workspace.package].version` in `Cargo.toml`) and regenerates `CHANGELOG.md`.
+- **Merging that release PR** is the release: release-please creates the `vX.Y.Z` tag + GitHub Release, then the same workflow uploads `scottyctl` binaries, bumps the Homebrew tap, and publishes the versioned Docker image.
 
-Runs `scripts/generate-changelogs.sh`, updates versions in all Cargo.toml files, creates signed git tags. Pre-push hook via `cargo-husky` enforces quality checks.
+Config lives in `release-please-config.json` and `.release-please-manifest.json`. The pre-push hook via `cargo-husky` still enforces local quality checks.
 
 ## Project Management
 

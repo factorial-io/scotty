@@ -198,20 +198,33 @@ This project uses a pre-push git-hook installed by cargo husky. It should be ins
 
 ### Create a new release
 
-We are using `cargo-release` to create releases. Changelogs are automatically generated during the release process using [git-cliff](https://git-cliff.org).
+Releases are automated with [release-please](https://github.com/googleapis/release-please). There is **no manual tagging and no local release command** — you release by merging a pull request.
 
-**Do not manually update changelogs** - they are regenerated from git history during release.
+**Do not manually bump versions or edit `CHANGELOG.md`** — both are derived from the git history by release-please. All crates share a single workspace version, so every release bumps the whole workspace and produces one `vX.Y.Z` tag.
 
-Typical command to create a new release:
+#### 1. Land changes with conventional commits
 
-```shell
-cargo release --no-publish alpha -x --tag-prefix ""
-```
+Use [conventional commits](https://www.conventionalcommits.org) on `main` (the squash-merge title of a PR counts). The commit type drives both the changelog section and the next version:
 
-This will:
-1. Update version numbers in all workspace crates
-2. Generate changelogs for the workspace root and each crate
-3. Create git tags
-4. Commit the changes
+| Commit                                         | Effect on the next version |
+| ---------------------------------------------- | -------------------------- |
+| `fix:` / `perf:`                               | patch (`0.2.9` → `0.2.10`) |
+| `feat:`                                         | minor (`0.2.9` → `0.3.0`)  |
+| `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer | major (`0.2.9` → `1.0.0`)  |
+| `docs:`, `refactor:`, `style:`, `test:`, `ci:`, `chore:` | no release on their own    |
 
-Adapt the command to your current needs (e.g., use `patch`, `minor`, or `major` instead of `alpha`).
+#### 2. Review the release PR
+
+On every push to `main`, the `release-please` GitHub Actions workflow opens (and keeps updating) a **release PR** titled `chore: release <version>`. It contains the version bump (`[workspace.package].version` in `Cargo.toml`) and the regenerated `CHANGELOG.md`. Inspect this PR to preview exactly what will ship.
+
+#### 3. Merge to ship
+
+When you are ready, **merge the release PR**. release-please then tags `vX.Y.Z`, publishes the GitHub Release, and the same workflow automatically:
+
+- builds and uploads the `scottyctl` binaries,
+- bumps the Homebrew tap formula, and
+- builds and pushes the versioned Docker image.
+
+Nothing is released until that PR is merged, so it is safe to let commits accumulate and cut a release when it suits you.
+
+Configuration lives in `release-please-config.json` (release type, changelog sections) and `.release-please-manifest.json` (current version).
