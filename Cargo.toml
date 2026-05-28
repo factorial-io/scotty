@@ -95,13 +95,6 @@ num_cpus = "1.16"
 flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
 wiremock = "0.6"
 
-[workspace.metadata.release]
-pre-release-hook = ["bash", "-c", "cd $(git rev-parse --show-toplevel) && bash .cargo-husky/hooks/pre-push && bash scripts/generate-changelogs.sh {{version}}"]
-sign-tag = true
-pre-release-replacements = [ ]
-# Disable per-crate verification since pre-release-hook already runs tests for the entire workspace
-verify = false
-
 [workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
