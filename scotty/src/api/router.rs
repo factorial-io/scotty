@@ -319,33 +319,37 @@ impl ApiRoutes {
                 "/api/v1/authenticated/apps/notify/remove",
                 post(remove_notification_handler),
             )
-            // Note: Permission checking for actions is done dynamically in the handler
-            // based on the action's permission field (ActionRead or ActionWrite)
+            // This route is still authenticated: it lives under the
+            // `/authenticated` group and the `authorization_middleware` applied
+            // below populates the `AuthorizationContext` for every route here.
+            // Only the *permission* check is deferred to the handler, because it
+            // depends on the action's own permission field (ActionRead vs
+            // ActionWrite) which isn't known at routing time.
             .route(
                 "/api/v1/authenticated/apps/{app_name}/actions",
                 post(run_custom_action_handler),
             )
-            // Custom action management routes
+            // Custom action management routes.
+            //
+            // All management endpoints (create/list/get/delete) require
+            // `action_manage`. A single `.layer()` is applied to the whole
+            // MethodRouter so it guards every method uniformly. Do NOT chain a
+            // second `.layer()` after additional methods here: on a MethodRouter
+            // the trailing `.layer()` wraps *all* methods registered so far,
+            // which previously left the GET (list) handler guarded only by
+            // `View` instead of `action_manage`.
             .route(
                 "/api/v1/authenticated/apps/{app_name}/custom-actions",
                 post(create_custom_action_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::ActionManage),
-                    ))
                     .get(list_custom_actions_handler)
                     .layer(middleware::from_fn_with_state(
                         state.clone(),
-                        require_permission(Permission::View),
+                        require_permission(Permission::ActionManage),
                     )),
             )
             .route(
                 "/api/v1/authenticated/apps/{app_name}/custom-actions/{action_name}",
                 get(get_custom_action_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::View),
-                    ))
                     .delete(delete_custom_action_handler)
                     .layer(middleware::from_fn_with_state(
                         state.clone(),

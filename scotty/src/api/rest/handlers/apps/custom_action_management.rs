@@ -46,13 +46,23 @@ pub async fn create_custom_action_handler(
         None => return Err(AppError::AppNotFound(app_name)),
     };
 
-    // Parse permission string
+    // Parse permission string and restrict it to the two permissions that
+    // gate action *execution*. Management/approval permissions
+    // (`action_manage`, `action_approve`) must not be usable as the bar for
+    // running an action, otherwise creators could raise or lower the gate to
+    // an unintended level.
     let permission = Permission::from_str(&payload.permission).ok_or_else(|| {
         AppError::BadRequest(format!(
             "Invalid permission '{}'. Use 'action_read' or 'action_write'",
             payload.permission
         ))
     })?;
+    if !matches!(permission, Permission::ActionRead | Permission::ActionWrite) {
+        return Err(AppError::BadRequest(format!(
+            "Invalid permission '{}'. Use 'action_read' or 'action_write'",
+            payload.permission
+        )));
+    }
 
     // Create the custom action
     let action = CustomAction::new(
@@ -107,11 +117,14 @@ pub async fn list_custom_actions_handler(
         None => return Err(AppError::AppNotFound(app_name)),
     };
 
-    let actions: Vec<CustomAction> = app
+    let mut actions: Vec<CustomAction> = app
         .settings
         .as_ref()
         .map(|s| s.custom_actions.values().cloned().collect())
         .unwrap_or_default();
+
+    // `custom_actions` is a HashMap, so sort by name for deterministic output.
+    actions.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(Json(CustomActionList { actions }))
 }
