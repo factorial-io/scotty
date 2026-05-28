@@ -408,7 +408,7 @@
   dependencies:
     tslib "^2.4.0"
 
-"@factorial/docs@^0.5.6":
+"@factorial/docs@^0.5.3":
   version "0.5.6"
   resolved "https://registry.yarnpkg.com/@factorial/docs/-/docs-0.5.6.tgz#68fbf5267e5c282705fdb5a2ccf28e88cd972758"
   integrity sha512-DM9OkRNdJJaj52ZTJenvf4UP2r5lqtDKoW+7DVp2BtX+npEfNfpD/haGDpw0pDV3c5MboIkkL9rVJKPqIHz1WA==
@@ -1005,9 +1005,9 @@ finalhandler@^1.3.1:
     unpipe "~1.0.0"
 
 flatted@^3.3.3:
-  version "3.3.3"
-  resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.3.3.tgz#67c8fad95454a7c7abebf74bb78ee74a44023358"
-  integrity sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==
+  version "3.4.2"
+  resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.4.2.tgz#f5c23c107f0f37de8dbdf24f13722b3b98d52726"
+  integrity sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==
 
 foreachasync@^3.0.0:
   version "3.0.0"
@@ -1250,9 +1250,9 @@ linkify-it@^5.0.0:
     uc.micro "^2.0.0"
 
 liquidjs@^10.21.1:
-  version "10.21.1"
-  resolved "https://registry.yarnpkg.com/liquidjs/-/liquidjs-10.21.1.tgz#5867dac16f1a74552e1ca5fdc976c0fa4bcdf527"
-  integrity sha512-NZXmCwv3RG5nire3fmIn9HsOyJX3vo+ptp0yaXUHAMzSNBhx74Hm+dAGJvscUA6lNqbLuYfXgNavRQ9UbUJhQQ==
+  version "10.27.0"
+  resolved "https://registry.yarnpkg.com/liquidjs/-/liquidjs-10.27.0.tgz#e31dc4c539e1a26aee46c847b4e60a6ede32564a"
+  integrity sha512-tw/OA59K7aIBlMKIrKlumr37fiZUheShVHXY8cVctWisgY1p9mc5hreOvlreoS0wTiwlWk14Ya7305c2a/Cg5w==
   dependencies:
     commander "^10.0.0"
 
@@ -1262,9 +1262,9 @@ list-to-array@^1.1.0:
   integrity sha512-+dAZZ2mM+/m+vY9ezfoueVvrgnHIGi5FvgSymbIgJOFwiznWyA59mav95L+Mc6xPtL3s9gm5eNTlNtxJLbNM1g==
 
 locutus@^2.0.11:
-  version "2.0.32"
-  resolved "https://registry.yarnpkg.com/locutus/-/locutus-2.0.32.tgz#4468e0a73b74e5c26a3d1b94394e6e1275e2bcec"
-  integrity sha512-fr7OCpbE4xeefhHqfh6hM2/l9ZB3XvClHgtgFnQNImrM/nqL950o6FO98vmUH8GysfQRCcyBYtZ4C8GcY52Edw==
+  version "2.0.39"
+  resolved "https://registry.yarnpkg.com/locutus/-/locutus-2.0.39.tgz#080277b4c766fdc58c053ecfdbd2ad7254db9d85"
+  integrity sha512-v2iub44UtGpbIv+pFkkYhZ+JsbIM0bJsQcQ1+VayUNGVA/YhM8+CkBiRACcpuuE9Q0xI1pgNzGNwzZDCp1MCww==
 
 lru-cache@^11.1.0:
   version "11.2.1"
@@ -1455,14 +1455,14 @@ parseurl@~1.3.3:
   integrity sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==
 
 picomatch@^2.0.4, picomatch@^2.2.1:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-2.3.1.tgz#3ba3833733646d9d3e4995946c1365a67fb07a42"
-  integrity sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-2.3.2.tgz#5a942915e26b372dc0f0e6753149a16e6b1c5601"
+  integrity sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==
 
 picomatch@^4.0.2, picomatch@^4.0.3:
-  version "4.0.3"
-  resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-4.0.3.tgz#796c76136d1eead715db1e7bad785dedd695a042"
-  integrity sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==
+  version "4.0.4"
+  resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-4.0.4.tgz#fd6f5e00a143086e074dffe4c924b8fb293b0589"
+  integrity sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==
 
 please-upgrade-node@^3.2.0:
   version "3.2.0"
@@ -1499,9 +1499,9 @@ posthtml@^0.16.6:
     posthtml-render "^3.0.0"
 
 preact@^10.0.0:
-  version "10.27.2"
-  resolved "https://registry.yarnpkg.com/preact/-/preact-10.27.2.tgz#19b9009c1be801a76a0aaf0fe5ba665985a09312"
-  integrity sha512-5SYSgFKSyhCbk6SrXyMpqjb5+MQBgfvEKE/OC+PujcY34sOpqtr+0AZQtPYx5IA6VxynQ7rUPCtKzyovpj9Bpg==
+  version "10.28.3"
+  resolved "https://registry.yarnpkg.com/preact/-/preact-10.28.3.tgz#3c2171526b3e29628ad1a6c56a9e3ca867bbdee8"
+  integrity sha512-tCmoRkPQLpBeWzpmbhryairGnhW9tKV6c6gr/w+RhoRoKEJwsjzipwp//1oCpGPOchvSLaAPlpcJi9MwMmoPyA==
 
 prismjs@^1.30.0:
   version "1.30.0"

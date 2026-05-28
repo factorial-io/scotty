@@ -253,7 +253,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             }
         }
 
-        let docker = bollard::Docker::connect_with_local_defaults().unwrap();
+        let docker = crate::api::test_utils::create_test_docker_client();
         let app_state = Arc::new(AppState {
             stop_flag: stop_flag::StopFlag::new(),
             messenger: create_test_websocket_messenger(),

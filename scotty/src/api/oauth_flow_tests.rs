@@ -39,7 +39,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         _ => None,
     };
 
-    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
+    let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
@@ -85,7 +85,7 @@ async fn test_oauth_device_flow_complete() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test device flow initiation - should work perfectly
     let response = server.post("/oauth/device").await;
@@ -149,7 +149,7 @@ async fn test_oauth_device_flow_authorization_pending() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Start device flow
     let device_response = server.post("/oauth/device").await;
@@ -223,7 +223,7 @@ async fn test_oauth_device_flow_complete_success() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Start device flow
     let device_response = server.post("/oauth/device").await;
@@ -274,7 +274,7 @@ async fn test_oauth_web_flow_authorization_url() {
     let mock_url = mock_server.uri();
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test authorization URL generation
     let response = server
@@ -342,7 +342,7 @@ async fn test_oauth_callback_with_mock_token_exchange() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // First, start authorization flow to get a valid state
     let auth_response = server
@@ -422,7 +422,7 @@ async fn test_complete_oauth_flow_with_protected_endpoint_access() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // STEP 1: Verify protected endpoint requires auth
     let unauth_response = server.get("/api/v1/authenticated/blueprints").await;
@@ -532,7 +532,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         _ => None,
     };
 
-    let docker = bollard::Docker::connect_with_local_defaults().unwrap();
+    let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
@@ -556,7 +556,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
     });
 
     let router = ApiRoutes::create(app_state.clone());
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // STEP 1: Verify protected endpoint requires auth
     let unauth_response = server.get("/api/v1/authenticated/blueprints").await;
@@ -721,7 +721,7 @@ async fn test_oauth_provider_error_handling() {
         .await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test that Scotty handles OAuth provider errors gracefully
     let response = server.post("/oauth/device").await;

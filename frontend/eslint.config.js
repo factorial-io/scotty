@@ -28,7 +28,9 @@ export default [
 		},
 		rules: {
 			// Disable infinite-reactive-loop as it has false positives with proper guards
-			'svelte/infinite-reactive-loop': 'off'
+			'svelte/infinite-reactive-loop': 'off',
+			// Disable no-useless-assignment as it has false positives with Svelte reactive assignments
+			'no-useless-assignment': 'off'
 		}
 	},
 	{

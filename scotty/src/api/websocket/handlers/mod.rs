@@ -101,13 +101,13 @@ pub async fn handle_websocket_auth_failure(
 }
 
 /// Main WebSocket message dispatcher
-#[instrument(skip(state))]
+#[instrument(skip(state, msg))]
 pub async fn handle_websocket_message(
     state: &SharedAppState,
     client_id: Uuid,
     msg: &WebSocketMessage,
 ) {
-    debug!("Received WebSocket message: {msg}");
+    debug!("Received WebSocket message: {msg}"); // Uses Display impl which masks token
     match msg {
         WebSocketMessage::Ping => {
             state.messenger.send_pong(client_id).await;

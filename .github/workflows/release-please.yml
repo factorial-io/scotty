@@ -1,27 +1,39 @@
-name: Release and Publish
+name: Release Please
 
-permissions:
-    contents: write
+# Release-please maintains a "release PR" on main that bumps the shared
+# workspace version and updates CHANGELOG.md from conventional commits.
+# Merging that PR creates the vX.Y.Z tag and GitHub Release, which in turn
+# drives the downstream binary upload, Homebrew bump and Docker publish jobs.
+#
+# Note: tags created by the built-in GITHUB_TOKEN do not trigger other
+# workflows, so the downstream jobs live here and key off the
+# `release_created` / `tag_name` outputs instead of a `push: tags` trigger.
 
 on:
     push:
-        tags:
-            - v[0-9]+.*
+        branches:
+            - main
+
+permissions:
+    contents: write
+    pull-requests: write
+    packages: write
 
 jobs:
-    create-release:
+    release-please:
         runs-on: ubuntu-latest
+        outputs:
+            release_created: ${{ steps.release.outputs.release_created }}
+            tag_name: ${{ steps.release.outputs.tag_name }}
         steps:
-            - uses: actions/checkout@v6
-            - uses: taiki-e/create-gh-release-action@v1
+            - uses: googleapis/release-please-action@v5
+              id: release
               with:
-                  # (optional) Path to changelog.
-                  changelog: CHANGELOG.md
-                  # (required) GitHub token for creating GitHub Releases.
                   token: ${{ secrets.GITHUB_TOKEN }}
 
     upload-assets:
-        needs: create-release
+        needs: release-please
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
         strategy:
             matrix:
                 include:
@@ -39,6 +51,8 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v6
+              with:
+                  ref: ${{ needs.release-please.outputs.tag_name }}
             - name: Install cross-compilation tools
               uses: taiki-e/setup-cross-toolchain-action@v1
               with:
@@ -48,15 +62,21 @@ jobs:
               with:
                   bin: scottyctl
                   target: ${{ matrix.target }}
+                  # Triggered on push:main, so GITHUB_REF is a branch; point the
+                  # action at the tag release-please just created instead.
+                  ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
                   token: ${{ secrets.GITHUB_TOKEN }}
 
     homebrew:
         name: Bump Homebrew formula
-        needs: upload-assets
+        needs: [release-please, upload-assets]
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout this repo (scotty)
               uses: actions/checkout@v6
+              with:
+                  ref: ${{ needs.release-please.outputs.tag_name }}
 
             - name: Checkout tap repo
               uses: actions/checkout@v6
@@ -67,7 +87,7 @@ jobs:
 
             - name: Extract version
               id: version
-              run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+              run: echo "version=${{ needs.release-please.outputs.tag_name }}" >> "$GITHUB_OUTPUT"
 
             - name: Download and compute SHAs
               id: sha
@@ -108,3 +128,35 @@ jobs:
                   git add $FORMULA_PATH
                   git commit -m "Update scottyctl formula to ${{ steps.version.outputs.version }}"
                   git push
+
+    docker:
+        name: Build and push Docker image
+        needs: release-please
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ needs.release-please.outputs.tag_name }}
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
+
+            - name: Login to GitHub Container Registry
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  push: true
+                  platforms: linux/amd64
+                  tags: ghcr.io/${{ github.repository }}:${{ needs.release-please.outputs.tag_name }}
+
+            - name: Log out of GitHub Container Registry
+              run: docker logout ghcr.io

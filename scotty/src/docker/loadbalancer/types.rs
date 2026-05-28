@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bollard::secret::ContainerInspectResponse;
+use bollard_stubs::models::ContainerInspectResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::settings::config::Settings;

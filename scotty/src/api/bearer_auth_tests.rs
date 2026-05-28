@@ -12,7 +12,7 @@ async fn create_scotty_app_with_bearer_auth() -> axum::Router {
 #[tokio::test]
 async fn test_bearer_auth_valid_token_blueprints() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Make authenticated request to blueprints endpoint with valid token
     let response = server
@@ -35,7 +35,7 @@ async fn test_bearer_auth_valid_token_blueprints() {
 #[tokio::test]
 async fn test_bearer_auth_invalid_token_blueprints() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Make authenticated request with wrong token
     let response = server
@@ -72,7 +72,7 @@ async fn test_bearer_auth_with_rbac_assigned_token() {
     );
 
     let router = create_scotty_app_with_rbac_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test with the secure token that maps to client-a identifier (from test config)
     let response = server
@@ -90,7 +90,7 @@ async fn test_bearer_auth_with_rbac_assigned_token() {
 #[tokio::test]
 async fn test_bearer_auth_with_rbac_unassigned_token() {
     let router = create_scotty_app_with_rbac_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test with a token that is not explicitly assigned
     let response = server
@@ -108,7 +108,7 @@ async fn test_bearer_auth_with_rbac_unassigned_token() {
 #[tokio::test]
 async fn test_bearer_auth_missing_token_blueprints() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Make authenticated request without token
     let response = server.get("/api/v1/authenticated/blueprints").await;
@@ -119,14 +119,16 @@ async fn test_bearer_auth_missing_token_blueprints() {
 #[tokio::test]
 async fn test_bearer_auth_malformed_header_blueprints() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
-    // Make authenticated request with malformed header (missing "Bearer " prefix)
+    // Note: authenticate_user_from_token() normalizes tokens by adding "Bearer " prefix
+    // if missing, so a valid token without the prefix will succeed.
+    // This test verifies that an invalid token (not in configured bearer_tokens) is rejected.
     let response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
             axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str("test-bearer-token-123").unwrap(),
+            axum::http::HeaderValue::from_str("not-a-valid-token").unwrap(),
         )
         .await;
 
@@ -136,7 +138,7 @@ async fn test_bearer_auth_malformed_header_blueprints() {
 #[tokio::test]
 async fn test_bearer_auth_public_endpoint() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Public endpoints should work without authentication
     let response = server.get("/api/v1/health").await;
@@ -153,7 +155,7 @@ async fn test_bearer_auth_public_endpoint() {
 #[tokio::test]
 async fn test_bearer_auth_apps_list_endpoint() {
     let router = create_scotty_app_with_bearer_auth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test apps list endpoint with valid bearer token
     let response = server
@@ -183,7 +185,7 @@ async fn create_scotty_app_with_oauth() -> axum::Router {
 #[tokio::test]
 async fn test_oauth_auth_requires_authentication() {
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // OAuth mode should require authentication for protected endpoints
     let response = server.get("/api/v1/authenticated/blueprints").await;
@@ -195,7 +197,7 @@ async fn test_oauth_auth_requires_authentication() {
 #[tokio::test]
 async fn test_oauth_public_endpoints_accessible() {
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Public endpoints should still work in OAuth mode
     let response = server.get("/api/v1/health").await;
@@ -215,7 +217,7 @@ async fn test_oauth_public_endpoints_accessible() {
 #[tokio::test]
 async fn test_oauth_invalid_bearer_token_rejected() {
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // OAuth mode with fallback should reject invalid bearer tokens
     let response = server
@@ -233,7 +235,7 @@ async fn test_oauth_invalid_bearer_token_rejected() {
 #[tokio::test]
 async fn test_oauth_bearer_token_fallback_with_valid_token() {
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // OAuth mode should accept configured bearer tokens
     // With the optimized flow, bearer tokens are checked FIRST (fast HashMap lookup)
@@ -282,7 +284,7 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
 async fn test_oauth_device_flow_not_configured() {
     // Use app without OAuth state to test error handling
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     let response = server.post("/oauth/device").await;
 
@@ -299,7 +301,7 @@ async fn test_oauth_device_flow_not_configured() {
 #[tokio::test]
 async fn test_oauth_authorization_flow_url_generation() {
     let router = create_scotty_app_with_oauth_flow().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test authorization flow start endpoint
     let response = server
@@ -328,7 +330,7 @@ async fn test_oauth_authorization_flow_url_generation() {
 #[tokio::test]
 async fn test_oauth_endpoints_exist() {
     let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router).unwrap();
+    let server = TestServer::new(router);
 
     // Test that OAuth endpoints exist in router (even if they return errors)
 

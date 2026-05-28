@@ -166,29 +166,33 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
 
     let mut result = format!("Info for {}\n{}", app_data.name, table);
 
-    if app_data.settings.is_some() && !app_data.settings.as_ref().unwrap().notify.is_empty() {
-        result += "\nNotification services";
-        let mut builder = Builder::default();
-        builder.push_record(["Type", "Service-Id", "Context"]);
-        for notification in &app_data.settings.as_ref().unwrap().notify {
-            #[allow(unused_assignments)]
-            let mut context: String = "".into();
-            builder.push_record(match notification {
-                scotty_core::notification_types::NotificationReceiver::Log => ["Log", "Log", ""],
-                scotty_core::notification_types::NotificationReceiver::Webhook(ctx) => {
-                    ["Webhook", &ctx.service_id, ""]
-                }
-                scotty_core::notification_types::NotificationReceiver::Mattermost(ctx) => {
-                    ["Mattermost", &ctx.service_id, &ctx.channel]
-                }
-                scotty_core::notification_types::NotificationReceiver::Gitlab(ctx) => {
-                    context = format!("Project-Id: {}  MR-Id: {}", ctx.project_id, ctx.mr_id);
-                    ["Gitlab", &ctx.service_id, &context]
-                }
-            });
+    if let Some(settings) = &app_data.settings {
+        if !settings.notify.is_empty() {
+            result += "\nNotification services";
+            let mut builder = Builder::default();
+            builder.push_record(["Type", "Service-Id", "Context"]);
+            for notification in &settings.notify {
+                #[allow(unused_assignments)]
+                let mut context: String = "".into();
+                builder.push_record(match notification {
+                    scotty_core::notification_types::NotificationReceiver::Log => {
+                        ["Log", "Log", ""]
+                    }
+                    scotty_core::notification_types::NotificationReceiver::Webhook(ctx) => {
+                        ["Webhook", &ctx.service_id, ""]
+                    }
+                    scotty_core::notification_types::NotificationReceiver::Mattermost(ctx) => {
+                        ["Mattermost", &ctx.service_id, &ctx.channel]
+                    }
+                    scotty_core::notification_types::NotificationReceiver::Gitlab(ctx) => {
+                        context = format!("Project-Id: {}  MR-Id: {}", ctx.project_id, ctx.mr_id);
+                        ["Gitlab", &ctx.service_id, &context]
+                    }
+                });
+            }
+            let table = builder.build().with(Style::rounded()).to_string();
+            result += format!("\n{table}").as_str();
         }
-        let table = builder.build().with(Style::rounded()).to_string();
-        result += format!("\n{table}").as_str();
     }
 
     // Add scope information if available

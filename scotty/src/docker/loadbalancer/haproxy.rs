@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bollard::secret::ContainerInspectResponse;
+use bollard_stubs::models::ContainerInspectResponse;
 use regex::Regex;
 
 use crate::settings::config::Settings;
@@ -35,10 +35,8 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                                 result.port = Some(port);
                             }
                         }
-                        "HTTPS_ONLY" => {
-                            if value.to_lowercase() == "true" || value == "1" {
-                                result.tls_enabled = true;
-                            }
+                        "HTTPS_ONLY" if (value.to_lowercase() == "true" || value == "1") => {
+                            result.tls_enabled = true;
                         }
                         "HTTP_AUTH_USER" => {
                             result.basic_auth_user = Some(value.to_string());
@@ -103,10 +101,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
             let environment = service_config.environment.as_mut().unwrap();
             environment.insert(
                 "VHOST".into(),
-                match &service.domains.is_empty() {
-                    false => service.domains.join(" "),
-                    true => format!("{}.{}", &service.service, &settings.domain),
-                },
+                service.get_domains(&settings.domain).join(" "),
             );
             environment.insert("VPORT".into(), format!("{}", &service.port));
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bollard::secret::ContainerInspectResponse;
+use bollard_stubs::models::ContainerInspectResponse;
 use regex::Regex;
 
 use crate::settings::config::Settings;
@@ -113,10 +113,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             // Add Traefik labels
             labels.insert("traefik.enable".to_string(), "true".to_string());
 
-            let domains = match &service.domains.is_empty() {
-                false => &service.domains,
-                true => &vec![format!("{}.{}", &service.service, &settings.domain)],
-            };
+            let domains = service.get_domains(&settings.domain);
             for (idx, domain) in domains.iter().enumerate() {
                 labels.insert(
                     format!("traefik.http.routers.{}-{}.rule", &service_name, idx),

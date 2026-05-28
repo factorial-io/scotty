@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use bollard::secret::ContainerStateStatusEnum;
+use bollard_stubs::models::ContainerStateStatusEnum;
 use chrono::TimeDelta;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToResponse, ToSchema};
@@ -15,6 +15,7 @@ pub enum ContainerStatus {
     Removing,
     Exited,
     Dead,
+    Stopping,
 }
 
 impl Display for ContainerStatus {
@@ -28,6 +29,7 @@ impl Display for ContainerStatus {
             ContainerStatus::Removing => write!(f, "removing"),
             ContainerStatus::Exited => write!(f, "exited"),
             ContainerStatus::Dead => write!(f, "dead"),
+            ContainerStatus::Stopping => write!(f, "stopping"),
         }
     }
 }
@@ -43,6 +45,7 @@ impl From<ContainerStateStatusEnum> for ContainerStatus {
             ContainerStateStatusEnum::REMOVING => ContainerStatus::Removing,
             ContainerStateStatusEnum::EXITED => ContainerStatus::Exited,
             ContainerStateStatusEnum::DEAD => ContainerStatus::Dead,
+            ContainerStateStatusEnum::STOPPING => ContainerStatus::Stopping,
         }
     }
 }

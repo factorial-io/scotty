@@ -28,7 +28,9 @@ impl KeyExtractor for BearerTokenExtractor {
                 hasher.update(token.as_bytes());
                 let hash = hasher.finalize();
                 // Convert to hex string (64 characters)
-                format!("{:x}", hash)
+                hash.iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<String>()
             })
             .ok_or_else(|| {
                 // Record extraction error metric

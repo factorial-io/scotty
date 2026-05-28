@@ -22,15 +22,6 @@ const STD_CONFIG_FILE_NAMES: &[&str] = &[
     "docker-compose.yaml",
 ];
 
-/// Docker Compose standard override file names in priority order.
-/// These are checked first before deriving an override file name from the compose file.
-const STD_OVERRIDE_FILE_NAMES: &[&str] = &[
-    "compose.override.yml",
-    "compose.override.yaml",
-    "docker-compose.override.yml",
-    "docker-compose.override.yaml",
-];
-
 /// Finds a standard configuration file in the given directory.
 ///
 /// Returns the path to the first standard configuration file found according to the priority order
@@ -59,34 +50,26 @@ pub fn is_valid_config_file(file_path_or_name: &str) -> bool {
     STD_CONFIG_FILE_NAMES.contains(&file_name)
 }
 
-/// Gets the override config file path, preferring existing override files over deriving from the compose file.
+/// Derives the override config file path from the compose file name.
 ///
-/// This function first checks if any standard override file exists in the same directory as the compose file.
-/// If an existing override file is found, it returns that path. Otherwise, it derives the override file name
-/// from the compose file path.
+/// Docker Compose only auto-merges override files that match the base file's naming convention:
+/// - `compose.yaml` merges with `compose.override.yaml`
+/// - `docker-compose.yml` merges with `docker-compose.override.yml`
+///
+/// This function always derives the override file name from the compose file to ensure
+/// Docker Compose will automatically merge them.
 ///
 /// For example:
-/// - If `compose.yml` is the compose file and `docker-compose.override.yml` exists, it returns the existing file.
-/// - If `docker-compose.yml` is the compose file and no override file exists, it returns `docker-compose.override.yml`.
+/// - `compose.yml` → `compose.override.yml`
+/// - `docker-compose.yaml` → `docker-compose.override.yaml`
 pub fn get_override_file(compose_path: &Path) -> Option<PathBuf> {
     let parent_dir = compose_path.parent()?;
-
-    // First, check if any standard override file exists in the directory
-    for override_candidate in STD_OVERRIDE_FILE_NAMES {
-        let override_path = parent_dir.join(override_candidate);
-        if override_path.exists() {
-            return Some(override_path);
-        }
-    }
-
-    // No existing override file found, derive from the compose file name
     let file_stem = compose_path.file_stem()?.to_str()?;
     let extension = compose_path.extension()?.to_str()?;
 
     // Build the override filename by inserting .override before the extension
     let override_file_name = format!("{}.override.{}", file_stem, extension);
 
-    // Build the new path with the override filename
     Some(parent_dir.join(override_file_name))
 }
 
@@ -162,47 +145,22 @@ mod tests {
 
     #[test]
     fn test_get_override_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let dir = temp_dir.path();
-
-        // Derives from compose file when no override exists
-        let compose = dir.join("docker-compose.yml");
-        std::fs::write(&compose, "").unwrap();
+        // Always derives override filename from compose filename
         assert_eq!(
-            get_override_file(&compose).unwrap(),
-            dir.join("docker-compose.override.yml")
+            get_override_file(Path::new("/app/docker-compose.yml")).unwrap(),
+            Path::new("/app/docker-compose.override.yml")
         );
-
-        let compose_v2 = dir.join("compose.yml");
-        std::fs::write(&compose_v2, "").unwrap();
         assert_eq!(
-            get_override_file(&compose_v2).unwrap(),
-            dir.join("compose.override.yml")
+            get_override_file(Path::new("/app/docker-compose.yaml")).unwrap(),
+            Path::new("/app/docker-compose.override.yaml")
         );
-
-        // Prefers existing override file
-        let existing = dir.join("docker-compose.override.yml");
-        std::fs::write(&existing, "").unwrap();
-        assert_eq!(get_override_file(&compose_v2).unwrap(), existing);
-
-        // Priority order: compose.override.yml > compose.override.yaml > docker-compose.override.yml > docker-compose.override.yaml
-        for name in [
-            "docker-compose.override.yml",
-            "docker-compose.override.yaml",
-            "compose.override.yaml",
-            "compose.override.yml",
-        ] {
-            std::fs::write(dir.join(name), "").unwrap();
-        }
         assert_eq!(
-            get_override_file(&compose).unwrap(),
-            dir.join("compose.override.yml")
+            get_override_file(Path::new("/app/compose.yml")).unwrap(),
+            Path::new("/app/compose.override.yml")
         );
-
-        std::fs::remove_file(dir.join("compose.override.yml")).unwrap();
         assert_eq!(
-            get_override_file(&compose).unwrap(),
-            dir.join("compose.override.yaml")
+            get_override_file(Path::new("/app/compose.yaml")).unwrap(),
+            Path::new("/app/compose.override.yaml")
         );
     }
 
