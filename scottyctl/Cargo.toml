@@ -33,6 +33,11 @@ tokio-tungstenite.workspace = true
 futures-util.workspace = true
 uuid.workspace = true
 flate2.workspace = true
+tar.workspace = true
+tokio-stream.workspace = true
+urlencoding.workspace = true
+bytes.workspace = true
+tempfile = "3.23"
 
 [lib]
 name = "scottyctl"
@@ -43,5 +48,4 @@ name = "scottyctl"
 path = "src/main.rs"
 
 [dev-dependencies]
-tempfile = "3.23"
 wiremock = "0.6"

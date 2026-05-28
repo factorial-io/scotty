@@ -1,6 +1,6 @@
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
@@ -67,6 +67,10 @@ use crate::api::rest::handlers::admin::scopes::{
     __path_create_scope_handler, __path_list_scopes_handler,
 };
 use crate::api::rest::handlers::blueprints::__path_blueprints_handler;
+use crate::api::rest::handlers::files::{
+    __path_download_files_handler, __path_upload_files_handler, download_files_handler,
+    upload_files_handler,
+};
 use crate::api::rest::handlers::health::health_checker_handler;
 use crate::api::rest::handlers::scopes::list::__path_list_user_scopes_handler;
 use crate::api::rest::handlers::tasks::__path_task_detail_handler;
@@ -153,6 +157,8 @@ use scotty_core::admin::{
         test_permission_handler,
         get_user_permissions_handler,
         list_available_permissions_handler,
+        download_files_handler,
+        upload_files_handler,
     ),
     components(
         schemas(
@@ -292,50 +298,80 @@ impl ApiRoutes {
                     require_permission(Permission::Manage),
                 )),
             )
+            // File transfer endpoints (download + upload) for a service's
+            // container. GET requires `view`, PUT requires `manage`. The
+            // permission middleware is attached per method via `route_layer`
+            // and then merged, so that the `manage` check does NOT also wrap
+            // the GET handler (which would lock out view-only users).
+            .route(
+                "/api/v1/apps/{app_id}/services/{service}/files",
+                get(download_files_handler)
+                    .route_layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        require_permission(Permission::View),
+                    ))
+                    .merge(
+                        put(upload_files_handler)
+                            .route_layer(middleware::from_fn_with_state(
+                                state.clone(),
+                                require_permission(Permission::Manage),
+                            ))
+                            // Disable the default 2 MiB request body limit for
+                            // uploads; transfers are bounded by
+                            // `Settings.files.max_transfer_size` via a counting
+                            // stream wrapper.
+                            .route_layer(DefaultBodyLimit::disable()),
+                    ),
+            )
             // Admin API routes - require AdminRead/AdminWrite permissions
+            // Each method gets its own permission via `route_layer` + `merge`
+            // so that a later `.layer()` cannot wrap an earlier method (which
+            // would, e.g., make a GET require AdminWrite in addition to
+            // AdminRead and lock out read-only admins).
             .route(
                 "/api/v1/authenticated/admin/scopes",
                 get(list_scopes_handler)
-                    .layer(middleware::from_fn_with_state(
+                    .route_layer(middleware::from_fn_with_state(
                         state.clone(),
                         require_permission(Permission::AdminRead),
                     ))
-                    .post(create_scope_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::AdminWrite),
-                    )),
+                    .merge(
+                        post(create_scope_handler).route_layer(middleware::from_fn_with_state(
+                            state.clone(),
+                            require_permission(Permission::AdminWrite),
+                        )),
+                    ),
             )
             .route(
                 "/api/v1/authenticated/admin/roles",
                 get(list_roles_handler)
-                    .layer(middleware::from_fn_with_state(
+                    .route_layer(middleware::from_fn_with_state(
                         state.clone(),
                         require_permission(Permission::AdminRead),
                     ))
-                    .post(create_role_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::AdminWrite),
-                    )),
+                    .merge(
+                        post(create_role_handler).route_layer(middleware::from_fn_with_state(
+                            state.clone(),
+                            require_permission(Permission::AdminWrite),
+                        )),
+                    ),
             )
             .route(
                 "/api/v1/authenticated/admin/assignments",
                 get(list_assignments_handler)
-                    .layer(middleware::from_fn_with_state(
+                    .route_layer(middleware::from_fn_with_state(
                         state.clone(),
                         require_permission(Permission::AdminRead),
                     ))
-                    .post(create_assignment_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::AdminWrite),
-                    ))
-                    .delete(remove_assignment_handler)
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        require_permission(Permission::AdminWrite),
-                    )),
+                    .merge(
+                        // POST and DELETE share the AdminWrite requirement.
+                        post(create_assignment_handler)
+                            .delete(remove_assignment_handler)
+                            .route_layer(middleware::from_fn_with_state(
+                                state.clone(),
+                                require_permission(Permission::AdminWrite),
+                            )),
+                    ),
             )
             .route(
                 "/api/v1/authenticated/admin/permissions",
