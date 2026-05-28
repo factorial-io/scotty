@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://scotty.factorial.io/</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/architecture.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/authorization.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/changelog.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/cli.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/configuration.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/first-steps.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/guide.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/installation.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/oauth-authentication.html</loc>
+  </url>
+  <url>
+    <loc>https://scotty.factorial.io/observability.html</loc>
+  </url>
+</urlset>

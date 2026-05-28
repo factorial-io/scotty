@@ -1,0 +1,2424 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Changelog</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" Changelog">
+        <meta name="twitter:title" content=" Changelog">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/changelog.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.9%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.9]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.8%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.8]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.7%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.7]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.6%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.6]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.5%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.5]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.4%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.4]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.3%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.3]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.1%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.1]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.2.0%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.2.0]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.38%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.38]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.37%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.37]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.36%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.36]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.35%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.35]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.34%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.34]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.33%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.33]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.32%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.32]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.31%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.31]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.30%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.30]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.29%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.29]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.28%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.28]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.27%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.27]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.26%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.26]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.25%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.25]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.24%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.24]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.23%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.23]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.22%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.22]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.21%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.21]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.20%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.20]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.19%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.19]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.18%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.18]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.17%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.17]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.16%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.16]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.15%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.15]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.14%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.14]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.13%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.13]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.12%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.12]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.11%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.11]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.10%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.10]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.9%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.9]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.8%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.8]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.7%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.7]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.6%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.6]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.5%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.5]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.4%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.4]</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#%5B0.1.0-alpha.3%5D" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> [0.1.0-alpha.3]</span>
+      </a></li>
+          </ul></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="changelog" tabindex="-1"><a class="header-anchor" href="#changelog">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Changelog</h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<h2 id="%5B0.2.9%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.9%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.9]</h2>
+<h3 id="bug-fixes" tabindex="-1"><a class="header-anchor" href="#bug-fixes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Remove --unreleased flag from changelog generation Phase 3 ✔️</li>
+</ul>
+<h2 id="%5B0.2.8%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.8%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.8]</h2>
+<h3 id="bug-fixes-1" tabindex="-1"><a class="header-anchor" href="#bug-fixes-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Enable crossterm use-dev-tty feature for shell sessions spawned by parent processes ✔️</li>
+<li>Derive override filename from compose file for Docker Compose compatibility ✔️</li>
+</ul>
+<h3 id="dependencies" tabindex="-1"><a class="header-anchor" href="#dependencies">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust dependencies auto-merge (patch) (#712) ✔️</li>
+<li>Update rust crate tempfile to v3.25.0 ✔️</li>
+<li>Update rust crate sysinfo to v0.38.1 (#708) ✔️</li>
+<li>Update rust crate anyhow to v1.0.101 ✔️</li>
+<li>Bump time from 0.3.37 to 0.3.47 ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.145.0 ✔️</li>
+<li>Bump bytes from 1.11.0 to 1.11.1 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update rust crate flate2 to v1.1.9 ✔️</li>
+</ul>
+<h2 id="%5B0.2.7%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.7%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.7]</h2>
+<h3 id="bug-fixes-2" tabindex="-1"><a class="header-anchor" href="#bug-fixes-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Centralize authentication logic for REST and WebSocket ✔️</li>
+<li>Resolve clippy unnecessary_unwrap warning in app info display ✔️</li>
+<li>Disable HTTP redirects and return helpful error message ✔️</li>
+<li>Update dependency @iconify/svelte to v5 ✔️</li>
+</ul>
+<h3 id="dependencies-1" tabindex="-1"><a class="header-anchor" href="#dependencies-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate bollard to v0.20.1 (#697) ✔️</li>
+<li>Update rust crate clap to v4.5.56 (#695) ✔️</li>
+<li>Update rust crate clap to v4.5.55 (#694) ✔️</li>
+<li>Update rust crate uuid to v1.20.0 ✔️</li>
+<li>Update rust crate sysinfo to 0.38 ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.144.0 ✔️</li>
+<li>Update rust crate thiserror to v2.0.18 ✔️</li>
+<li>Update rust docker tag to v1.93 ✔️</li>
+<li>Update rust crate axum-test to v18.7.0 ✔️</li>
+<li>Update rust crate tokio-metrics to v0.4.7 ✔️</li>
+<li>Update rust crate chrono to v0.4.43 ✔️</li>
+<li>Update bun lockfile ✔️</li>
+<li>Update dependency typescript-eslint to v8.53.0 ✔️</li>
+<li>Update dependency svelte to v5.46.3 ✔️</li>
+<li>Update rust crate tower to v0.5.3 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency globals to v17 ✔️</li>
+<li>Update dependency typescript-eslint to v8.52.0 ✔️</li>
+<li>Update dependency @iconify/svelte to v5.2.1 ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.143.1 ✔️</li>
+<li>Update rust crate bcrypt to 0.18.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.14.0 ✔️</li>
+<li>Update rust crate axum-test to v18.6.0 ✔️</li>
+<li>Update rust crate bollard to 0.20.0 ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v6.2.4 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.49.4 ✔️</li>
+<li>Update rust crate clap_complete to v4.5.65 (#671) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#670) ✔️</li>
+<li>Update rust crate serde_json to v1.0.149 (#668) ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v6.2.2 (#667) ✔️</li>
+<li>Update rust crate url to v2.5.8 (#666) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.49.3 (#664) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#662) ✔️</li>
+<li>Update rust crate tokio to v1.49.0 ✔️</li>
+<li>Update rust crate clap to v4.5.54 (#659) ✔️</li>
+<li>Update dependency typescript-eslint to v8.51.0 ✔️</li>
+<li>Update rust crate axum-test to v18.5.0 ✔️</li>
+<li>Update rust crate casbin to v2.19.1 (#657) ✔️</li>
+<li>Update rust crate clap_complete to v4.5.64 (#655) ✔️</li>
+<li>Update rust crate clap_complete to v4.5.63 (#652) ✔️</li>
+<li>Update rust crate serde_json to v1.0.148 ✔️</li>
+<li>Update dependency svelte to v5.46.1 ✔️</li>
+<li>Update rust crate tempfile to v3.24.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#647) ✔️</li>
+<li>Update dependency typescript-eslint to v8.50.1 (#648) ✔️</li>
+<li>Update actions/checkout action to v6 ✔️</li>
+<li>Update dependency typescript-eslint to v8.50.0 ✔️</li>
+<li>Update dependency vite to v7 ✔️</li>
+<li>Update rust docker tag to v1.92 ✔️</li>
+<li>Update rust crate casbin to v2.19.0 ✔️</li>
+<li>Update dependency svelte-check to v4.3.5 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#641) ✔️</li>
+<li>Update rust crate governor to v0.10.4 ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.142.0 ✔️</li>
+<li>Update rust crate reqwest to v0.12.26 (#636) ✔️</li>
+<li>Update dependency prettier-plugin-svelte to v3.4.1 ✔️</li>
+<li>Update rust crate bollard to v0.19.5 ✔️</li>
+<li>Update dependency daisyui to v5.5.14 (#633) ✔️</li>
+<li>Update dependency svelte to v5.46.0 ✔️</li>
+<li>Update dependency eslint to v9.39.2 ✔️</li>
+</ul>
+<h3 id="documentation" tabindex="-1"><a class="header-anchor" href="#documentation">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Add end-user documentation for logs and shell features ✔️</li>
+</ul>
+<h2 id="%5B0.2.6%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.6%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.6]</h2>
+<h3 id="bug-fixes-3" tabindex="-1"><a class="header-anchor" href="#bug-fixes-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Enable rustls-tls for oauth2 crate to support HTTPS token endpoints ✔️</li>
+</ul>
+<h3 id="dependencies-2" tabindex="-1"><a class="header-anchor" href="#dependencies-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency svelte to v5.45.10 ✔️</li>
+<li>Update dependency daisyui to v5.5.13 (#628) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency node to 24.12 ✔️</li>
+<li>Update dependency daisyui to v5.5.11 ✔️</li>
+</ul>
+<h2 id="%5B0.2.5%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.5%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.5]</h2>
+<h3 id="bug-fixes-4" tabindex="-1"><a class="header-anchor" href="#bug-fixes-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Resolve race conditions in task output streaming ✔️</li>
+</ul>
+<h3 id="dependencies-3" tabindex="-1"><a class="header-anchor" href="#dependencies-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency svelte to v5.45.8 (#623) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.49.2 (#622) ✔️</li>
+<li>Update dependency svelte to v5.45.7 ✔️</li>
+<li>Update rust crate reqwest to v0.12.25 ✔️</li>
+<li>Update rust crate tower-http to v0.6.8 ✔️</li>
+<li>Update dependency typescript-eslint to v8.49.0 ✔️</li>
+</ul>
+<h3 id="documentation-1" tabindex="-1"><a class="header-anchor" href="#documentation-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Add new beads for new features ✔️</li>
+</ul>
+<h2 id="%5B0.2.4%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.4%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.4]</h2>
+<h3 id="bug-fixes-5" tabindex="-1"><a class="header-anchor" href="#bug-fixes-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Remove dates from changelog template to avoid timestamp issues ✔️</li>
+<li>Use tag timestamp for changelog dates and clarify release process ✔️</li>
+<li>Clear status line before command exits ✔️</li>
+<li>Add Default implementations for StatusLine and Ui to satisfy clippy ✔️</li>
+<li>Validate token in auth:status and return exit code 1 when invalid (GH#607) ✔️</li>
+<li>Clippy warning in test and strengthen pre-push hook ✔️</li>
+<li>Address code review feedback for HttpError ✔️</li>
+<li>Prioritize explicit access token over cached OAuth tokens in scottyctl ✔️</li>
+<li>Restore frontend/build/.gitkeep to fix CI builds ✔️</li>
+<li>Enable std feature for serde in scotty-types to support String deserialization ✔️</li>
+<li>Add ts-rs tag/content attributes to WebSocketMessage for proper TypeScript generation ✔️</li>
+<li>Address MR feedback - remove duplicate counter, fix naming confusion, optimize hot path ✔️</li>
+<li>Make metrics() return trait object with no-op fallback for tests ✔️</li>
+<li>Restore OAuth session count metrics ✔️</li>
+<li>Refresh app state on task completion for both success and failure ✔️</li>
+</ul>
+<h3 id="dependencies-4" tabindex="-1"><a class="header-anchor" href="#dependencies-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#611) ✔️</li>
+<li>Update rust crate uuid to v1.19.0 ✔️</li>
+<li>Update rust crate axum-test to v18.4.1 ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.141.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.48.1 (#603) ✔️</li>
+<li>Update dependency svelte to v5.45.3 (#600) ✔️</li>
+<li>Update rust docker tag to v1.91 ✔️</li>
+<li>Update rust crate sysinfo to 0.37 ✔️</li>
+<li>Update dependency prettier to v3.7.3 ✔️</li>
+<li>Update dependency svelte to v5.45.2 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#597) ✔️</li>
+<li>Update dependency prettier to v3.7.2 ✔️</li>
+</ul>
+<h3 id="documentation-2" tabindex="-1"><a class="header-anchor" href="#documentation-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Close issue tracking for scotty-28453 and scotty-a2dce - GH#607 complete ✔️</li>
+<li>Update issue tracking - close scotty-0791a, scotty-46245, create scotty-28453, scotty-6f06c, scotty-a2dce ✔️</li>
+<li>Track scottyctl auth precedence bug (scotty-a84a4, GH #609) ✔️</li>
+<li>Update AGENTS.md to clarify both telemetry transports can be enabled ✔️</li>
+<li>Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️</li>
+</ul>
+<h3 id="features" tabindex="-1"><a class="header-anchor" href="#features">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Preserve HTTP status codes with custom error types ✔️</li>
+<li>Implement metrics tracking for task output streams ✔️</li>
+<li>Implement task output streaming metrics ✔️</li>
+<li>Add no-telemetry feature flag for minimal builds without OpenTelemetry ✔️</li>
+</ul>
+<h3 id="performance" tabindex="-1"><a class="header-anchor" href="#performance">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Performance</h3>
+<ul>
+<li>Optimize compile times by disabling default features and adding telemetry feature flags ✔️</li>
+</ul>
+<h3 id="refactor" tabindex="-1"><a class="header-anchor" href="#refactor">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Improve status line cleanup documentation and consistency ✔️</li>
+<li>Improve status messages for auth commands ✔️</li>
+<li>Improve error handling with custom ApiError type ✔️</li>
+<li>Remove duplicate retry logic from scottyctl ✔️</li>
+<li>Move active count atomics from static to OtelRecorder instance ✔️</li>
+<li>Simplify telemetry feature logic and test all configurations in CI ✔️</li>
+<li>Remove redundant inherent methods from OtelRecorder ✔️</li>
+</ul>
+<h3 id="testing" tabindex="-1"><a class="header-anchor" href="#testing">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Testing</h3>
+<ul>
+<li>Add comprehensive test coverage for auth:status token validation ✔️</li>
+</ul>
+<h2 id="%5B0.2.3%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.3%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.3]</h2>
+<h3 id="bug-fixes-6" tabindex="-1"><a class="header-anchor" href="#bug-fixes-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update pre-release-hook to run from workspace root ✔️</li>
+<li>Resolve changelog generation issues with empty sections and subshell ✔️</li>
+<li>Skip empty version sections in per-crate changelogs ✔️</li>
+<li>Update changelog generation to preserve full version history per crate ✔️</li>
+<li>Correct build badge workflow filename ✔️</li>
+<li>Show error when auth token expired in auth:status ✔️</li>
+<li>Scope rust dependency to HEAD builds only ✔️</li>
+</ul>
+<h3 id="dependencies-5" tabindex="-1"><a class="header-anchor" href="#dependencies-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate once_cell to v1.21.3 ✔️</li>
+<li>Update rust crate tokio-metrics to 0.4 ✔️</li>
+</ul>
+<h3 id="documentation-3" tabindex="-1"><a class="header-anchor" href="#documentation-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Replace text header with logo in README ✔️</li>
+<li>Update logo to block-style design and remove padding ✔️</li>
+<li>Close scotty-df8eb as won't fix ✔️</li>
+<li>Add comprehensive documentation for domain-based assignments ✔️</li>
+<li>Track documentation tasks for domain-based authorization ✔️</li>
+</ul>
+<h3 id="features-1" tabindex="-1"><a class="header-anchor" href="#features-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Implement reproducible changelog generation from scratch ✔️</li>
+<li>Add per-crate filtered changelog generation ✔️</li>
+<li>Add domain-based user matching for Casbin RBAC ✔️</li>
+</ul>
+<h3 id="refactor-1" tabindex="-1"><a class="header-anchor" href="#refactor-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Use Casbin user_match_impl as single source of truth ✔️</li>
+<li>Use Casbin user_match_impl as single source of truth ✔️</li>
+<li>Move Permission enum to scotty-core and iterate over it ✔️</li>
+</ul>
+<h2 id="%5B0.2.1%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.1%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.1]</h2>
+<h3 id="bug-fixes-7" tabindex="-1"><a class="header-anchor" href="#bug-fixes-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Scope rust dependency to HEAD builds only ✔️</li>
+</ul>
+<h3 id="documentation-4" tabindex="-1"><a class="header-anchor" href="#documentation-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Cleanup changelog ✔️</li>
+</ul>
+<h3 id="refactor-2" tabindex="-1"><a class="header-anchor" href="#refactor-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Standardize to single workspace-level changelog ✔️</li>
+</ul>
+<h2 id="%5B0.2.0%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.2.0%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.2.0]</h2>
+<h3 id="bug-fixes-8" tabindex="-1"><a class="header-anchor" href="#bug-fixes-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Add Cargo workspace configuration for proper dependency updates ✔️</li>
+<li>Add missing ShellSessionRequest type and generate index.ts ✔️</li>
+<li>Enable TLS support for wss:// connections ✔️</li>
+<li>Implement case-insensitive email matching per RFC 5321 ✔️</li>
+<li>Add allow dead_code attribute to validate_domain_assignment ✔️</li>
+<li>Enable real-time task output streaming in scottyctl ✔️</li>
+<li>Enable real-time task output streaming in scottyctl ✔️</li>
+<li>Improve decompression error handling and size limit enforcement ✔️</li>
+<li>Address PR feedback with proper error handling and security ✔️</li>
+<li>Address PR feedback with tests and security improvements ✔️</li>
+<li>Extract and display error messages from API responses ✔️</li>
+<li>Propagate errors from handlers to tasks ✔️</li>
+<li>Prevent secrets in Docker images and clarify identifier vs token distinction ✔️</li>
+<li>Correct metric names in overview dashboard ✔️</li>
+<li>Reduce VictoriaMetrics retention and disk space threshold ✔️</li>
+<li>Set Y-axis minimum to 0 for memory panels ✔️</li>
+<li>Remove non-functional --workdir option from app:shell command ✔️</li>
+<li>Fix broken doctests after adding lib.rs ✔️</li>
+<li>Suppress dead_code warnings for test utils ✔️</li>
+<li>Resolve clippy warnings for pre-push hook ✔️</li>
+<li>Remove double-wrapping of shell commands ✔️</li>
+<li>Resolve critical TTY mode bugs for interactive shell ✔️</li>
+<li>Add .env file loading support for server configuration ✔️</li>
+<li>Use singleton ShellService across all handlers ✔️</li>
+<li>Add handler for ShellSessionData input ✔️</li>
+<li>Address critical rate limiting issues from PR review ✔️</li>
+<li>Add IP headers to rate limiting integration tests ✔️</li>
+<li>Protect PKCE verifier and CSRF token with MaskedSecret ✔️</li>
+<li>Use placeholder tokens for bearer-tokens ✔️</li>
+<li>Replace hardcoded localhost with configurable frontend base URL ✔️</li>
+<li>Apply constant-time comparison to login handler ✔️</li>
+<li>Replace hardcoded localhost with configurable frontend base URL ✔️</li>
+<li>Apply constant-time comparison to login handler ✔️</li>
+<li>Use constant-time comparison for bearer token validation ✔️</li>
+<li>Apply constant-time comparison to login handler ✔️</li>
+<li>Use constant-time comparison for bearer token validation ✔️</li>
+<li>Replace hardcoded localhost with configurable frontend base URL ✔️</li>
+<li>Generate index.ts with type guards and re-exports ✔️</li>
+<li>Run TypeScript generator from workspace root ✔️</li>
+<li>Run svelte-kit sync before build ✔️</li>
+<li>Point $generated alias to index.ts file explicitly ✔️</li>
+<li>Add $generated path alias for TypeScript generated files ✔️</li>
+<li>Use absolute path from CARGO_MANIFEST_DIR for Docker compatibility ✔️</li>
+<li>Update Dockerfile to use bun.lock instead of bun.lockb ✔️</li>
+<li>Remove tsconfig exclude to fix CI warning ✔️</li>
+<li>Prevent panic on UTF-8 character truncation ✔️</li>
+<li>Normalize URLs to prevent double slashes in API calls (#470) ✔️</li>
+<li>Resolve clippy linting errors in metrics modules ✔️</li>
+<li>Enable HTTP metrics middleware when metrics telemetry is enabled ✔️</li>
+<li>Correct OpenTelemetry metric names in Grafana dashboard ✔️</li>
+<li>Remove resourcedetection processor from otel-collector config ✔️</li>
+<li>Run TypeScript generator from correct working directory ✔️</li>
+<li>Cleanup frontend task output ✔️</li>
+<li>Resolve WebSocket dev mode authentication and security issues ✔️</li>
+<li>Resolve custom actions dropdown reactivity issues ✔️</li>
+<li>Resolve deadlock and lock contention in task management ✔️</li>
+<li>Resolve merge conflicts from main branch ✔️</li>
+<li>Prevent unwanted bindings directory creation ✔️</li>
+<li>Resolve WebSocket integration and task output issues ✔️</li>
+<li>Resolve wildcard scope expansion bug in authorization system ✔️</li>
+<li>Update secure_response_test for removed TaskDetails fields ✔️</li>
+<li>Show container status messages to clients via task output ✔️</li>
+<li>Fix code warning ✔️</li>
+<li>Improve bearer token authentication and error logging ✔️</li>
+<li>Align Casbin model matcher between test and production environments ✔️</li>
+<li>Resolve frontend linting errors ✔️</li>
+<li>Improve authorization security and robustness ✔️</li>
+<li>Resolve clippy warnings and improve code quality ✔️</li>
+<li>Resolve permission-based action button visibility race condition ✔️</li>
+<li>Update OIDC test data and apply code formatting ✔️</li>
+<li>Resolve clap panic in admin permissions test command ✔️</li>
+<li>Centralize user ID logic and fix bearer token authorization ✔️</li>
+<li>Update rust crate tempfile to v3.21.0 ✔️</li>
+<li>Scottyctl bearer token authentication with RBAC ✔️</li>
+<li>Resolve RBAC authorization middleware issues ✔️</li>
+<li>Remove unnecessary assert!(true) statements flagged by clippy ✔️</li>
+<li>Fix task activity indicator animation ✔️</li>
+<li>Resolve TypeScript lint errors and improve type safety ✔️</li>
+<li>Resolve clippy warnings and format code ✔️</li>
+</ul>
+<h3 id="ci" tabindex="-1"><a class="header-anchor" href="#ci">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Generate TypeScript bindings before frontend checks in pre-push hook ✔️</li>
+<li>Add TypeScript generation step to frontend build ✔️</li>
+<li>Trigger ci ✔️</li>
+</ul>
+<h3 id="dependencies-6" tabindex="-1"><a class="header-anchor" href="#dependencies-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency svelte to v5.43.15 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update otel/opentelemetry-collector docker tag to v0.140.1 ✔️</li>
+<li>Update rust crate tower-http to v0.6.7 (#583) ✔️</li>
+<li>Update rust crate tracing-subscriber to v0.3.20 [security] ✔️</li>
+<li>Update rust crate config to v0.15.15 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#438) ✔️</li>
+<li>Update rust crate clap to v4.5.46 (#439) ✔️</li>
+<li>Update dependency typescript-eslint to v8.41.0 ✔️</li>
+</ul>
+<h3 id="documentation-5" tabindex="-1"><a class="header-anchor" href="#documentation-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Add readme to scotty-types ✔️</li>
+<li>Update app:shell documentation to reflect implementation ✔️</li>
+<li>Update frontend README with Scotty-specific documentation ✔️</li>
+<li>Complete CLI documentation with admin and auth commands ✔️</li>
+<li>Complete authorization documentation with admin permissions ✔️</li>
+<li>Clean up intermediate docs and fix OAuth authentication documentation ✔️</li>
+<li>Document task handle behavior and add WebSocket fallback logging ✔️</li>
+<li>Address PR feedback on hybrid auth documentation ✔️</li>
+<li>Add comprehensive hybrid OAuth + bearer token authentication documentation ✔️</li>
+<li>Add documentation for app:logs and app:shell commands ✔️</li>
+<li>Document .env file support for configuration ✔️</li>
+<li>Add comprehensive project documentation ✔️</li>
+<li>Address PR review feedback for rate limiting ✔️</li>
+<li>Add comprehensive rate limiting documentation ✔️</li>
+<li>Document frontend_base_url configuration option ✔️</li>
+<li>Add observability to documentation navigation menu ✔️</li>
+<li>Condense Prometheus compatibility section ✔️</li>
+<li>Add Prometheus compatibility and stack flexibility section ✔️</li>
+<li>Add comprehensive observability documentation (scotty-14) ✔️</li>
+<li>Research OpenTelemetry metrics with OTel Collector + VictoriaMetrics ✔️</li>
+<li>Move progress tracking from docs to beads issues ✔️</li>
+<li>Correct unified output system implementation status ✔️</li>
+<li>Clarify TaskDetails breaking change implementation ✔️</li>
+<li>Update documentation for Phase 3.7 infrastructure optimization ✔️</li>
+<li>Improve OAuth assignments documentation ✔️</li>
+<li>Update CLAUDE.md and PRD with Phase 3.6 completion details ✔️</li>
+<li>Update PRD and CLAUDE.md for Phase 3.5 completion ✔️</li>
+<li>Update PRD and CLAUDE.md to reflect Phase 3 completion ✔️</li>
+<li>Update CLAUDE.md with Phase 2 completion status ✔️</li>
+<li>Document Phase 1 completion and next steps ✔️</li>
+<li>Add code quality reminder to CLAUDE.md ✔️</li>
+<li>Add PRD for unified output system with logs and shell access ✔️</li>
+<li>Enhance bearer token security documentation ✔️</li>
+<li>Update authorization system terminology from groups to scopes ✔️</li>
+<li>Update authorization documentation for RBAC changes ✔️</li>
+<li>Fix CLI command format throughout documentation ✔️</li>
+<li>Add OAuth authentication documentation and update configuration ✔️</li>
+</ul>
+<h3 id="features-2" tabindex="-1"><a class="header-anchor" href="#features-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Add ASCII art logo with version and copyright ✔️</li>
+<li>Add validation, tests, and documentation for domain assignments ✔️</li>
+<li>Add domain-based role assignment support ✔️</li>
+<li>Add gzip compression for file uploads in app:create ✔️</li>
+<li>Add .scottyignore support for app:create ✔️</li>
+<li>Support bearer token fallback when OAuth is enabled ✔️</li>
+<li>Add structured audit logging for compliance ✔️</li>
+<li>Propagate exit codes in command mode ✔️</li>
+<li>Add terminal size support for interactive shell ✔️</li>
+<li>Implement interactive shell with raw terminal mode ✔️</li>
+<li>Add app:shell command and refactor service validation ✔️</li>
+<li>Add comprehensive rate limiting metrics ✔️</li>
+<li>Add rate limiting metrics and Grafana dashboard ✔️</li>
+<li>Implement comprehensive API rate limiting ✔️</li>
+<li>Implement session cleanup and comprehensive monitoring ✔️</li>
+<li>Instrument shell service with metrics (scotty-10) ✔️</li>
+<li>Add task output streaming metrics (scotty-16) ✔️</li>
+<li>Add WebSocket metrics instrumentation (scotty-11) ✔️</li>
+<li>Add AppList metrics for application monitoring (scotty-20) ✔️</li>
+<li>Upgrade to OpenTelemetry 0.31 and implement custom HTTP metrics ✔️</li>
+<li>Enhance metrics collection and add HTTP metrics infrastructure ✔️</li>
+<li>Add Tokio runtime metrics to Grafana dashboard ✔️</li>
+<li>Add stable Tokio task metrics tracking ✔️</li>
+<li>Add task metrics and refactor to use dedicated helper functions ✔️</li>
+<li>Add memory usage metrics (scotty-17) ✔️</li>
+<li>Add Grafana dashboard for scotty metrics ✔️</li>
+<li>Make OTLP endpoint configurable via environment variable ✔️</li>
+<li>Instrument log streaming service with OpenTelemetry metrics ✔️</li>
+<li>Add OpenTelemetry metrics module with ScottyMetrics struct ✔️</li>
+<li>Add OpenTelemetry metrics infrastructure with OTel Collector + VictoriaMetrics ✔️</li>
+<li>Implement container log viewer with navigation improvements ✔️</li>
+<li>Add dedicated OutputStreamType variants for status messages ✔️</li>
+<li>Implement real-time task output and WebSocket integration ✔️</li>
+<li>Enhance message types for frontend integration ✔️</li>
+<li>Add TypeScript bindings generation for WebSocket messages ✔️</li>
+<li>Add Zed debug configuration for scotty server ✔️</li>
+<li>Implement real-time task output streaming for Phase 3.6 ✔️</li>
+<li>Implement unified task output streaming system ✔️</li>
+<li>Improve log command UX and add terminal detection ✔️</li>
+<li>Improve log command options for better UX ✔️</li>
+<li>Simplify --timestamps flag to boolean behavior ✔️</li>
+<li>Implement authenticated WebSocket log streaming with improved UX ✔️</li>
+<li>Integrate logs and shell endpoints into API router ✔️</li>
+<li>Implement logs and shell API endpoints ✔️</li>
+<li>Integrate service errors with AppError ✔️</li>
+<li>Add helper methods for container lookup in AppData ✔️</li>
+<li>Implement bollard log streaming and shell services ✔️</li>
+<li>Add WebSocket message types for logs and shell sessions ✔️</li>
+<li>Refactor TaskDetails and TaskManager to use unified output ✔️</li>
+<li>Add unified output system and configuration ✔️</li>
+<li>Add bollard technical spike and findings documentation ✔️</li>
+<li>Add permission-based visibility for custom actions ✔️</li>
+<li>Implement comprehensive permission-based UI access control ✔️</li>
+<li>Implement OIDC profile picture support in user avatars ✔️</li>
+<li>Enhance OIDC user info capture and logging ✔️</li>
+<li>Use email addresses as user identifiers for OAuth users ✔️</li>
+<li>Implement shared admin types and enhance authentication logging ✔️</li>
+<li>Add comprehensive admin API for authorization management ✔️</li>
+<li>Implement comprehensive RBAC authorization system ✔️</li>
+<li>Unify OAuth error handling system and fix device flow polling ✔️</li>
+<li>Consolidate shared functionality and improve OAuth error handling ✔️</li>
+<li>Implement version compatibility check between scottyctl and server ✔️</li>
+<li>Add comprehensive authentication testing for scotty backend ✔️</li>
+<li>Implement complete OAuth device flow for scottyctl ✔️</li>
+<li>Refactor OAuth to OIDC-compliant provider-agnostic system with Gravatar support ✔️</li>
+<li>Implement OAuth session exchange for secure frontend authentication ✔️</li>
+<li>Optimize healthcheck configuration for faster startup ✔️</li>
+<li>Improve OAuth login flow and authentication validation ✔️</li>
+<li>Implement comprehensive OAuth authentication system ✔️</li>
+<li>Implement OAuth authentication system with hybrid auth modes ✔️</li>
+</ul>
+<h3 id="performance-1" tabindex="-1"><a class="header-anchor" href="#performance-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Performance</h3>
+<ul>
+<li>Check bearer tokens before OAuth to avoid network latency ✔️</li>
+<li>Implement token caching to reduce filesystem access ✔️</li>
+</ul>
+<h3 id="refactor-3" tabindex="-1"><a class="header-anchor" href="#refactor-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Extract task completion logic into shared helper ✔️</li>
+<li>Streamline bearer token check and improve logging context ✔️</li>
+<li>Split monolithic Grafana dashboard into dedicated metric group dashboards ✔️</li>
+<li>Trim ShellSessionData payload in logs ✔️</li>
+<li>Add SessionGuard for panic-safe cleanup ✔️</li>
+<li>Migrate from REST to WebSocket-only implementation ✔️</li>
+<li>Remove unnecessary base64 encoding from PKCE verifier ✔️</li>
+<li>Replace barrel file with inline type guards ✔️</li>
+<li>Update authorization config to use serde_norway ✔️</li>
+<li>Move app metrics into dedicated dashboard row ✔️</li>
+<li>Use spawn_instrumented for consistent Tokio metrics tracking ✔️</li>
+<li>Reorganize observability stack into dedicated directory ✔️</li>
+<li>Consolidate observability stack into main docker-compose.yml ✔️</li>
+<li>Restructure task detail page for consistency ✔️</li>
+<li>Improve log output styling, performance, and controls ✔️</li>
+<li>Unify task completion handlers and fix state management ✔️</li>
+<li>Fix ESLint errors and improve code quality ✔️</li>
+<li>Embed TaskOutput directly in TaskDetails for tight coupling ✔️</li>
+<li>Reduce app state creation duplication in bearer_auth_tests ✔️</li>
+<li>Optimize build system and eliminate type duplication ✔️</li>
+<li>Centralize session management and eliminate token storage duplication ✔️</li>
+<li>Improve messaging consistency and error handling ✔️</li>
+<li>Consolidate message types in scotty-core ✔️</li>
+<li>Restructure handlers into REST and WebSocket modules ✔️</li>
+<li>Reorganize app commands into modular structure and add app:logs command ✔️</li>
+<li>Improve error handling and add helper methods ✔️</li>
+<li>Remove unused get_user_by_token method from AuthorizationService ✔️</li>
+<li>Streamline admin CLI command error handling ✔️</li>
+<li>Remove emojis from admin command success messages ✔️</li>
+<li>Replace authorization groups terminology with scopes ✔️</li>
+<li>Make RBAC configuration mandatory and improve logging ✔️</li>
+<li>Update auth commands to use UI helper and reduce emoji usage ✔️</li>
+</ul>
+<h3 id="security" tabindex="-1"><a class="header-anchor" href="#security">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Security</h3>
+<ul>
+<li>Fix domain extraction to prevent bypass via multiple @ symbols ✔️</li>
+</ul>
+<h3 id="styling" tabindex="-1"><a class="header-anchor" href="#styling">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Styling</h3>
+<ul>
+<li>Apply cargo fmt and fix clippy warnings ✔️</li>
+<li>Apply cargo fmt formatting ✔️</li>
+<li>Apply cargo fmt formatting fixes ✔️</li>
+</ul>
+<h3 id="testing-1" tabindex="-1"><a class="header-anchor" href="#testing-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Testing</h3>
+<ul>
+<li>Add E2E WebSocket integration tests ✔️</li>
+<li>Add comprehensive unit tests for shell feature ✔️</li>
+<li>Add comprehensive tests for logs and shell services ✔️</li>
+</ul>
+<h2 id="%5B0.1.0%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0]</h2>
+<h3 id="bug-fixes-9" tabindex="-1"><a class="header-anchor" href="#bug-fixes-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Correct cargo-release README.md path in workspace metadata ✔️</li>
+<li>Increase registry cleanup rate to 100 images per run ✔️</li>
+<li>Improve error reporting and fix env vars in custom actions ✔️</li>
+<li>Restore custom actions dropdown functionality and divider visibility ✔️</li>
+</ul>
+<h3 id="ci-1" tabindex="-1"><a class="header-anchor" href="#ci-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Update docker-cleanup.yml to delete all tags ✔️</li>
+</ul>
+<h3 id="dependencies-7" tabindex="-1"><a class="header-anchor" href="#dependencies-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update traefik docker tag to v3.6 ✔️</li>
+<li>Update dependency typescript-eslint to v8.48.0 ✔️</li>
+<li>Update dependency svelte to v5.43.14 (#578) ✔️</li>
+<li>Update dependency typescript-eslint to v8.47.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.49.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#577) ✔️</li>
+<li>Update rust crate clap to v4.5.52 (#571) ✔️</li>
+<li>Update dependency svelte to v5.43.8 (#569) ✔️</li>
+<li>Update dependency daisyui to v5.5.5 (#567) ✔️</li>
+<li>Update dependency svelte to v5.43.7 (#566) ✔️</li>
+<li>Update rust crate axum to v0.8.7 (#565) ✔️</li>
+<li>Update dependency daisyui to v5.5.4 (#564) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.48.5 ✔️</li>
+<li>Update rust crate config to v0.15.19 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency daisyui to v5.5.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.46.4 (#558) ✔️</li>
+<li>Update dependency svelte to v5.43.5 (#555) ✔️</li>
+<li>Update dependency eslint to v9.39.1 ✔️</li>
+<li>Update dependency daisyui to v5.4.7 (#554) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#553) ✔️</li>
+<li>Update dependency daisyui to v5.4.4 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#548) ✔️</li>
+<li>Update dependency @iconify/svelte to v5.1.0 ✔️</li>
+<li>Update rust crate bollard to v0.19.4 (#540) ✔️</li>
+<li>Update dependency daisyui to v5.3.11 (#539) ✔️</li>
+<li>Update dependency globals to v16.5.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.13.0 ✔️</li>
+<li>Update rust docker tag to v1.91 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.48.4 (#536) ✔️</li>
+<li>Update dependency svelte to v5.43.2 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#533) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.48.3 (#532) ✔️</li>
+<li>Update dependency eslint to v9.38.0 ✔️</li>
+<li>Update dependency node to v24 ✔️</li>
+<li>Update dependency svelte to v5.43.0 ✔️</li>
+<li>Update dependency daisyui to v5.3.10 (#530) ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v6.2.1 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.48.2 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#511) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.47.3 ✔️</li>
+<li>Update dependency node to 22.21 ✔️</li>
+<li>Update rust crate tokio to v1.48.0 ✔️</li>
+<li>Update rust crate tempfile to v3.23.0 ✔️</li>
+</ul>
+<h3 id="documentation-6" tabindex="-1"><a class="header-anchor" href="#documentation-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Add version to readme ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.38%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.38%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.38]</h2>
+<h3 id="bug-fixes-10" tabindex="-1"><a class="header-anchor" href="#bug-fixes-10">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Sanitize service names in autogenerated environment variables ✔️</li>
+<li>Address code review feedback ✔️</li>
+<li>Apply environment variables to all containers, not only public services ✔️</li>
+<li>Normalize URLs to prevent double slashes in API calls (#470) ✔️</li>
+<li>Update dependency @tailwindcss/typography to v0.5.18 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) to v5.0.2 ✔️</li>
+<li>Update rust crate tempfile to v3.22.0 ✔️</li>
+<li>Update dependency @iconify/svelte to v5 ✔️</li>
+<li>Update rust crate tempfile to v3.21.0 ✔️</li>
+<li>Fix UI issues and provide sort handler default ✔️</li>
+<li>Remove unused CustomActionResponse struct ✔️</li>
+<li>Correct method calls for table column modification ✔️</li>
+<li>Correct function call for formatting services commands ✔️</li>
+<li>Rename format_services_command to format_services_commands for clarity ✔️</li>
+<li>Fix iteration and formatting issues in blueprint lifecycle actions ✔️</li>
+<li>Update usage of InspectContainerOptions for compatibility ✔️</li>
+</ul>
+<h3 id="ci-2" tabindex="-1"><a class="header-anchor" href="#ci-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Trigger ci ✔️</li>
+<li>Increase retained container versions for cleanup ✔️</li>
+<li>Update cleanup workflow to new action version ✔️</li>
+</ul>
+<h3 id="dependencies-8" tabindex="-1"><a class="header-anchor" href="#dependencies-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency svelte to v5.41.1 ✔️</li>
+<li>Update dependency vite to v6.4.1 [security] ✔️</li>
+<li>Update rust crate clap to v4.5.50 (#505) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#504) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#496) ✔️</li>
+<li>Update rust crate zeroize to v1.8.2 ✔️</li>
+<li>Update dependency globals to v16.4.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.46.1 ✔️</li>
+<li>Update rust crate regex to v1.12.2 ✔️</li>
+<li>Update dependency daisyui to v5.3.2 (#494) ✔️</li>
+<li>Update dependency svelte to v5.40.0 ✔️</li>
+<li>Update dependency daisyui to v5.3.1 ✔️</li>
+<li>Update dependency node to 22.20 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#484) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#486) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.46.5 ✔️</li>
+<li>Update dependency svelte to v5.39.3 ✔️</li>
+<li>Update dependency svelte to v5.39.2 ✔️</li>
+<li>Update dependency daisyui to v5.1.13 (#479) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#477) ✔️</li>
+<li>Update dependency typescript-eslint to v8.44.0 ✔️</li>
+<li>Update dependency @factorial/docs to v0.5.6 (#476) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#474) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#473) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.39.1 (#472) ✔️</li>
+<li>Update dependency svelte to v5.38.10 (#471) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.39.0 ✔️</li>
+<li>Update dependency svelte to v5.38.9 (#468) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.38.1 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.12.3 ✔️</li>
+<li>Update dependency daisyui to v5.1.10 ✔️</li>
+<li>Update dependency svelte to v5.38.8 (#461) ✔️</li>
+<li>Update rust crate chrono to v0.4.42 (#459) ✔️</li>
+<li>Update dependency vite to v6.3.6 (#458) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.12.2 (#457) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.37.1 (#456) ✔️</li>
+<li>Update dependency svelte to v5.38.7 (#454) ✔️</li>
+<li>Update dependency typescript-eslint to v8.42.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.37.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.12.1 (#453) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) to v4.1.13 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.12.0 ✔️</li>
+<li>Update dependency svelte to v5.38.6 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#446) ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v6.1.4 (#445) ✔️</li>
+<li>Update dependency node to 22.19 ✔️</li>
+<li>Update rust crate tracing-subscriber to v0.3.20 [security] ✔️</li>
+<li>Update rust crate config to v0.15.15 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#438) ✔️</li>
+<li>Update rust crate clap to v4.5.46 (#439) ✔️</li>
+<li>Update dependency typescript-eslint to v8.41.0 ✔️</li>
+<li>Update rust crate regex to v1.11.2 (#435) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.36.2 (#434) ✔️</li>
+<li>Update dependency svelte to v5.38.3 (#433) ✔️</li>
+<li>Update rust crate url to v2.5.7 (#432) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.36.1 ✔️</li>
+<li>Update dependency eslint to v9.34.0 ✔️</li>
+<li>Update rust crate url to v2.5.6 (#429) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.36.0 ✔️</li>
+<li>Update rust crate thiserror to v2.0.16 (#428) ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v6.1.3 (#425) ✔️</li>
+<li>Update rust crate serde_json to v1.0.143 (#424) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.33.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.40.0 ✔️</li>
+<li>Update dependency node to 22.18 ✔️</li>
+<li>Update dependency svelte to v5.38.2 ✔️</li>
+<li>Update rust crate bcrypt to v0.17.1 ✔️</li>
+<li>Update rust crate uuid to v1.18.0 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) to v4.1.12 ✔️</li>
+<li>Update rust crate thiserror to v2.0.15 ✔️</li>
+<li>Update rust crate async-trait to v0.1.89 (#413) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.30.1 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.30.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.29.1 ✔️</li>
+<li>Update frontend dependencies to latest versions ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#407) ✔️</li>
+<li>Update rust crate reqwest to v0.12.23 (#406) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.28.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#403) ✔️</li>
+<li>Update dependency typescript-eslint to v8.39.1 (#402) ✔️</li>
+<li>Update dependency typescript to v5.9.2 ✔️</li>
+<li>Update rust docker tag to v1.89 ✔️</li>
+<li>Update dependency eslint to v9.33.0 ✔️</li>
+<li>Update rust crate clap_complete to v4.5.56 (#397) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.27.2 ✔️</li>
+<li>Update rust crate clap to v4.5.43 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.27.1 ✔️</li>
+<li>Update dependency typescript-eslint to v8.39.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#390) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.11.0 ✔️</li>
+<li>Update dependency globals to v16.3.0 ✔️</li>
+<li>Bump form-data from 4.0.1 to 4.0.4 in /docs ✔️</li>
+<li>Update dependency eslint to v9.32.0 ✔️</li>
+<li>Update traefik docker tag to v3.5 ✔️</li>
+<li>Update dependency daisyui to v5.0.50 (#388) ✔️</li>
+<li>Update dependency svelte-check to v4.3.1 ✔️</li>
+<li>Update dependency daisyui to v5.0.47 (#386) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.26.1 ✔️</li>
+<li>Update dependency typescript-eslint to v8.38.0 ✔️</li>
+<li>Update rust crate serde_json to v1.0.141 (#383) ✔️</li>
+<li>Update dependency eslint-config-prettier to v10.1.8 (#382) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.24.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.37.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.23.0 ✔️</li>
+<li>Update dependency eslint to v9.31.0 ✔️</li>
+<li>Update rust docker tag to v1.88 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.22.5 (#371) ✔️</li>
+<li>Update rust crate thiserror to v2.0.12 (#369) ✔️</li>
+<li>Update rust crate thiserror to v2 ✔️</li>
+<li>Update dependency eslint to v9.30.1 ✔️</li>
+<li>Update rust crate tabled to 0.20.0 ✔️</li>
+<li>Update dependency daisyui to v5.0.46 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update rust crate utoipa to v5.4.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.22.4 ✔️</li>
+<li>Update dependency prettier to v3.6.2 ✔️</li>
+<li>Update dependency typescript-eslint to v8.36.0 ✔️</li>
+<li>Update rust crate owo-colors to v4.2.2 (#364) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.9.3 (#361) ✔️</li>
+<li>Update dependency svelte-check to v4.2.2 (#360) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#358) ✔️</li>
+<li>Update rust crate bollard to v0.19.1 (#357) ✔️</li>
+<li>Update dependency eslint to v9.29.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.21.5 (#355) ✔️</li>
+<li>Update dependency postcss to v8.5.5 (#354) ✔️</li>
+<li>Update rust crate reqwest to v0.12.20 (#353) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#352) ✔️</li>
+<li>Update rust crate clap_complete to v4.5.54 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency typescript-eslint to v8.34.0 ✔️</li>
+<li>Update rust crate bollard to 0.19.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.21.3 (#347) ✔️</li>
+</ul>
+<h3 id="documentation-7" tabindex="-1"><a class="header-anchor" href="#documentation-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Document augmented environment variables for blueprint actions ✔️</li>
+<li>Correct typo in middleware section ✔️</li>
+<li>Update CLI documentation with new installation instructions and options ✔️</li>
+<li>Update preferred CLI installation method ✔️</li>
+</ul>
+<h3 id="features-3" tabindex="-1"><a class="header-anchor" href="#features-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Migrate core secrets to MaskedSecret (Phase 1) ✔️</li>
+<li>Implement MaskedSecret and SecretHashMap for memory-safe secret handling ✔️</li>
+<li>Replace serde_yml with serde_norway dependency ✔️</li>
+<li>Upgrade frontend to latest major versions ✔️</li>
+<li>Add Traefik middleware support and examples ✔️</li>
+<li>Add custom actions dropdown component for app blueprints ✔️</li>
+<li>Add notification type for completed custom app actions ✔️</li>
+<li>Restructure blueprint actions with unified description format ✔️</li>
+<li>Add blueprint:info command and action descriptions ✔️</li>
+<li>Add support for custom actions on apps ✔️</li>
+</ul>
+<h3 id="refactor-4" tabindex="-1"><a class="header-anchor" href="#refactor-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Migrate environment variables to SecretHashMap ✔️</li>
+<li>Simplify lifecycle action handling ✔️</li>
+<li>Update import path for InspectContainerOptions ✔️</li>
+</ul>
+<h3 id="styling-1" tabindex="-1"><a class="header-anchor" href="#styling-1">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Styling</h3>
+<ul>
+<li>Normalize indentation in app.css ✔️</li>
+<li>Apply new Rust format string syntax ✔️</li>
+<li>Reformat confirmation prompt for clarity ✔️</li>
+</ul>
+<h3 id="testing-2" tabindex="-1"><a class="header-anchor" href="#testing-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Testing</h3>
+<ul>
+<li>Add serialization and deserialization tests for AppTtl ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.37%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.37%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.37]</h2>
+<h3 id="bug-fixes-11" tabindex="-1"><a class="header-anchor" href="#bug-fixes-11">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Try to fix homebrew formula ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.36%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.36%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.36]</h2>
+<h3 id="bug-fixes-12" tabindex="-1"><a class="header-anchor" href="#bug-fixes-12">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Try to fix homebrew formula ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.35%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.35%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.35]</h2>
+<h3 id="bug-fixes-13" tabindex="-1"><a class="header-anchor" href="#bug-fixes-13">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Try to fix homebrew formula ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.34%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.34%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.34]</h2>
+<h3 id="ci-3" tabindex="-1"><a class="header-anchor" href="#ci-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Rewrite Homebrew formula publishing workflow ✔️</li>
+<li>Use new token for brew ✔️</li>
+</ul>
+<h3 id="dependencies-9" tabindex="-1"><a class="header-anchor" href="#dependencies-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/kit to v2.21.2 (#345) ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.33%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.33%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.33]</h2>
+<h3 id="bug-fixes-14" tabindex="-1"><a class="header-anchor" href="#bug-fixes-14">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Add SecureJson wrapper to mask sensitive env vars in API responses ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#343) ✔️</li>
+</ul>
+<h3 id="dependencies-10" tabindex="-1"><a class="header-anchor" href="#dependencies-10">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Add tempfile as a dev dependency ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#342) ✔️</li>
+<li>Update dependency eslint to v9.28.0 ✔️</li>
+<li>Update dawidd6/action-homebrew-bump-formula action to v4 ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.32%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.32%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.32]</h2>
+<h3 id="bug-fixes-15" tabindex="-1"><a class="header-anchor" href="#bug-fixes-15">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Reduce lock scope in wait_for_all_containers_handler ✔️</li>
+<li>Remove duplicate WaitForAllContainers handler ✔️</li>
+<li>Add container readiness check and improve Drush commands ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#337) ✔️</li>
+</ul>
+<h3 id="ci-4" tabindex="-1"><a class="header-anchor" href="#ci-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Combine release and Homebrew publishing workflows ✔️</li>
+</ul>
+<h3 id="dependencies-11" tabindex="-1"><a class="header-anchor" href="#dependencies-11">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency typescript-eslint to v8.33.0 ✔️</li>
+<li>Update dependency daisyui to v5.0.43 ✔️</li>
+</ul>
+<h3 id="documentation-8" tabindex="-1"><a class="header-anchor" href="#documentation-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Clarify install instructions ✔️</li>
+</ul>
+<h3 id="features-4" tabindex="-1"><a class="header-anchor" href="#features-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Wait for containers to be ready before running post-actions ✔️</li>
+</ul>
+<h3 id="refactor-5" tabindex="-1"><a class="header-anchor" href="#refactor-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Improve error handling and simplify collection logic ✔️</li>
+<li>Refactor app_data.rs into modular components ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.31%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.31%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.31]</h2>
+<h3 id="features-5" tabindex="-1"><a class="header-anchor" href="#features-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Update homebrew tap on new releases ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.30%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.30%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.30]</h2>
+<h3 id="bug-fixes-16" tabindex="-1"><a class="header-anchor" href="#bug-fixes-16">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Standardize domain hash to 6 fixed-width hex characters ✔️</li>
+<li>Use domain-safe app names when creating domains (Fixes #328) ✔️</li>
+<li>Use domain-safe app names when creating domains (Fixes #328) ✔️</li>
+<li>Make AppContext fields private with getter methods ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#332) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#329) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#324) ✔️</li>
+<li>Replace atty dependency with std::io::IsTerminal ✔️</li>
+</ul>
+<h3 id="dependencies-12" tabindex="-1"><a class="header-anchor" href="#dependencies-12">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update npm dependencies auto-merge (patch) (#333) ✔️</li>
+<li>Update dependency daisyui to v5.0.40 (#331) ✔️</li>
+<li>Update dependency daisyui to v5.0.38 (#327) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.9.0 ✔️</li>
+<li>Update dependency globals to v16.2.0 ✔️</li>
+<li>Update rust crate uuid to v1.17.0 ✔️</li>
+<li>Update dependency daisyui to v5.0.37 (#322) ✔️</li>
+<li>Update dependency svelte to v4.2.20 (#321) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.21.1 (#320) ✔️</li>
+<li>Update dependency eslint to v9.27.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.7.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.21.0 ✔️</li>
+<li>Update dependency svelte-check to v4.2.1 ✔️</li>
+<li>Update rust crate owo-colors to v4.2.1 ✔️</li>
+<li>Update rust docker tag to v1.87 ✔️</li>
+<li>Update dependency prettier-plugin-svelte to v3.4.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.6.0 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#307) ✔️</li>
+</ul>
+<h3 id="features-6" tabindex="-1"><a class="header-anchor" href="#features-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Refactor to use shared AppContext with unified UI ✔️</li>
+<li>Add retry mechanism with backoff for API calls ✔️</li>
+<li>Expose public URLs as environment variables to actions ✔️</li>
+</ul>
+<h3 id="refactor-6" tabindex="-1"><a class="header-anchor" href="#refactor-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Refactor app_data.rs into modular components ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.29%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.29%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.29]</h2>
+<h3 id="bug-fixes-17" tabindex="-1"><a class="header-anchor" href="#bug-fixes-17">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Remove trailing newlines from UI messages ✔️</li>
+<li>Fix: Change task output from stderr to stdout if it was targeted to
+stdout ❌</li>
+<li>Include file path in env file parse error message ✔️</li>
+<li>Fix environment variable precedence in app creation ✔️</li>
+<li>Update rust crate tempfile to v3.20.0 ✔️</li>
+<li>Support binary file handling in file reading ✔️</li>
+<li>Enhance error messages for root folder path resolution ✔️</li>
+<li>Update rust crate tempfile to v3.19.1 ✔️</li>
+</ul>
+<h3 id="dependencies-13" tabindex="-1"><a class="header-anchor" href="#dependencies-13">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency typescript-eslint to v8.32.0 ✔️</li>
+<li>Update dependency globals to v16.1.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#304) ✔️</li>
+<li>Update dependency eslint-config-prettier to v10.1.5 (#303) ✔️</li>
+<li>Update rust crate tower-http to v0.6.3 (#302) ✔️</li>
+<li>Update dependency eslint-config-prettier to v10.1.3 (#300) ✔️</li>
+<li>Update rust crate tokio to v1.45.0 ✔️</li>
+<li>Update rust crate axum to v0.8.4 (#297) ✔️</li>
+<li>Update rust crate axum to 0.8.0 ✔️</li>
+<li>Update traefik docker tag to v3.4 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency eslint to v9.26.0 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#291) ✔️</li>
+<li>Update rust crate config to 0.15.0 ✔️</li>
+<li>Update dependency daisyui to v5 ✔️</li>
+</ul>
+<h3 id="documentation-9" tabindex="-1"><a class="header-anchor" href="#documentation-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Improve examples in AppData documentation ✔️</li>
+</ul>
+<h3 id="features-7" tabindex="-1"><a class="header-anchor" href="#features-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Enhance user interface with status line functionality ✔️</li>
+<li>Enhance status line with emoji indicators ✔️</li>
+<li>Embed frontend files into the executable ✔️</li>
+</ul>
+<h3 id="refactor-7" tabindex="-1"><a class="header-anchor" href="#refactor-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Modularize and reorganize file and parser utilities ✔️</li>
+<li>Implement custom debug for file structure ✔️</li>
+<li>Introduce StatusLine for better status tracking and UI feedback ✔️</li>
+<li>Streamline router setup for improved clarity ✔️</li>
+<li>Upgrade axum to 0.8.1 ✔️</li>
+<li>Improve builder pattern for configuration loading ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.28%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.28%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.28]</h2>
+<h3 id="features-8" tabindex="-1"><a class="header-anchor" href="#features-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Add title management for dynamic page titles ✔️</li>
+<li>Add dynamic page titles across key sections ✔️</li>
+<li>Enhance environment-variable display and add defaults ✔️</li>
+</ul>
+<h3 id="refactor-8" tabindex="-1"><a class="header-anchor" href="#refactor-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Utilize reusable Pill component for status display ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.27%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.27%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.27]</h2>
+<h3 id="bug-fixes-18" tabindex="-1"><a class="header-anchor" href="#bug-fixes-18">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Allow test commits to be included in change logs ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.26%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.26%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.26]</h2>
+<h2 id="%5B0.1.0-alpha.25%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.25%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.25]</h2>
+<h3 id="dependencies-14" tabindex="-1"><a class="header-anchor" href="#dependencies-14">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency vite to v5.4.19 [security] (#288) ✔️</li>
+</ul>
+<h3 id="refactor-9" tabindex="-1"><a class="header-anchor" href="#refactor-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Change AppSettings from_file to return Option ✔️</li>
+</ul>
+<h3 id="testing-3" tabindex="-1"><a class="header-anchor" href="#testing-3">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Testing</h3>
+<ul>
+<li>Add tests for handling edge cases in environment variable parsing ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.24%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.24%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.24]</h2>
+<h3 id="bug-fixes-19" tabindex="-1"><a class="header-anchor" href="#bug-fixes-19">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Improve password masking in URI handling ✔️</li>
+<li>Update security scheme to bearerAuth ✔️</li>
+<li>Improve error handling for missing environment variables ✔️</li>
+</ul>
+<h3 id="dependencies-15" tabindex="-1"><a class="header-anchor" href="#dependencies-15">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate tabled to 0.19.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency typescript-eslint to v8.31.1 ✔️</li>
+<li>Update dependency eslint to v9.25.1 (#281) ✔️</li>
+<li>Update rust crate clap to v4.5.37 (#280) ✔️</li>
+<li>Update dependency eslint to v9.25.0 ✔️</li>
+</ul>
+<h3 id="documentation-10" tabindex="-1"><a class="header-anchor" href="#documentation-10">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Document bearer token authentication with utoipa ✔️</li>
+</ul>
+<h3 id="features-9" tabindex="-1"><a class="header-anchor" href="#features-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Display application last checked timestamp ✔️</li>
+<li>Enhance sensitive data handling with URI credential masking ✔️</li>
+<li>Add redaction for sensitive environment variables ✔️</li>
+<li>Add environment variable substitution functionality ✔️</li>
+<li>Enhance Docker Compose validation for environment variables ✔️</li>
+<li>Add support for environment variables in docker-compose validation ✔️</li>
+</ul>
+<h3 id="refactor-10" tabindex="-1"><a class="header-anchor" href="#refactor-10">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Improve environment variable checking in Docker Compose validation ✔️</li>
+<li>Simplify environment variable checks and service validation ✔️</li>
+<li>Simplify environment variable processing ✔️</li>
+<li>Streamline regex initialization in environment variable processing ✔️</li>
+<li>Enhance docker-compose command execution with better error handling and documentation ✔️</li>
+</ul>
+<h3 id="styling-2" tabindex="-1"><a class="header-anchor" href="#styling-2">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Styling</h3>
+<ul>
+<li>Improve readability of conditional statement ✔️</li>
+<li>Format code for consistency and readability ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.23%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.23%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.23]</h2>
+<h3 id="refactor-11" tabindex="-1"><a class="header-anchor" href="#refactor-11">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Refactor</h3>
+<ul>
+<li>Improve env var parsing logic ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.22%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.22%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.22]</h2>
+<h3 id="bug-fixes-20" tabindex="-1"><a class="header-anchor" href="#bug-fixes-20">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Fix crash wehn blueprint cant be found, return proper error now ✔️</li>
+<li>Small syntax fix in svelte-code ✔️</li>
+<li>CI use latest actions for rust ✔️</li>
+<li>CI use latest actions for rust ✔️</li>
+<li>CI use latest actions for rust ✔️</li>
+<li>CI setup ✔️</li>
+<li>Fix some linting errors, setup editorconfig ✔️</li>
+</ul>
+<h3 id="dependencies-16" tabindex="-1"><a class="header-anchor" href="#dependencies-16">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update npm dependencies auto-merge (patch) (#274) ✔️</li>
+<li>Update dependency typescript-eslint to v8.30.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.20.6 [security] ✔️</li>
+<li>Update rust crate anyhow to v1.0.98 (#271) ✔️</li>
+<li>Update dependency svelte-check to v4.1.6 ✔️</li>
+<li>Update rust crate clap to v4.5.36 (#269) ✔️</li>
+<li>Update dependency eslint-config-prettier to v10.1.2 (#268) ✔️</li>
+<li>Update dependency vite to v5.4.18 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.20.5 ✔️</li>
+<li>Update dependency @sveltejs/adapter-auto to v6 ✔️</li>
+<li>Update dependency eslint to v9.24.0 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#262) ✔️</li>
+<li>Update rust docker tag to v1.86 ✔️</li>
+<li>Bump tokio from 1.42.0 to 1.44.2 ✔️</li>
+<li>Bump openssl from 0.10.70 to 0.10.72 ✔️</li>
+<li>Update dependency eslint to v9.23.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.29.0 ✔️</li>
+<li>Update dependency vite to v5.4.17 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.5.1 ✔️</li>
+<li>Update rust crate clap to v4.5.35 (#251) ✔️</li>
+<li>Update dependency vite to v5.4.16 [security] ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.20.3 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#247) ✔️</li>
+<li>Update dependency vite to v5.4.15 [security] (#245) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.4.0 ✔️</li>
+<li>Bump zip from 2.2.2 to 2.4.1 ✔️</li>
+<li>Update rust crate deunicode to v1.6.1 (#241) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.19.2 ✔️</li>
+<li>Update rust crate async-trait to v0.1.88 (#239) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.19.1 (#238) ✔️</li>
+<li>Update rust crate uuid to v1.16.0 ✔️</li>
+<li>Update rust crate reqwest to v0.12.14 (#236) ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.1.0 ✔️</li>
+<li>Bump ring from 0.17.8 to 0.17.13 ✔️</li>
+<li>Update rust crate reqwest to v0.12.13 ✔️</li>
+<li>Bump prismjs from 1.29.0 to 1.30.0 in /docs ✔️</li>
+<li>Update rust crate clap to v4.5.32 (#233) ✔️</li>
+<li>Update dependency typescript-eslint to v8.26.1 ✔️</li>
+<li>Update rust crate serde to v1.0.219 (#230) ✔️</li>
+<li>Update dependency autoprefixer to v10.4.21 (#229) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.19.0 ✔️</li>
+<li>Update dependency eslint to v9.22.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.18.0 ✔️</li>
+<li>Update dependency eslint-config-prettier to v10.1.1 ✔️</li>
+<li>Update dependency svelte-check to v4.1.5 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v3.0.3 ✔️</li>
+<li>Update rust crate readonly to v0.2.13 (#221) ✔️</li>
+<li>Update dependency typescript-eslint to v8.26.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#219) ✔️</li>
+<li>Update dependency prettier to v3.5.3 (#218) ✔️</li>
+<li>Update dependency typescript-eslint to v8.25.0 ✔️</li>
+<li>Update dependency eslint to v9.21.0 ✔️</li>
+<li>Update dependency typescript to v5.8.2 ✔️</li>
+<li>Update dependency prettier to v3.5.2 ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#210) ✔️</li>
+<li>Update dependency globals to v16 ✔️</li>
+<li>Update dependency @sveltejs/vite-plugin-svelte to v5 ✔️</li>
+<li>Update dependency vite to v6 ✔️</li>
+<li>Update rust crate owo-colors to v4.2.0 ✔️</li>
+<li>Update rust crate uuid to v1.15.1 ✔️</li>
+<li>Update rust docker tag to v1.85 ✔️</li>
+<li>Update dependency eslint to v9.21.0 ✔️</li>
+<li>Update dependency globals to v15.15.0 ✔️</li>
+<li>Update opentelemetry packages ✔️</li>
+<li>Update dependency typescript-eslint to v8.25.0 ✔️</li>
+<li>Update dependency typescript to v5.8.2 ✔️</li>
+<li>Update dependency prettier to v3.5.2 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#195) ✔️</li>
+<li>Update dependency eslint-config-prettier to v10 ✔️</li>
+<li>Update rust crate bcrypt to 0.17.0 ✔️</li>
+<li>Update rust crate tabled to 0.18.0 ✔️</li>
+</ul>
+<h3 id="documentation-11" tabindex="-1"><a class="header-anchor" href="#documentation-11">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Clarify usage, and prevent some frustration when trying to get things running ✔️</li>
+</ul>
+<h3 id="features-10" tabindex="-1"><a class="header-anchor" href="#features-10">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Add new flag destroy_on_ttl which lets you destroy an app instead of stopping it after the TTL expired. ✔️</li>
+<li>Add dotenv integration and restructure scottyctl command handling ✔️</li>
+<li>Lint + check frontend in ci ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.21%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.21%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.21]</h2>
+<h3 id="bug-fixes-21" tabindex="-1"><a class="header-anchor" href="#bug-fixes-21">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Fix middleware setup for traefik config and multiple domains #194 ✔️</li>
+<li>Enable docker registry cleanup ✔️</li>
+<li>Try to fix docker cleanup ✔️</li>
+</ul>
+<h3 id="dependencies-17" tabindex="-1"><a class="header-anchor" href="#dependencies-17">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate uuid to v1.13.1 ✔️</li>
+<li>Update dependency tailwindcss to v4 ✔️</li>
+<li>Update rust docker tag to v1.84 ✔️</li>
+<li>Bump nanoid from 3.3.7 to 3.3.8 in /frontend ✔️</li>
+<li>Update dependency @sveltejs/adapter-auto to v4 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#182) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.17.1 ✔️</li>
+<li>Bump openssl from 0.10.68 to 0.10.70 ✔️</li>
+</ul>
+<h3 id="documentation-12" tabindex="-1"><a class="header-anchor" href="#documentation-12">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Clarify documentation (#181) ✔️</li>
+<li>Clarify autocompletion ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.20%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.20%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.20]</h2>
+<h3 id="bug-fixes-22" tabindex="-1"><a class="header-anchor" href="#bug-fixes-22">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Log into registry before trying to run docker run ✔️</li>
+<li>Update dependency @iconify/svelte to v4.2.0 ✔️</li>
+<li>Apply clippy fixes ✔️</li>
+<li>Update npm dependencies auto-merge (patch) ✔️</li>
+</ul>
+<h3 id="dependencies-18" tabindex="-1"><a class="header-anchor" href="#dependencies-18">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate uuid to v1.12.1 ✔️</li>
+<li>Update dependency typescript-eslint to v8.21.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency postcss to v8.5.1 ✔️</li>
+<li>Update dependency vite to v5.4.12 [security] ✔️</li>
+<li>Update dependency @factorial/docs to v0.5.5 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#160) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) ✔️</li>
+<li>Update dependency eslint to v9.18.0 ✔️</li>
+<li>Update rust crate axum-tracing-opentelemetry to 0.25.0 ✔️</li>
+<li>Update dependency typescript to v5.7.3 (#165) ✔️</li>
+<li>Update traefik docker tag to v3.3 ✔️</li>
+<li>Update dependency typescript-eslint to v8.19.1 ✔️</li>
+</ul>
+<h3 id="documentation-13" tabindex="-1"><a class="header-anchor" href="#documentation-13">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Clarify installation from source ✔️</li>
+</ul>
+<h3 id="testing-4" tabindex="-1"><a class="header-anchor" href="#testing-4">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Testing</h3>
+<ul>
+<li>Add a test for haproxy and custom domains ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.19%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.19%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.19]</h2>
+<h3 id="bug-fixes-23" tabindex="-1"><a class="header-anchor" href="#bug-fixes-23">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Fork slugify to support up to two dashes as separator ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.18%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.18%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.18]</h2>
+<h3 id="bug-fixes-24" tabindex="-1"><a class="header-anchor" href="#bug-fixes-24">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Slugify app-names passed to the API -- (Fixes #158) ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.17%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.17%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.17]</h2>
+<h3 id="bug-fixes-25" tabindex="-1"><a class="header-anchor" href="#bug-fixes-25">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Fix for wrong traefik config regarding TLS (Fixes #157) ✔️</li>
+</ul>
+<h3 id="dependencies-19" tabindex="-1"><a class="header-anchor" href="#dependencies-19">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust crate async-trait to v0.1.84 (#156) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#154) ✔️</li>
+</ul>
+<h3 id="documentation-14" tabindex="-1"><a class="header-anchor" href="#documentation-14">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Update docs how to create a release ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.16%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.16%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.16]</h2>
+<h3 id="bug-fixes-26" tabindex="-1"><a class="header-anchor" href="#bug-fixes-26">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update rust crate init-tracing-opentelemetry to 0.25.0 (#128) ✔️</li>
+</ul>
+<h3 id="dependencies-20" tabindex="-1"><a class="header-anchor" href="#dependencies-20">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency typescript-eslint to v8.19.0 (#150) ✔️</li>
+<li>Update rust crate serde to v1.0.217 (#153) ✔️</li>
+</ul>
+<h3 id="documentation-15" tabindex="-1"><a class="header-anchor" href="#documentation-15">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Fix cli docs ✔️</li>
+<li>Add readmes for all three apps/libs ✔️</li>
+<li>Update readme ✔️</li>
+<li>Update badges ✔️</li>
+<li>Update the readme and remove redundancy ✔️</li>
+<li>Add documentation for shell autocompletion ✔️</li>
+</ul>
+<h3 id="features-11" tabindex="-1"><a class="header-anchor" href="#features-11">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Restructure into workspaces (#152) ✔️</li>
+<li>Add new subcommand to generate completion scripts for shell autocompletion ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.15%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.15%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.15]</h2>
+<h3 id="dependencies-21" tabindex="-1"><a class="header-anchor" href="#dependencies-21">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/kit to v2.15.1 ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.14%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.14%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.14]</h2>
+<h3 id="bug-fixes-27" tabindex="-1"><a class="header-anchor" href="#bug-fixes-27">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update rust crate anyhow to v1.0.95 (#146) ✔️</li>
+<li>Update rust crate serde_json to v1.0.134 (#144) ✔️</li>
+<li>Fix for crash when docker container with specific id is not available (Fixes #139) ✔️</li>
+<li>Recreate loadbalancer config for app:rebuild ✔️</li>
+<li>Rename migrate to adopt also for the cli ✔️</li>
+</ul>
+<h3 id="dependencies-22" tabindex="-1"><a class="header-anchor" href="#dependencies-22">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency daisyui to v4.12.23 (#149) ✔️</li>
+<li>Update dependency typescript-eslint to v8.18.2 (#148) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.14.1 (#145) ✔️</li>
+<li>Update dependency @sveltejs/adapter-static to v3.0.8 (#143) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.13.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.12.2 ✔️</li>
+<li>Update dependency globals to v15.14.0 ✔️</li>
+<li>Update dependency tailwindcss to v3.4.17 (#137) ✔️</li>
+<li>Update dependency typescript-eslint to v8.18.1 (#136) ✔️</li>
+<li>Update dependency eslint to v9.17.0 ✔️</li>
+</ul>
+<h3 id="documentation-16" tabindex="-1"><a class="header-anchor" href="#documentation-16">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>First version of the documentation ✔️</li>
+</ul>
+<h3 id="features-12" tabindex="-1"><a class="header-anchor" href="#features-12">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Add <code>blueprint:list</code> command to scotty cli ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.13%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.13%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.13]</h2>
+<h3 id="bug-fixes-28" tabindex="-1"><a class="header-anchor" href="#bug-fixes-28">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update app detail when needed ✔️</li>
+<li>Check for app-changes every 15 secs ✔️</li>
+<li>Use proper type for AppTtl ✔️</li>
+<li>Handle missing domains in yaml files correctly, print an error message if the settings file couldnt be read ✔️</li>
+<li>Update rust crate serde to v1.0.216 (#129) ✔️</li>
+<li>Update dependency @iconify/svelte to v4.1.0 ✔️</li>
+<li>Update url dependency to prevent dependabot alert #8 ✔️</li>
+<li>Increase default ttl to 7 days ✔️</li>
+<li>Update rust crate init-tracing-opentelemetry to v0.24.2 ✔️</li>
+</ul>
+<h3 id="dependencies-23" tabindex="-1"><a class="header-anchor" href="#dependencies-23">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/kit to v2.11.1 ✔️</li>
+<li>Update dependency daisyui to v4.12.22 (#132) ✔️</li>
+<li>Update dependency daisyui to v4.12.21 (#131) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.10.1 ✔️</li>
+</ul>
+<h3 id="features-13" tabindex="-1"><a class="header-anchor" href="#features-13">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Try to adopt basic_auth data when available ✔️</li>
+<li>Rename app:migrate to app:adopt ✔️</li>
+<li>Show version string in footer ✔️</li>
+<li>Add support for multiple domains and settings in UI ✔️</li>
+<li>Reenable dark theme ✔️</li>
+<li>Support multiple domains for a service (fixes #126) ✔️</li>
+<li>Export env-vars to settings when migrating an app ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.12%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.12%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.12]</h2>
+<h3 id="bug-fixes-29" tabindex="-1"><a class="header-anchor" href="#bug-fixes-29">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update rust crate tokio to v1.42.0 ✔️</li>
+<li>Fix frontend build ✔️</li>
+<li>Update rust crate chrono to v0.4.39 (#118) ✔️</li>
+<li>Update rust crate tokio-stream to v0.1.17 (#115) ✔️</li>
+<li>Update rust crate clap to v4.5.23 (#114) ✔️</li>
+<li>Update rust crate clap to v4.5.22 (#112) ✔️</li>
+</ul>
+<h3 id="dependencies-24" tabindex="-1"><a class="header-anchor" href="#dependencies-24">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency globals to v15.13.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.18.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.9.1 ✔️</li>
+<li>Update dependency daisyui to v4.12.20 (#117) ✔️</li>
+<li>Update dependency prettier to v3.4.2 (#113) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#110) ✔️</li>
+</ul>
+<h3 id="features-14" tabindex="-1"><a class="header-anchor" href="#features-14">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Apply environment also when running the docker-compose commands, Add a preliminary migrate command to create a .scotty-file ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.11%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.11%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.11]</h2>
+<h3 id="bug-fixes-30" tabindex="-1"><a class="header-anchor" href="#bug-fixes-30">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Make 1password config optional in settings-file ✔️</li>
+<li>Update rust crate anyhow to v1.0.94 (#111) ✔️</li>
+<li>Adapt code so it works with new major version of utoipa ✔️</li>
+<li>Update utoipa packages ✔️</li>
+<li>Update rust crate tracing-subscriber to v0.3.19 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#100) ✔️</li>
+<li>Update rust dependencies auto-merge (patch) to v0.24.1 (#92) ✔️</li>
+<li>Update opentelemetry packages ✔️</li>
+<li>Update rust crate tabled to 0.17.0 ✔️</li>
+<li>Update rust crate bollard to v0.18.1 (#85) ✔️</li>
+<li>Update rust crate tower-http to v0.6.2 (#83) ✔️</li>
+<li>Update rust crate bcrypt to 0.16.0 ✔️</li>
+<li>Update rust crate serde_json to v1.0.133 (#81) ✔️</li>
+<li>Update rust crate bollard to 0.18.0 ✔️</li>
+<li>Update rust crate axum to v0.7.9 (#78) ✔️</li>
+<li>Update rust crate axum to v0.7.8 (#75) ✔️</li>
+<li>Update rust crate clap to v4.5.21 (#71) ✔️</li>
+<li>Update rust crate serde to v1.0.215 (#68) ✔️</li>
+<li>Update rust crate tokio to v1.41.1 ✔️</li>
+<li>Update opentelemetry packages ✔️</li>
+<li>Update rust crate thiserror to v1.0.69 (#60) ✔️</li>
+<li>Update rust crate anyhow to v1.0.93 ✔️</li>
+<li>Update rust crate thiserror to v1.0.68 ✔️</li>
+<li>Update rust crate thiserror to v1.0.67 ✔️</li>
+</ul>
+<h3 id="dependencies-25" tabindex="-1"><a class="header-anchor" href="#dependencies-25">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update rust docker tag to v1.83 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.9.0 ✔️</li>
+<li>Update dependency eslint-plugin-svelte to v2.46.1 ✔️</li>
+<li>Update dependency eslint to v9.16.0 ✔️</li>
+<li>Update dependency prettier to v3.4.1 ✔️</li>
+<li>Update mariadb docker tag to v10.11 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.8.5 (#99) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.8.4 (#95) ✔️</li>
+<li>Update dependency typescript-eslint to v8.16.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.8.3 ✔️</li>
+<li>Update dependency prettier-plugin-svelte to v3.3.2 ✔️</li>
+<li>Update dependency svelte-check to v4.1.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.8.2 ✔️</li>
+<li>Update dependency typescript to v5.7.2 ✔️</li>
+<li>Update dependency typescript-eslint to v8.15.0 ✔️</li>
+<li>Update dependency eslint to v9.15.0 ✔️</li>
+<li>Update dependency svelte-check to v4.0.9 ✔️</li>
+<li>Bump cross-spawn from 7.0.3 to 7.0.5 in /frontend ✔️</li>
+<li>Update dependency svelte-check to v4.0.8 (#74) ✔️</li>
+<li>Update dependency tailwindcss to v3.4.15 (#73) ✔️</li>
+<li>Update npm dependencies auto-merge (patch) (#69) ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.8.0 ✔️</li>
+<li>Update dependency prettier-plugin-svelte to v3.2.8 ✔️</li>
+<li>Update dependency svelte-check to v4.0.7 ✔️</li>
+<li>Update dependency typescript-eslint to v8.14.0 ✔️</li>
+<li>Update dependency vite to v5.4.11 ✔️</li>
+<li>Update dependency postcss to v8.4.48 ✔️</li>
+<li>Update dependency svelte-check to v4.0.6 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.7.7 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.7.6 ✔️</li>
+<li>Update dependency globals to v15.12.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.13.0 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.7.5 ✔️</li>
+<li>Update dependency typescript-eslint to v8.12.2 ✔️</li>
+</ul>
+<h3 id="documentation-17" tabindex="-1"><a class="header-anchor" href="#documentation-17">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Update readme and section about notifications ✔️</li>
+</ul>
+<h3 id="features-15" tabindex="-1"><a class="header-anchor" href="#features-15">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Implement gitlab MR notifications, smaller code restructuring ✔️</li>
+<li>Implement initial notification service ✔️</li>
+<li>Finish add/remove notification logic in scottyctl and api ✔️</li>
+<li>Implement initial notification service ✔️</li>
+<li>Implement initial notification service ✔️</li>
+<li>Implement initial notification service ✔️</li>
+<li>Implement initial notification service ✔️</li>
+<li>Onepassword integration (#91) ✔️</li>
+<li>1password-connect integration ✔️</li>
+<li>Create apic-call supports payload up to 50M, configurable via settings. ✔️</li>
+<li>Add option to allow robots for scottyctl create ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.10%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.10%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.10]</h2>
+<h3 id="bug-fixes-31" tabindex="-1"><a class="header-anchor" href="#bug-fixes-31">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Cleanup will also work with unsupported apps ✔️</li>
+<li>Increase default cleanup ttl to 7 days ✔️</li>
+<li>Update rust crate anyhow to v1.0.92 ✔️</li>
+<li>Update rust crate thiserror to v1.0.66 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+</ul>
+<h3 id="dependencies-26" tabindex="-1"><a class="header-anchor" href="#dependencies-26">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/kit to v2.7.4 ✔️</li>
+<li>Update dependency eslint to v9.14.0 ✔️</li>
+<li>Update dependency typescript-eslint to v8.12.1 ✔️</li>
+<li>Update dependency typescript-eslint to v8.12.0 ✔️</li>
+<li>Update dependency daisyui to v4.12.14 (#39) ✔️</li>
+</ul>
+<h3 id="documentation-18" tabindex="-1"><a class="header-anchor" href="#documentation-18">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Better help texts ✔️</li>
+<li>Add clarifying comment on how to map the apps folder into the docker-container ✔️</li>
+</ul>
+<h3 id="features-16" tabindex="-1"><a class="header-anchor" href="#features-16">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Try to get registry from docker metadata for legacy apps and use that when needed ✔️</li>
+<li>Add support for custom domain per service ✔️</li>
+<li>Allow separate blueprint config files in config/blueprints ✔️</li>
+<li>Add ttl-option for scottyctl create ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.9%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.9%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.9]</h2>
+<h3 id="bug-fixes-32" tabindex="-1"><a class="header-anchor" href="#bug-fixes-32">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update rust crate regex to v1.11.1 ✔️</li>
+<li>Update rust crate config to v0.14.1 ✔️</li>
+<li>Frontend app list did not update on changes, made reactive ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+</ul>
+<h3 id="dependencies-27" tabindex="-1"><a class="header-anchor" href="#dependencies-27">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/adapter-auto to v3.3.1 ✔️</li>
+<li>Update dependency typescript-eslint to v8.11.0 ✔️</li>
+<li>Update dependency @sveltejs/adapter-static to v3.0.6 ✔️</li>
+<li>Update dependency @sveltejs/kit to v2.7.3 ✔️</li>
+<li>Update dependency vite to v5.4.10 ✔️</li>
+</ul>
+<h3 id="features-17" tabindex="-1"><a class="header-anchor" href="#features-17">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Add unsupported status to Apps, prevent running commands against unsupported apps ✔️</li>
+<li>Validate docker-compose for the create task better ✔️</li>
+<li>Expose version via API and CLI for both ctl and server ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.8%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.8%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.8]</h2>
+<h3 id="ci-5" tabindex="-1"><a class="header-anchor" href="#ci-5">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Fix cross compiling for linux, disable linux arm for now ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.7%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.7%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.7]</h2>
+<h3 id="ci-6" tabindex="-1"><a class="header-anchor" href="#ci-6">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Fix cross compiling for linux ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.6%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.6%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.6]</h2>
+<h3 id="bug-fixes-33" tabindex="-1"><a class="header-anchor" href="#bug-fixes-33">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li>Update rust crate serde to v1.0.211 ✔️</li>
+<li>Update rust crate serde_json to v1.0.132 ✔️</li>
+<li>Update rust crate serde_json to v1.0.131 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) ✔️</li>
+<li>Update rust crate uuid to v1.11.0 ✔️</li>
+<li>Update rust dependencies auto-merge (patch) (#3) ✔️</li>
+</ul>
+<h3 id="ci-7" tabindex="-1"><a class="header-anchor" href="#ci-7">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Fix cross compiling for linux ✔️</li>
+<li>Do not run ci actions in parallel ✔️</li>
+<li>Fine-tune docker cleanup ✔️</li>
+<li>Add docker cleanup action, dry-run for now ✔️</li>
+<li>Remove arm64 docker builds again, as they are slow as hell ✔️</li>
+<li>Remove openssl again, as it breaks docker-builds ✔️</li>
+</ul>
+<h3 id="dependencies-28" tabindex="-1"><a class="header-anchor" href="#dependencies-28">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Dependencies</h3>
+<ul>
+<li>Update dependency @sveltejs/kit to v2.7.2 ✔️</li>
+<li>Update mariadb docker tag to v11 ✔️</li>
+<li>Update dependency eslint to v9.13.0 ✔️</li>
+<li>Update docker/build-push-action action to v6 ✔️</li>
+<li>Update rust docker tag to v1.82 ✔️</li>
+<li>Update docker/setup-buildx-action action to v3 ✔️</li>
+<li>Update docker/login-action action to v3 ✔️</li>
+<li>Update actions/checkout action to v4 ✔️</li>
+<li>Update dependency typescript-eslint to v8.10.0 ✔️</li>
+</ul>
+<h3 id="features-18" tabindex="-1"><a class="header-anchor" href="#features-18">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>Smaller improvements to the frontend ui ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.5%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.5%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.5]</h2>
+<h3 id="ci-8" tabindex="-1"><a class="header-anchor" href="#ci-8">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Add openssl to dependencies to fix problem with cross-compilation in ci ✔️</li>
+</ul>
+<h3 id="documentation-19" tabindex="-1"><a class="header-anchor" href="#documentation-19">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Document how to create a new release ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.4%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.4%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.4]</h2>
+<h3 id="ci-9" tabindex="-1"><a class="header-anchor" href="#ci-9">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>Enable changelog for ci changes ✔️</li>
+</ul>
+<h2 id="%5B0.1.0-alpha.3%5D" tabindex="-1"><a class="header-anchor" href="#%5B0.1.0-alpha.3%5D">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> [0.1.0-alpha.3]</h2>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/authorization.html"> Authorization System</a>
+    </div>
+    </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
