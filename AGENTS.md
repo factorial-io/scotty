@@ -139,7 +139,7 @@ Grafana: http://grafana.ddev.site (admin/admin) | Jaeger: http://jaeger.ddev.sit
 Uses [release-please](https://github.com/googleapis/release-please) (PR-driven, fully in CI). Do not manually bump versions or edit changelogs.
 
 - Write [conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `feat!:`/`BREAKING CHANGE:` for majors). The commit type determines the version bump and the changelog section.
-- On every push to `main`, the `release-please` workflow maintains a standing **release PR** that bumps the shared workspace version (`[workspace.package].version`, `Cargo.lock`) and regenerates `CHANGELOG.md`.
+- On every push to `main`, the `release-please` workflow maintains a standing **release PR** that bumps the shared workspace version (`[workspace.package].version` in `Cargo.toml`) and regenerates `CHANGELOG.md`.
 - **Merging that release PR** is the release: release-please creates the `vX.Y.Z` tag + GitHub Release, then the same workflow uploads `scottyctl` binaries, bumps the Homebrew tap, and publishes the versioned Docker image.
 
 Config lives in `release-please-config.json` and `.release-please-manifest.json`. The pre-push hook via `cargo-husky` still enforces local quality checks.

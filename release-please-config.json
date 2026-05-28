@@ -1,10 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "rust",
   "include-v-in-tag": true,
   "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
   "separate-pull-requests": false,
-  "pull-request-title-pattern": "chore: release ${version}",
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },
@@ -21,8 +20,17 @@
   ],
   "packages": {
     ".": {
+      "release-type": "simple",
       "package-name": "scotty",
-      "changelog-path": "CHANGELOG.md"
+      "pull-request-title-pattern": "chore${scope}: release ${version}",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        }
+      ]
     }
   }
 }
