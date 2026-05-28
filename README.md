@@ -188,17 +188,33 @@ This project uses a pre-push git-hook installed by cargo husky. It should be ins
 
 ### Create a new release
 
-Releases are automated with [release-please](https://github.com/googleapis/release-please). There is no manual tagging or local release command.
+Releases are automated with [release-please](https://github.com/googleapis/release-please). There is **no manual tagging and no local release command** — you release by merging a pull request.
 
-**Do not manually bump versions or update changelogs** - both are managed by release-please from the git history.
+**Do not manually bump versions or edit `CHANGELOG.md`** — both are derived from the git history by release-please. All crates share a single workspace version, so every release bumps the whole workspace and produces one `vX.Y.Z` tag.
 
-How it works:
+#### 1. Land changes with conventional commits
 
-1. Land your changes on `main` using [conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`, ...; use `feat!:` or a `BREAKING CHANGE:` footer for a major bump).
-2. The `release-please` GitHub Actions workflow keeps an open **release PR** that bumps the shared workspace version and updates `CHANGELOG.md` based on the commits since the last release.
-3. When you are ready to ship, **merge the release PR**. release-please then creates the `vX.Y.Z` tag and GitHub Release, and the workflow automatically:
-   - builds and uploads the `scottyctl` binaries,
-   - bumps the Homebrew tap formula, and
-   - builds and pushes the versioned Docker image.
+Use [conventional commits](https://www.conventionalcommits.org) on `main` (the squash-merge title of a PR counts). The commit type drives both the changelog section and the next version:
 
-Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
+| Commit                                         | Effect on the next version |
+| ---------------------------------------------- | -------------------------- |
+| `fix:` / `perf:`                               | patch (`0.2.9` → `0.2.10`) |
+| `feat:`                                         | minor (`0.2.9` → `0.3.0`)  |
+| `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer | major (`0.2.9` → `1.0.0`)  |
+| `docs:`, `refactor:`, `style:`, `test:`, `ci:`, `chore:` | no release on their own    |
+
+#### 2. Review the release PR
+
+On every push to `main`, the `release-please` GitHub Actions workflow opens (and keeps updating) a **release PR** titled `chore: release <version>`. It contains the version bump (`Cargo.toml`, `Cargo.lock`) and the regenerated `CHANGELOG.md`. Inspect this PR to preview exactly what will ship.
+
+#### 3. Merge to ship
+
+When you are ready, **merge the release PR**. release-please then tags `vX.Y.Z`, publishes the GitHub Release, and the same workflow automatically:
+
+- builds and uploads the `scottyctl` binaries,
+- bumps the Homebrew tap formula, and
+- builds and pushes the versioned Docker image.
+
+Nothing is released until that PR is merged, so it is safe to let commits accumulate and cut a release when it suits you.
+
+Configuration lives in `release-please-config.json` (release type, changelog sections) and `.release-please-manifest.json` (current version).
