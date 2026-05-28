@@ -339,9 +339,10 @@ that case scottyctl resolves the app's single public service. If the app has \
 zero or more than one public service the command exits with the list of \
 available services.
 
-Note: pipe mode (`-`) buffers the whole payload in memory because the tar \
-format needs the entry size up front. For large transfers prefer file mode, \
-which streams from disk.
+Note: pipe mode (`-`) spools the whole payload to a temporary file before \
+sending, because the tar format needs the entry size up front. Memory stays \
+bounded, but for large transfers prefer file mode, which streams directly \
+from disk without the extra copy.
 
 Examples:
   scottyctl app:cp ./dump.sql myapp:db:/tmp/dump.sql

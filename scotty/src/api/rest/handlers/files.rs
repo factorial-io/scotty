@@ -362,7 +362,7 @@ pub async fn upload_files_handler(
                 .and_then(|e| e.downcast_ref::<SizeLimitExceeded>())
                 .is_some()
             {
-                exceeded_flag_inner.store(true, std::sync::atomic::Ordering::SeqCst);
+                exceeded_flag_inner.store(true, std::sync::atomic::Ordering::Release);
             }
             Err(err)
         }
@@ -377,7 +377,7 @@ pub async fn upload_files_handler(
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
-            if exceeded_flag.load(std::sync::atomic::Ordering::SeqCst) {
+            if exceeded_flag.load(std::sync::atomic::Ordering::Acquire) {
                 return error_response(
                     FileTransferErrorCode::PayloadTooLarge,
                     format!("upload exceeded configured maximum of {max} bytes"),

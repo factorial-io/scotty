@@ -48,6 +48,21 @@ pub async fn copy(context: &AppContext, cmd: &CopyCommand) -> anyhow::Result<()>
     let dst = parse_path_spec(&cmd.destination);
     validate_endpoints(&src, &dst)?;
 
+    // Validate the remote container path client-side. Without this, a
+    // relative path (e.g. `myapp:web:etc/hostname`) reaches the server and
+    // comes back as a `400 InvalidPath`, which looks to the user like an
+    // app/service problem rather than a path one.
+    for spec in [&src, &dst] {
+        if let PathSpec::Remote { path, .. } = spec {
+            if !path.starts_with('/') {
+                bail!(
+                    "remote container path must be absolute (start with '/'); got '{path}'. \
+                     Use the form <app>:<service>:/absolute/path"
+                );
+            }
+        }
+    }
+
     let server = context.server();
 
     match (src, dst) {
@@ -341,8 +356,12 @@ async fn upload(
 /// detect that truncation here and add a hint pointing at the size limit so
 /// the user is not left with an opaque "unexpected EOF" message.
 fn annotate_download_error(err: io::Error) -> anyhow::Error {
+    // Prefer the structured `ErrorKind` (locale-independent): a truncated tar
+    // surfaces as `UnexpectedEof`. Fall back to substring matching for the
+    // reqwest/hyper body errors that do not map onto a dedicated kind.
     let text = err.to_string().to_lowercase();
-    let looks_truncated = text.contains("unexpected eof")
+    let looks_truncated = matches!(err.kind(), io::ErrorKind::UnexpectedEof)
+        || text.contains("unexpected eof")
         || text.contains("failed to fill whole buffer")
         || text.contains("error reading a body")
         || text.contains("incomplete")

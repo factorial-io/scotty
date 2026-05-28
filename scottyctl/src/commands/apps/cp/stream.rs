@@ -5,7 +5,7 @@
 //! async `Stream` / `AsyncRead` world without buffering the whole archive.
 
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -260,15 +260,19 @@ pub fn pipe_pack(remote_dest_path: &str) -> io::Result<TarByteStream> {
         let mut builder = tar::Builder::new(writer);
 
         let result: io::Result<()> = (|| {
-            // Buffer stdin into memory — necessary because tar requires the
-            // entry size up front. For very large pipe payloads users should
-            // prefer file mode. We document this trade-off in the help text.
-            let mut buf = Vec::new();
-            io::stdin().read_to_end(&mut buf)?;
+            // tar requires the entry size up front, so stdin must be fully
+            // consumed before the archive can be written. Spool it to a
+            // temporary file rather than an in-memory `Vec` so that a large
+            // pipe payload (e.g. a multi-GiB DB dump) cannot OOM the client:
+            // memory stays bounded to the copy buffer regardless of input
+            // size. The temp file is removed when `spool` is dropped.
+            let mut spool = tempfile::tempfile()?;
+            let size = io::copy(&mut io::stdin().lock(), &mut spool)?;
+            spool.rewind()?;
 
             let mut header = tar::Header::new_gnu();
             header.set_path(&entry_name)?;
-            header.set_size(buf.len() as u64);
+            header.set_size(size);
             header.set_mode(0o644);
             header.set_mtime(
                 SystemTime::now()
@@ -279,7 +283,7 @@ pub fn pipe_pack(remote_dest_path: &str) -> io::Result<TarByteStream> {
             header.set_entry_type(tar::EntryType::Regular);
             header.set_cksum();
 
-            builder.append(&header, buf.as_slice())?;
+            builder.append(&header, &mut spool)?;
             builder.finish()?;
             Ok(())
         })();
