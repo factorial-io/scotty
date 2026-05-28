@@ -17,6 +17,7 @@ on:
 permissions:
     contents: write
     pull-requests: write
+    packages: write
 
 jobs:
     release-please:
@@ -61,6 +62,9 @@ jobs:
               with:
                   bin: scottyctl
                   target: ${{ matrix.target }}
+                  # Triggered on push:main, so GITHUB_REF is a branch; point the
+                  # action at the tag release-please just created instead.
+                  ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
                   token: ${{ secrets.GITHUB_TOKEN }}
 
     homebrew:
