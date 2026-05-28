@@ -188,20 +188,17 @@ This project uses a pre-push git-hook installed by cargo husky. It should be ins
 
 ### Create a new release
 
-We are using `cargo-release` to create releases. Changelogs are automatically generated during the release process using [git-cliff](https://git-cliff.org).
+Releases are automated with [release-please](https://github.com/googleapis/release-please). There is no manual tagging or local release command.
 
-**Do not manually update changelogs** - they are regenerated from git history during release.
+**Do not manually bump versions or update changelogs** - both are managed by release-please from the git history.
 
-Typical command to create a new release:
+How it works:
 
-```shell
-cargo release --no-publish alpha -x --tag-prefix ""
-```
+1. Land your changes on `main` using [conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `docs:`, ...; use `feat!:` or a `BREAKING CHANGE:` footer for a major bump).
+2. The `release-please` GitHub Actions workflow keeps an open **release PR** that bumps the shared workspace version and updates `CHANGELOG.md` based on the commits since the last release.
+3. When you are ready to ship, **merge the release PR**. release-please then creates the `vX.Y.Z` tag and GitHub Release, and the workflow automatically:
+   - builds and uploads the `scottyctl` binaries,
+   - bumps the Homebrew tap formula, and
+   - builds and pushes the versioned Docker image.
 
-This will:
-1. Update version numbers in all workspace crates
-2. Generate changelogs for the workspace root and each crate
-3. Create git tags
-4. Commit the changes
-
-Adapt the command to your current needs (e.g., use `patch`, `minor`, or `major` instead of `alpha`).
+Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
