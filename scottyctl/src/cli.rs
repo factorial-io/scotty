@@ -80,6 +80,9 @@ pub enum Commands {
     /// Open interactive shell for an app service
     #[command(name = "app:shell")]
     Shell(ShellCommand),
+    /// Copy files between local filesystem and an app service container
+    #[command(name = "app:cp", long_about = APP_CP_LONG_ABOUT)]
+    Cp(CopyCommand),
 
     /// setup notificattions to other services
     #[command(name = "notify:add")]
@@ -321,6 +324,41 @@ pub struct LogsCommand {
     /// Show timestamps in log output
     #[arg(short = 't', long = "timestamps")]
     pub timestamps: bool,
+}
+
+const APP_CP_LONG_ABOUT: &str =
+    "Copy files between your workstation and a service container, with \
+syntax modeled on `docker cp`.
+
+Either <SOURCE> or <DESTINATION> (exactly one) must be a remote spec of the \
+form `<app>:<service>:<container-path>`. The other side is either a local \
+path or `-` for stdin/stdout (pipe mode).
+
+The service segment may be omitted (`<app>::<path>` or `<app>:<path>`); in \
+that case scottyctl resolves the app's single public service. If the app has \
+zero or more than one public service the command exits with the list of \
+available services.
+
+Note: pipe mode (`-`) spools the whole payload to a temporary file before \
+sending, because the tar format needs the entry size up front. Memory stays \
+bounded, but for large transfers prefer file mode, which streams directly \
+from disk without the extra copy.
+
+Examples:
+  scottyctl app:cp ./dump.sql myapp:db:/tmp/dump.sql
+  scottyctl app:cp myapp:web:/var/log/app.log ./app.log
+  scottyctl app:cp ./assets myapp:web:/var/www/public/assets
+  mysqldump db | scottyctl app:cp - myapp:db:/tmp/dump.sql
+  scottyctl app:cp myapp:web:/var/log/app.log - | gzip > app.log.gz
+  scottyctl app:cp myapp::/etc/hostname ./hostname";
+
+#[derive(Debug, Parser)]
+pub struct CopyCommand {
+    /// Source: local path, `-` (stdin), or `<app>:<service>:<container-path>`
+    pub source: String,
+
+    /// Destination: local path, `-` (stdout), or `<app>:<service>:<container-path>`
+    pub destination: String,
 }
 
 #[derive(Debug, Parser)]

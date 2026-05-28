@@ -11,6 +11,7 @@ use scotty_core::{apps::app_data::AppData, tasks::running_app_context::RunningAp
 
 // Re-export submodules
 pub mod actions;
+pub mod cp;
 pub mod lifecycle;
 pub mod list;
 pub mod logs;

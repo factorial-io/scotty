@@ -5,6 +5,7 @@ use scotty_core::settings::{
     api_server::ApiServer,
     apps::Apps,
     docker::{DockerConnectOptions, DockerSettings},
+    files::FilesSettings,
     loadbalancer::{HaproxyConfigSettings, LoadBalancerType, TraefikSettings},
     notification_services::NotificationServiceSettings,
     output::OutputSettings,
@@ -50,6 +51,8 @@ pub struct Settings {
     pub output: OutputSettings,
     #[serde(default)]
     pub shell: ShellSettings,
+    #[serde(default)]
+    pub files: FilesSettings,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -77,6 +80,7 @@ impl Default for Settings {
             notification_services: NotificationServiceSettings::default(),
             output: OutputSettings::default(),
             shell: ShellSettings::default(),
+            files: FilesSettings::default(),
         }
     }
 }

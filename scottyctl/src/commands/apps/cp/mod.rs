@@ -1,0 +1,495 @@
+//! `app:cp` — docker-cp-style file transfer.
+//!
+//! See `openspec/changes/app-file-transfer/` for the design.
+
+use std::io::{self, IsTerminal};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use anyhow::{anyhow, bail, Context};
+use bytes::Bytes;
+use futures_util::{Stream, StreamExt};
+use owo_colors::OwoColorize;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
+use reqwest::{Body, StatusCode};
+use scotty_types::files::{FileTransferError, FileTransferErrorCode};
+
+use crate::api::get_auth_token;
+use crate::cli::CopyCommand;
+use crate::context::{AppContext, ServerSettings};
+
+use scotty_core::version::VersionManager;
+
+mod spec;
+mod stream;
+
+pub use spec::{parse_path_spec, PathSpec};
+
+use stream::{pipe_pack, pipe_unpack, tar_pack_path, tar_unpack_to_path, TarByteStream};
+
+/// Validate that exactly one side of `app:cp` is `Remote`.
+pub fn validate_endpoints(src: &PathSpec, dst: &PathSpec) -> anyhow::Result<()> {
+    match (src.is_remote(), dst.is_remote()) {
+        (true, true) => bail!(
+            "exactly one of <source> and <destination> must be a remote spec (<app>:<service>:<path>)"
+        ),
+        (false, false) => bail!(
+            "exactly one of <source> and <destination> must be a remote spec; both look local"
+        ),
+        _ => Ok(()),
+    }
+}
+
+/// Entry point for the `app:cp` subcommand.
+pub async fn copy(context: &AppContext, cmd: &CopyCommand) -> anyhow::Result<()> {
+    let src = parse_path_spec(&cmd.source);
+    let dst = parse_path_spec(&cmd.destination);
+    validate_endpoints(&src, &dst)?;
+
+    // Validate the remote container path client-side. Without this, a
+    // relative path (e.g. `myapp:web:etc/hostname`) reaches the server and
+    // comes back as a `400 InvalidPath`, which looks to the user like an
+    // app/service problem rather than a path one.
+    for spec in [&src, &dst] {
+        if let PathSpec::Remote { path, .. } = spec {
+            if !path.starts_with('/') {
+                bail!(
+                    "remote container path must be absolute (start with '/'); got '{path}'. \
+                     Use the form <app>:<service>:/absolute/path"
+                );
+            }
+        }
+    }
+
+    let server = context.server();
+
+    match (src, dst) {
+        (PathSpec::Remote { app, service, path }, PathSpec::Local(local)) => {
+            download(
+                context,
+                server,
+                &app,
+                service.as_deref(),
+                &path,
+                Some(&local),
+            )
+            .await
+        }
+        (PathSpec::Remote { app, service, path }, PathSpec::Stdio) => {
+            download(context, server, &app, service.as_deref(), &path, None).await
+        }
+        (PathSpec::Local(local), PathSpec::Remote { app, service, path }) => {
+            upload(
+                context,
+                server,
+                &app,
+                service.as_deref(),
+                &path,
+                UploadSource::Local(local),
+            )
+            .await
+        }
+        (PathSpec::Stdio, PathSpec::Remote { app, service, path }) => {
+            upload(
+                context,
+                server,
+                &app,
+                service.as_deref(),
+                &path,
+                UploadSource::Stdio,
+            )
+            .await
+        }
+        _ => unreachable!("validate_endpoints rejects this case"),
+    }
+}
+
+/// Where the upload bytes come from.
+enum UploadSource {
+    Local(PathBuf),
+    Stdio,
+}
+
+/// Resolve `service` for an app: fetch the app's info and pick the single
+/// public service. Errors out (with a candidate list) if 0 or >1 candidates
+/// exist.
+async fn resolve_service(
+    server: &ServerSettings,
+    app: &str,
+    explicit: Option<&str>,
+) -> anyhow::Result<String> {
+    if let Some(s) = explicit {
+        if !s.is_empty() {
+            return Ok(s.to_string());
+        }
+    }
+
+    let app_data = super::get_app_info(server, app).await.with_context(|| {
+        format!("failed to look up app '{app}' for implicit service resolution")
+    })?;
+
+    // The "public service" signal from the blueprint is reflected on the
+    // running app as `settings.public_services`. We pick the single entry
+    // there; if it's missing or ambiguous, list all services to help the
+    // user.
+    let candidates: Vec<String> = match &app_data.settings {
+        Some(settings) => settings
+            .public_services
+            .iter()
+            .map(|s| s.service.clone())
+            .collect(),
+        None => Vec::new(),
+    };
+
+    if candidates.len() == 1 {
+        return Ok(candidates.into_iter().next().unwrap());
+    }
+
+    let all_services: Vec<String> = app_data
+        .services
+        .iter()
+        .map(|s| s.service.clone())
+        .collect();
+
+    if candidates.is_empty() {
+        bail!(
+            "app '{app}' has no public service; specify one explicitly. Available services: {}",
+            all_services.join(", ")
+        );
+    }
+    bail!(
+        "app '{app}' has multiple public services ({}); specify one explicitly. Available services: {}",
+        candidates.join(", "),
+        all_services.join(", ")
+    );
+}
+
+/// Build the absolute URL for the file-transfer endpoint.
+fn build_url(server: &ServerSettings, app: &str, service: &str, path: &str) -> String {
+    let base = server.server.trim_end_matches('/');
+    // Percent-encode every user-supplied segment so app or service names
+    // containing `/`, `?`, or `#` cannot break the URL structure.
+    format!(
+        "{base}/api/v1/apps/{}/services/{}/files?path={}",
+        urlencoding::encode(app),
+        urlencoding::encode(service),
+        urlencoding::encode(path)
+    )
+}
+
+/// Construct a reqwest client carrying the bearer token and user agent.
+fn build_client(token: &str) -> anyhow::Result<reqwest::Client> {
+    let version = VersionManager::current_version()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        format!("Bearer {token}").parse().context("invalid token")?,
+    );
+    headers.insert(
+        USER_AGENT,
+        format!("scottyctl/{version}")
+            .parse()
+            .context("invalid UA")?,
+    );
+
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .context("failed to build HTTP client")
+}
+
+/// Parse a non-2xx response into a friendly `anyhow::Error`. Tries to read
+/// the JSON `FileTransferError` body first; falls back to a generic message.
+async fn http_error(status: StatusCode, resp: reqwest::Response) -> anyhow::Error {
+    let body_text = resp.text().await.unwrap_or_default();
+    if let Ok(parsed) = serde_json::from_str::<FileTransferError>(&body_text) {
+        let hint = friendly_hint(parsed.code);
+        let code_label = format!("{:?}", parsed.code);
+        if hint.is_empty() {
+            anyhow!("[{code_label}] {}", parsed.message)
+        } else {
+            anyhow!("[{code_label}] {} — {hint}", parsed.message)
+        }
+    } else if body_text.is_empty() {
+        anyhow!("server returned HTTP {status}")
+    } else {
+        anyhow!("server returned HTTP {status}: {body_text}")
+    }
+}
+
+fn friendly_hint(code: FileTransferErrorCode) -> &'static str {
+    match code {
+        FileTransferErrorCode::Forbidden => {
+            "you do not have permission for this operation on this app"
+        }
+        FileTransferErrorCode::NotFound => "check the app name, service name, and container path",
+        FileTransferErrorCode::ServiceNotRunning => {
+            "start the service before transferring files (e.g. scottyctl app:run)"
+        }
+        FileTransferErrorCode::PayloadTooLarge => {
+            "the transfer exceeded the server's configured maximum size"
+        }
+        FileTransferErrorCode::InvalidPath => "the container path must be absolute and non-empty",
+        FileTransferErrorCode::Internal => "",
+    }
+}
+
+async fn download(
+    context: &AppContext,
+    server: &ServerSettings,
+    app: &str,
+    service: Option<&str>,
+    path: &str,
+    dest: Option<&Path>,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    let service = resolve_service(server, app, service).await?;
+    ui.new_status_line(format!(
+        "Downloading {} from {}:{}...",
+        path.yellow(),
+        app.yellow(),
+        service.yellow()
+    ));
+
+    let token = get_auth_token(server).await?;
+    let client = build_client(&token)?;
+    let url = build_url(server, app, &service, path);
+    tracing::info!(%url, "GET file transfer");
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .context("failed to issue GET to file transfer endpoint")?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(http_error(status, resp).await);
+    }
+
+    let counter = Arc::new(AtomicU64::new(0));
+    let counted = count_bytes(resp.bytes_stream(), counter.clone());
+    let progress = spawn_progress(counter.clone(), "downloaded");
+
+    let result = match dest {
+        Some(local) => tar_unpack_to_path(counted, local).await,
+        None => pipe_unpack(counted).await,
+    };
+
+    progress.finish();
+    result.map_err(annotate_download_error)?;
+    ui.success(format!(
+        "Downloaded {} ({} bytes)",
+        path.yellow(),
+        counter.load(Ordering::Relaxed)
+    ));
+    Ok(())
+}
+
+async fn upload(
+    context: &AppContext,
+    server: &ServerSettings,
+    app: &str,
+    service: Option<&str>,
+    path: &str,
+    source: UploadSource,
+) -> anyhow::Result<()> {
+    let ui = context.ui();
+    let service = resolve_service(server, app, service).await?;
+    ui.new_status_line(format!(
+        "Uploading to {}:{}{}...",
+        app.yellow(),
+        service.yellow(),
+        path.yellow()
+    ));
+
+    let token = get_auth_token(server).await?;
+    let client = build_client(&token)?;
+    let url = build_url(server, app, &service, path);
+    tracing::info!(%url, "PUT file transfer");
+
+    let tar_stream: TarByteStream = match source {
+        UploadSource::Local(local) => tar_pack_path(&local)
+            .with_context(|| format!("failed to pack local path '{}'", local.display()))?,
+        UploadSource::Stdio => pipe_pack(path).context("failed to pack stdin")?,
+    };
+
+    let counter = Arc::new(AtomicU64::new(0));
+    let counted = count_bytes(tar_stream, counter.clone());
+    let progress = spawn_progress(counter.clone(), "uploaded");
+
+    let resp = client
+        .put(&url)
+        .header(CONTENT_TYPE, "application/x-tar")
+        .body(Body::wrap_stream(counted))
+        .send()
+        .await
+        .context("failed to issue PUT to file transfer endpoint")?;
+
+    progress.finish();
+
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(http_error(status, resp).await);
+    }
+
+    ui.success(format!(
+        "Uploaded to {}:{}:{} ({} bytes)",
+        app.yellow(),
+        service.yellow(),
+        path.yellow(),
+        counter.load(Ordering::Relaxed)
+    ));
+    Ok(())
+}
+
+/// Annotate a failed download extraction with a friendlier message.
+///
+/// When a download exceeds the server's configured maximum transfer size the
+/// server aborts the HTTP stream mid-flight (it has already committed to a
+/// `200` with chunked encoding, so it cannot switch to a `413`). The client
+/// therefore sees a truncated tar archive rather than a structured error. We
+/// detect that truncation here and add a hint pointing at the size limit so
+/// the user is not left with an opaque "unexpected EOF" message.
+fn annotate_download_error(err: io::Error) -> anyhow::Error {
+    // Prefer the structured `ErrorKind` (locale-independent): a truncated tar
+    // surfaces as `UnexpectedEof`. Fall back to substring matching for the
+    // reqwest/hyper body errors that do not map onto a dedicated kind. The
+    // server-side `SizeLimitExceeded` sentinel cannot be matched directly here
+    // because it never crosses the wire — the response body is simply aborted.
+    // The substrings below were verified against reqwest 0.12 / hyper 1.x; if a
+    // hint stops appearing after a dependency bump, re-check these messages.
+    let text = err.to_string().to_lowercase();
+    let looks_truncated = matches!(err.kind(), io::ErrorKind::UnexpectedEof)
+        || text.contains("unexpected eof")
+        || text.contains("failed to fill whole buffer")
+        || text.contains("error reading a body")
+        || text.contains("incomplete")
+        || text.contains("connection reset");
+    if looks_truncated {
+        anyhow!(err).context(
+            "failed to extract downloaded archive: the stream ended early. This can happen \
+             when the download exceeds the server's configured maximum transfer size \
+             (SCOTTY__FILES__MAX_TRANSFER_SIZE)",
+        )
+    } else {
+        anyhow!(err).context("failed to extract downloaded archive")
+    }
+}
+
+/// Wrap a byte stream so each chunk's length is added to `counter`.
+///
+/// Note: this counts the bytes of the tar stream, which includes tar headers
+/// and 512-byte block padding on top of the actual file contents. The progress
+/// figure is therefore the on-the-wire transfer size, not the file size (a
+/// 1-byte file reports ~1 KiB). This matches `docker cp` and is intentional.
+fn count_bytes<S, E>(
+    stream: S,
+    counter: Arc<AtomicU64>,
+) -> impl Stream<Item = Result<Bytes, E>> + Send + 'static
+where
+    S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+    E: Send + 'static,
+{
+    stream.map(move |item| {
+        if let Ok(ref bytes) = item {
+            counter.fetch_add(bytes.len() as u64, Ordering::Relaxed);
+        }
+        item
+    })
+}
+
+/// Background task that prints `X transferred` to stderr roughly every
+/// 500 ms while a transfer is in flight, but only when stderr is a tty.
+struct ProgressHandle {
+    handle: Option<tokio::task::JoinHandle<()>>,
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    is_tty: bool,
+}
+
+impl ProgressHandle {
+    fn finish(mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(h) = self.handle.take() {
+            // The render task only writes the in-progress line; the final
+            // line-clear below is performed here, so aborting the task now is
+            // safe and avoids waiting out its sleep interval.
+            h.abort();
+        }
+        if self.is_tty {
+            // Clear the line so subsequent stderr output starts cleanly.
+            eprint!("\r\x1b[K");
+            let _ = std::io::Write::flush(&mut std::io::stderr());
+        }
+    }
+}
+
+impl Drop for ProgressHandle {
+    fn drop(&mut self) {
+        // Safety net for early returns between `spawn_progress` and `finish`:
+        // ensure the background render task is stopped and aborted so it does
+        // not leak until runtime shutdown. `finish` takes the handle, so this
+        // is a no-op on the normal path.
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(h) = self.handle.take() {
+            h.abort();
+        }
+    }
+}
+
+fn spawn_progress(counter: Arc<AtomicU64>, verb: &'static str) -> ProgressHandle {
+    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let is_tty = std::io::stderr().is_terminal();
+    if !is_tty {
+        return ProgressHandle {
+            handle: None,
+            stop,
+            is_tty,
+        };
+    }
+    let stop_inner = stop.clone();
+    let handle = tokio::spawn(async move {
+        let start = Instant::now();
+        loop {
+            if stop_inner.load(Ordering::SeqCst) {
+                break;
+            }
+            let bytes = counter.load(Ordering::Relaxed);
+            let elapsed = start.elapsed().as_secs_f64().max(0.001);
+            let rate = bytes as f64 / elapsed;
+            eprint!(
+                "\r{} {} ({}/s)\x1b[K",
+                verb,
+                format_bytes(bytes),
+                format_bytes(rate as u64)
+            );
+            let _ = std::io::Write::flush(&mut std::io::stderr());
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+    });
+    ProgressHandle {
+        handle: Some(handle),
+        stop,
+        is_tty,
+    }
+}
+
+/// Format a byte count in human-friendly units (binary prefixes).
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: &[&str] = &["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut idx = 0;
+    while value >= 1024.0 && idx + 1 < UNITS.len() {
+        value /= 1024.0;
+        idx += 1;
+    }
+    if idx == 0 {
+        format!("{} {}", bytes, UNITS[idx])
+    } else {
+        format!("{value:.1} {}", UNITS[idx])
+    }
+}
