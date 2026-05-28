@@ -67,6 +67,16 @@ fn validate_path(raw: &str) -> Result<(), Response> {
             "path query parameter must be an absolute path starting with '/'",
         ));
     }
+    // Reject `..` traversal components. Docker resolves the path inside the
+    // container's own namespace so this is not a host-side vulnerability, but
+    // a `..` component almost always means the path resolves somewhere the
+    // user did not intend. Rejecting it keeps the behaviour predictable.
+    if raw.split('/').any(|component| component == "..") {
+        return Err(error_response(
+            FileTransferErrorCode::InvalidPath,
+            "path query parameter must not contain '..' traversal components",
+        ));
+    }
     Ok(())
 }
 
@@ -398,6 +408,16 @@ mod tests {
     }
 
     #[test]
+    fn validate_path_rejects_traversal() {
+        let resp = validate_path("/etc/../etc/shadow").unwrap_err();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        // A path whose final component merely contains dots (but is not the
+        // `..` component itself) is still allowed.
+        assert!(validate_path("/etc/..hidden").is_ok());
+        assert!(validate_path("/var/log/app..log").is_ok());
+    }
+
+    #[test]
     fn map_bollard_404_to_not_found() {
         let err = bollard::errors::Error::DockerResponseServerError {
             status_code: 404,
@@ -425,5 +445,72 @@ mod tests {
         };
         let (code, _) = map_bollard_error(&err);
         assert_eq!(code, FileTransferErrorCode::Internal);
+    }
+
+    /// Drive a sequence of chunk sizes through a `CountingStream` with the
+    /// given limit and return how many bytes were yielded successfully before
+    /// (optionally) a `SizeLimitExceeded` error terminated the stream.
+    async fn run_counting(chunks: &[usize], max: u64) -> (u64, bool) {
+        let items: Vec<Result<Bytes, std::io::Error>> = chunks
+            .iter()
+            .map(|&n| Ok(Bytes::from(vec![0u8; n])))
+            .collect();
+        let inner = futures_util::stream::iter(items);
+        let counted = CountingStream::<_, std::io::Error>::new(Box::pin(inner), max);
+
+        let mut delivered = 0u64;
+        let mut hit_limit = false;
+        let collected: Vec<_> = counted.collect().await;
+        for item in collected {
+            match item {
+                Ok(bytes) => delivered += bytes.len() as u64,
+                Err(err) => {
+                    assert!(
+                        err.get_ref()
+                            .and_then(|e| e.downcast_ref::<SizeLimitExceeded>())
+                            .is_some(),
+                        "error should be a SizeLimitExceeded sentinel"
+                    );
+                    hit_limit = true;
+                }
+            }
+        }
+        (delivered, hit_limit)
+    }
+
+    #[tokio::test]
+    async fn counting_stream_passes_when_exactly_at_limit() {
+        // Total of 10 bytes against a 10-byte limit must pass untouched.
+        let (delivered, hit_limit) = run_counting(&[4, 6], 10).await;
+        assert_eq!(delivered, 10);
+        assert!(!hit_limit);
+    }
+
+    #[tokio::test]
+    async fn counting_stream_aborts_one_byte_over() {
+        // 11 bytes against a 10-byte limit: the chunk that crosses the limit
+        // is replaced by the sentinel error and the stream stops.
+        let (delivered, hit_limit) = run_counting(&[6, 5], 10).await;
+        assert!(hit_limit);
+        // The first 6-byte chunk is delivered; the second crosses the limit
+        // and becomes an error rather than data.
+        assert_eq!(delivered, 6);
+    }
+
+    #[tokio::test]
+    async fn counting_stream_aborts_across_many_chunks() {
+        // Several small chunks that only collectively exceed the limit.
+        let (delivered, hit_limit) = run_counting(&[2, 2, 2, 2, 2, 2], 5).await;
+        assert!(hit_limit);
+        // 2 + 2 = 4 delivered; the third chunk takes the running total to 6
+        // which is over the limit of 5.
+        assert_eq!(delivered, 4);
+    }
+
+    #[tokio::test]
+    async fn counting_stream_passes_under_limit() {
+        let (delivered, hit_limit) = run_counting(&[1, 1, 1], 100).await;
+        assert_eq!(delivered, 3);
+        assert!(!hit_limit);
     }
 }

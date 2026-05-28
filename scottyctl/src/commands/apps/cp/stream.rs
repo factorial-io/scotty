@@ -4,6 +4,7 @@
 //! bounded `tokio::sync::mpsc` channel bridges the blocking side to/from the
 //! async `Stream` / `AsyncRead` world without buffering the whole archive.
 
+use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -94,25 +95,22 @@ pub fn tar_pack_path(path: &Path) -> io::Result<TarByteStream> {
     Ok(Box::pin(ReceiverStream::new(rx)))
 }
 
-/// Unpack a stream of tar bytes into `dest`.
+/// Unpack a stream of tar bytes into `dest`, following `docker cp` semantics.
 ///
-/// `dest` is interpreted in the same way `docker cp` interprets the
-/// destination: the archive is extracted *into* `dest` (which is created if
-/// it does not exist and `dest` looks like a directory target).
+/// - If `dest` is a directory target — it ends with a path separator, or it
+///   already exists as a directory — the archive is extracted *into* it.
+/// - Otherwise `dest` is a named target. If the archive contains exactly one
+///   top-level entry it is moved to `dest` (so downloading a single file to a
+///   non-existent path produces that file, not `dest/<name>`). If it contains
+///   zero or several entries, `dest` is created as a directory and the
+///   entries are placed inside it.
 pub async fn tar_unpack_to_path<S, E>(stream: S, dest: &Path) -> io::Result<()>
 where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
     E: std::fmt::Display + Send + 'static,
 {
     let dest = dest.to_path_buf();
-    // Ensure the destination directory exists. If `dest` is the path of a
-    // file the user wants to receive, we extract into its parent and rename
-    // afterwards. To keep the helper simple we mirror docker-cp behavior:
-    // if `dest` exists as a directory, extract into it; otherwise create it
-    // as a directory and extract into it.
-    if !dest.exists() {
-        std::fs::create_dir_all(&dest)?;
-    }
+    let dir_target = is_dir_target(&dest);
 
     let (tx, rx) = mpsc::channel::<io::Result<Bytes>>(CHANNEL_CAPACITY);
 
@@ -130,10 +128,59 @@ where
     // Sync side: feed the channel into `tar::Archive::unpack`.
     let unpack = tokio::task::spawn_blocking(move || -> io::Result<()> {
         let reader = ChannelReader::new(rx);
-        let mut archive = tar::Archive::new(reader);
-        archive.set_preserve_permissions(true);
-        archive.set_preserve_mtime(true);
-        archive.unpack(&dest)?;
+        if dir_target {
+            // Extract directly into the destination directory (preserves the
+            // merge-into-existing-directory behaviour of `Archive::unpack`).
+            fs::create_dir_all(&dest)?;
+            let mut archive = tar::Archive::new(reader);
+            archive.set_preserve_permissions(true);
+            archive.set_preserve_mtime(true);
+            archive.unpack(&dest)?;
+            return Ok(());
+        }
+
+        // Named target: extract into a temporary directory next to `dest`
+        // (same filesystem, so the final move is a cheap rename), then
+        // reconcile the result onto `dest`.
+        let parent = dest
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."));
+        fs::create_dir_all(&parent)?;
+        let tmp = tempfile::Builder::new()
+            .prefix(".scotty-cp-")
+            .tempdir_in(&parent)?;
+
+        {
+            let mut archive = tar::Archive::new(reader);
+            archive.set_preserve_permissions(true);
+            archive.set_preserve_mtime(true);
+            archive.unpack(tmp.path())?;
+        }
+
+        let entries: Vec<PathBuf> = fs::read_dir(tmp.path())?
+            .map(|e| e.map(|e| e.path()))
+            .collect::<io::Result<_>>()?;
+
+        if entries.len() == 1 {
+            // Single entry (file or directory): it becomes `dest` itself.
+            // Remove any pre-existing target first so the rename does not fail
+            // on a non-empty directory or surprise the user with a merge.
+            remove_existing(&dest)?;
+            fs::rename(&entries[0], &dest)?;
+        } else {
+            // Zero or multiple entries: `dest` is a directory holding them.
+            fs::create_dir_all(&dest)?;
+            for entry in entries {
+                let name = entry.file_name().ok_or_else(|| {
+                    io::Error::other(format!("archive entry has no name: {}", entry.display()))
+                })?;
+                let target = dest.join(name);
+                remove_existing(&target)?;
+                fs::rename(&entry, &target)?;
+            }
+        }
         Ok(())
     });
 
@@ -143,6 +190,28 @@ where
     // Make sure the pump finishes; it has no return value worth observing.
     let _ = pump.await;
     unpack_result
+}
+
+/// Whether `dest` should be treated as a directory the archive is extracted
+/// *into*: it ends with a path separator, or it already exists as a directory.
+fn is_dir_target(dest: &Path) -> bool {
+    if dest.is_dir() {
+        return true;
+    }
+    // `Path` strips a trailing separator, so check the raw string form.
+    let s = dest.to_string_lossy();
+    s.ends_with('/') || s.ends_with(std::path::MAIN_SEPARATOR)
+}
+
+/// Remove an existing file or directory at `path` so it can be replaced.
+/// Missing paths are treated as success.
+fn remove_existing(path: &Path) -> io::Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_dir() => fs::remove_dir_all(path),
+        Ok(_) => fs::remove_file(path),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 /// `std::io::Read` adapter pulling from a blocking-capable mpsc channel.
@@ -267,9 +336,12 @@ where
             }
             files_seen += 1;
             if files_seen > 1 {
-                return Err(io::Error::other(format!(
-                    "pipe mode requires a single file; got {files_seen} entries"
-                )));
+                // We stop at the second file entry, so we cannot report a
+                // precise total — phrase the message accordingly rather than
+                // claiming a fixed count.
+                return Err(io::Error::other(
+                    "pipe mode requires a single file, but the archive contains more than one file entry",
+                ));
             }
             io::copy(&mut entry, &mut stdout)?;
         }
@@ -300,5 +372,69 @@ mod tests {
         assert_eq!(pipe_entry_name("dump.sql"), "dump.sql");
         assert_eq!(pipe_entry_name("/"), "stdin");
         assert_eq!(pipe_entry_name(""), "stdin");
+    }
+
+    #[test]
+    fn dir_target_detection() {
+        assert!(is_dir_target(Path::new("/tmp/")));
+        assert!(!is_dir_target(Path::new("/tmp/hostname")));
+    }
+
+    /// Build a single-entry tar archive in memory whose entry is a regular
+    /// file with the given name and contents.
+    fn single_file_archive(name: &str, contents: &[u8]) -> Vec<u8> {
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_path(name).unwrap();
+        header.set_size(contents.len() as u64);
+        header.set_mode(0o644);
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_cksum();
+        builder.append(&header, contents).unwrap();
+        builder.into_inner().unwrap()
+    }
+
+    fn stream_of(bytes: Vec<u8>) -> impl Stream<Item = io::Result<Bytes>> + Send + 'static {
+        futures_util::stream::once(async move { Ok(Bytes::from(bytes)) })
+    }
+
+    #[tokio::test]
+    async fn single_file_to_named_dest_becomes_a_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("hostname");
+        let archive = single_file_archive("hostname", b"host-contents\n");
+
+        tar_unpack_to_path(stream_of(archive), &dest).await.unwrap();
+
+        // `dest` must be the file itself, not a directory containing it.
+        assert!(dest.is_file(), "destination should be a file");
+        assert_eq!(fs::read(&dest).unwrap(), b"host-contents\n");
+        assert!(!dest.join("hostname").exists());
+    }
+
+    #[tokio::test]
+    async fn single_file_to_dir_target_lands_inside() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("out");
+        fs::create_dir(&dest).unwrap();
+        let archive = single_file_archive("hostname", b"host\n");
+
+        tar_unpack_to_path(stream_of(archive), &dest).await.unwrap();
+
+        // Extracting into an existing directory keeps the entry name.
+        assert!(dest.join("hostname").is_file());
+    }
+
+    #[tokio::test]
+    async fn single_file_to_named_dest_overwrites_existing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("hostname");
+        fs::write(&dest, b"stale").unwrap();
+        let archive = single_file_archive("hostname", b"fresh\n");
+
+        tar_unpack_to_path(stream_of(archive), &dest).await.unwrap();
+
+        assert!(dest.is_file());
+        assert_eq!(fs::read(&dest).unwrap(), b"fresh\n");
     }
 }

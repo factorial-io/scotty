@@ -2,7 +2,7 @@
 //!
 //! See `openspec/changes/app-file-transfer/` for the design.
 
-use std::io::IsTerminal;
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -262,7 +262,7 @@ async fn download(
     };
 
     progress.finish();
-    result.context("failed to extract downloaded archive")?;
+    result.map_err(annotate_download_error)?;
     ui.success(format!(
         "Downloaded {} ({} bytes)",
         path.yellow(),
@@ -319,12 +319,39 @@ async fn upload(
     }
 
     ui.success(format!(
-        "Uploaded to {}{} ({} bytes)",
+        "Uploaded to {}:{}:{} ({} bytes)",
         app.yellow(),
+        service.yellow(),
         path.yellow(),
         counter.load(Ordering::Relaxed)
     ));
     Ok(())
+}
+
+/// Annotate a failed download extraction with a friendlier message.
+///
+/// When a download exceeds the server's configured maximum transfer size the
+/// server aborts the HTTP stream mid-flight (it has already committed to a
+/// `200` with chunked encoding, so it cannot switch to a `413`). The client
+/// therefore sees a truncated tar archive rather than a structured error. We
+/// detect that truncation here and add a hint pointing at the size limit so
+/// the user is not left with an opaque "unexpected EOF" message.
+fn annotate_download_error(err: io::Error) -> anyhow::Error {
+    let text = err.to_string().to_lowercase();
+    let looks_truncated = text.contains("unexpected eof")
+        || text.contains("failed to fill whole buffer")
+        || text.contains("error reading a body")
+        || text.contains("incomplete")
+        || text.contains("connection reset");
+    if looks_truncated {
+        anyhow!(err).context(
+            "failed to extract downloaded archive: the stream ended early. This can happen \
+             when the download exceeds the server's configured maximum transfer size \
+             (SCOTTY__FILES__MAX_TRANSFER_SIZE)",
+        )
+    } else {
+        anyhow!(err).context("failed to extract downloaded archive")
+    }
 }
 
 /// Wrap a byte stream so each chunk's length is added to `counter`.
@@ -356,14 +383,28 @@ impl ProgressHandle {
     fn finish(mut self) {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(h) = self.handle.take() {
-            // Best-effort wait so the final newline lands before the next
-            // print. We don't propagate the JoinError.
+            // The render task only writes the in-progress line; the final
+            // line-clear below is performed here, so aborting the task now is
+            // safe and avoids waiting out its sleep interval.
             h.abort();
         }
         if self.is_tty {
-            // Clear the line and emit a newline so subsequent stderr output
-            // starts cleanly.
+            // Clear the line so subsequent stderr output starts cleanly.
             eprint!("\r\x1b[K");
+            let _ = std::io::Write::flush(&mut std::io::stderr());
+        }
+    }
+}
+
+impl Drop for ProgressHandle {
+    fn drop(&mut self) {
+        // Safety net for early returns between `spawn_progress` and `finish`:
+        // ensure the background render task is stopped and aborted so it does
+        // not leak until runtime shutdown. `finish` takes the handle, so this
+        // is a no-op on the normal path.
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(h) = self.handle.take() {
+            h.abort();
         }
     }
 }
