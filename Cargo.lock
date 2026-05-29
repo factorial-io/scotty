@@ -3177,6 +3177,7 @@ dependencies = [
  "owo-colors",
  "readonly",
  "reqwest 0.13.4",
+ "rustls",
  "scotty-types",
  "secrecy",
  "semver",

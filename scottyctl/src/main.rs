@@ -19,6 +19,10 @@ use utils::tracing_layer::UiLayer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Install a deterministic rustls crypto provider before any TLS handshake,
+    // otherwise rustls may panic when it cannot auto-select a provider.
+    scotty_core::http::ensure_crypto_provider();
+
     // Print logo if running in a terminal (before CLI parsing so --help shows it)
     if std::io::stdout().is_terminal() {
         scotty_core::logo::print_logo();

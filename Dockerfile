@@ -16,9 +16,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 # TypeScript generation stage using cargo-chef
 FROM chef AS ts-generator
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json --package scotty-ts-generator
+RUN cargo chef cook --locked --recipe-path recipe.json --package scotty-ts-generator
 COPY . .
-RUN cargo run --package scotty-ts-generator
+RUN cargo run --locked --package scotty-ts-generator
 
 # Frontend build stage
 FROM oven/bun:1 AS frontend-builder
@@ -40,10 +40,10 @@ RUN bun run build
 # Main application build stage
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --locked --recipe-path recipe.json
 COPY . .
 COPY --from=frontend-builder /app/build /app/frontend/build
-RUN cargo build --release -p scotty -p scottyctl
+RUN cargo build --release --locked -p scotty -p scottyctl
 
 FROM debian:bookworm-slim
 ARG APP=/app

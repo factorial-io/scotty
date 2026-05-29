@@ -47,6 +47,10 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Install a deterministic rustls crypto provider before any TLS handshake,
+    // otherwise rustls may panic when it cannot auto-select a provider.
+    scotty_core::http::ensure_crypto_provider();
+
     // Load .env files (silently ignore if they don't exist)
     // Load in reverse order because dotenvy doesn't override existing vars
     // Order: .env.local first (lower priority), then .env (won't override .env.local)

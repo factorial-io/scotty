@@ -35,6 +35,7 @@ bollard-stubs.workspace = true
 deunicode.workspace = true
 url.workspace = true
 reqwest.workspace = true
+rustls.workspace = true
 futures-util.workspace = true
 semver.workspace = true
 thiserror.workspace = true
