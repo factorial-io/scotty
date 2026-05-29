@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::warn;
+use tracing::{info, warn};
 
 use super::types::{
     AuthConfig, AuthConfigForSave, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
@@ -12,11 +12,27 @@ use super::types::{
 pub struct ConfigManager;
 
 impl ConfigManager {
-    /// Load configuration from YAML file
+    /// Load configuration from YAML file.
+    ///
+    /// `policy.yaml` is mutated at runtime (admin scope/role/assignment
+    /// changes) and is therefore gitignored. When it's missing we seed it from
+    /// the tracked `policy.yaml.example` template if one exists; otherwise we
+    /// fall back to the in-code defaults.
     pub async fn load_config(path: &str) -> Result<AuthConfig> {
         if !Path::new(path).exists() {
-            warn!("Authorization config not found at {}, using defaults", path);
-            return Ok(Self::default_config());
+            let example_path = format!("{path}.example");
+            if Path::new(&example_path).exists() {
+                info!(
+                    "Authorization config not found at {}, seeding from {}",
+                    path, example_path
+                );
+                tokio::fs::copy(&example_path, path)
+                    .await
+                    .with_context(|| format!("Failed to seed {path} from {example_path}"))?;
+            } else {
+                warn!("Authorization config not found at {}, using defaults", path);
+                return Ok(Self::default_config());
+            }
         }
 
         let content = tokio::fs::read_to_string(path)

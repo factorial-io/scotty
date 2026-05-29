@@ -16,10 +16,12 @@ frontend/public
 .env.production
 
 # Configuration files with sensitive data
-# Note: We keep config/default.yaml and config/casbin/policy.yaml tracked
-# for internal use, but document that secrets should use env vars.
-# For external users, they should copy from .example files.
+# Note: We keep config/default.yaml tracked for internal use, but document
+# that secrets should use env vars. For external users, copy from .example.
+# config/casbin/policy.yaml is mutated at runtime (admin scope/role/assignment
+# changes) so it is ignored; it is seeded from policy.yaml.example on startup.
 config/local.yaml
 config/production.yaml
 config/*.local.yaml
+config/casbin/policy.yaml
 scotty/test-config
