@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 // Re-export Permission from scotty-core
 pub use scotty_core::authorization::Permission;
@@ -22,12 +22,16 @@ pub struct AuthConfig {
     pub apps: HashMap<String, Vec<String>>, // Maps app_name -> scope_names
 }
 
-/// Configuration structure for saving (excludes dynamically managed apps)
+/// Configuration structure for saving (excludes dynamically managed apps).
+///
+/// Uses `BTreeMap` so keys are serialized in a stable, sorted order. This keeps
+/// the on-disk `policy.yaml` byte-identical across saves when nothing changed,
+/// avoiding spurious diffs from `HashMap`'s randomized iteration order.
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthConfigForSave {
-    pub scopes: HashMap<String, ScopeConfig>,
-    pub roles: HashMap<String, RoleConfig>,
-    pub assignments: HashMap<String, Vec<Assignment>>,
+    pub scopes: BTreeMap<String, ScopeConfig>,
+    pub roles: BTreeMap<String, RoleConfig>,
+    pub assignments: BTreeMap<String, Vec<Assignment>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

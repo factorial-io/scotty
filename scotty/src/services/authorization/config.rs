@@ -28,11 +28,13 @@ impl ConfigManager {
 
     /// Save configuration to file (excluding apps which are managed dynamically)
     pub async fn save_config(config: &AuthConfig, config_path: &str) -> Result<()> {
-        // Create a config without apps for saving
+        // Create a config without apps for saving. Collecting into the
+        // BTreeMap fields sorts keys deterministically, keeping policy.yaml
+        // stable across saves regardless of HashMap iteration order.
         let save_config = AuthConfigForSave {
-            scopes: config.scopes.clone(),
-            roles: config.roles.clone(),
-            assignments: config.assignments.clone(),
+            scopes: config.scopes.clone().into_iter().collect(),
+            roles: config.roles.clone().into_iter().collect(),
+            assignments: config.assignments.clone().into_iter().collect(),
         };
 
         let yaml = serde_norway::to_string(&save_config)?;
