@@ -217,11 +217,13 @@ where
         ("path" = String, Query, description = "Absolute container path to download"),
     ),
     responses(
-        // Note: there is no 413 response for downloads. The 200 status line is
-        // committed before the body is streamed, so a transfer that exceeds
-        // `Settings.files.max_transfer_size` cannot switch to 413 — instead the
-        // response body is aborted mid-stream (the client observes a truncated
-        // archive / connection reset). See `download_files_handler` for details.
+        // Note: the handler peeks the first chunk before committing the status
+        // line, so path-not-found / not-running errors (404 / 409) and other
+        // up-front Docker failures are returned as proper JSON responses. There
+        // is still no 413 for downloads: a size overrun is only detectable once
+        // streaming is under way, after 200 is sent, so it aborts the body
+        // mid-stream (the client observes a truncated archive / connection
+        // reset). See `download_files_handler` for details.
         (status = 200, description = "Tar archive of the requested container path. The stream is aborted mid-transfer if the configured maximum size is exceeded.", content_type = "application/x-tar"),
         (status = 400, description = "Invalid path query parameter", body = FileTransferError),
         (status = 401, description = "Access token is missing or invalid"),
@@ -257,21 +259,40 @@ pub async fn download_files_handler(
     let inner = state
         .docker
         .download_from_container(&container_id, Some(options));
-    let counted = CountingStream::<_, bollard::errors::Error>::new(Box::pin(inner), max);
+    let mut counted = CountingStream::<_, bollard::errors::Error>::new(Box::pin(inner), max);
 
-    // Map size-limit errors into a proper 413 response by wrapping the
-    // stream. The HTTP status itself is already sent as 200 with chunked
-    // transfer encoding by the time we know the size; we therefore surface
-    // the limit through a stream error that aborts the response. Clients
-    // observe a truncated stream + reset; this matches the spec which
-    // states that downloads exceeding the limit are aborted.
-    let body_stream = counted.map(|item| match item {
+    // Peek the first chunk before committing to a status line. Docker validates
+    // the requested path lazily — a missing path surfaces as a `404` only when
+    // the stream is first polled. If we sent `200` first (as chunked encoding
+    // forces), that error could not be turned into a proper response; the body
+    // would simply abort mid-flight and the client would see an opaque "error
+    // decoding response body". By polling once here we can map the common
+    // path-not-found / not-running cases onto a structured JSON error, exactly
+    // like the upload handler does. `None` means an empty (valid) archive.
+    let first_chunk = match counted.next().await {
+        Some(Ok(bytes)) => Some(bytes),
+        Some(Err(err)) => {
+            let (code, message) = map_bollard_error(&err);
+            tracing::warn!(error = %err, ?code, "file download failed before streaming");
+            return error_response(code, message);
+        }
+        None => None,
+    };
+
+    // Re-attach the buffered first chunk ahead of the remainder of the stream.
+    // The size-limit case can still only be detected mid-stream (after the
+    // status line is sent); we therefore surface it through a stream error that
+    // aborts the response. Clients observe a truncated stream + reset; this
+    // matches the spec which states that oversized downloads are aborted.
+    let head = futures_util::stream::iter(first_chunk.into_iter().map(Ok::<Bytes, std::io::Error>));
+    let tail = counted.map(|item| match item {
         Ok(bytes) => Ok::<_, std::io::Error>(bytes),
         Err(err) => {
             tracing::warn!(error = %err, "file download stream aborted");
             Err(std::io::Error::other(err.to_string()))
         }
     });
+    let body_stream = head.chain(tail);
 
     let body = Body::from_stream(body_stream);
 
