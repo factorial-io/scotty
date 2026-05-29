@@ -5,7 +5,7 @@ api:
     auth_mode: "bearer"
     bearer_tokens:
         # Maps identifiers to token values for testing
-        # Identifiers match those in config/casbin/policy.yaml
+        # Identifiers match those in tests/fixtures/casbin/policy.yaml
         admin: "test-bearer-token-123"
         client-a: "client-a-secure-token-456"
         no-rbac: "token-without-rbac-assignments"

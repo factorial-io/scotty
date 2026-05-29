@@ -72,7 +72,10 @@ pub async fn create_test_app_state_with_settings(
         task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state,
         auth_service: Arc::new(
-            crate::services::AuthorizationService::new("../config/casbin")
+            // Use a tracked, read-only fixture rather than the runtime
+            // config/casbin (which is gitignored and seeded at runtime), so
+            // tests have deterministic assignments and never race on seeding.
+            crate::services::AuthorizationService::new("tests/fixtures/casbin")
                 .await
                 .expect("Failed to load RBAC config for test"),
         ),

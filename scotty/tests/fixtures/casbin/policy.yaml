@@ -1,0 +1,56 @@
+# Casbin RBAC policy fixture for tests ONLY.
+#
+# This is a tracked, read-only fixture used by the test harness
+# (scotty/src/api/test_utils.rs) so tests do not depend on the runtime
+# config/casbin/policy.yaml, which is gitignored and seeded at runtime.
+#
+# Identifiers here must match the bearer_tokens in tests/test_bearer_auth.yaml
+# and tests/test_oauth_auth.yaml.
+scopes:
+  default:
+    description: Default scope for unassigned apps
+    created_at: 2024-01-01T00:00:00Z
+  client-a:
+    description: Client A
+    created_at: 2024-01-01T00:00:00Z
+  client-b:
+    description: Client B
+    created_at: 2024-01-01T00:00:00Z
+roles:
+  operator:
+    permissions:
+      - view
+      - manage
+      - logs
+    description: Operations team - no shell or destroy
+  admin:
+    permissions:
+      - '*'
+    description: Full system access
+  viewer:
+    permissions:
+      - view
+    description: Read-only access
+  developer:
+    permissions:
+      - view
+      - manage
+      - shell
+      - logs
+      - create
+    description: Developer access - all except destroy
+assignments:
+  identifier:admin:
+    - role: admin
+      scopes:
+        - client-a
+        - client-b
+        - default
+  identifier:client-a:
+    - role: developer
+      scopes:
+        - client-a
+  '*':
+    - role: viewer
+      scopes:
+        - default
