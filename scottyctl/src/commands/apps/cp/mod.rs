@@ -166,6 +166,42 @@ async fn resolve_service(
     );
 }
 
+/// Resolve the Docker upload `path` (a directory) and tar entry name from a
+/// remote destination, mirroring `docker cp` semantics.
+///
+/// Docker's archive-upload endpoint extracts the tar into the existing
+/// directory named by `path`; the final filename comes from the tar entry
+/// name. So we translate the destination the user wrote into that pair:
+///
+/// - A trailing `/` means "copy into this directory": the entry keeps the
+///   source's own basename (`source_basename`).
+/// - Otherwise the destination names the target itself: extract into its
+///   parent directory and rename the entry to the destination's basename.
+///   This is what makes `app:cp ./a.pdf app:web:/srv/b.pdf` land as `b.pdf`.
+///
+/// `remote` is always absolute (validated by `copy`). The returned entry name
+/// may be empty when no source basename is available (e.g. stdin into a bare
+/// directory); the caller substitutes a fallback.
+fn split_remote_dest(remote: &str, source_basename: Option<&str>) -> (String, String) {
+    if remote.ends_with('/') {
+        let dir = remote.trim_end_matches('/');
+        let dir = if dir.is_empty() { "/" } else { dir };
+        let entry = source_basename
+            .map(str::to_string)
+            .unwrap_or_else(|| basename(dir).to_string());
+        (dir.to_string(), entry)
+    } else {
+        let (parent, base) = remote.rsplit_once('/').unwrap_or(("", remote));
+        let parent = if parent.is_empty() { "/" } else { parent };
+        (parent.to_string(), base.to_string())
+    }
+}
+
+/// Last path component of an absolute container path (no trailing slash).
+fn basename(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
 /// Build the absolute URL for the file-transfer endpoint.
 fn build_url(server: &ServerSettings, app: &str, service: &str, path: &str) -> String {
     let base = server.server.trim_end_matches('/');
@@ -309,13 +345,28 @@ async fn upload(
 
     let token = get_auth_token(server).await?;
     let client = build_client(&token)?;
-    let url = build_url(server, app, &service, path);
-    tracing::info!(%url, "PUT file transfer");
+
+    // Docker's archive-upload endpoint extracts the tar into an existing
+    // *directory* named by the `path` query parameter; the final filename comes
+    // from the tar entry name. Translate the user's destination into that
+    // (directory, entry-name) pair so single-file renames behave like
+    // `docker cp` rather than failing because the full path is not a directory.
+    let source_basename = match &source {
+        UploadSource::Local(local) => local.file_name().map(|s| s.to_string_lossy().into_owned()),
+        UploadSource::Stdio => None,
+    };
+    let (dir, mut entry) = split_remote_dest(path, source_basename.as_deref());
+    if entry.is_empty() {
+        entry = "stdin".to_string();
+    }
+
+    let url = build_url(server, app, &service, &dir);
+    tracing::info!(%url, %entry, "PUT file transfer");
 
     let tar_stream: TarByteStream = match source {
-        UploadSource::Local(local) => tar_pack_path(&local)
+        UploadSource::Local(local) => tar_pack_path(&local, &entry)
             .with_context(|| format!("failed to pack local path '{}'", local.display()))?,
-        UploadSource::Stdio => pipe_pack(path).context("failed to pack stdin")?,
+        UploadSource::Stdio => pipe_pack(&entry).context("failed to pack stdin")?,
     };
 
     let counter = Arc::new(AtomicU64::new(0));
@@ -491,5 +542,59 @@ fn format_bytes(bytes: u64) -> String {
         format!("{} {}", bytes, UNITS[idx])
     } else {
         format!("{value:.1} {}", UNITS[idx])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_file_target_extracts_into_parent_and_renames() {
+        // No trailing slash: the destination names the file itself, so we
+        // extract into the parent dir and rename the entry to its basename.
+        let (dir, entry) = split_remote_dest("/usr/share/nginx/html/test.pdf", Some("Invoice.pdf"));
+        assert_eq!(dir, "/usr/share/nginx/html");
+        assert_eq!(entry, "test.pdf");
+    }
+
+    #[test]
+    fn split_dir_target_keeps_source_basename() {
+        // Trailing slash: copy into the directory, keeping the source basename.
+        let (dir, entry) = split_remote_dest("/usr/share/nginx/html/", Some("Invoice.pdf"));
+        assert_eq!(dir, "/usr/share/nginx/html");
+        assert_eq!(entry, "Invoice.pdf");
+    }
+
+    #[test]
+    fn split_dir_target_without_source_falls_back_to_dir_basename() {
+        // Stdin into a bare directory has no source basename.
+        let (dir, entry) = split_remote_dest("/tmp/", None);
+        assert_eq!(dir, "/tmp");
+        assert_eq!(entry, "tmp");
+    }
+
+    #[test]
+    fn split_top_level_file_target() {
+        let (dir, entry) = split_remote_dest("/dump.sql", None);
+        assert_eq!(dir, "/");
+        assert_eq!(entry, "dump.sql");
+    }
+
+    #[test]
+    fn split_root_directory_target() {
+        // `/` is a directory target with no source basename; entry is empty
+        // and the caller substitutes a fallback.
+        let (dir, entry) = split_remote_dest("/", None);
+        assert_eq!(dir, "/");
+        assert_eq!(entry, "");
+    }
+
+    #[test]
+    fn split_stdin_pipe_example() {
+        // `app:cp - app:svc:/tmp/dump.sql` => extract into /tmp, entry dump.sql.
+        let (dir, entry) = split_remote_dest("/tmp/dump.sql", None);
+        assert_eq!(dir, "/tmp");
+        assert_eq!(entry, "dump.sql");
     }
 }

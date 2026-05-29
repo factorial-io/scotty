@@ -47,8 +47,13 @@ impl Write for ChannelWriter {
     }
 }
 
-/// Pack a local file or directory into a tar byte stream.
-pub fn tar_pack_path(path: &Path) -> io::Result<TarByteStream> {
+/// Pack a local file or directory into a tar byte stream under `entry_name`.
+///
+/// `entry_name` is the name the single top-level entry carries inside the
+/// archive. The caller derives it from the remote destination so that Docker,
+/// which extracts the archive into a directory, places (and possibly renames)
+/// the content correctly — see `split_remote_dest` in the parent module.
+pub fn tar_pack_path(path: &Path, entry_name: &str) -> io::Result<TarByteStream> {
     if !path.exists() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
@@ -56,6 +61,7 @@ pub fn tar_pack_path(path: &Path) -> io::Result<TarByteStream> {
         ));
     }
     let path = path.to_path_buf();
+    let entry_name = PathBuf::from(entry_name);
 
     let (tx, rx) = mpsc::channel::<io::Result<Bytes>>(CHANNEL_CAPACITY);
     let tx_err = tx.clone();
@@ -67,13 +73,6 @@ pub fn tar_pack_path(path: &Path) -> io::Result<TarByteStream> {
 
         let result: io::Result<()> = (|| {
             let metadata = std::fs::symlink_metadata(&path)?;
-            // Tar entry name is the basename of `path` — this mirrors
-            // `docker cp` and lets the server-side extractor place it
-            // sensibly inside the destination directory.
-            let entry_name: PathBuf = path
-                .file_name()
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("."));
 
             if metadata.is_dir() {
                 builder.append_dir_all(&entry_name, &path)?;
@@ -247,11 +246,12 @@ impl Read for ChannelReader {
     }
 }
 
-/// Pack stdin into a single-entry tar stream. The entry name is the
-/// basename of the remote destination path so that `app:cp - app:svc:/tmp/dump.sql`
-/// produces a tar entry named `dump.sql` extracted into `/tmp/`.
-pub fn pipe_pack(remote_dest_path: &str) -> io::Result<TarByteStream> {
-    let entry_name = pipe_entry_name(remote_dest_path);
+/// Pack stdin into a single-entry tar stream under `entry_name` so that
+/// `app:cp - app:svc:/tmp/dump.sql` produces a tar entry named `dump.sql`
+/// extracted into `/tmp/`. The caller derives `entry_name` from the remote
+/// destination (see `split_remote_dest`).
+pub fn pipe_pack(entry_name: &str) -> io::Result<TarByteStream> {
+    let entry_name = entry_name.to_string();
     let (tx, rx) = mpsc::channel::<io::Result<Bytes>>(CHANNEL_CAPACITY);
     let tx_err = tx.clone();
 
@@ -294,17 +294,6 @@ pub fn pipe_pack(remote_dest_path: &str) -> io::Result<TarByteStream> {
     });
 
     Ok(Box::pin(ReceiverStream::new(rx)))
-}
-
-/// Derive the tar entry name from a remote destination path.
-fn pipe_entry_name(remote_dest_path: &str) -> String {
-    let trimmed = remote_dest_path.trim_end_matches('/');
-    let base = trimmed.rsplit('/').next().unwrap_or("");
-    if base.is_empty() {
-        "stdin".to_string()
-    } else {
-        base.to_string()
-    }
 }
 
 /// Unpack a download stream and forward the first regular-file entry to
@@ -369,15 +358,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn entry_name_uses_basename() {
-        assert_eq!(pipe_entry_name("/tmp/dump.sql"), "dump.sql");
-        assert_eq!(pipe_entry_name("/tmp/"), "tmp");
-        assert_eq!(pipe_entry_name("dump.sql"), "dump.sql");
-        assert_eq!(pipe_entry_name("/"), "stdin");
-        assert_eq!(pipe_entry_name(""), "stdin");
-    }
 
     #[test]
     fn dir_target_detection() {
