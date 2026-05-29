@@ -7,6 +7,19 @@ use scotty_types::LogStreamRequest;
 
 use super::{check_websocket_authorization, handle_websocket_auth_failure};
 
+/// Compute the effective follow mode for a log stream request.
+///
+/// Live follow only makes sense while the container can still produce output.
+/// For a terminal container (exited/dead) Docker still returns the retained
+/// historical logs, but there is nothing to follow, so a requested follow is
+/// downgraded to a one-shot historical fetch. The downgrade is not returned
+/// here: clients detect it by comparing their requested follow against the
+/// `follow` flag echoed on `LogsStreamStarted`.
+/// See openspec/specs/container-logs/spec.md.
+fn resolve_follow_mode(requested_follow: bool, can_follow_live: bool) -> bool {
+    requested_follow && can_follow_live
+}
+
 /// Handle starting a log stream via WebSocket
 pub async fn handle_start_log_stream(
     state: &SharedAppState,
@@ -80,20 +93,14 @@ pub async fn handle_start_log_stream(
         }
     };
 
-    // Check container state
-    if !container.is_running() {
-        state
-            .messenger
-            .send_error(
-                client_id,
-                format!(
-                    "Container for service '{}' is not running (status: {:?})",
-                    request.service_name, container.status
-                ),
-            )
-            .await;
-        return;
-    }
+    // Logs are available for stopped containers too (Docker retains the
+    // historical output). Live follow only makes sense while the container can
+    // still produce output, so downgrade follow to a one-shot historical fetch
+    // for terminal (exited/dead) containers. The downgrade is signalled to
+    // clients via the `follow` flag on the LogsStreamStarted message (the CLI
+    // prints a notice and the UI shows a "not live" banner based on it).
+    let can_follow_live = !container.is_terminal();
+    let effective_follow = resolve_follow_mode(request.follow, can_follow_live);
 
     let container_id = match &container.id {
         Some(id) => id.clone(),
@@ -122,7 +129,7 @@ pub async fn handle_start_log_stream(
             state,
             &app,
             &request.service_name,
-            request.follow,
+            effective_follow,
             tail,
             Some(client_id),
         )
@@ -181,5 +188,26 @@ pub async fn handle_stop_log_stream(state: &SharedAppState, client_id: Uuid, str
                 .send_error(client_id, format!("Failed to stop log stream: {}", e))
                 .await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_follow_mode;
+
+    #[test]
+    fn follow_preserved_when_container_can_stream_live() {
+        assert!(resolve_follow_mode(true, true));
+    }
+
+    #[test]
+    fn follow_downgraded_for_terminal_container() {
+        assert!(!resolve_follow_mode(true, false));
+    }
+
+    #[test]
+    fn non_follow_requests_stay_non_follow() {
+        assert!(!resolve_follow_mode(false, true));
+        assert!(!resolve_follow_mode(false, false));
     }
 }

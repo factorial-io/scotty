@@ -86,6 +86,25 @@ impl ContainerState {
             || self.status == ContainerStatus::Restarting
     }
 
+    /// Returns true when the container is in a terminal state and will never
+    /// produce more log output, so live `follow` is impossible. Non-terminal
+    /// states (running, paused, created, restarting, stopping) may still emit
+    /// output — possibly after a state change such as unpausing or starting.
+    ///
+    /// `Empty` is the default/unknown state (no Docker status record, e.g. a
+    /// container that no longer exists); it is treated as terminal so we
+    /// conservatively avoid attempting a live follow against something we
+    /// can't reason about.
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self.status,
+            ContainerStatus::Exited
+                | ContainerStatus::Dead
+                | ContainerStatus::Removing
+                | ContainerStatus::Empty
+        )
+    }
+
     pub fn running_since(&self) -> Option<TimeDelta> {
         self.started_at
             .map(|started_at| chrono::Local::now() - started_at)
@@ -102,5 +121,50 @@ impl ContainerState {
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state(status: ContainerStatus) -> ContainerState {
+        ContainerState {
+            status,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn terminal_states_are_terminal() {
+        for status in [
+            ContainerStatus::Exited,
+            ContainerStatus::Dead,
+            ContainerStatus::Removing,
+            ContainerStatus::Empty,
+        ] {
+            assert!(
+                state(status.clone()).is_terminal(),
+                "{status} should be terminal"
+            );
+        }
+    }
+
+    #[test]
+    fn live_states_are_not_terminal() {
+        // These may still produce output (now or after a state change), so they
+        // must not be treated as terminal — live follow stays possible.
+        for status in [
+            ContainerStatus::Running,
+            ContainerStatus::Created,
+            ContainerStatus::Restarting,
+            ContainerStatus::Paused,
+            ContainerStatus::Stopping,
+        ] {
+            assert!(
+                !state(status.clone()).is_terminal(),
+                "{status} should not be terminal"
+            );
+        }
     }
 }

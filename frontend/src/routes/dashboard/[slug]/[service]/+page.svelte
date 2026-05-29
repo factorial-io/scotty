@@ -32,6 +32,16 @@
 	$: logStore = getContainerLogs(data.app.name, data.service.service);
 	$: logState = $logStore;
 
+	// Terminal containers (exited/dead/removing) still expose their retained
+	// (historical) logs, but live follow is impossible — they produce no more
+	// output. Other states (paused, stopping, ...) can still be followed.
+	// NOTE: this list mirrors `ContainerState::is_terminal()` in
+	// scotty-core/src/apps/app_data/container.rs — keep the two in sync if the
+	// ContainerStatus enum gains a new terminal state.
+	$: isTerminal = ['exited', 'dead', 'removing', 'empty'].includes(
+		(data.service.status || '').toLowerCase()
+	);
+
 	let hasStartedStream = false;
 
 	// Start log stream when WebSocket is connected
@@ -132,6 +142,15 @@
 
 <!-- Log Viewer Section -->
 <h3 class="text-xl mt-8 mb-4">Container Logs</h3>
+
+{#if isTerminal}
+	<div class="alert alert-info text-sm mb-4">
+		<span>
+			Container has stopped (status: {data.service.status || 'unknown'}). Showing historical
+			logs — live follow is unavailable until the container is started again.
+		</span>
+	</div>
+{/if}
 
 {#if logState.error}
 	<div class="alert alert-error text-sm mb-4">

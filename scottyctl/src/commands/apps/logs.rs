@@ -89,6 +89,9 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
 
     let mut logs_received = false;
     let mut current_stream_id: Option<Uuid> = None;
+    // The server may downgrade follow to a one-shot historical fetch when the
+    // container is stopped. Track the follow mode it actually started with.
+    let mut effective_follow = cmd.follow;
 
     // Listen for WebSocket messages
     while let Some(message) = ws.receiver.next().await {
@@ -98,6 +101,16 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                     match ws_message {
                         WebSocketMessage::LogsStreamStarted(info) => {
                             current_stream_id = Some(info.stream_id);
+                            effective_follow = info.follow;
+                            // The server downgrades follow to a historical fetch
+                            // when the container is not running. Let the user know.
+                            if cmd.follow && !info.follow {
+                                ui.println(
+                                    "Live follow is unavailable because the container has stopped; showing historical logs."
+                                        .yellow()
+                                        .to_string(),
+                                );
+                            }
                         }
                         WebSocketMessage::LogsStreamData(data) => {
                             logs_received = true;
@@ -106,13 +119,13 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
                             }
                         }
                         WebSocketMessage::LogsStreamEnded(end) => {
-                            if !logs_received && !cmd.follow {
+                            if !logs_received && !effective_follow {
                                 ui.println(
                                     "No logs available for the specified criteria"
                                         .yellow()
                                         .to_string(),
                                 );
-                            } else if cmd.follow {
+                            } else if effective_follow {
                                 ui.println(
                                     format!("Log stream ended: {}", end.reason)
                                         .yellow()
@@ -158,18 +171,10 @@ async fn stream_logs_websocket(context: &AppContext, cmd: &LogsCommand) -> anyho
 
     // Send stop message if we have a stream ID and it's a follow stream
     if let Some(stream_id) = current_stream_id {
-        if cmd.follow {
+        if effective_follow {
             let stop_message = WebSocketMessage::StopLogStream { stream_id };
             let _ = ws.send(stop_message).await;
         }
-    }
-
-    if !logs_received && !cmd.follow {
-        ui.println(
-            "No historical logs found. Try using --follow for real-time streaming."
-                .yellow()
-                .to_string(),
-        );
     }
 
     // Close the WebSocket connection properly
