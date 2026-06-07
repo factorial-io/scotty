@@ -2,6 +2,110 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0](https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0) (2026-06-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** requires oauth2 5.x; minimum reqwest is now 0.12.
+
+### Features
+
+* add app:cp file transfer to and from app services ([08c043b](https://github.com/factorial-io/scotty/commit/08c043b7628c8f0163a1c364bc6e5bba4ea6cb60))
+* **files:** add server-side file transfer endpoints ([0f7652d](https://github.com/factorial-io/scotty/commit/0f7652dff3bebcf09d541b1c079af79aac86dbc0))
+* implement landing page for stopped apps ([f09ed2a](https://github.com/factorial-io/scotty/commit/f09ed2a500a58cfa992f1cf9dc9aa83c44cd48ac))
+* **logs:** support logs from stopped containers ([eaf3b1d](https://github.com/factorial-io/scotty/commit/eaf3b1d6c54a8453c1d990aa6050186a18624299))
+* per-app custom actions with approval workflow ([a9bb74f](https://github.com/factorial-io/scotty/commit/a9bb74f4b13d0b422d60ce0d3f9e9d2d2cd93851))
+* propose app-file-transfer openspec change ([c99ebb5](https://github.com/factorial-io/scotty/commit/c99ebb572c3b7cdcd46ee3800b542c5187169171))
+* propose app-file-transfer openspec change ([f9c1e60](https://github.com/factorial-io/scotty/commit/f9c1e60d73a91e9a9bcdb63872118a8974101268))
+* **scottyctl:** add app:cp command for file transfer ([1e9747c](https://github.com/factorial-io/scotty/commit/1e9747cb0811edea4e09dbb05b95831352e33191))
+
+
+### Bug Fixes
+
+* add eslint-disable for external return URL href ([2955e63](https://github.com/factorial-io/scotty/commit/2955e631db75084df28031d03859fd1f34017f66))
+* add missing `connect` feature to tokio-tungstenite dependency ([5b3be39](https://github.com/factorial-io/scotty/commit/5b3be39ce48831d2450b9b53135ba2e0c9059e80))
+* address fourth-round review on app:cp file transfer ([a051d14](https://github.com/factorial-io/scotty/commit/a051d149d193016adcbd02dec7f510579f9806d7))
+* address latest MR review findings for landing page ([06acf53](https://github.com/factorial-io/scotty/commit/06acf5358df5dac0a75e2f30389ffdaf192756c1))
+* address PR review findings for landing page ([fad151f](https://github.com/factorial-io/scotty/commit/fad151f0e799b14afecffdfc37baf061d5a2709e))
+* address second-round review on app:cp file transfer ([aa64d62](https://github.com/factorial-io/scotty/commit/aa64d624d89b3063ce4864ed917f97af034e6ed1))
+* address third-round review on app:cp file transfer ([6be632a](https://github.com/factorial-io/scotty/commit/6be632a28699c5d23d6a272ec6edf7498f5e3450))
+* **api:** return proper 404 for missing container paths on file download ([cc94ad7](https://github.com/factorial-io/scotty/commit/cc94ad7a49ffeddb985f0f3bb8f368c3167d3f77))
+* **app:cp:** address review feedback on file transfer ([c80c25d](https://github.com/factorial-io/scotty/commit/c80c25df6937854ccae1c25f9ffabdb6a5072780))
+* **authz:** serialize policy.yaml with sorted keys to avoid diff churn ([f4bbbe7](https://github.com/factorial-io/scotty/commit/f4bbbe7440f3bc03810978bef90694cbe71b52f6))
+* **authz:** stop tracking runtime-mutated policy.yaml, seed from example ([62a499d](https://github.com/factorial-io/scotty/commit/62a499d6f39a14e1a62cb5caca3b60c64fa16fef))
+* **ci:** prevent duplicate workflow runs on PR branches ([5eb1dca](https://github.com/factorial-io/scotty/commit/5eb1dca94f4be30cdd8f1d4abe6835e500b806a7))
+* **ci:** prevent duplicate workflow runs on PR branches ([c89f3b2](https://github.com/factorial-io/scotty/commit/c89f3b2a0300d5013cb214e774f4713fb068e7c4))
+* correct custom action approval authorization and CLI parsing ([f3b9ea8](https://github.com/factorial-io/scotty/commit/f3b9ea880da531b78442ac92f9226df7b51f3071))
+* correct documentation errors in CLI docs and AGENTS.md ([70913e1](https://github.com/factorial-io/scotty/commit/70913e131174246ef51debf478d07c01116a3a5e))
+* correct documentation errors in CLI docs and AGENTS.md ([e0bc21a](https://github.com/factorial-io/scotty/commit/e0bc21ad0af71564c12e6eb84edacc3a1429f141))
+* **deps:** fix sha2 0.11 compatibility ([c228038](https://github.com/factorial-io/scotty/commit/c22803892c4e5e8b684eff307dc9ba757c57ceea))
+* **deps:** patch known security vulnerabilities in dependencies ([d7a9496](https://github.com/factorial-io/scotty/commit/d7a949681015da7409bafd30d30686ce0f29f058))
+* **deps:** patch known security vulnerabilities in dependencies ([5ddfbf1](https://github.com/factorial-io/scotty/commit/5ddfbf111532e19fc0a22a8ca89fe95e780b7544))
+* **deps:** sync Cargo.lock with workspace version and keep it synced on release ([358badf](https://github.com/factorial-io/scotty/commit/358badffefedeacf0ada11faf841b9505e313f0c))
+* **deps:** update rust crate sha2 to 0.11 ([8bf7491](https://github.com/factorial-io/scotty/commit/8bf74918d562a57bf3576c69345c4acf8a7ac8bc))
+* **deps:** update rust crate sha2 to 0.11 ([1ae1d78](https://github.com/factorial-io/scotty/commit/1ae1d789a514eb7773781fc74c60651f9cdba54c))
+* **deps:** update rust crate ts-rs to v12 ([5396ced](https://github.com/factorial-io/scotty/commit/5396ced6a6bd5c7d4656bf4a05cb16d657568c70))
+* **deps:** update rust crate ts-rs to v12 ([f6c2e57](https://github.com/factorial-io/scotty/commit/f6c2e576f17b50e45fd266fae921469232ea9a7f))
+* **deps:** upgrade oauth2 4.x to 5.x to drop vulnerable reqwest 0.11 chain ([08d3195](https://github.com/factorial-io/scotty/commit/08d31953300554395cfd506ab7ddc50fcd7bbf2a))
+* **docs:** consolidate lockfiles on bun and patch dependency advisories ([282abd1](https://github.com/factorial-io/scotty/commit/282abd1b48b396b6c7b0f93d324cda8abb221e09))
+* **frontend:** fix ESLint v10 compatibility ([6be5c09](https://github.com/factorial-io/scotty/commit/6be5c0984e1ca600ada2adf8fa53906135c58ee8))
+* harden custom action route guards and creation validation ([fc3fdb5](https://github.com/factorial-io/scotty/commit/fc3fdb599359d258fedfb68dbf62bf798d0e5f62))
+* move .scottyignore section after app:create argument descriptions ([e8c66e2](https://github.com/factorial-io/scotty/commit/e8c66e23ed7aa1377e158a7f13903845af9aa8d1))
+* pass Config to ts-rs export() calls for v12 compatibility ([1850f7f](https://github.com/factorial-io/scotty/commit/1850f7f231e45c34f29d5e73f6bb2337cb68aefb))
+* prevent caching of landing page redirect and 404 responses ([1e0e518](https://github.com/factorial-io/scotty/commit/1e0e518340720889e832c4c1f0ae3a3548d48227))
+* prevent caching of landing page redirect and 404 responses ([5ff9eab](https://github.com/factorial-io/scotty/commit/5ff9eab6127ee2d123c51382740c878029d2af0d))
+* **scottyctl:** app:cp upload translates destination into Docker dir + entry name ([897b442](https://github.com/factorial-io/scotty/commit/897b44276d08d3617969d903df28e381b0d70bd0))
+* **tls:** install rustls crypto provider at startup ([75dd751](https://github.com/factorial-io/scotty/commit/75dd7515d405896b7c84c20a1216beab42b4401a))
+* update tests for axum-test v19 API and Docker availability ([31f80aa](https://github.com/factorial-io/scotty/commit/31f80aaacdef5df7f7c94346699604613825e1a9))
+* upgrade vite to v8, svelte to v5.46.4+, and sveltekit to v2.57.1+ for vite-plugin-svelte v7 compatibility ([26946a5](https://github.com/factorial-io/scotty/commit/26946a52de6f18d0186fa3c7641a8346d5435d6c))
+* use bollard_stubs::models for private types in bollard 0.20 ([c38a564](https://github.com/factorial-io/scotty/commit/c38a564f0b2ba0950a760b0d3051858fdc10442f))
+* validate action names and tidy custom action endpoints ([a1b5d3b](https://github.com/factorial-io/scotty/commit/a1b5d3b7352f879422dac2a2c8b4b78a5f826d86))
+
+
+### Refactor
+
+* address second-round review on custom actions ([43560b7](https://github.com/factorial-io/scotty/commit/43560b7d6c124c5789999706943bdc8e8cd3b877))
+* configure ts-rs export dir via Config instead of env var ([ffc7a92](https://github.com/factorial-io/scotty/commit/ffc7a92c2b993253eafd5816261ec767a28510d2))
+* extract get_domains() on ServicePortMapping to eliminate auto-domain coupling ([40e2551](https://github.com/factorial-io/scotty/commit/40e255124133ff238cc86d8b2c9f41dfbddd2283))
+* extract test Docker client creation into shared helper ([8796062](https://github.com/factorial-io/scotty/commit/87960628cf39f52b13fe8d9a06b3d61fc1ffee42))
+
+
+### Documentation
+
+* add implementation plan for scotty landing page ([fbb89e4](https://github.com/factorial-io/scotty/commit/fbb89e44df1e6e85023e19848302e691473fdaa5))
+* expand release-please release guide in README ([dba0a61](https://github.com/factorial-io/scotty/commit/dba0a61c8fdd826e478a60c32f097dac8d7aec07))
+* **files:** document app:cp and tidy file-transfer beans ([1e92cd1](https://github.com/factorial-io/scotty/commit/1e92cd1bf95fe58bf04bd6866b4e04d1b5f361c9))
+* **openspec:** add stopped-container-logs change proposal ([7c9d7cc](https://github.com/factorial-io/scotty/commit/7c9d7cc8083557feea92ffe1e6f04342b6563a71))
+* redesign landing page with Start-button-first UX ([0357685](https://github.com/factorial-io/scotty/commit/035768595ae7ef169c308205dfbc08e83ed90b67))
+* simplify landing page plan with redirect-based approach ([f196ea7](https://github.com/factorial-io/scotty/commit/f196ea7e26b110a1979026e1259122d14371e436))
+* update AGENTS.md for accuracy and condense ([7c27b95](https://github.com/factorial-io/scotty/commit/7c27b95b309be234352a3a44a8e11da7fd1a29e6))
+* update AGENTS.md for accuracy and condense to ~150 lines ([64e8cef](https://github.com/factorial-io/scotty/commit/64e8cef081207353830ee7ee8643d55c238e148a))
+
+
+### Styling
+
+* apply cargo fmt and normalize YAML key ordering ([ecca698](https://github.com/factorial-io/scotty/commit/ecca69809b96bba04683206449c05fe086ced53c))
+* fix formatting (cargo fmt) ([db4bdac](https://github.com/factorial-io/scotty/commit/db4bdaca086c8b02b611ac3d01518355f30b391d))
+* fix Prettier formatting in landing page ([6131bb8](https://github.com/factorial-io/scotty/commit/6131bb88b5be8a72cfdaa4f5570262da4afe8538))
+* fix rustfmt formatting ([62b6cf6](https://github.com/factorial-io/scotty/commit/62b6cf6ea803ab33c15ec62b94c407e596fdc5c0))
+
+
+### Testing
+
+* **authorization:** stop live-policy test from mutating committed policy.yaml ([49e2017](https://github.com/factorial-io/scotty/commit/49e20173ec44586b270632926ee377ffb42b3b23))
+* **authz:** use tracked casbin fixture instead of runtime config ([72f0d33](https://github.com/factorial-io/scotty/commit/72f0d33e5c6dbdae9b3453c8bfb3daa77a0e13f8))
+
+
+### CI
+
+* build docker image on pull requests to catch breakage before merge ([6c6ad19](https://github.com/factorial-io/scotty/commit/6c6ad19c40a1d2dcc1f76f9160022a8b0543227e))
+* fix release-please for virtual workspace manifest ([27dac09](https://github.com/factorial-io/scotty/commit/27dac09b94a347fa53c5f69bb4bf58b6ef298d69))
+* fix release-please for virtual workspace manifest ([70e83ad](https://github.com/factorial-io/scotty/commit/70e83ad081828b063564e2f55899b93a80f7ca22))
+* grant packages:write and pin binary upload to release tag ([28617d9](https://github.com/factorial-io/scotty/commit/28617d9780c7e82a2bbb93e83c9be0297371c53d))
+* replace cargo-release with release-please ([cc44103](https://github.com/factorial-io/scotty/commit/cc441030975f88fe2735003b75067b447e4b9fb6))
+* replace cargo-release with release-please ([615fbbc](https://github.com/factorial-io/scotty/commit/615fbbc882604dc4413a847cfc1d97b5a3a635c6))
+
 ## [0.3.0](https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0) (2026-06-05)
 
 
