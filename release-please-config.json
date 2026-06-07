@@ -5,18 +5,55 @@
   "bump-minor-pre-major": true,
   "separate-pull-requests": false,
   "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug Fixes" },
-    { "type": "perf", "section": "Performance" },
-    { "type": "refactor", "section": "Refactor" },
-    { "type": "refac", "section": "Refactor" },
-    { "type": "doc", "section": "Documentation" },
-    { "type": "docs", "section": "Documentation" },
-    { "type": "style", "section": "Styling" },
-    { "type": "test", "section": "Testing" },
-    { "type": "ci", "section": "CI" },
-    { "type": "deps", "section": "Dependencies" },
-    { "type": "chore", "section": "Miscellaneous Tasks", "hidden": true }
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "refactor",
+      "section": "Refactor"
+    },
+    {
+      "type": "refac",
+      "section": "Refactor"
+    },
+    {
+      "type": "doc",
+      "section": "Documentation"
+    },
+    {
+      "type": "docs",
+      "section": "Documentation"
+    },
+    {
+      "type": "style",
+      "section": "Styling"
+    },
+    {
+      "type": "test",
+      "section": "Testing"
+    },
+    {
+      "type": "ci",
+      "section": "CI"
+    },
+    {
+      "type": "deps",
+      "section": "Dependencies"
+    },
+    {
+      "type": "chore",
+      "section": "Miscellaneous Tasks",
+      "hidden": true
+    }
   ],
   "packages": {
     ".": {
@@ -29,6 +66,11 @@
           "type": "toml",
           "path": "Cargo.toml",
           "jsonpath": "$.workspace.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value==='scotty'||@.name.value==='scotty-core'||@.name.value==='scotty-ts-generator'||@.name.value==='scotty-types'||@.name.value==='scottyctl')].version"
         }
       ]
     }
