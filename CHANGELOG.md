@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1](https://github.com/factorial-io/scotty/compare/v0.3.0...v0.3.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* show service URL based on per-container status ([5ce6967](https://github.com/factorial-io/scotty/commit/5ce696781430a5f49bdfd9bc5e3aae1813340723))
+
 ## [0.3.0](https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0) (2026-06-07)
 
 
