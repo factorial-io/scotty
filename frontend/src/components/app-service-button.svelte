@@ -2,7 +2,6 @@
 	import ArrowUpRight from '@iconify-icons/ph/arrow-up-right';
 	import Icon from '@iconify/svelte';
 	import type { AppService } from '../types';
-	export let status;
 	export let service: AppService;
 	export let property = 'service';
 
@@ -14,7 +13,10 @@
 	}
 </script>
 
-{#if status !== 'Running'}
+<!-- Gate URL visibility on this service's own container status, so a running
+     service shows its URL even when the overall app is not fully Running
+     (e.g. a sibling init/one-shot container has already Exited). -->
+{#if service.status !== 'Running'}
 	<button class="btn btn-xs" disabled>{service.service}</button>
 {:else}
 	<!-- eslint-disable svelte/no-navigation-without-resolve -->

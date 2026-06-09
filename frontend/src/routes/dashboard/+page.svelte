@@ -98,7 +98,7 @@
 				<td
 					>{#each app.services as service (service.service)}
 						{#if service.domains && service.domains.length > 0}
-							<AppServiceButton status={app.status} {service} />
+							<AppServiceButton {service} />
 						{/if}
 					{/each}</td
 				>

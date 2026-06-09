@@ -127,11 +127,7 @@
 			<td class="text-gray-500"><strong>Domain(s)</strong></td>
 			<td>
 				{#if data.service.domains && data.service.domains.length > 0}
-					<AppServiceButton
-						property="domain"
-						service={data.service}
-						status={data.app.status}
-					/>
+					<AppServiceButton property="domain" service={data.service} />
 				{:else}
 					--
 				{/if}

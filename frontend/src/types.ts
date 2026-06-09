@@ -5,6 +5,7 @@ export interface AppService {
 	status: string;
 	started_at: string;
 	use_tls: boolean;
+	exit_code?: number | null;
 }
 
 export enum AppTtlKeys {

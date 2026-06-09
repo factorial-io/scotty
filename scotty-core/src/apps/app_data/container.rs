@@ -61,6 +61,10 @@ pub struct ContainerState {
     pub started_at: Option<chrono::DateTime<chrono::Local>>,
     pub used_registry: Option<String>,
     pub basic_auth: Option<(String, String)>,
+    /// Exit code reported by Docker for a stopped container, when available.
+    /// Used to tell a clean one-shot/init exit (`Exited` + `Some(0)`) apart
+    /// from a crash (non-zero exit code).
+    pub exit_code: Option<i64>,
 }
 
 impl Default for ContainerState {
@@ -75,6 +79,7 @@ impl Default for ContainerState {
             started_at: None,
             used_registry: None,
             basic_auth: None,
+            exit_code: None,
         }
     }
 }
@@ -84,6 +89,15 @@ impl ContainerState {
         self.status == ContainerStatus::Running
             || self.status == ContainerStatus::Created
             || self.status == ContainerStatus::Restarting
+    }
+
+    /// Returns true when the container ran to completion successfully, i.e. it
+    /// has `Exited` with exit code `0`. This is the typical one-shot/init
+    /// container case: the work is done and should not be treated as a failure
+    /// when computing app-level status. A non-zero exit code is a crash, not a
+    /// completion.
+    pub fn is_completed(&self) -> bool {
+        self.status == ContainerStatus::Exited && self.exit_code == Some(0)
     }
 
     /// Returns true when the container is in a terminal state and will never
@@ -132,6 +146,80 @@ mod tests {
         ContainerState {
             status,
             ..Default::default()
+        }
+    }
+
+    fn exited(exit_code: Option<i64>) -> ContainerState {
+        ContainerState {
+            status: ContainerStatus::Exited,
+            exit_code,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn running_states_are_running() {
+        for status in [
+            ContainerStatus::Running,
+            ContainerStatus::Created,
+            ContainerStatus::Restarting,
+        ] {
+            assert!(
+                state(status.clone()).is_running(),
+                "{status} should be running"
+            );
+        }
+    }
+
+    #[test]
+    fn non_running_states_are_not_running() {
+        for status in [
+            ContainerStatus::Exited,
+            ContainerStatus::Dead,
+            ContainerStatus::Paused,
+            ContainerStatus::Stopping,
+            ContainerStatus::Removing,
+            ContainerStatus::Empty,
+        ] {
+            assert!(
+                !state(status.clone()).is_running(),
+                "{status} should not be running"
+            );
+        }
+    }
+
+    #[test]
+    fn exited_zero_is_completed() {
+        assert!(exited(Some(0)).is_completed());
+    }
+
+    #[test]
+    fn exited_non_zero_is_not_completed() {
+        assert!(!exited(Some(1)).is_completed());
+        assert!(!exited(Some(137)).is_completed());
+    }
+
+    #[test]
+    fn exited_without_exit_code_is_not_completed() {
+        // No exit code available: do not assume success.
+        assert!(!exited(None).is_completed());
+    }
+
+    #[test]
+    fn running_states_are_not_completed() {
+        // A clean exit code only matters for an Exited container.
+        for status in [
+            ContainerStatus::Running,
+            ContainerStatus::Created,
+            ContainerStatus::Restarting,
+            ContainerStatus::Dead,
+        ] {
+            let s = ContainerState {
+                status: status.clone(),
+                exit_code: Some(0),
+                ..Default::default()
+            };
+            assert!(!s.is_completed(), "{status} should not be completed");
         }
     }
 
