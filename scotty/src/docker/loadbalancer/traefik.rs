@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn test_traefik_get_docker_compose_override() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![]),
+            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![], "traefik".into()),
             ..Default::default()
         };
 
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn test_traefik_override_serializes_to_valid_compose() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![]),
+            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![], "traefik".into()),
             ..Default::default()
         };
         let app_settings = AppSettings {
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn test_traefik_env_vars_applied_to_all_containers() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![]),
+            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![], "traefik".into()),
             ..Default::default()
         };
 

@@ -137,7 +137,11 @@ where
         };
         let docker = &context.app_state.docker;
 
-        // Disconnect Traefik. Ignore "not found / not connected" (404).
+        // Disconnect Traefik. `force` is intentional: the app's containers are
+        // already down at teardown time, so there is no in-flight request to
+        // disrupt, and force lets the disconnect succeed regardless of endpoint
+        // state. Tolerate "not found / not connected", whose status is
+        // version-dependent (403/404/409), so teardown stays idempotent.
         match docker
             .disconnect_network(
                 &network,
@@ -152,7 +156,7 @@ where
                 "Disconnected Traefik ({}) from network {}",
                 container, network
             ),
-            Err(e) if server_status(&e) == Some(404) => {}
+            Err(e) if matches!(server_status(&e), Some(403 | 404 | 409)) => {}
             Err(e) => warn!("Failed to disconnect Traefik from {}: {}", network, e),
         }
 

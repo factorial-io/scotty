@@ -576,6 +576,14 @@ network to route over.
   certresolver must be configured in traefik. The default is `myresolver` shown
   also in the example `compose.yml` from the [installation-documentation](installation.md)
 
+> **Upgrading from a shared-network version:** apps created before this change
+> still have a `docker-compose.override.yml` that references the old shared
+> network. They keep running and routable on that network until you migrate
+> them — Scotty does not rewrite the override automatically. Run `app:rebuild`
+> on each existing app to regenerate the override onto its per-app network and
+> connect Traefik. A plain `app:run` does not rewrite the override, so rebuild
+> is the migration step.
+
 #### Haproxy-config
 
 * `use_tls` If set to true, scotty will create the necessary environment variables

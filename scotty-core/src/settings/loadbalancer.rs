@@ -46,13 +46,14 @@ impl TraefikSettings {
         network: String,
         certresolver: Option<String>,
         allowed_middlewares: Vec<String>,
+        container_name: String,
     ) -> Self {
         Self {
             use_tls,
             network,
             certresolver,
             allowed_middlewares,
-            container_name: default_traefik_container_name(),
+            container_name,
         }
     }
 }

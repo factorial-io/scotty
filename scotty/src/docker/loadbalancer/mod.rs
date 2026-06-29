@@ -13,6 +13,11 @@ pub mod types;
 /// Must stay in sync between the compose-override generation
 /// (`traefik.rs`) and the network lifecycle handlers, which both build the
 /// name from the same inputs.
+///
+/// `app_name` is expected to be a slug (Scotty slugifies app names on
+/// create/adopt), which keeps the result within Docker's allowed network-name
+/// character set. The name is a 1:1 function of `app_name`, so two distinct
+/// apps only collide here if they already collide on app name.
 pub fn app_proxy_network_name(base_network: &str, app_name: &str) -> String {
     format!("{base_network}--{app_name}")
 }
