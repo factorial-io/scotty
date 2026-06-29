@@ -92,7 +92,11 @@ where
             .await
         {
             Ok(_) => info!("Connected Traefik ({}) to network {}", container, network),
-            Err(e) if server_status(&e) == Some(403) => {
+            // Already connected. The exact status is version-dependent: older
+            // daemons raise a libnetwork "endpoint already exists" ForbiddenError
+            // (403), newer ones a Conflict (409). Treat both as benign so the
+            // handler is idempotent across Docker versions.
+            Err(e) if matches!(server_status(&e), Some(403 | 409)) => {
                 info!("Traefik ({}) already connected to {}", container, network);
             }
             Err(e) if server_status(&e) == Some(404) => {
@@ -152,7 +156,7 @@ where
             Err(e) => warn!("Failed to disconnect Traefik from {}: {}", network, e),
         }
 
-        // Remove the network. Ignore 404 (already gone); a 403 means other
+        // Remove the network. Ignore 404 (already gone); a 409 means other
         // endpoints are still attached, in which case we leave it in place.
         match docker.remove_network(&network).await {
             Ok(_) => info!("Removed proxy network {}", network),
