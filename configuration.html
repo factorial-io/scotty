@@ -694,6 +694,7 @@ and Haproxy-config (deprecated).</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">load_balancer_type</span><span class="token punctuation">:</span> Traefik <span class="token comment">#HaproxyConfig or Traefik</span>
 <span class="token key atrule">traefik</span><span class="token punctuation">:</span>
   <span class="token key atrule">network</span><span class="token punctuation">:</span> <span class="token string">"proxy"</span>
+  <span class="token key atrule">container_name</span><span class="token punctuation">:</span> <span class="token string">"traefik"</span>
   <span class="token key atrule">use_tls</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
   <span class="token key atrule">certresolver</span><span class="token punctuation">:</span> <span class="token string">"myresolver"</span>
 <span class="token key atrule">haproxy</span><span class="token punctuation">:</span>
@@ -705,18 +706,38 @@ and Haproxy-config (deprecated).</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Traefik</h4>
+<p>To avoid Docker DNS name collisions across apps (every app that defines an
+<code>nginx</code> service would otherwise publish the same <code>nginx</code> alias onto one shared
+network), scotty gives <strong>each app its own dedicated proxy network</strong> instead of
+putting all apps on a single shared network. For an app named <code>myapp</code> and a
+base <code>network</code> of <code>proxy</code>, the per-app network is <code>proxy--myapp</code>. Scotty
+creates this network before starting the app, connects the Traefik container to
+it, and removes it again when the app is destroyed or purged. Public services
+are tagged with the <code>traefik.docker.network</code> label so Traefik knows which
+network to route over.</p>
 <ul>
-<li><code>network</code> The network to use for the communication between scotty and traefik.
-The default is <code>proxy</code>. If you use a different network, make sure to create
-the network before starting scotty.
-Scotty will also add the network to all public services of your app when you
-create or adopt an app, so traefik can access the public services of the app.</li>
+<li><code>network</code> The base name used to derive each app's dedicated proxy network
+(<code>&lt;network&gt;--&lt;app-name&gt;</code>). The default is <code>proxy</code>. Scotty creates and tears
+down these per-app networks automatically; you do not need to create them
+yourself.</li>
+<li><code>container_name</code> The name (or id) of the running Traefik container that
+scotty connects to each app's proxy network. The default is <code>traefik</code>. Set
+this if your Traefik container runs under a different name.</li>
 <li><code>use_tls</code> If set to true, scotty will create the necessary labels for traefik
 to use tls. The default is true.</li>
 <li><code>certresolver</code> The certresolver to use for the tls-certificate. The
 certresolver must be configured in traefik. The default is <code>myresolver</code> shown
 also in the example <code>compose.yml</code> from the <a href="installation.html">installation-documentation</a></li>
 </ul>
+<blockquote>
+<p><strong>Upgrading from a shared-network version:</strong> apps created before this change
+still have a <code>docker-compose.override.yml</code> that references the old shared
+network. They keep running and routable on that network until you migrate
+them — Scotty does not rewrite the override automatically. Run <code>app:rebuild</code>
+on each existing app to regenerate the override onto its per-app network and
+connect Traefik. A plain <code>app:run</code> does not rewrite the override, so rebuild
+is the migration step.</p>
+</blockquote>
 <h4 id="haproxy-config" tabindex="-1"><a class="header-anchor" href="#haproxy-config">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

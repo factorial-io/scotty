@@ -213,7 +213,11 @@ lifecycle of the app, but won't allow destroying the app and all its data.</p>
 <p>Unsupported apps are docker-compose-based applications which need environment
 variables to interact with <code>docker-compose</code> or are exposing ports directly.
 Scotty won't touch these apps but will show them in the UI and CLI. You
-can use the cli-command <code>app:adopt</code> to make the app compatible with Scotty.</p>
+can use the cli-command <code>app:adopt</code> to make the app compatible with Scotty.
+Note that <code>app:adopt</code> only creates the Scotty settings so the app is
+recognized by Scotty; it does not apply the load balancer configuration. Run
+<code>app:rebuild</code> afterwards to write the <code>docker-compose.override.yml</code>, create the
+per-app proxy network, and get the app fully working behind Traefik.</p>
 <h3 id="blueprints" tabindex="-1"><a class="header-anchor" href="#blueprints">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
