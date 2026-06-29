@@ -297,7 +297,12 @@ mod tests {
         assert!(labels.contains_key(
             "traefik.http.middlewares.web--myapp--basic-auth.basicauth.removeheader"
         ));
-        assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"));
+        assert_eq!(
+            labels.get(
+                "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
+            ),
+            Some(&"none, noarchive, nosnippet, notranslate, noimageindex".to_string())
+        );
         assert_eq!(
             labels
                 .get("traefik.http.routers.web--myapp-0.middlewares")
