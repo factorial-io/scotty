@@ -11,6 +11,10 @@ use super::types::{
     LoadBalancerInfo,
 };
 
+/// Value of the `X-Robots-Tag` header injected when `disallow_robots` is set.
+/// Kept as a single constant so production code and tests cannot drift apart.
+const ROBOTS_HEADER_VALUE: &str = "none, noarchive, nosnippet, notranslate, noimageindex";
+
 pub struct TraefikLoadBalancer;
 
 impl LoadBalancerImpl for TraefikLoadBalancer {
@@ -175,7 +179,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                         "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tag",
                         &middleware_name
                     ),
-                    "none, noarchive, nosnippet, notranslate, noimageindex".to_string(),
+                    ROBOTS_HEADER_VALUE.to_string(),
                 );
 
                 middlewares.push(middleware_name.clone());
@@ -301,7 +305,7 @@ mod tests {
             labels.get(
                 "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
             ),
-            Some(&"none, noarchive, nosnippet, notranslate, noimageindex".to_string())
+            Some(&ROBOTS_HEADER_VALUE.to_string())
         );
         assert_eq!(
             labels
@@ -369,6 +373,11 @@ mod tests {
         assert!(!web_labels.contains_key(
             "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
         ));
+        // ...and the robots middleware must not be wired into the router chain
+        assert!(!web_labels
+            .get("traefik.http.routers.web--myapp-0.middlewares")
+            .unwrap()
+            .contains("web--myapp--robots"));
 
         // Check that db service has environment variables but no load balancer config
         let db_config = result.services.get("db").unwrap();

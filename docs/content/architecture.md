@@ -134,7 +134,7 @@ services:
   nginx:
     labels:
       traefik.http.routers.nginx--nginx-again.middlewares: nginx--nginx-again--robots
-      traefik.http.routers.nginx--nginx-again.rule: Host(`nginx.nginx-test.example.com`)
+      traefik.http.routers.nginx--nginx-again.rule: Host(`nginx.nginx-again.example.com`)
       traefik.enable: 'true'
       traefik.http.services.nginx--nginx-again.loadbalancer.server.port: '80'
       traefik.http.routers.nginx--nginx-again.tls: 'true'
