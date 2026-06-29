@@ -133,7 +133,7 @@ An example `compose.override.yml` file for Traefik:
 services:
   nginx:
     labels:
-      traefik.http.routers.nginx--nginx-again.middlewares: nginx--nginx-test--robots
+      traefik.http.routers.nginx--nginx-again.middlewares: nginx--nginx-again--robots
       traefik.http.routers.nginx--nginx-again.rule: Host(`nginx.nginx-test.example.com`)
       traefik.enable: 'true'
       traefik.http.services.nginx--nginx-again.loadbalancer.server.port: '80'

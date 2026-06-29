@@ -364,6 +364,12 @@ mod tests {
         assert!(web_config.labels.is_some()); // Has load balancer labels
         assert!(web_config.networks.is_some()); // Has networks
 
+        // With disallow_robots: false, the robots header must not be emitted
+        let web_labels = web_config.labels.as_ref().unwrap();
+        assert!(!web_labels.contains_key(
+            "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
+        ));
+
         // Check that db service has environment variables but no load balancer config
         let db_config = result.services.get("db").unwrap();
         let db_env = db_config.environment.as_ref().unwrap();
