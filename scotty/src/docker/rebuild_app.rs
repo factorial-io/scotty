@@ -27,10 +27,10 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 pub enum RebuildAppStates {
     RecreateLoadBalancerConfig,
     RunDockerLogin,
+    EnsureAppNetwork,
     RunDockerComposePull,
     RunDockerComposeBuild,
     RunDockerComposeStop,
-    EnsureAppNetwork,
     RunDockerComposeRun,
     WaitForAllContainers,
     RunPostActions,
