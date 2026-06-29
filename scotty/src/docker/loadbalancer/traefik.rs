@@ -376,8 +376,8 @@ mod tests {
         // ...and the robots middleware must not be wired into the router chain
         assert!(!web_labels
             .get("traefik.http.routers.web--myapp-0.middlewares")
-            .unwrap()
-            .contains("web--myapp--robots"));
+            .map(|s| s.contains("web--myapp--robots"))
+            .unwrap_or(false));
 
         // Check that db service has environment variables but no load balancer config
         let db_config = result.services.get("db").unwrap();
