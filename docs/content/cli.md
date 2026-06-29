@@ -279,9 +279,11 @@ days or forever.
 You can add basic auth to the app with the `--basic-auth` argument. The argument
 should contain a username and a password separated by a colon.
 
-By default, Scotty injects a `X-Robots-Tag: noindex` header into all responses
-to prevent search engines from indexing the app. The `--allow-robots` argument
-disables this behavior, allowing search engines to index the app.
+By default, Scotty injects a `X-Robots-Tag: none, noarchive, nosnippet, notranslate, noimageindex`
+header into all responses to prevent search engines from indexing the app (this
+also suppresses caching, snippets, translation, and image indexing). The
+`--allow-robots` argument disables this behavior, allowing search engines to
+index the app.
 (Not supported by all proxies)
 
 The `--destroy-on-ttl` argument will destroy the app after the specified ttl
@@ -374,7 +376,7 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
 
 will beam up the current folder to the server and start the nginx service on port 80.
 It will add basic auth with the username `user` and the password `password` and
-allow search engines to index the app (no `X-Robots-Tag: noindex` header). The app will run forever.
+allow search engines to index the app (no `X-Robots-Tag` header). The app will run forever.
 
 ```shell
 scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
