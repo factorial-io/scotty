@@ -14,6 +14,12 @@ pub fn default_traefik_container_name() -> String {
     "traefik".to_string()
 }
 
+/// Default base network name. This is the base for each app's per-app proxy
+/// network (`<network>--<app>`); it must never be empty.
+pub fn default_traefik_network() -> String {
+    "proxy".to_string()
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct TraefikSettings {
     pub use_tls: bool,
@@ -32,7 +38,11 @@ impl Default for TraefikSettings {
     fn default() -> Self {
         Self {
             use_tls: false,
-            network: String::new(),
+            // Matches the documented default and what config.rs sets. Must be
+            // non-empty: it is the base for each app's proxy network
+            // (`<network>--<app>`), and an empty base would yield a Docker-invalid
+            // name beginning with `-`.
+            network: default_traefik_network(),
             certresolver: None,
             allowed_middlewares: Vec::new(),
             container_name: default_traefik_container_name(),
