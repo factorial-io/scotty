@@ -16,8 +16,10 @@ pub mod types;
 ///
 /// `app_name` is expected to be a slug (Scotty slugifies app names on
 /// create/adopt), which keeps the result within Docker's allowed network-name
-/// character set. The name is a 1:1 function of `app_name`, so two distinct
-/// apps only collide here if they already collide on app name.
+/// character set. The join is not injective if `base_network` itself contains
+/// `--` (e.g. base `proxy--region` + app `foo` yields the same name as base
+/// `proxy` + app `region--foo`); the default base `proxy` has no dashes, so in
+/// practice the network name is determined by the app name.
 pub fn app_proxy_network_name(base_network: &str, app_name: &str) -> String {
     format!("{base_network}--{app_name}")
 }

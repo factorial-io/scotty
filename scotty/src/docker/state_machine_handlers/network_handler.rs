@@ -156,7 +156,17 @@ where
                 "Disconnected Traefik ({}) from network {}",
                 container, network
             ),
-            Err(e) if matches!(server_status(&e), Some(403 | 404 | 409)) => {}
+            Err(e) if matches!(server_status(&e), Some(403 | 404 | 409)) => {
+                // Benign "already disconnected / not connected" case. Log it so
+                // that, if remove_network then reports a lingering endpoint, the
+                // teardown trace is complete rather than a lone unexplained warning.
+                info!(
+                    "Traefik ({}) already disconnected from {} (status {:?})",
+                    container,
+                    network,
+                    server_status(&e)
+                );
+            }
             Err(e) => warn!("Failed to disconnect Traefik from {}: {}", network, e),
         }
 
