@@ -6,7 +6,7 @@ use bollard_stubs::models::{
 };
 use scotty_core::settings::loadbalancer::LoadBalancerType;
 use tokio::sync::RwLock;
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 use crate::docker::loadbalancer::app_proxy_network_name;
 use crate::state_machine::StateHandler;
@@ -100,8 +100,13 @@ where
                 info!("Traefik ({}) already connected to {}", container, network);
             }
             Err(e) if server_status(&e) == Some(404) => {
+                // 404 covers both "Traefik container missing" and "network
+                // missing" (e.g. a concurrent destroy removed the network we
+                // just created). We proceed best-effort; if it is the network
+                // that is gone, the subsequent `compose up` surfaces it as a
+                // hard failure.
                 warn!(
-                    "Traefik container '{}' not found; app on network {} will not be routable until it is connected",
+                    "connect_network returned 404 for Traefik '{}' on network {} (container or network missing); app may not be routable",
                     container, network
                 );
             }
@@ -175,7 +180,10 @@ where
         match docker.remove_network(&network).await {
             Ok(_) => info!("Removed proxy network {}", network),
             Err(e) if server_status(&e) == Some(404) => {}
-            Err(e) => warn!("Could not remove proxy network {}: {}", network, e),
+            // The network could not be removed and is now leaked (e.g. Traefik
+            // is still attached). Surface at error! with the name so an operator
+            // can clean it up; it is also reclaimable on the next purge.
+            Err(e) => error!("Leaked proxy network {} (removal failed): {}", network, e),
         }
 
         Ok(self.next_state.clone())

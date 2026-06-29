@@ -397,6 +397,12 @@ mod tests {
             net.get("default").is_some(),
             "missing default network in:\n{yaml}"
         );
+        // Pin the empty-attachment shape: `default: {}` (a mapping), not `null`.
+        assert!(
+            net["default"].is_mapping(),
+            "expected `default` to serialize as a mapping, got: {:?}\n{yaml}",
+            net.get("default")
+        );
         let aliases = &parsed["services"]["nginx"]["networks"]["proxy--stiftung"]["aliases"];
         assert_eq!(aliases[0].as_str(), Some("nginx--stiftung"));
         assert_eq!(
