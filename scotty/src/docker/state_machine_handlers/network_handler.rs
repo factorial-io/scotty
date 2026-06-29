@@ -63,6 +63,8 @@ where
         let mut labels = std::collections::HashMap::new();
         labels.insert("scotty.managed".to_string(), "true".to_string());
         labels.insert("scotty.app".to_string(), context.app_data.name.clone());
+        // Defaults give a local bridge network with Docker-assigned IPAM, which
+        // is what Traefik's container-to-container routing expects here.
         match docker
             .create_network(NetworkCreateRequest {
                 name: network.clone(),
@@ -181,9 +183,13 @@ where
             Ok(_) => info!("Removed proxy network {}", network),
             Err(e) if server_status(&e) == Some(404) => {}
             // The network could not be removed and is now leaked (e.g. Traefik
-            // is still attached). Surface at error! with the name so an operator
-            // can clean it up; it is also reclaimable on the next purge.
-            Err(e) => error!("Leaked proxy network {} (removal failed): {}", network, e),
+            // is still attached, which usually traces back to the disconnect
+            // warning logged just above). Surface at error! with the name so an
+            // operator can clean it up; it is also reclaimable on the next purge.
+            Err(e) => error!(
+                "Leaked proxy network {} (removal failed; Traefik may still be attached, see preceding disconnect log): {}",
+                network, e
+            ),
         }
 
         Ok(self.next_state.clone())
