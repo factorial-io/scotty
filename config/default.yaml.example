@@ -57,7 +57,8 @@ docker:
 load_balancer_type: Traefik  # Options: Traefik, HaproxyConfig
 
 traefik:
-    network: "proxy"
+    network: "proxy"            # base name; each app gets its own "<network>--<app>" network
+    container_name: "traefik"   # Traefik container scotty connects to each app network
     use_tls: true
     certresolver: "myresolver"
 

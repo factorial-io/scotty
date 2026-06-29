@@ -6,9 +6,10 @@ use regex::Regex;
 use crate::settings::config::Settings;
 use scotty_core::apps::app_data::AppSettings;
 
+use super::app_proxy_network_name;
 use super::types::{
     DockerComposeConfig, DockerComposeNetworkConfig, DockerComposeServiceConfig, LoadBalancerImpl,
-    LoadBalancerInfo,
+    LoadBalancerInfo, ServiceNetworkAttachment,
 };
 
 pub struct TraefikLoadBalancer;
@@ -58,11 +59,18 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             networks: Some(HashMap::new()),
         };
 
-        // Setup external network with traefik
+        // Each app gets its own dedicated external proxy network instead of a
+        // single shared one, so Docker DNS names never collide across apps.
+        // Scotty creates this network and connects Traefik to it via the
+        // network lifecycle handlers; here we only reference it as external.
+        let app_network = app_proxy_network_name(&global_settings.traefik.network, app_name);
         let networks = config.networks.as_mut().unwrap();
         networks.insert(
-            global_settings.traefik.network.clone(),
-            DockerComposeNetworkConfig { external: true },
+            app_network.clone(),
+            DockerComposeNetworkConfig {
+                external: true,
+                name: Some(app_network.clone()),
+            },
         );
 
         // First, apply environment variables to all services
@@ -101,17 +109,33 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             if service_config.environment.is_none() {
                 service_config.environment = Some(HashMap::new());
             }
-            // Initialize or update networks
-            service_config.networks = Some(vec![
-                "default".into(),
-                global_settings.traefik.network.clone(),
-            ]);
+            let service_name = format!("{}--{}", &service.service, &app_name);
+
+            // Attach the public service to its project `default` network and to
+            // the per-app proxy network. On the proxy network we set an explicit
+            // app-scoped alias so the service is reachable under a unique name
+            // (Compose still adds the bare service name as an alias, but the
+            // network itself is no longer shared, so that no longer collides).
+            let mut service_networks = std::collections::HashMap::new();
+            service_networks.insert("default".to_string(), ServiceNetworkAttachment::default());
+            service_networks.insert(
+                app_network.clone(),
+                ServiceNetworkAttachment {
+                    aliases: Some(vec![service_name.clone()]),
+                },
+            );
+            service_config.networks = Some(service_networks);
 
             let labels = service_config.labels.as_mut().unwrap();
-            let service_name = format!("{}--{}", &service.service, &app_name);
 
             // Add Traefik labels
             labels.insert("traefik.enable".to_string(), "true".to_string());
+
+            // Tell Traefik which network to use to reach this container. The
+            // container is on multiple networks and Traefik only resolves the
+            // backend IP once at discovery time, so this label is required for
+            // correct routing.
+            labels.insert("traefik.docker.network".to_string(), app_network.clone());
 
             let domains = service.get_domains(&settings.domain);
             for (idx, domain) in domains.iter().enumerate() {
@@ -262,13 +286,34 @@ mod tests {
         let labels = service_config.labels.as_ref().unwrap();
         let environment = service_config.environment.as_ref().unwrap();
 
-        // check networks.
+        // check networks: the service joins its `default` network and the
+        // per-app proxy network (base "proxy" + app "myapp"), with an
+        // app-scoped alias on the proxy network.
         let networks = service_config.networks.as_ref().unwrap();
-        assert!(networks.contains(&"default".to_string()));
-        assert!(networks.contains(&"proxy".to_string()));
+        assert!(networks.contains_key("default"));
+        assert!(networks.contains_key("proxy--myapp"));
+        assert_eq!(
+            networks
+                .get("proxy--myapp")
+                .unwrap()
+                .aliases
+                .as_ref()
+                .unwrap(),
+            &vec!["web--myapp".to_string()]
+        );
+
+        // The top-level network definition is the per-app external network.
+        let defined_networks = result.networks.as_ref().unwrap();
+        let net = defined_networks.get("proxy--myapp").unwrap();
+        assert!(net.external);
+        assert_eq!(net.name.as_deref(), Some("proxy--myapp"));
 
         // Check labels.
         assert_eq!(labels.get("traefik.enable").unwrap(), "true");
+        assert_eq!(
+            labels.get("traefik.docker.network").unwrap(),
+            "proxy--myapp"
+        );
         assert_eq!(
             labels
                 .get("traefik.http.routers.web--myapp-0.rule")
@@ -308,6 +353,50 @@ mod tests {
         // check environment.
         assert_eq!(environment.get("FOO").unwrap(), "BAR");
         assert_eq!(environment.get("API_KEY").unwrap(), "1234");
+    }
+
+    #[test]
+    fn test_traefik_override_serializes_to_valid_compose() {
+        let global_settings = Settings {
+            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![]),
+            ..Default::default()
+        };
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "nginx".to_string(),
+                port: 80,
+                domains: vec![],
+            }],
+            ..Default::default()
+        };
+
+        let result = TraefikLoadBalancer
+            .get_docker_compose_override(
+                &global_settings,
+                "stiftung",
+                &app_settings,
+                &app_settings.environment.expose_all(),
+                &["nginx".to_string()],
+            )
+            .unwrap();
+
+        let yaml = serde_norway::to_string(&result).unwrap();
+
+        // The serialized override must round-trip as valid YAML and carry the
+        // per-app network with an app-scoped alias (not the bare service name).
+        let parsed: serde_norway::Value = serde_norway::from_str(&yaml).unwrap();
+        let net = &parsed["services"]["nginx"]["networks"];
+        assert!(
+            net.get("default").is_some(),
+            "missing default network in:\n{yaml}"
+        );
+        let aliases = &parsed["services"]["nginx"]["networks"]["proxy--stiftung"]["aliases"];
+        assert_eq!(aliases[0].as_str(), Some("nginx--stiftung"));
+        assert_eq!(
+            parsed["networks"]["proxy--stiftung"]["external"].as_bool(),
+            Some(true)
+        );
     }
 
     #[test]
