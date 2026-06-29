@@ -255,13 +255,13 @@ configuration to enable basic auth or to prevent robots from indexing the app.</
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">services</span><span class="token punctuation">:</span>
   <span class="token key atrule">nginx</span><span class="token punctuation">:</span>
     <span class="token key atrule">labels</span><span class="token punctuation">:</span>
-      <span class="token key atrule">traefik.http.routers.nginx--nginx-again.middlewares</span><span class="token punctuation">:</span> nginx<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>test<span class="token punctuation">-</span><span class="token punctuation">-</span>robots
-      <span class="token key atrule">traefik.http.routers.nginx--nginx-again.rule</span><span class="token punctuation">:</span> Host(`nginx.nginx<span class="token punctuation">-</span>test.example.com`)
+      <span class="token key atrule">traefik.http.routers.nginx--nginx-again.middlewares</span><span class="token punctuation">:</span> nginx<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>again<span class="token punctuation">-</span><span class="token punctuation">-</span>robots
+      <span class="token key atrule">traefik.http.routers.nginx--nginx-again.rule</span><span class="token punctuation">:</span> Host(`nginx.nginx<span class="token punctuation">-</span>again.example.com`)
       <span class="token key atrule">traefik.enable</span><span class="token punctuation">:</span> <span class="token string">'true'</span>
       <span class="token key atrule">traefik.http.services.nginx--nginx-again.loadbalancer.server.port</span><span class="token punctuation">:</span> <span class="token string">'80'</span>
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.tls</span><span class="token punctuation">:</span> <span class="token string">'true'</span>
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.tls.certresolver</span><span class="token punctuation">:</span> myresolver
-      <span class="token key atrule">traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tags</span><span class="token punctuation">:</span> none<span class="token punctuation">,</span> noarchive<span class="token punctuation">,</span> nosnippet<span class="token punctuation">,</span> notranslate<span class="token punctuation">,</span> noimageindex
+      <span class="token key atrule">traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tag</span><span class="token punctuation">:</span> none<span class="token punctuation">,</span> noarchive<span class="token punctuation">,</span> nosnippet<span class="token punctuation">,</span> notranslate<span class="token punctuation">,</span> noimageindex
     <span class="token key atrule">environment</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
     <span class="token key atrule">networks</span><span class="token punctuation">:</span>
     <span class="token punctuation">-</span> default

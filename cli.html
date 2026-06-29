@@ -416,9 +416,11 @@ compose.yml file. The port should be the port the service is listening on.</p>
 days or forever.</p>
 <p>You can add basic auth to the app with the <code>--basic-auth</code> argument. The argument
 should contain a username and a password separated by a colon.</p>
-<p>By default, Scotty injects a <code>X-Robots-Tag: noindex</code> header into all responses
-to prevent search engines from indexing the app. The <code>--allow-robots</code> argument
-disables this behavior, allowing search engines to index the app.
+<p>By default, Scotty injects a <code>X-Robots-Tag: none, noarchive, nosnippet, notranslate, noimageindex</code>
+header into all responses to prevent search engines from indexing the app (this
+also suppresses caching, snippets, translation, and image indexing). The
+<code>--allow-robots</code> argument disables this behavior, allowing search engines to
+index the app.
 (Not supported by all proxies)</p>
 <p>The <code>--destroy-on-ttl</code> argument will destroy the app after the specified ttl
 instead of just stopping it. Suitable for apps that are not expected to be used
@@ -521,7 +523,7 @@ dist/
   <span class="token parameter variable">--ttl</span> forever</code></pre>
 <p>will beam up the current folder to the server and start the nginx service on port 80.
 It will add basic auth with the username <code>user</code> and the password <code>password</code> and
-allow search engines to index the app (no <code>X-Robots-Tag: noindex</code> header). The app will run forever.</p>
+allow search engines to index the app (no <code>X-Robots-Tag</code> header). The app will run forever.</p>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:create my-nginx-test <span class="token punctuation">\</span>
   <span class="token parameter variable">--folder</span> <span class="token builtin class-name">.</span> <span class="token punctuation">\</span>
   <span class="token parameter variable">--service</span> nginx:80 <span class="token punctuation">\</span>
