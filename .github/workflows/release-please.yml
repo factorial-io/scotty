@@ -50,7 +50,7 @@ jobs:
                       os: macos-latest
         runs-on: ${{ matrix.os }}
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   ref: ${{ needs.release-please.outputs.tag_name }}
             - name: Install cross-compilation tools
@@ -74,12 +74,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout this repo (scotty)
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   ref: ${{ needs.release-please.outputs.tag_name }}
 
             - name: Checkout tap repo
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   repository: factorial-io/homebrew-scottyctl-tap
                   token: ${{ secrets.BREW_PAT }}
@@ -136,7 +136,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   ref: ${{ needs.release-please.outputs.tag_name }}
 
