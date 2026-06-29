@@ -139,7 +139,7 @@ services:
       traefik.http.services.nginx--nginx-again.loadbalancer.server.port: '80'
       traefik.http.routers.nginx--nginx-again.tls: 'true'
       traefik.http.routers.nginx--nginx-again.tls.certresolver: myresolver
-      traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tags: none, noarchive, nosnippet, notranslate, noimageindex
+      traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tag: none, noarchive, nosnippet, notranslate, noimageindex
     environment: {}
     networks:
     - default

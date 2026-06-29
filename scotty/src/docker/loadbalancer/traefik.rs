@@ -172,7 +172,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                 let middleware_name = format!("{}--{}", &service_name, "robots");
                 labels.insert(
                     format!(
-                        "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tags",
+                        "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tag",
                         &middleware_name
                     ),
                     "none, noarchive, nosnippet, notranslate, noimageindex".to_string(),
@@ -297,7 +297,7 @@ mod tests {
         assert!(labels.contains_key(
             "traefik.http.middlewares.web--myapp--basic-auth.basicauth.removeheader"
         ));
-        assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tags"));
+        assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"));
         assert_eq!(
             labels
                 .get("traefik.http.routers.web--myapp-0.middlewares")
