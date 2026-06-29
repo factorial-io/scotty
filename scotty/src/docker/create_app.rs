@@ -21,6 +21,7 @@ use super::rebuild_app::rebuild_app_prepare;
 use super::state_machine_handlers::context::Context;
 use super::state_machine_handlers::create_directory_handler::CreateDirectoryHandler;
 use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalancerConfig;
+use super::state_machine_handlers::network_handler::EnsureAppNetworkHandler;
 use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
 use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
 use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
@@ -60,6 +61,7 @@ enum CreateAppStates {
     SaveSettings,
     SaveFiles,
     CreateLoadBalancerConfig,
+    EnsureAppNetwork,
     RunDockerComposeBuildAndRun,
     RunPostActions,
     UpdateAppData,
@@ -100,9 +102,16 @@ async fn create_app_prepare(
     sm.add_handler(
         CreateAppStates::CreateLoadBalancerConfig,
         Arc::new(CreateLoadBalancerConfig::<CreateAppStates> {
-            next_state: CreateAppStates::RunDockerComposeBuildAndRun,
+            next_state: CreateAppStates::EnsureAppNetwork,
             load_balancer_type: app_state.settings.load_balancer_type.clone(),
             settings: settings.clone(),
+        }),
+    );
+
+    sm.add_handler(
+        CreateAppStates::EnsureAppNetwork,
+        Arc::new(EnsureAppNetworkHandler::<CreateAppStates> {
+            next_state: CreateAppStates::RunDockerComposeBuildAndRun,
         }),
     );
 

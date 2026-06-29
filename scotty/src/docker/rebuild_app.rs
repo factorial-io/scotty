@@ -9,6 +9,7 @@ use crate::{
     app_state::SharedAppState,
     docker::state_machine_handlers::{
         context::Context, create_load_balancer_config::CreateLoadBalancerConfig,
+        network_handler::EnsureAppNetworkHandler,
         run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
         run_post_actions_handler::RunPostActionsHandler,
@@ -29,6 +30,7 @@ pub enum RebuildAppStates {
     RunDockerComposePull,
     RunDockerComposeBuild,
     RunDockerComposeStop,
+    EnsureAppNetwork,
     RunDockerComposeRun,
     WaitForAllContainers,
     RunPostActions,
@@ -96,9 +98,15 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerComposeStop,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposeRun,
+            next_state: RebuildAppStates::EnsureAppNetwork,
             command: ["stop"].iter().map(|s| s.to_string()).collect(),
             env: app.get_environment(),
+        }),
+    );
+    sm.add_handler(
+        RebuildAppStates::EnsureAppNetwork,
+        Arc::new(EnsureAppNetworkHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunDockerComposeRun,
         }),
     );
     sm.add_handler(
