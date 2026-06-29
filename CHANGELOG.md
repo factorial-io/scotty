@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2](https://github.com/factorial-io/scotty/compare/v0.3.1...v0.3.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* correct robots header name to standard X-Robots-Tag ([#847](https://github.com/factorial-io/scotty/issues/847)) ([c0191da](https://github.com/factorial-io/scotty/commit/c0191da1842896a51765c7be2705ad793bf2bc10))
+* give each app its own Traefik proxy network to avoid DNS collisions ([#849](https://github.com/factorial-io/scotty/issues/849)) ([644d6be](https://github.com/factorial-io/scotty/commit/644d6bee3ed528b7eb4e0883a345fef7a7d760b3))
+
 ## [0.3.1](https://github.com/factorial-io/scotty/compare/v0.3.0...v0.3.1) (2026-06-09)
 
 
