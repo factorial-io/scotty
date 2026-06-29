@@ -75,8 +75,18 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerLogin,
         Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposePull,
+            next_state: RebuildAppStates::EnsureAppNetwork,
             registry: app.get_registry(),
+        }),
+    );
+    // Ensure the per-app network exists before ANY compose subcommand runs:
+    // the override declares it as external, and compose can reject commands
+    // (e.g. on a freshly adopted app, or after the network was removed) when a
+    // declared external network is missing.
+    sm.add_handler(
+        RebuildAppStates::EnsureAppNetwork,
+        Arc::new(EnsureAppNetworkHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunDockerComposePull,
         }),
     );
     sm.add_handler(
@@ -98,15 +108,9 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerComposeStop,
         Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::EnsureAppNetwork,
+            next_state: RebuildAppStates::RunDockerComposeRun,
             command: ["stop"].iter().map(|s| s.to_string()).collect(),
             env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::EnsureAppNetwork,
-        Arc::new(EnsureAppNetworkHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposeRun,
         }),
     );
     sm.add_handler(
