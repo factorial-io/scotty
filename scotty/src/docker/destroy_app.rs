@@ -33,6 +33,10 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
         _from: &DestroyAppStates,
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<DestroyAppStates> {
+        // Delegates compose-down to purge_app_prepare(Down), which also runs
+        // TeardownAppNetworkHandler. That is why destroy has no explicit network
+        // teardown state of its own: the per-app proxy network is removed here,
+        // via the nested purge state machine.
         let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
         let handle = sm.spawn(context.clone());
 

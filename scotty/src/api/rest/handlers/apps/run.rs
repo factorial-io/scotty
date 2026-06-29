@@ -175,6 +175,13 @@ pub async fn destroy_app_handler(
     Ok(SecureJson(app_data))
 }
 
+/// Adopts an existing (unsupported) app by creating its Scotty settings so the
+/// app is recognized and managed by Scotty.
+///
+/// This only writes the `.scotty.yml` settings derived from the running app and
+/// registers it; it does NOT run a state machine. No `docker-compose.override.yml`
+/// is written, no per-app proxy network is created, and Traefik is not connected.
+/// Run `rebuild_app` afterwards to fully wire the app into the load balancer.
 #[utoipa::path(
     get,
     path = "/api/v1/authenticated/apps/adopt/{app_id}",

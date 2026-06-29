@@ -89,6 +89,10 @@ Unsupported apps are docker-compose-based applications which need environment
 variables to interact with `docker-compose` or are exposing ports directly.
 Scotty won't touch these apps but will show them in the UI and CLI. You
 can use the cli-command `app:adopt` to make the app compatible with Scotty.
+Note that `app:adopt` only creates the Scotty settings so the app is
+recognized by Scotty; it does not apply the load balancer configuration. Run
+`app:rebuild` afterwards to write the `docker-compose.override.yml`, create the
+per-app proxy network, and get the app fully working behind Traefik.
 
 ### Blueprints
 

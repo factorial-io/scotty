@@ -405,6 +405,14 @@ environment variables into the `.scotty.yml` file.
 After adopting an app, it is strongly advised to check the `.scotty.yml` file and
 remove any unnecessary information from it and double-check the configuration.
 
+> **Note:** `app:adopt` only creates the Scotty settings (`.scotty.yml`) so the
+> app is recognized and managed by Scotty. It does **not** apply the load
+> balancer configuration to the running app: it writes no
+> `docker-compose.override.yml`, does not create the per-app proxy network, and
+> does not connect Traefik. The app keeps running as-is. To get the app fully
+> wired into Scotty's Traefik integration (override file, per-app network,
+> Traefik routing), run `app:rebuild` after adopting it.
+
 ## Destroy an app
 
 ```shell

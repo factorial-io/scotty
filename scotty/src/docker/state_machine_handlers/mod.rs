@@ -1,6 +1,7 @@
 pub mod context;
 pub mod create_directory_handler;
 pub mod create_load_balancer_config;
+pub mod network_handler;
 pub mod remove_directory_handler;
 pub mod run_docker_compose_handler;
 pub mod run_docker_login_handler;

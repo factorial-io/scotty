@@ -106,6 +106,10 @@ async fn create_app_prepare(
         }),
     );
 
+    // Note: the per-app network is ensured by the nested rebuild state machine
+    // (RunDockerComposeBuildHandler delegates to rebuild_app_prepare, which runs
+    // EnsureAppNetworkHandler before any compose command), so create_app does
+    // not ensure it separately.
     sm.add_handler(
         CreateAppStates::RunDockerComposeBuildAndRun,
         Arc::new(RunDockerComposeBuildHandler::<CreateAppStates> {
