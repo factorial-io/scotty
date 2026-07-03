@@ -61,6 +61,7 @@ api:
     deployment: "placeholder-will-be-overridden"
   create_app_max_size: "50M"
   auth_mode: "bearer"  # "dev", "oauth", or "bearer"
+  base_url: "https://scotty.example.com"  # public-facing URL of Scotty itself
   dev_user_email: "dev:system:internal"
   dev_user_name: "Dev User"
   oauth:
@@ -76,6 +77,7 @@ api:
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
+* `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. Optional, but should be set in any production deployment.
 * `auth_mode`: Authentication mode. Options are:
   * `"dev"`: Development mode with no authentication (uses fixed dev user)
   * `"oauth"`: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)
@@ -583,6 +585,10 @@ network to route over.
 > on each existing app to regenerate the override onto its per-app network and
 > connect Traefik. A plain `app:run` does not rewrite the override, so rebuild
 > is the migration step.
+
+> **Default backend:** Traefik can also be configured to route the domains of
+> *stopped* apps to Scotty, which then offers a landing page to start them on
+> demand. See [Default backend & landing page](default-backend.md).
 
 #### Haproxy-config
 

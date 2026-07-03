@@ -28,6 +28,7 @@ export default function (defaultConfig) {
             "architecture",
             "installation",
             "configuration",
+            "default-backend",
             "observability",
             "cli",
             "oauth-authentication",
