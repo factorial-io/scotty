@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';
+	import { consumePendingLandingRedirect } from '../../lib/landingResume';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
@@ -17,6 +18,14 @@
 		await checkAuthMode();
 	});
 
+	// After a successful login, resume a pending landing-page app start
+	// (stored when the user clicked "Start App" while logged out); otherwise
+	// go to the dashboard.
+	async function redirectAfterLogin() {
+		// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
+		await goto(resolve(consumePendingLandingRedirect() ?? '/dashboard'));
+	}
+
 	async function checkAuthMode() {
 		try {
 			const result = await authService.checkAuthMode();
@@ -25,13 +34,13 @@
 
 			// Handle dev mode - redirect directly to dashboard
 			if (authMode === 'dev') {
-				await goto(resolve('/dashboard'));
+				await redirectAfterLogin();
 				return;
 			}
 
 			// Check if already authenticated and redirect
 			if (authService.isAuthenticated()) {
-				await goto(resolve('/dashboard'));
+				await redirectAfterLogin();
 				return;
 			}
 		} catch (err) {
@@ -59,7 +68,7 @@
 				if (result.redirectUrl) {
 					window.location.href = result.redirectUrl;
 				} else {
-					await goto(resolve('/dashboard'));
+					await redirectAfterLogin();
 				}
 			} else {
 				error = result.error || 'Login failed';
