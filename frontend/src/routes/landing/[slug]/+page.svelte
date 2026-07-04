@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { isAuthenticated, authMode } from '../../../stores/sessionStore';
 	import { authService } from '../../../lib/authService';
+	import { storePendingLandingStart } from '../../../lib/landingResume';
 	import { runApp, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
 	import {
@@ -96,13 +97,10 @@
 	async function handleStart() {
 		if (!$isAuthenticated) {
 			// Store intent to start after login
-			sessionStorage.setItem(
-				'scotty_landing_pending_start',
-				JSON.stringify({
-					appName: data.appName,
-					returnUrl: data.returnUrl
-				})
-			);
+			storePendingLandingStart({
+				appName: data.appName,
+				returnUrl: data.returnUrl
+			});
 
 			// Redirect to login -- after OAuth, user returns to /landing/[slug]
 			if ($authMode === 'oauth') {
