@@ -1,6 +1,6 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:7a705108af501585770587f44e3c43a2d7a155a5b6f1fd7066bbb6aba8e2abfc'
+nodes_hash: 'sha256:b5d0375f95f6fd25e0f5eb57171228a0784bc3998e4414ce540f6b7de81c181f'
 node_count: 77
 ---
 # kenkeep Graph
@@ -283,9 +283,10 @@ Total nodes: 77
 ## practice-access-token-config-removed-use-bearer-tokens
 
 - **kind:** practice
-- **title:** api.access_token is no longer supported — use api.bearer_tokens
+- **title:** api.access_token is legacy — only honored in the Casbin fallback path
 - **path:** configuration/practice-access-token-config-removed-use-bearer-tokens.md
 - **tags:** auth, configuration, gotcha
+- **relates_to:** practice-bearer-tokens-require-rbac-assignment
 
 ## practice-adopt-then-rebuild-for-unsupported-apps
 
@@ -321,6 +322,7 @@ Total nodes: 77
 - **title:** Bearer tokens must be explicitly assigned in authorization policy
 - **path:** auth/practice-bearer-tokens-require-rbac-assignment.md
 - **tags:** authorization, bearer-token, casbin, auth
+- **relates_to:** practice-access-token-config-removed-use-bearer-tokens
 
 ## practice-casbin-assignment-precedence
 

@@ -10,9 +10,9 @@
 _None._
 
 ## Conventions (how we build)
+- Open [**Bearer tokens must be explicitly assigned in authorization policy**](practice-bearer-tokens-require-rbac-assignment.md) to learn about: Bearer token auth has no legacy fallback; unassigned tokens get 401, not api.access_token. #authorization #bearer-token #casbin #auth
 - Open [**Bearer token comparison is constant-time**](practice-bearer-token-constant-time-comparison.md) to learn about: Bearer token validation uses the subtle crate's constant-time equality instead of standard string comparison. #security #auth #bearer-token
 - Open [**Bearer token identifiers vs secret values; identifier: prefix for service accounts**](practice-bearer-token-identifier-naming.md) to learn about: policy.yaml assignments reference identifiers, not secret token values; service accounts use an identifier: prefix, OAuth users use their email. #auth #casbin #bearer-tokens #naming
-- Open [**Bearer tokens must be explicitly assigned in authorization policy**](practice-bearer-tokens-require-rbac-assignment.md) to learn about: Bearer token auth has no legacy fallback; unassigned tokens get 401, not api.access_token. #authorization #bearer-token #casbin #auth
 - Open [**Casbin assignment matching follows exact > domain > wildcard precedence**](practice-casbin-assignment-precedence.md) to learn about: Exact email match beats domain pattern beats wildcard; wildcard assignments are always additive. #authorization #casbin #security
 - Open [**In hybrid OAuth+bearer mode, bearer tokens are checked before OAuth**](practice-hybrid-auth-bearer-checked-first.md) to learn about: Authentication middleware checks bearer tokens (fast HashMap lookup) first, then falls back to OAuth (network call), so service accounts pay no OAuth latency. #oauth #bearer-tokens #auth #performance
 - Open [**OAuth config has two distinct URLs that must not be confused**](practice-oauth-redirect-url-vs-frontend-base-url.md) to learn about: redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to. #oauth #configuration #gotcha
@@ -49,13 +49,13 @@ _None._
 - Open [**In hybrid OAuth+bearer mode, bearer tokens are checked before OAuth**](practice-hybrid-auth-bearer-checked-first.md) — Authentication middleware checks bearer tokens (fast HashMap lookup) first, then falls back to OAuth (network call), so service accounts pay no OAuth latency.
 - Open [**scottyctl: explicit access token wins over cached OAuth token**](../cli/practice-scottyctl-access-token-precedence.md) — In scottyctl's token resolution, an explicitly supplied --access-token / SCOTTY_ACCESS_TOKEN always takes precedence over a cached OAuth token.
 ### #bearer-token
-- Open [**Bearer token comparison is constant-time**](practice-bearer-token-constant-time-comparison.md) — Bearer token validation uses the subtle crate's constant-time equality instead of standard string comparison.
 - Open [**Bearer tokens must be explicitly assigned in authorization policy**](practice-bearer-tokens-require-rbac-assignment.md) — Bearer token auth has no legacy fallback; unassigned tokens get 401, not api.access_token.
+- Open [**Bearer token comparison is constant-time**](practice-bearer-token-constant-time-comparison.md) — Bearer token validation uses the subtle crate's constant-time equality instead of standard string comparison.
 ### #bearer-tokens
 - Open [**Bearer token identifiers vs secret values; identifier: prefix for service accounts**](practice-bearer-token-identifier-naming.md) — policy.yaml assignments reference identifiers, not secret token values; service accounts use an identifier: prefix, OAuth users use their email.
 - Open [**In hybrid OAuth+bearer mode, bearer tokens are checked before OAuth**](practice-hybrid-auth-bearer-checked-first.md) — Authentication middleware checks bearer tokens (fast HashMap lookup) first, then falls back to OAuth (network call), so service accounts pay no OAuth latency.
 ### #gotcha
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead.
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 - Open [**OAuth config has two distinct URLs that must not be confused**](practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
 ### #rate-limiting
@@ -66,7 +66,7 @@ _None._
 - Open [**Rate limiting has three independent tiers keyed differently**](map-rate-limiting-tiers.md) — public_auth and oauth tiers rate-limit by client IP; the authenticated tier rate-limits per bearer token (per-user).
 ### #configuration
 - Open [**Config keys are overridden via SCOTTY__ prefixed, double-underscore env vars**](../configuration/practice-config-env-var-override-convention.md) — Any config.yaml key can be overridden by an env var: prefix SCOTTY__, replace dots/nesting with double underscores.
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead.
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #deployment
 - Open [**Rate limits are per-instance, not global, across multiple Scotty instances**](practice-rate-limiting-is-per-instance-not-global.md) — In-memory token-bucket rate limiting is per-process; N horizontally-scaled instances multiply the effective limit by N.
