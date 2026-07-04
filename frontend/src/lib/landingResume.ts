@@ -7,6 +7,9 @@
  * page to start the app, instead of dropping them on the dashboard.
  */
 
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+
 const PENDING_START_KEY = 'scotty_landing_pending_start';
 
 export interface PendingLandingStart {
@@ -46,4 +49,13 @@ export function consumePendingLandingRedirect(): string | null {
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Navigate to the pending landing-page app start (if any), or to the
+ * dashboard. Call after any successful login.
+ */
+export async function redirectAfterLogin(): Promise<void> {
+	// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
+	await goto(resolve(consumePendingLandingRedirect() ?? '/dashboard'));
 }

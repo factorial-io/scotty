@@ -3,9 +3,7 @@
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';
-	import { consumePendingLandingRedirect } from '../../lib/landingResume';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { redirectAfterLogin } from '../../lib/landingResume';
 
 	let password = '';
 	let loading = true;
@@ -17,14 +15,6 @@
 		setTitle('Login');
 		await checkAuthMode();
 	});
-
-	// After a successful login, resume a pending landing-page app start
-	// (stored when the user clicked "Start App" while logged out); otherwise
-	// go to the dashboard.
-	async function redirectAfterLogin() {
-		// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
-		await goto(resolve(consumePendingLandingRedirect() ?? '/dashboard'));
-	}
 
 	async function checkAuthMode() {
 		try {
