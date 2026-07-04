@@ -69,7 +69,6 @@ api:
     client_id: "your_client_id"
     client_secret: "your_client_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
-    frontend_base_url: "http://localhost:21342"
 ```
 
 * `bind_address`: The address and port the server listens on.
@@ -77,7 +76,7 @@ api:
 * `create_app_max_size`: The maximum size of the uploaded files. The default
   is 50M. As the payload gets base64-encoded, the actual possible size is a
   bit smaller (by ~ 2/3)
-* `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. Optional, but should be set in any production deployment.
+* `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used for post-login OAuth redirects and by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. **Set this in any production deployment** — when it is missing, Scotty falls back to `http://localhost:21342` and logs a warning at startup.
 * `auth_mode`: Authentication mode. Options are:
   * `"dev"`: Development mode with no authentication (uses fixed dev user)
   * `"oauth"`: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)
@@ -89,7 +88,7 @@ api:
   * `client_id`: OAuth application client ID from your OIDC provider
   * `client_secret`: OAuth application client secret from your OIDC provider
   * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
-  * `frontend_base_url`: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")
+  * `frontend_base_url`: **Deprecated** — use `api.base_url` instead. Post-authentication redirects now use `api.base_url`. If this setting is still present it is used as a fallback when `api.base_url` is unset, and a deprecation warning is logged at startup; if both are set, `api.base_url` wins.
 
 **Hybrid Authentication:** When `auth_mode` is `oauth`, you can optionally configure `bearer_tokens` to enable service account access alongside OAuth for human users. This allows:
 - **Human users** authenticate via OAuth (web UI, CLI device flow)
@@ -838,6 +837,7 @@ SCOTTY__API__OAUTH__CLIENT_ID=my-local-client-id
 | `api.bearer_tokens.admin`                         | `SCOTTY__API__BEARER_TOKENS__ADMIN`                      |
 | `api.bearer_tokens.deployment`                    | `SCOTTY__API__BEARER_TOKENS__DEPLOYMENT`                 |
 | `api.bind_address`                                | `SCOTTY__API__BIND_ADDRESS`                              |
+| `api.base_url`                                    | `SCOTTY__API__BASE_URL`                                  |
 | `api.auth_mode`                                   | `SCOTTY__API__AUTH_MODE`                                 |
 | `api.dev_user_email`                              | `SCOTTY__API__DEV_USER_EMAIL`                            |
 | `api.dev_user_name`                               | `SCOTTY__API__DEV_USER_NAME`                             |
@@ -845,7 +845,7 @@ SCOTTY__API__OAUTH__CLIENT_ID=my-local-client-id
 | `api.oauth.client_id`                             | `SCOTTY__API__OAUTH__CLIENT_ID`                          |
 | `api.oauth.client_secret`                         | `SCOTTY__API__OAUTH__CLIENT_SECRET`                      |
 | `api.oauth.redirect_url`                          | `SCOTTY__API__OAUTH__REDIRECT_URL`                       |
-| `api.oauth.frontend_base_url`                     | `SCOTTY__API__OAUTH__FRONTEND_BASE_URL`                  |
+| `api.oauth.frontend_base_url` (deprecated)        | `SCOTTY__API__OAUTH__FRONTEND_BASE_URL`                  |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |
