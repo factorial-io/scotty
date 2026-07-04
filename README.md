@@ -192,6 +192,16 @@ and then start the server with:
 cargo run --bin scotty  or your preferred way to run a rust binary
 ```
 
+### AI knowledge base (kenkeep)
+
+This repo ships a [kenkeep](https://github.com/e0ipso/kenkeep) knowledge base under `.ai/kenkeep/`. The Claude Code hook wiring in `.claude/settings.json` points at scripts under `.ai/kenkeep/hooks/`, which is machine-local and gitignored — after cloning, generate it once:
+
+```shell
+npx --yes kenkeep@latest init
+```
+
+Verify with `npx kenkeep doctor`. Without this step, Claude Code sessions in this repo will report hook failures ("cannot find module") on session start/end. See [.ai/kenkeep/README.md](.ai/kenkeep/README.md) for how the knowledge base works.
+
 ### Pre-push git hook via [cargo-husky](https://github.com/rhysd/cargo-husky)
 
 This project uses a pre-push git-hook installed by cargo husky. It should be installed automatically.

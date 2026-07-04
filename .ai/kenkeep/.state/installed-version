@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "package": "kenkeep",
+  "version": "1.13.0",
+  "installed_at": "2026-07-04T08:12:59.393Z",
+  "harnesses": [
+    "claude"
+  ]
+}
