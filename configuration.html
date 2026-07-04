@@ -172,15 +172,14 @@ from <code>/</code>.</li>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_client_id"</span>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_client_secret"</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
-    <span class="token key atrule">frontend_base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span></code></pre>
+    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span></code></pre>
 <ul>
 <li><code>bind_address</code>: The address and port the server listens on.</li>
 <li><code>bearer_tokens</code>: <strong>Required for bearer authentication</strong>. Map of logical token identifiers to secure bearer tokens. <strong>Security Note</strong>: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).</li>
 <li><code>create_app_max_size</code>: The maximum size of the uploaded files. The default
 is 50M. As the payload gets base64-encoded, the actual possible size is a
 bit smaller (by ~ 2/3)</li>
-<li><code>base_url</code>: Public-facing base URL under which Scotty itself is reachable (e.g. <code>"https://scotty.example.com"</code>). Used by the <a href="default-backend.html">default backend / landing page</a> feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. Optional, but should be set in any production deployment.</li>
+<li><code>base_url</code>: Public-facing base URL under which Scotty itself is reachable (e.g. <code>"https://scotty.example.com"</code>). Used for post-login OAuth redirects and by the <a href="default-backend.html">default backend / landing page</a> feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. <strong>Set this in any production deployment</strong> — when it is missing, Scotty falls back to <code>http://localhost:21342</code> and logs a warning at startup.</li>
 <li><code>auth_mode</code>: Authentication mode. Options are:
 <ul>
 <li><code>"dev"</code>: Development mode with no authentication (uses fixed dev user)</li>
@@ -196,7 +195,7 @@ bit smaller (by ~ 2/3)</li>
 <li><code>client_id</code>: OAuth application client ID from your OIDC provider</li>
 <li><code>client_secret</code>: OAuth application client secret from your OIDC provider</li>
 <li><code>redirect_url</code>: OAuth callback URL - must match your provider's configuration (backend endpoint)</li>
-<li><code>frontend_base_url</code>: Base URL of your frontend application for post-authentication redirects (default: "http://localhost:21342")</li>
+<li><code>frontend_base_url</code>: <strong>Deprecated</strong> — use <code>api.base_url</code> instead. Post-authentication redirects now use <code>api.base_url</code>. If this setting is still present it is used as a fallback when <code>api.base_url</code> is unset, and a deprecation warning is logged at startup; if both are set, <code>api.base_url</code> wins.</li>
 </ul>
 </li>
 </ul>
@@ -986,6 +985,10 @@ underscores and prefix the key with <code>SCOTTY__</code>.</p>
 <td><code>SCOTTY__API__BIND_ADDRESS</code></td>
 </tr>
 <tr>
+<td><code>api.base_url</code></td>
+<td><code>SCOTTY__API__BASE_URL</code></td>
+</tr>
+<tr>
 <td><code>api.auth_mode</code></td>
 <td><code>SCOTTY__API__AUTH_MODE</code></td>
 </tr>
@@ -1014,7 +1017,7 @@ underscores and prefix the key with <code>SCOTTY__</code>.</p>
 <td><code>SCOTTY__API__OAUTH__REDIRECT_URL</code></td>
 </tr>
 <tr>
-<td><code>api.oauth.frontend_base_url</code></td>
+<td><code>api.oauth.frontend_base_url</code> (deprecated)</td>
 <td><code>SCOTTY__API__OAUTH__FRONTEND_BASE_URL</code></td>
 </tr>
 <tr>

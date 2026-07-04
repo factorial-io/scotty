@@ -229,11 +229,13 @@ instead of trying to redirect them.</li>
 target for stopped-app domains.</li>
 </ul>
 <blockquote>
-<p>If <code>api.base_url</code> is not set, Scotty falls back to <code>api.oauth.frontend_base_url</code>
-(unless that is still the default <code>http://localhost:21342</code>). If neither is
-configured, Scotty cannot tell its own domain apart from app domains: it logs a
-warning and serves every request as the frontend, so <strong>per-app domains will not
-redirect to the landing page</strong>. Always set <code>api.base_url</code> in production.</p>
+<p><code>api.base_url</code> is also used for post-login OAuth redirects, so the whole
+login-and-return-to-app round trip stays on one origin. If it is not set,
+Scotty falls back to the deprecated <code>api.oauth.frontend_base_url</code> (with a
+deprecation warning at startup). If neither is configured, Scotty logs a
+warning at startup, cannot tell its own domain apart from app domains, and
+serves every request as the frontend, so <strong>per-app domains will not redirect
+to the landing page</strong>. Always set <code>api.base_url</code> in production.</p>
 </blockquote>
 <h3 id="2.-configure-traefik-as-the-default-backend" tabindex="-1"><a class="header-anchor" href="#2.-configure-traefik-as-the-default-backend">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -336,8 +338,14 @@ or the start will be rejected.</li>
 <li><strong>App domains are served the Scotty frontend instead of redirecting.</strong>
 <code>api.base_url</code> is probably not set (or is still the localhost default). Set it to
 Scotty's public URL. Look for the warning
-<em>"Neither api.base_url nor api.oauth.frontend_base_url is configured"</em> in the
-logs.</li>
+<em>"api.base_url is not configured"</em> in the logs.</li>
+<li><strong>After logging in, the user lands on the app list instead of returning to the
+app's start page.</strong> In older releases this happened when
+<code>api.oauth.frontend_base_url</code> pointed to a different origin than <code>api.base_url</code>
+— the post-login redirect landed on the "wrong" origin and the stored
+return-to-app state was invisible there. Post-login redirects now use
+<code>api.base_url</code> directly; remove the deprecated <code>api.oauth.frontend_base_url</code>
+setting.</li>
 <li><strong>Stopped app domains return a gateway error instead of the landing page.</strong>
 The catch-all router is missing or not matching. Check the Traefik dashboard for
 a <code>scotty-catchall</code> router and confirm its priority is lower than the app
