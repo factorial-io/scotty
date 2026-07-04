@@ -67,12 +67,12 @@ Configure Scotty for OAuth mode in `config/local.yaml`:
 api:
   bind_address: "0.0.0.0:21342"
   auth_mode: "oauth"
+  base_url: "http://localhost:21342"  # Public URL of Scotty, used for post-login redirects
   oauth:
     oidc_issuer_url: "https://gitlab.com"  # or your OIDC provider URL
     client_id: "your_oidc_application_id"
     client_secret: "your_oidc_application_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
-    frontend_base_url: "http://localhost:21342"  # Base URL for frontend redirects (default: http://localhost:21342)
 ```
 
 **Provider-specific examples:**
@@ -124,21 +124,24 @@ Scotty uses two different URL configurations for OAuth:
 - **Example**: `http://localhost:21342/api/oauth/callback`
 - **Format**: Full URL to Scotty's backend `/api/oauth/callback` endpoint
 
-#### `frontend_base_url` - Frontend Application Base URL
-- **Purpose**: The base URL of your frontend application where users are redirected after OAuth completes
-- **Used by**: Scotty backend to redirect users back to the frontend with session ID
+#### `api.base_url` - Public Base URL of Scotty
+- **Purpose**: The public base URL of Scotty, where users are redirected after OAuth completes
+- **Used by**: Scotty backend to redirect users back to the web interface with a session ID (and by the [default backend / landing page](default-backend.md) feature)
 - **Must match**: The actual URL where your users access Scotty's web interface
 - **Example**: `http://localhost:21342` (development) or `https://scotty.example.com` (production)
 - **Format**: Base URL only (no path) - Scotty appends `/oauth/callback?session_id=xyz`
 
 **Production Example:**
 ```yaml
-oauth:
-  redirect_url: "https://scotty.example.com/api/oauth/callback"
-  frontend_base_url: "https://scotty.example.com"
+api:
+  base_url: "https://scotty.example.com"
+  oauth:
+    redirect_url: "https://scotty.example.com/api/oauth/callback"
 ```
 
-**Important**: Both URLs must match your production domain. Using `localhost` in production will break the OAuth flow.
+**Important**: Both URLs must match your production domain. Using `localhost` in production will break the OAuth flow — Scotty logs a warning at startup when `api.base_url` is not configured and the `localhost` default is in effect.
+
+> **Deprecated:** older releases used `api.oauth.frontend_base_url` for the post-login redirect. It still works as a fallback when `api.base_url` is unset, but logs a deprecation warning at startup; if both are set, `api.base_url` wins. Having two separately-configured URLs caused hard-to-diagnose bugs (e.g. the stopped-app landing page losing its "return to app" state when the two origins differed), which is why they were consolidated.
 
 ## OAuth Endpoints
 
@@ -245,6 +248,7 @@ Enable hybrid authentication by configuring both OAuth and bearer tokens:
 ```yaml
 api:
   auth_mode: oauth  # Enable OAuth mode
+  base_url: "http://localhost:21342"
 
   # OAuth configuration for human users
   oauth:
@@ -252,7 +256,6 @@ api:
     client_id: "your_oidc_application_id"
     client_secret: "your_oidc_application_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
-    frontend_base_url: "http://localhost:21342"
 
   # Bearer tokens for service accounts (checked first for performance)
   bearer_tokens:

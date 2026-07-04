@@ -94,11 +94,13 @@ Scotty uses this value to:
 * Build the `https://scotty.example.com/landing/<app>?return_url=...` redirect
   target for stopped-app domains.
 
-> If `api.base_url` is not set, Scotty falls back to `api.oauth.frontend_base_url`
-> (unless that is still the default `http://localhost:21342`). If neither is
-> configured, Scotty cannot tell its own domain apart from app domains: it logs a
-> warning and serves every request as the frontend, so **per-app domains will not
-> redirect to the landing page**. Always set `api.base_url` in production.
+> `api.base_url` is also used for post-login OAuth redirects, so the whole
+> login-and-return-to-app round trip stays on one origin. If it is not set,
+> Scotty falls back to the deprecated `api.oauth.frontend_base_url` (with a
+> deprecation warning at startup). If neither is configured, Scotty logs a
+> warning at startup, cannot tell its own domain apart from app domains, and
+> serves every request as the frontend, so **per-app domains will not redirect
+> to the landing page**. Always set `api.base_url` in production.
 
 ### 2. Configure Traefik as the default backend
 
@@ -200,8 +202,14 @@ http:
 * **App domains are served the Scotty frontend instead of redirecting.**
   `api.base_url` is probably not set (or is still the localhost default). Set it to
   Scotty's public URL. Look for the warning
-  *"Neither api.base_url nor api.oauth.frontend_base_url is configured"* in the
-  logs.
+  *"api.base_url is not configured"* in the logs.
+* **After logging in, the user lands on the app list instead of returning to the
+  app's start page.** In older releases this happened when
+  `api.oauth.frontend_base_url` pointed to a different origin than `api.base_url`
+  — the post-login redirect landed on the "wrong" origin and the stored
+  return-to-app state was invisible there. Post-login redirects now use
+  `api.base_url` directly; remove the deprecated `api.oauth.frontend_base_url`
+  setting.
 * **Stopped app domains return a gateway error instead of the landing page.**
   The catch-all router is missing or not matching. Check the Traefik dashboard for
   a `scotty-catchall` router and confirm its priority is lower than the app

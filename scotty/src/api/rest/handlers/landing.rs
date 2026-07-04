@@ -9,7 +9,6 @@ use crate::app_state::SharedAppState;
 use crate::static_files::serve_embedded_file;
 
 use scotty_core::apps::app_data::AppStatus;
-use scotty_core::settings::api_server::DEFAULT_FRONTEND_BASE_URL;
 
 /// Build a Response with no-cache headers to prevent browsers and proxies
 /// from caching redirect or error responses for stopped apps.
@@ -156,19 +155,11 @@ pub async fn landing_or_frontend_handler(
 
 /// Check if the given hostname matches Scotty's own domain.
 fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
-    // Check against configured base_url
-    if let Some(base_url) = &state.settings.api.base_url {
-        if let Ok(url) = Url::parse(base_url) {
+    if let Some(base_url) = state.settings.api.configured_base_url() {
+        if let Ok(url) = Url::parse(&base_url) {
             if let Some(host) = url.host_str() {
                 return hostname.eq_ignore_ascii_case(host);
             }
-        }
-    }
-
-    // Fallback: check against oauth frontend_base_url
-    if let Ok(url) = Url::parse(&state.settings.api.oauth.frontend_base_url) {
-        if let Some(host) = url.host_str() {
-            return hostname.eq_ignore_ascii_case(host);
         }
     }
 
@@ -177,9 +168,9 @@ fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
     static WARN_UNCONFIGURED: Once = Once::new();
     WARN_UNCONFIGURED.call_once(|| {
         tracing::warn!(
-            "Neither api.base_url nor api.oauth.frontend_base_url is configured. \
-             All requests will be served as Scotty frontend — \
-             per-app domains will not redirect to the landing page."
+            "api.base_url is not configured. All requests will be served as \
+             Scotty frontend — per-app domains will not redirect to the \
+             landing page."
         );
     });
     true
@@ -187,20 +178,7 @@ fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
 
 /// Extract the base URL for constructing redirect targets.
 fn get_scotty_base_url(state: &SharedAppState) -> Option<String> {
-    if let Some(base_url) = &state.settings.api.base_url {
-        if !base_url.is_empty() {
-            return Some(base_url.clone());
-        }
-    }
-
-    // Fallback to oauth frontend_base_url, but skip the default localhost value
-    // since it indicates no explicit configuration was provided.
-    let frontend_url = &state.settings.api.oauth.frontend_base_url;
-    if !frontend_url.is_empty() && frontend_url != DEFAULT_FRONTEND_BASE_URL {
-        return Some(frontend_url.clone());
-    }
-
-    None
+    state.settings.api.configured_base_url()
 }
 
 #[cfg(test)]
