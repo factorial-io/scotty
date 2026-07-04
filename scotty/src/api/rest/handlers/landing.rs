@@ -155,30 +155,53 @@ pub async fn landing_or_frontend_handler(
 
 /// Check if the given hostname matches Scotty's own domain.
 fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
-    if let Some(base_url) = state.settings.api.configured_base_url() {
-        if let Ok(url) = Url::parse(&base_url) {
-            if let Some(host) = url.host_str() {
-                return hostname.eq_ignore_ascii_case(host);
-            }
+    let Some(base_url) = state.settings.api.configured_base_url() else {
+        // Nothing configured: assume it's Scotty (don't redirect).
+        // Log a warning once so operators notice the missing configuration.
+        static WARN_UNCONFIGURED: Once = Once::new();
+        WARN_UNCONFIGURED.call_once(|| {
+            tracing::warn!(
+                "api.base_url is not configured. All requests will be served as \
+                 Scotty frontend — per-app domains will not redirect to the \
+                 landing page."
+            );
+        });
+        return true;
+    };
+
+    match Url::parse(&base_url).ok().and_then(|url| {
+        url.host_str()
+            .map(|host| hostname.eq_ignore_ascii_case(host))
+    }) {
+        Some(matches) => matches,
+        None => {
+            // Configured but not a parseable absolute URL: we cannot tell
+            // Scotty's own domain apart from app domains. Serve everything as
+            // Scotty rather than 404-ing its own UI; the startup warning from
+            // base_url_config_warnings() points the operator at the broken
+            // value.
+            static WARN_MALFORMED: Once = Once::new();
+            WARN_MALFORMED.call_once(|| {
+                tracing::warn!(
+                    "the configured public base URL ('{}') is not a valid absolute \
+                     URL. All requests will be served as Scotty frontend — per-app \
+                     domains will not redirect to the landing page.",
+                    base_url
+                );
+            });
+            true
         }
     }
-
-    // If nothing is configured, assume it's Scotty (don't redirect).
-    // Log a warning once so operators notice the missing configuration.
-    static WARN_UNCONFIGURED: Once = Once::new();
-    WARN_UNCONFIGURED.call_once(|| {
-        tracing::warn!(
-            "api.base_url is not configured. All requests will be served as \
-             Scotty frontend — per-app domains will not redirect to the \
-             landing page."
-        );
-    });
-    true
 }
 
-/// Extract the base URL for constructing redirect targets.
+/// Extract the base URL for constructing redirect targets. Returns None for
+/// unparseable values so we never emit a broken Location header.
 fn get_scotty_base_url(state: &SharedAppState) -> Option<String> {
-    state.settings.api.configured_base_url()
+    state.settings.api.configured_base_url().filter(|base_url| {
+        Url::parse(base_url)
+            .map(|url| url.host_str().is_some())
+            .unwrap_or(false)
+    })
 }
 
 #[cfg(test)]

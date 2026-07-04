@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { authService } from '../../../lib/authService';
-	import { consumePendingLandingRedirect } from '../../../lib/landingResume';
+	import { redirectAfterLogin } from '../../../lib/landingResume';
 
 	let loading = true;
 	let error: string | null = null;
@@ -46,9 +44,7 @@
 
 				// If we came from the landing page flow, return there so the
 				// app is started; otherwise go to the dashboard.
-				const pendingRedirect = consumePendingLandingRedirect();
-				// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
-				await goto(resolve(pendingRedirect ?? '/dashboard'));
+				await redirectAfterLogin();
 			} else {
 				error = result.error || 'Authentication failed';
 				loading = false;

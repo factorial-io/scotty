@@ -161,14 +161,29 @@ impl ApiServer {
             }
         }
 
-        if self.is_using_default_base_url() {
-            warnings.push(format!(
-                "api.base_url is not configured — falling back to the default '{}'. \
-                 OAuth logins and the stopped-app landing page will not work correctly \
-                 unless api.base_url is set to Scotty's public URL \
-                 (e.g. 'https://scotty.example.com').",
-                DEFAULT_BASE_URL
-            ));
+        match self.configured_base_url() {
+            None => {
+                warnings.push(format!(
+                    "api.base_url is not configured — falling back to the default '{}'. \
+                     OAuth logins and the stopped-app landing page will not work correctly \
+                     unless api.base_url is set to Scotty's public URL \
+                     (e.g. 'https://scotty.example.com').",
+                    DEFAULT_BASE_URL
+                ));
+            }
+            Some(configured) => {
+                let parses_with_host = url::Url::parse(&configured)
+                    .map(|url| url.host_str().is_some())
+                    .unwrap_or(false);
+                if !parses_with_host {
+                    warnings.push(format!(
+                        "the configured public base URL ('{}') is not a valid absolute URL \
+                         (missing 'https://' scheme?). OAuth redirects and the stopped-app \
+                         landing page will not work until it is fixed.",
+                        configured
+                    ));
+                }
+            }
         }
 
         warnings
@@ -292,6 +307,15 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("differs"));
         assert!(warnings[0].contains("api.base_url wins"));
+    }
+
+    #[test]
+    fn test_warning_for_malformed_base_url() {
+        // Missing scheme: parses as a relative/hostless URL and cannot be
+        // used for redirects or own-domain detection.
+        let warnings = api_server(Some("scotty.example.com"), None).base_url_config_warnings();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("not a valid absolute URL"));
     }
 
     #[test]
