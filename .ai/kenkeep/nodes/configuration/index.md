@@ -10,8 +10,8 @@
 _None._
 
 ## Conventions (how we build)
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](practice-access-token-config-removed-use-bearer-tokens.md) to learn about: api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens. #auth #configuration #gotcha
 - Open [**.env / .env.local precedence and usage convention**](practice-dotenv-precedence-scotty.md) to learn about: Scotty auto-loads .env and .env.local; env vars > .env.local > .env, with .env committable and .env.local gitignored. #configuration #env #local-development
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](practice-access-token-config-removed-use-bearer-tokens.md) to learn about: The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead. #auth #configuration #gotcha
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](practice-root-folder-must-match-docker-mount-path.md) to learn about: If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps. #docker #configuration #gotcha
 - Open [**Config keys are overridden via SCOTTY__ prefixed, double-underscore env vars**](practice-config-env-var-override-convention.md) to learn about: Any config.yaml key can be overridden by an env var: prefix SCOTTY__, replace dots/nesting with double underscores. #configuration #env
 - Open [**Enable metrics/traces export via SCOTTY__TELEMETRY**](practice-enable-telemetry-env-var.md) to learn about: Set SCOTTY__TELEMETRY=metrics,traces (or just metrics/traces) to have Scotty export OTLP telemetry. #observability #config #env-vars
@@ -27,7 +27,7 @@ _None._
 
 ### #configuration
 - Open [**Config keys are overridden via SCOTTY__ prefixed, double-underscore env vars**](practice-config-env-var-override-convention.md) — Any config.yaml key can be overridden by an env var: prefix SCOTTY__, replace dots/nesting with double underscores.
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](practice-access-token-config-removed-use-bearer-tokens.md) — The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead.
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #config
 - Open [**Apps declare authorization scopes in .scotty.yml**](../apps/map-app-scope-declaration-in-scotty-yml.md) — App-to-scope membership is set via a \`scopes:\` list in .scotty.yml; unset apps land in \`default\`.
@@ -50,7 +50,7 @@ _None._
 - Open [**.env / .env.local precedence and usage convention**](practice-dotenv-precedence-scotty.md) — Scotty auto-loads .env and .env.local; env vars > .env.local > .env, with .env committable and .env.local gitignored.
 - Open [**Blueprint action scripts get SCOTTY__APP_NAME and SCOTTY__PUBLIC_URL__<SERVICE> injected**](../apps/map-blueprint-injected-env-vars.md) — Scotty auto-injects the app name and each public service's URL as env vars into blueprint action commands.
 ### #gotcha
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](practice-access-token-config-removed-use-bearer-tokens.md) — The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead.
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 - Open [**OAuth config has two distinct URLs that must not be confused**](../auth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
 ### #secrets

@@ -37,7 +37,7 @@ _None._
 - Open [**Scotty server key modules and their locations**](../architecture/map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 ### #configuration
 - Open [**Config keys are overridden via SCOTTY__ prefixed, double-underscore env vars**](../configuration/practice-config-env-var-override-convention.md) — Any config.yaml key can be overridden by an env var: prefix SCOTTY__, replace dots/nesting with double underscores.
-- Open [**api.access_token is no longer supported — use api.bearer_tokens**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — The old single api.access_token setting was removed; configure api.bearer_tokens (a map of named tokens) instead.
+- Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #ddev
 - Open [**Local observability stack: prerequisite and access URLs**](map-observability-local-access.md) — The observability stack (observability/docker-compose) needs Traefik running first for .ddev.site routing; Grafana/Jaeger/VictoriaMetrics are reached via *.ddev.site URLs.
