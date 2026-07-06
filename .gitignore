@@ -6,7 +6,9 @@ scotty-types/bindings/
 docs/node_modules
 docs/_site
 apps/test-nginx-creation
-/apps
+/apps/*
+# local-dev Traefik setup stays tracked (docker-compose.yml + dynamic config)
+!/apps/traefik
 
 frontend/public
 

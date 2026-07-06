@@ -1,0 +1,19 @@
+# Catch-all router: domains with no other route (e.g. stopped apps) fall
+# through to Scotty, which serves the start-app landing page. Running apps'
+# routers always win (rule-length priority > 1).
+# Requires SCOTTY__API__BASE_URL to be set on the scotty server.
+http:
+  routers:
+    scotty-default-backend:
+      rule: HostRegexp(`^.+$`)
+      priority: 1
+      entryPoints:
+        - web
+      service: scotty
+
+  services:
+    scotty:
+      loadBalancer:
+        servers:
+          # Scotty running on the host via `cargo run --bin scotty`
+          - url: http://host.docker.internal:21342

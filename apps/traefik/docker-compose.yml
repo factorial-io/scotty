@@ -12,12 +12,18 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
       - "--entryPoints.web.address=:80"
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./dynamic:/etc/traefik/dynamic:ro"
+    extra_hosts:
+      # make host.docker.internal work on Linux too (no-op on macOS)
+      - "host.docker.internal:host-gateway"
 
   whoami:
     image: "traefik/whoami"
