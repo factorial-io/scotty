@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3](https://github.com/factorial-io/scotty/compare/v0.3.2...v0.3.3) (2026-07-06)
+
+
+### Bug Fixes
+
+* **config:** consolidate public URL config on api.base_url ([413d7df](https://github.com/factorial-io/scotty/commit/413d7dfdec6ef7dd723312fec286343b9680ab80))
+* correct stale access_token knowledge nodes ([99b624b](https://github.com/factorial-io/scotty/commit/99b624bafc8f03b0418d831f918ef89ddf9483ec))
+* **frontend:** load permissions in root layout on hard page load ([b0f8724](https://github.com/factorial-io/scotty/commit/b0f8724f6f05730446ad1fead78edf7ea049cc22))
+* **frontend:** resume landing-page app start after password login ([51ddedf](https://github.com/factorial-io/scotty/commit/51ddedfa842250d88140ad5636e6a873d69d65ce))
+* **frontend:** show service URLs for stopped apps in muted style ([dd893f4](https://github.com/factorial-io/scotty/commit/dd893f46f65208ef2dbd0be724ce92ca1aab280e))
+* handle malformed api.base_url and dedupe post-login redirect ([018db4f](https://github.com/factorial-io/scotty/commit/018db4feb84be321250b12b1a118bff2cf66f85d))
+* **local-dev:** wire up landing-page default backend for local dev ([56a0de0](https://github.com/factorial-io/scotty/commit/56a0de0fbaee46469d5d25c344de55bd50a6736f))
+
+
+### Documentation
+
+* document Scotty as default backend for Traefik landing page ([f623a72](https://github.com/factorial-io/scotty/commit/f623a72e5d5e85cf261469bcc4a72485cf227b8f))
+* **openspec:** add stopped-app-url-display change proposal ([2d104e6](https://github.com/factorial-io/scotty/commit/2d104e61ab66dca5c33e28c00d9f9c4ea52c7f09))
+
 ## [0.3.2](https://github.com/factorial-io/scotty/compare/v0.3.1...v0.3.2) (2026-06-29)
 
 
