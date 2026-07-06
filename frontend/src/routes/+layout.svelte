@@ -8,6 +8,13 @@
 	import UserInfo from '../components/user-info.svelte';
 	import WebSocketStatus from '../components/websocket-status.svelte';
 	import { webSocketStore } from '../stores/webSocketStore';
+	import { isLoggedIn } from '../stores/userStore';
+	import { loadUserPermissions } from '../stores/permissionStore';
+
+	// Load permissions as soon as the user is (or becomes) logged in, so
+	// permission-gated UI works on a hard page load too — pages must not rely
+	// on some other route having populated the permission store first.
+	$: if ($isLoggedIn) loadUserPermissions();
 
 	type SiteInfo = {
 		domain: string;
