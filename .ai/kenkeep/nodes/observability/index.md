@@ -38,15 +38,15 @@ _None._
 ### #configuration
 - Open [**Config keys are overridden via SCOTTY__ prefixed, double-underscore env vars**](../configuration/practice-config-env-var-override-convention.md) — Any config.yaml key can be overridden by an env var: prefix SCOTTY__, replace dots/nesting with double underscores.
 - Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
-- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
+- Open [**OAuth config has two distinct URLs that must not be confused**](../auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
 ### #ddev
 - Open [**Local observability stack: prerequisite and access URLs**](map-observability-local-access.md) — The observability stack (observability/docker-compose) needs Traefik running first for .ddev.site routing; Grafana/Jaeger/VictoriaMetrics are reached via *.ddev.site URLs.
 ### #jaeger
 - Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 30 days by default (configurable); Jaeger traces are in-memory only and lost on restart.
 ### #local-dev
 - Open [**Start Traefik before local development**](../traefik/practice-local-dev-traefik-prereq.md) — Local dev requires Traefik running via docker compose in apps/traefik as a prerequisite.
+- Open [**/apps is gitignored except the tracked apps/traefik local-dev setup**](../traefik/map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup.md) — .gitignore excludes /apps/* but re-includes /apps/traefik (compose plus dynamic file-provider config) so the local-dev Traefik setup ships with the repo.
 - Open [**Local *.localhost subdomains may not auto-resolve to 127.0.0.1**](../traefik/practice-localhost-subdomain-dns-gotcha.md) — Not all systems resolve wildcard *.localhost subdomains; add explicit /etc/hosts entries for each app hostname used in local dev.
-- Open [**Local observability stack: prerequisite and access URLs**](map-observability-local-access.md) — The observability stack (observability/docker-compose) needs Traefik running first for .ddev.site routing; Grafana/Jaeger/VictoriaMetrics are reached via *.ddev.site URLs.
 ### #opentelemetry
 - Open [**Observability stack architecture**](map-observability-stack-architecture.md) — Scotty exports OTLP telemetry to an OpenTelemetry Collector, which routes traces to Jaeger and metrics to VictoriaMetrics, visualized in Grafana.
 ### #prometheus
@@ -55,7 +55,7 @@ _None._
 - Open [**Observability stack architecture**](map-observability-stack-architecture.md) — Scotty exports OTLP telemetry to an OpenTelemetry Collector, which routes traces to Jaeger and metrics to VictoriaMetrics, visualized in Grafana.
 ### #traefik
 - Open [**Start Traefik before local development**](../traefik/practice-local-dev-traefik-prereq.md) — Local dev requires Traefik running via docker compose in apps/traefik as a prerequisite.
-- Open [**app:create --registry and --middleware require server-side allow-listing**](../cli/map-cli-app-create-registry-middleware-allowlist.md) — Custom registries and middleware referenced by app:create must be pre-configured/allow-listed on the server; middleware is Traefik-only.
-- Open [**Each app gets its own dedicated Traefik proxy network**](../traefik/map-traefik-per-app-proxy-network.md) — Scotty creates a per-app network (<network>--<app-name>) instead of one shared network, to avoid Docker DNS alias collisions.
+- Open [**/apps is gitignored except the tracked apps/traefik local-dev setup**](../traefik/map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup.md) — .gitignore excludes /apps/* but re-includes /apps/traefik (compose plus dynamic file-provider config) so the local-dev Traefik setup ships with the repo.
+- Open [**Local *.localhost subdomains may not auto-resolve to 127.0.0.1**](../traefik/practice-localhost-subdomain-dns-gotcha.md) — Not all systems resolve wildcard *.localhost subdomains; add explicit /etc/hosts entries for each app hostname used in local dev.
 ### #victoriametrics
 - Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 30 days by default (configurable); Jaeger traces are in-memory only and lost on restart.

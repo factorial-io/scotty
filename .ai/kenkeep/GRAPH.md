@@ -1,66 +1,75 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:b5d0375f95f6fd25e0f5eb57171228a0784bc3998e4414ce540f6b7de81c181f'
-node_count: 77
+nodes_hash: 'sha256:961f7e1dec1f22fdc2b74837137255011b90d53fa2ac8b485f4ac141aae03dec'
+node_count: 81
 ---
 # kenkeep Graph
 
-Total nodes: 77
+Total nodes: 81
 
 ## map-app-anatomy
 
 - **kind:** map
 - **title:** An app is any folder in the apps directory containing compose.yml
-- **path:** apps/map-app-anatomy.md
+- **path:** apps/anatomy/map-app-anatomy.md
 - **tags:** scotty, apps, vocabulary
 
 ## map-app-scope-declaration-in-scotty-yml
 
 - **kind:** map
 - **title:** Apps declare authorization scopes in .scotty.yml
-- **path:** apps/map-app-scope-declaration-in-scotty-yml.md
+- **path:** apps/anatomy/map-app-scope-declaration-in-scotty-yml.md
 - **tags:** authorization, scopes, config
 
 ## map-app-types-owned-supported-unsupported
 
 - **kind:** map
 - **title:** Apps are categorized as owned, supported, or unsupported
-- **path:** apps/map-app-types-owned-supported-unsupported.md
+- **path:** apps/lifecycle/map-app-types-owned-supported-unsupported.md
 - **tags:** scotty, apps, vocabulary
+
+## map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup
+
+- **kind:** map
+- **title:** /apps is gitignored except the tracked apps/traefik local-dev setup
+- **path:** traefik/map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup.md
+- **tags:** gitignore, traefik, local-dev
+- **relates_to:** practice-local-dev-traefik-prereq, practice-default-backend-configuration
+- **derived_from:** 08436e22-ac06-4970-a04c-9e39d3d7bc13:map:1
 
 ## map-authorization-assignment-key-format-by-auth-mode
 
 - **kind:** map
 - **title:** Casbin policy assignment keys are formatted differently per auth_mode
-- **path:** auth/map-authorization-assignment-key-format-by-auth-mode.md
+- **path:** auth/authorization/map-authorization-assignment-key-format-by-auth-mode.md
 - **tags:** authorization, casbin, auth
 
 ## map-authorization-builtin-roles
 
 - **kind:** map
 - **title:** Built-in authorization roles and their permission sets
-- **path:** auth/map-authorization-builtin-roles.md
+- **path:** auth/authorization/map-authorization-builtin-roles.md
 - **tags:** authorization, rbac, roles, casbin
 
 ## map-authorization-casbin-rbac
 
 - **kind:** map
 - **title:** Authorization uses Casbin RBAC
-- **path:** auth/map-authorization-casbin-rbac.md
+- **path:** auth/authorization/map-authorization-casbin-rbac.md
 - **tags:** authorization, casbin, security, map
 
 ## map-blueprint-injected-env-vars
 
 - **kind:** map
 - **title:** Blueprint action scripts get SCOTTY__APP_NAME and SCOTTY__PUBLIC_URL__<SERVICE> injected
-- **path:** apps/map-blueprint-injected-env-vars.md
+- **path:** apps/blueprints/map-blueprint-injected-env-vars.md
 - **tags:** blueprints, configuration, env
 
 ## map-blueprints-concept
 
 - **kind:** map
 - **title:** Blueprints are reusable app templates
-- **path:** apps/map-blueprints-concept.md
+- **path:** apps/blueprints/map-blueprints-concept.md
 - **tags:** blueprints, map
 
 ## map-cli-app-cp-permission-and-size-limit
@@ -95,21 +104,21 @@ Total nodes: 77
 
 - **kind:** map
 - **title:** Log streaming behavior for stopped vs missing containers
-- **path:** apps/map-container-log-streaming-for-stopped-containers.md
+- **path:** apps/logs/map-container-log-streaming-for-stopped-containers.md
 - **tags:** logs, docker, websocket
 
 ## map-custom-action-execution-lookup-and-gate
 
 - **kind:** map
 - **title:** Custom action execution checks per-app actions before blueprint actions and always gates on can_execute()
-- **path:** apps/map-custom-action-execution-lookup-and-gate.md
+- **path:** apps/custom-actions/map-custom-action-execution-lookup-and-gate.md
 - **tags:** custom-actions, authorization, blueprints
 
 ## map-custom-actions-approval-workflow
 
 - **kind:** map
 - **title:** Custom actions require approval before execution
-- **path:** apps/map-custom-actions-approval-workflow.md
+- **path:** apps/custom-actions/map-custom-actions-approval-workflow.md
 - **tags:** custom-actions, workflow, security
 
 ## map-default-backend-landing-page
@@ -137,7 +146,7 @@ Total nodes: 77
 
 - **kind:** map
 - **title:** Follow mode is a no-op notice, not an error, on stopped containers
-- **path:** apps/map-follow-mode-unavailable-for-stopped-containers.md
+- **path:** apps/logs/map-follow-mode-unavailable-for-stopped-containers.md
 - **tags:** logs, docker, websocket, frontend
 
 ## map-frontend-src-layout
@@ -158,14 +167,14 @@ Total nodes: 77
 
 - **kind:** map
 - **title:** Public vs protected routes under OAuth mode
-- **path:** auth/map-oauth-route-protection-split.md
+- **path:** auth/oauth/map-oauth-route-protection-split.md
 - **tags:** oauth, auth, routing, security
 
 ## map-oauth-secret-storage-and-session-lifetimes
 
 - **kind:** map
 - **title:** OAuth PKCE/CSRF secrets use MaskedSecret; session lifetimes are short-lived
-- **path:** auth/map-oauth-secret-storage-and-session-lifetimes.md
+- **path:** auth/oauth/map-oauth-secret-storage-and-session-lifetimes.md
 - **tags:** oauth, security, sessions
 
 ## map-observability-config-files
@@ -217,12 +226,30 @@ Total nodes: 77
 - **path:** architecture/map-project-workspace-components.md
 - **tags:** architecture, workspace, overview
 
+## map-public-base-url-resolves-through-two-chains-with-different-fallbacks
+
+- **kind:** map
+- **title:** Public base URL resolves through two chains with different fallbacks
+- **path:** configuration/map-public-base-url-resolves-through-two-chains-with-different-fallbacks.md
+- **tags:** configuration, landing-page, base-url
+- **relates_to:** practice-default-backend-configuration, practice-oauth-redirect-url-vs-frontend-base-url
+- **derived_from:** 08436e22-ac06-4970-a04c-9e39d3d7bc13:map:0
+
 ## map-rate-limiting-tiers
 
 - **kind:** map
 - **title:** Rate limiting has three independent tiers keyed differently
-- **path:** auth/map-rate-limiting-tiers.md
+- **path:** auth/rate-limiting/map-rate-limiting-tiers.md
 - **tags:** rate-limiting, security, api
+
+## map-root-layout-loads-user-permissions-when-the-user-is-logged-in
+
+- **kind:** map
+- **title:** Root layout loads user permissions when the user is logged in
+- **path:** frontend/map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md
+- **tags:** frontend, permissions, svelte
+- **relates_to:** map-frontend-src-layout
+- **derived_from:** 08436e22-ac06-4970-a04c-9e39d3d7bc13:map:2
 
 ## map-rustls-crypto-provider-init
 
@@ -270,7 +297,7 @@ Total nodes: 77
 
 - **kind:** map
 - **title:** State machine handler errors always mark the task Failed
-- **path:** apps/map-state-machine-errors-bubble-to-task-failure.md
+- **path:** apps/lifecycle/map-state-machine-errors-bubble-to-task-failure.md
 - **tags:** state-machine, tasks, docker
 
 ## map-traefik-per-app-proxy-network
@@ -292,7 +319,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Run app:rebuild after app:adopt to actually enable load balancing
-- **path:** apps/practice-adopt-then-rebuild-for-unsupported-apps.md
+- **path:** apps/lifecycle/practice-adopt-then-rebuild-for-unsupported-apps.md
 - **tags:** scotty, cli, workflow, gotcha
 
 ## practice-app-cp-path-spec-and-pipe-mode
@@ -306,21 +333,21 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Bearer token comparison is constant-time
-- **path:** auth/practice-bearer-token-constant-time-comparison.md
+- **path:** auth/bearer-tokens/practice-bearer-token-constant-time-comparison.md
 - **tags:** security, auth, bearer-token
 
 ## practice-bearer-token-identifier-naming
 
 - **kind:** practice
 - **title:** Bearer token identifiers vs secret values; identifier: prefix for service accounts
-- **path:** auth/practice-bearer-token-identifier-naming.md
+- **path:** auth/bearer-tokens/practice-bearer-token-identifier-naming.md
 - **tags:** auth, casbin, bearer-tokens, naming
 
 ## practice-bearer-tokens-require-rbac-assignment
 
 - **kind:** practice
 - **title:** Bearer tokens must be explicitly assigned in authorization policy
-- **path:** auth/practice-bearer-tokens-require-rbac-assignment.md
+- **path:** auth/authorization/practice-bearer-tokens-require-rbac-assignment.md
 - **tags:** authorization, bearer-token, casbin, auth
 - **relates_to:** practice-access-token-config-removed-use-bearer-tokens
 
@@ -328,7 +355,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Casbin assignment matching follows exact > domain > wildcard precedence
-- **path:** auth/practice-casbin-assignment-precedence.md
+- **path:** auth/authorization/practice-casbin-assignment-precedence.md
 - **tags:** authorization, casbin, security
 
 ## practice-cli-app-purge-vs-destroy
@@ -356,7 +383,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Running status treats clean one-shot exits as completed, gates URLs per-service
-- **path:** apps/practice-container-status-one-shot-completion.md
+- **path:** apps/lifecycle/practice-container-status-one-shot-completion.md
 - **tags:** docker, status, container, frontend
 
 ## practice-contributor-setup-instructions-belong-in-the-root-readme
@@ -402,6 +429,15 @@ Total nodes: 77
 - **path:** frontend/practice-frontend-backend-tight-coupling.md
 - **tags:** frontend, api, architecture
 
+## practice-frontend-build-gitkeep-must-stay-tracked-or-the-server-fails-to-compile
+
+- **kind:** practice
+- **title:** frontend/build/.gitkeep must stay tracked or the server fails to compile
+- **path:** workflow/practice-frontend-build-gitkeep-must-stay-tracked-or-the-server-fails-to-compile.md
+- **tags:** ci, frontend, build, gotcha
+- **relates_to:** practice-git-rules, practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks
+- **derived_from:** 08436e22-ac06-4970-a04c-9e39d3d7bc13:practice:0
+
 ## practice-frontend-types-regenerate-after-backend-change
 
 - **kind:** practice
@@ -427,7 +463,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** In hybrid OAuth+bearer mode, bearer tokens are checked before OAuth
-- **path:** auth/practice-hybrid-auth-bearer-checked-first.md
+- **path:** auth/bearer-tokens/practice-hybrid-auth-bearer-checked-first.md
 - **tags:** oauth, bearer-tokens, auth, performance
 
 ## practice-local-dev-traefik-prereq
@@ -455,7 +491,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** OAuth config has two distinct URLs that must not be confused
-- **path:** auth/practice-oauth-redirect-url-vs-frontend-base-url.md
+- **path:** auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md
 - **tags:** oauth, configuration, gotcha
 
 ## practice-observability-stack-swappable
@@ -485,7 +521,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Rate limits are per-instance, not global, across multiple Scotty instances
-- **path:** auth/practice-rate-limiting-is-per-instance-not-global.md
+- **path:** auth/rate-limiting/practice-rate-limiting-is-per-instance-not-global.md
 - **tags:** rate-limiting, deployment, gotcha
 
 ## practice-release-process-automation
@@ -506,7 +542,7 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** Scotty only writes compose.override.yml and .scotty.yml in an app directory
-- **path:** apps/practice-scotty-only-touches-override-and-settings-files.md
+- **path:** apps/anatomy/practice-scotty-only-touches-override-and-settings-files.md
 - **tags:** scotty, compose, file-ownership
 
 ## practice-scottyctl-access-token-precedence
@@ -548,5 +584,5 @@ Total nodes: 77
 
 - **kind:** practice
 - **title:** compose.yml must not expose ports directly or use env-var expansion
-- **path:** apps/practice-unsupported-compose-features.md
+- **path:** apps/lifecycle/practice-unsupported-compose-features.md
 - **tags:** scotty, compose, restriction
