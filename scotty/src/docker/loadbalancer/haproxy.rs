@@ -103,7 +103,7 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
                 "VHOST".into(),
                 service.get_domains(&settings.domain).join(" "),
             );
-            environment.insert("VPORT".into(), format!("{}", &service.port));
+            environment.insert("VPORT".into(), format!("{}", service.port));
 
             if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
                 environment.insert("HTTP_AUTH_USER".into(), basic_auth_user.clone());
