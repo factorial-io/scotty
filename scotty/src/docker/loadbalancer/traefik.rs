@@ -113,7 +113,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             if service_config.environment.is_none() {
                 service_config.environment = Some(HashMap::new());
             }
-            let service_name = format!("{}--{}", &service.service, &app_name);
+            let service_name = format!("{}--{}", service.service, app_name);
 
             // Attach the public service to its project `default` network and to
             // the per-app proxy network. On the proxy network we set an explicit
@@ -144,13 +144,13 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             let domains = service.get_domains(&settings.domain);
             for (idx, domain) in domains.iter().enumerate() {
                 labels.insert(
-                    format!("traefik.http.routers.{}-{}.rule", &service_name, idx),
+                    format!("traefik.http.routers.{}-{}.rule", service_name, idx),
                     format!("Host(`{domain}`)"),
                 );
 
                 if global_settings.traefik.use_tls {
                     labels.insert(
-                        format!("traefik.http.routers.{}-{}.tls", &service_name, idx),
+                        format!("traefik.http.routers.{}-{}.tls", service_name, idx),
                         "true".to_string(),
                     );
 
@@ -158,7 +158,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                         labels.insert(
                             format!(
                                 "traefik.http.routers.{}-{}.tls.certresolver",
-                                &service_name, idx
+                                service_name, idx
                             ),
                             certresolver.clone(),
                         );
@@ -169,26 +169,26 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             labels.insert(
                 format!(
                     "traefik.http.services.{}.loadbalancer.server.port",
-                    &service_name,
+                    service_name,
                 ),
-                format!("{}", &service.port),
+                format!("{}", service.port),
             );
 
             let mut middlewares = vec![];
 
             if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
-                let middleware_name = format!("{}--{}", &service_name, "basic-auth");
+                let middleware_name = format!("{}--{}", service_name, "basic-auth");
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.basicauth.users",
-                        &middleware_name
+                        middleware_name
                     ),
                     format!("{}:{}", basic_auth_user, htpasswd(basic_auth_pass, true)?),
                 );
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.basicauth.removeheader",
-                        &middleware_name
+                        middleware_name
                     ),
                     "true".to_string(),
                 );
@@ -197,11 +197,11 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             }
 
             if settings.disallow_robots {
-                let middleware_name = format!("{}--{}", &service_name, "robots");
+                let middleware_name = format!("{}--{}", service_name, "robots");
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tag",
-                        &middleware_name
+                        middleware_name
                     ),
                     ROBOTS_HEADER_VALUE.to_string(),
                 );
@@ -217,7 +217,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             // Connect the middleware to the router
             for (idx, _domain) in domains.iter().enumerate() {
                 labels.insert(
-                    format!("traefik.http.routers.{}-{}.middlewares", &service_name, idx),
+                    format!("traefik.http.routers.{}-{}.middlewares", service_name, idx),
                     middlewares.join(","),
                 );
             }

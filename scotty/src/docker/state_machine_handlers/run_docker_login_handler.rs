@@ -55,7 +55,7 @@ where
             "docker",
             &args,
             &SecretHashMap::new(),
-            &format!("Log into registry {}", &registry.registry),
+            &format!("Log into registry {}", registry.registry),
         )
         .await?;
 

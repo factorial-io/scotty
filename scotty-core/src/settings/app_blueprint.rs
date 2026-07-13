@@ -161,7 +161,7 @@ pub struct AppBlueprintList {
 // The error type has to implement Display
 impl std::fmt::Display for AppBlueprintValidationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "AppBlueprint didnt validate: {}", &self.msg)
+        write!(formatter, "AppBlueprint didnt validate: {}", self.msg)
     }
 }
 
@@ -196,10 +196,7 @@ impl AppBlueprint {
         {
             if !self.required_services.contains(public_service) {
                 return Err(AppBlueprintValidationError {
-                    msg: format!(
-                        "Public service {} not in required services",
-                        &public_service
-                    ),
+                    msg: format!("Public service {} not in required services", public_service),
                 });
             }
         }
@@ -211,7 +208,7 @@ impl AppBlueprint {
                     return Err(AppBlueprintValidationError {
                         msg: format!(
                             "service {} required for action {:?} not in required services",
-                            &service, &action_name
+                            service, action_name
                         ),
                     });
                 }
