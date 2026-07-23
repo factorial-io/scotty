@@ -23,7 +23,6 @@ pub struct OAuthConfig {
     pub enabled: bool,
     #[allow(dead_code)]
     pub provider: String,
-    pub scotty_server_url: String,
     #[allow(dead_code)]
     pub oidc_issuer_url: String,
     #[allow(dead_code)]

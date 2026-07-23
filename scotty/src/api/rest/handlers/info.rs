@@ -18,26 +18,6 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
             enabled: true,
             provider: "oidc".to_string(),
             redirect_url: state.settings.api.oauth.redirect_url.clone(),
-            // For native OAuth, use the server's own URL instead of oauth2-proxy URL
-            oauth2_proxy_base_url: state
-                .settings
-                .api
-                .oauth
-                .oauth2_proxy_base_url
-                .clone()
-                .or_else(|| {
-                    // Generate server URL from bind_address
-                    let bind_addr = &state.settings.api.bind_address;
-                    if bind_addr.starts_with("0.0.0.0:") {
-                        // Replace 0.0.0.0 with localhost for client use
-                        let port = bind_addr.split(':').nth(1).unwrap_or("21342");
-                        Some(format!("http://localhost:{}", port))
-                    } else if !bind_addr.starts_with("http") {
-                        Some(format!("http://{}", bind_addr))
-                    } else {
-                        Some(bind_addr.clone())
-                    }
-                }),
             oidc_issuer_url: state.settings.api.oauth.oidc_issuer_url.clone(),
             client_id: state.settings.api.oauth.client_id.clone(),
             device_flow_enabled: state.settings.api.oauth.device_flow_enabled,

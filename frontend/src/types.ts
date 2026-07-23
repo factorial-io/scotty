@@ -92,7 +92,6 @@ export interface OAuthConfig {
 	enabled: boolean;
 	provider: string;
 	redirect_url: string;
-	oauth2_proxy_base_url: string | null;
 	oidc_issuer_url: string | null;
 	client_id: string | null;
 	device_flow_enabled: boolean;

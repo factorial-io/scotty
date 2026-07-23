@@ -25,9 +25,6 @@ pub fn server_info_to_oauth_config(server_info: ServerInfo) -> Result<OAuthConfi
                 return Err(AuthError::DeviceFlowNotEnabled);
             }
 
-            let scotty_server_url = oauth_config
-                .oauth2_proxy_base_url
-                .ok_or(AuthError::InvalidResponse)?;
             let oidc_issuer_url = oauth_config
                 .oidc_issuer_url
                 .ok_or(AuthError::InvalidResponse)?;
@@ -36,7 +33,6 @@ pub fn server_info_to_oauth_config(server_info: ServerInfo) -> Result<OAuthConfi
             Ok(OAuthConfig {
                 enabled: true,
                 provider: oauth_config.provider,
-                scotty_server_url,
                 oidc_issuer_url,
                 client_id,
                 device_flow_enabled: oauth_config.device_flow_enabled,

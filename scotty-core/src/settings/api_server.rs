@@ -27,7 +27,6 @@ pub struct OAuthSettings {
     #[serde(default = "default_oauth_redirect_url")]
     pub redirect_url: String,
     pub oidc_issuer_url: Option<String>,
-    pub oauth2_proxy_base_url: Option<String>,
     pub client_id: Option<String>,
     #[serde(skip_serializing)]
     pub client_secret: Option<SecretString>,
@@ -47,7 +46,6 @@ impl Default for OAuthSettings {
         Self {
             redirect_url: default_oauth_redirect_url(),
             oidc_issuer_url: None,
-            oauth2_proxy_base_url: None,
             client_id: None,
             client_secret: None,
             device_flow_enabled: default_device_flow_enabled(),
