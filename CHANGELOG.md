@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4](https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4) (2026-07-23)
+
+
+### Bug Fixes
+
+* remove redundant references in format macro arguments ([3061026](https://github.com/factorial-io/scotty/commit/30610261ff4f45403e1ca2b39ff9068e0027b7f0))
+* **scottyctl:** use --server URL for device flow, remove oauth2_proxy_base_url ([e77c6c4](https://github.com/factorial-io/scotty/commit/e77c6c4e1aaf11edb281b603080962116a3df995))
+
 ## [0.3.3](https://github.com/factorial-io/scotty/compare/v0.3.2...v0.3.3) (2026-07-06)
 
 
