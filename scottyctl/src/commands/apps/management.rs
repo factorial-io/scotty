@@ -7,7 +7,6 @@ use crate::{
     context::AppContext,
     utils::{files::collect_files, parsers::parse_env_file},
 };
-use base64::prelude::*;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use scotty_core::{
@@ -55,7 +54,8 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
 
                     Ok(File {
                         name: f.name.clone(),
-                        content: BASE64_STANDARD.encode(&compressed).into(),
+                        // Raw gzip bytes; serialization base64-encodes them.
+                        content: compressed.into(),
                         compressed: true,
                     })
                 })

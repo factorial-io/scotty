@@ -3198,6 +3198,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64",
  "bollard",
  "bollard-stubs",
  "cargo-husky",

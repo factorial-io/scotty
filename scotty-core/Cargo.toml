@@ -21,6 +21,7 @@ scotty-types = { path = "../scotty-types" }
 
 async-trait.workspace = true
 anyhow.workspace = true
+base64.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

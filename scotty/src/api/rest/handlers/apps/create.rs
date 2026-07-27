@@ -7,7 +7,6 @@ use crate::{
     services::{authorization::Permission, AuthorizationService},
 };
 use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
-use base64::prelude::*;
 use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
@@ -73,8 +72,9 @@ pub async fn create_app_handler(
         .files
         .iter()
         .map(|f| {
-            // First decode base64
-            let decoded = BASE64_STANDARD.decode(&f.content).map_err(|e| {
+            // Content arrives base64-encoded; legacy clients wrapped it twice
+            // (see `FileContent`), which `decode` unwraps.
+            let decoded = f.content.decode().map_err(|e| {
                 error!("Failed to decode base64 content for {}: {}", f.name, e);
                 AppError::FileContentDecodingError
             })?;
@@ -105,12 +105,12 @@ pub async fn create_app_handler(
 
                 decompressed
             } else {
-                decoded
+                decoded.into_owned()
             };
 
             Ok(File {
                 name: f.name.clone(),
-                content,
+                content: content.into(),
                 compressed: false, // After decompression, content is uncompressed
             })
         })
@@ -158,6 +158,7 @@ pub async fn create_app_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::prelude::*;
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::io::Write;
@@ -172,18 +173,15 @@ mod tests {
         encoder.write_all(original_content).unwrap();
         let compressed = encoder.finish().unwrap();
 
-        // Encode as base64
-        let base64_encoded = BASE64_STANDARD.encode(&compressed);
-
         // Create a File with compressed flag
         let file = File {
             name: "test.txt".to_string(),
-            content: base64_encoded.into_bytes(),
+            content: compressed.into(),
             compressed: true,
         };
 
         // Simulate the decompression logic from the handler
-        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let decoded = file.content.decode().unwrap();
         let mut decoder = GzDecoder::new(&decoded[..]);
         let mut decompressed = Vec::new();
         decoder.read_to_end(&mut decompressed).unwrap();
@@ -197,21 +195,44 @@ mod tests {
         // Original content
         let original_content = b"Hello, World! This is not compressed.";
 
-        // Encode as base64 directly
-        let base64_encoded = BASE64_STANDARD.encode(original_content);
-
         // Create a File without compression flag
         let file = File {
             name: "test.txt".to_string(),
-            content: base64_encoded.into_bytes(),
+            content: original_content.to_vec().into(),
             compressed: false,
         };
 
         // Simulate the passthrough logic from the handler
-        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let decoded = file.content.decode().unwrap();
 
         // Verify decoded content matches original
-        assert_eq!(decoded, original_content);
+        assert_eq!(&*decoded, original_content);
+    }
+
+    /// A scottyctl <= 0.3.3 payload (base64 ASCII as a JSON int array) must
+    /// still decode to the same bytes as the new string form.
+    #[test]
+    fn test_legacy_client_payload_still_decodes() {
+        let original_content = b"Hello from an old client.";
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let legacy = serde_json::json!({
+            "name": "test.txt",
+            "content": BASE64_STANDARD.encode(&compressed).into_bytes(),
+            "compressed": true,
+        });
+        let file: File = serde_json::from_value(legacy).unwrap();
+
+        let decoded = file.content.decode().unwrap();
+        let mut decompressed = Vec::new();
+        GzDecoder::new(&decoded[..])
+            .read_to_end(&mut decompressed)
+            .unwrap();
+
+        assert_eq!(decompressed, original_content);
     }
 
     #[test]
