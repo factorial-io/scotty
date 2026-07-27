@@ -6,7 +6,13 @@ use crate::{
     docker::create_app::create_app,
     services::{authorization::Permission, AuthorizationService},
 };
-use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
+use axum::{
+    debug_handler,
+    extract::{rejection::JsonRejection, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Extension, Json,
+};
 use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
@@ -15,9 +21,20 @@ use scotty_core::{
     },
     settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
+    utils::format::format_bytes,
 };
 use std::io::Read;
 use tracing::error;
+
+/// Human-readable `Content-Length`, for error messages only.
+fn declared_body_size(headers: &HeaderMap) -> String {
+    headers
+        .get(axum::http::header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(format_bytes)
+        .unwrap_or_else(|| "unknown size".to_string())
+}
 
 #[utoipa::path(
     post,
@@ -35,8 +52,22 @@ use tracing::error;
 pub async fn create_app_handler(
     State(state): State<SharedAppState>,
     Extension(auth_context): Extension<AuthorizationContext>,
-    Json(mut payload): Json<CreateAppRequest>,
+    headers: HeaderMap,
+    payload: Result<Json<CreateAppRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Axum's own 413 says only "length limit exceeded", which leaves no clue
+    // about how big the body was or which setting caps it.
+    let Json(mut payload) = payload.map_err(|rejection| {
+        if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            AppError::CreateAppPayloadTooLarge(
+                declared_body_size(&headers),
+                format_bytes(state.settings.api.create_app_max_size),
+            )
+        } else {
+            AppError::BadRequest(rejection.body_text())
+        }
+    })?;
+
     // Check scope-based permissions before proceeding
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     let auth_service = &state.auth_service;
