@@ -3,7 +3,7 @@ members = ["scotty-core", "scotty", "scottyctl", "scotty-types", "ts-generator"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.3"
 edition = "2021"
 rust-version = "1.86"
 description = "scotty is a Micro-PaaS which helps you to administer a bunch of docker-compose-based applications. It comes with an API and a cli"
@@ -56,7 +56,7 @@ utoipa-redoc = { version = "6.0", default-features = false, features = ["axum"] 
 utoipa-rapidoc = { version = "6.0", default-features = false, features = ["axum"] }
 utoipa-axum = "0.2"
 
-tower-http = { version = "0.6.1", default-features = false, features = ["cors", "fs", "trace"] }
+tower-http = { version = "0.7.0", default-features = false, features = ["cors", "fs", "trace"] }
 tower_governor = "0.8"
 governor = "0.10"
 tower = { version = "0.5", default-features = false, features = ["util"] }

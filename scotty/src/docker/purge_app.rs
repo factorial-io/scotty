@@ -6,7 +6,8 @@ use crate::{
     api::error::AppError,
     app_state::SharedAppState,
     docker::state_machine_handlers::{
-        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
+        context::Context, network_handler::TeardownAppNetworkHandler,
+        run_docker_compose_handler::RunDockerComposeHandler,
         task_completion_handler::TaskCompletionHandler,
         update_app_data_handler::UpdateAppDataHandler,
     },
@@ -21,6 +22,7 @@ use super::helper::run_sm;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PurgeAppStates {
     RunDockerCompose,
+    TeardownAppNetwork,
     UpdateAppData,
     SetFinished,
     SetFailed,
@@ -50,9 +52,15 @@ pub async fn purge_app_prepare(
     sm.add_handler(
         PurgeAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
-            next_state: PurgeAppStates::UpdateAppData,
+            next_state: PurgeAppStates::TeardownAppNetwork,
             command: command.iter().map(|s| s.to_string()).collect(),
             env: app.get_environment(),
+        }),
+    );
+    sm.add_handler(
+        PurgeAppStates::TeardownAppNetwork,
+        Arc::new(TeardownAppNetworkHandler::<PurgeAppStates> {
+            next_state: PurgeAppStates::UpdateAppData,
         }),
     );
     sm.add_handler(

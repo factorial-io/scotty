@@ -243,6 +243,7 @@ async fn get_running_services(
                     started_at: None,
                     used_registry: None,
                     basic_auth: None,
+                    exit_code: None,
                 }
             }
         })
@@ -349,6 +350,7 @@ async fn inspect_docker_container(
             (Some(user), Some(pass)) => Some((user, pass)),
             _ => None,
         },
+        exit_code: state.exit_code,
     };
 
     Ok(container_state)

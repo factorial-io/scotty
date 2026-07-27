@@ -98,8 +98,12 @@ Otherwise docker-compose can't find the files, as docker-compose is executed
 inside the Scotty container but working on the host.
 
 We are using a dedicated network named `proxy` for the communication of
-`traefik ↔ scotty ↔ apps`. If you want to use a different network, do not
-forget to adapt the Scotty configuration accordingly.
+`traefik ↔ scotty` and as Traefik's default network. Each app that Scotty
+manages gets its own dedicated network derived from this name
+(`proxy--<app-name>`); Scotty creates it and connects Traefik to it
+automatically, so apps no longer share one network (which would make Docker
+DNS names collide across apps). If you want to use a different base network,
+do not forget to adapt the Scotty configuration accordingly.
 
 Do not forget to create the network with:
 

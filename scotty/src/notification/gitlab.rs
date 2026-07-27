@@ -74,7 +74,7 @@ impl NotificationImpl for NotifyGitlab {
         let comment = MergeRequestComment {
             body: format!(
                 "**{}**\n\nUrls:\n{}",
-                &msg.message,
+                msg.message,
                 msg.urls
                     .iter()
                     .map(|u| { format!("- [{u}]({u})") })

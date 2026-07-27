@@ -23,7 +23,7 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: stable
@@ -43,7 +43,7 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: stable
@@ -55,7 +55,7 @@ jobs:
         name: Rustfmt
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: stable
@@ -76,7 +76,7 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: stable
@@ -89,7 +89,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             # Setup Rust toolchain for TypeScript generation
             - uses: dtolnay/rust-toolchain@stable

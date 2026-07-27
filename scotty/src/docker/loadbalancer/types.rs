@@ -26,19 +26,37 @@ impl Default for LoadBalancerInfo {
     }
 }
 
+/// Per-service attachment to a single network in the Compose long syntax.
+///
+/// Compose always registers the service name as a network alias on every
+/// network the service joins, which collides across projects on a shared
+/// network. Setting an explicit, app-scoped alias here keeps the service
+/// reachable under a unique name on the per-app proxy network.
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ServiceNetworkAttachment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aliases: Option<Vec<String>>,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DockerComposeServiceConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub environment: Option<HashMap<String, String>>,
+    // Compose long syntax: map of network name -> attachment config. An empty
+    // attachment (`{}`) simply joins the network; aliases scope the DNS name.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub networks: Option<Vec<String>>,
+    pub networks: Option<HashMap<String, ServiceNetworkAttachment>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DockerComposeNetworkConfig {
     pub external: bool,
+    /// Explicit external network name. Set so Compose references the network
+    /// Scotty created verbatim instead of prefixing it with the project name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

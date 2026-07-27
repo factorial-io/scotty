@@ -6,6 +6,9 @@ use tokio::time::sleep;
 
 pub struct DeviceFlowClient {
     client: HttpClient,
+    // Retained for the OAuth config validation it carries (client_id, issuer);
+    // the device endpoints use `user_provided_server_url`, not this.
+    #[allow(dead_code)]
     config: OAuthConfig,
     user_provided_server_url: String,
 }
@@ -24,7 +27,7 @@ impl DeviceFlowClient {
 
     pub async fn start_device_flow(&self) -> Result<DeviceFlowResponse, AuthError> {
         // Use Scotty's native device flow endpoint instead of calling OIDC provider directly
-        let device_url = format!("{}/oauth/device", self.config.scotty_server_url);
+        let device_url = format!("{}/oauth/device", self.user_provided_server_url);
 
         tracing::info!("Starting device flow with Scotty server");
         tracing::info!("Device URL: {}", device_url);
@@ -77,7 +80,7 @@ impl DeviceFlowClient {
     async fn try_get_token(&self, device_code: &str) -> Result<TokenResponse, AuthError> {
         let token_url = format!(
             "{}/oauth/device/token?device_code={}",
-            self.config.scotty_server_url, device_code
+            self.user_provided_server_url, device_code
         );
 
         // Try to get the token, the shared HTTP client will handle errors

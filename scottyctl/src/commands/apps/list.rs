@@ -50,16 +50,13 @@ pub async fn list_apps(context: &AppContext) -> anyhow::Result<()> {
 /// Get info for a specific app
 pub async fn info_app(context: &AppContext, cmd: &InfoCommand) -> anyhow::Result<()> {
     let ui = context.ui();
-    ui.new_status_line(format!(
-        "Getting info for app {}...",
-        &cmd.app_name.yellow()
-    ));
+    ui.new_status_line(format!("Getting info for app {}...", cmd.app_name.yellow()));
     ui.run(async || {
         let result = get(context.server(), &format!("apps/info/{}", cmd.app_name)).await?;
         let app_data: AppData = serde_json::from_value(result)?;
         ui.success(format!(
             "Info for app {} received successfully",
-            &cmd.app_name.yellow()
+            cmd.app_name.yellow()
         ));
         format_app_info(&app_data)
     })

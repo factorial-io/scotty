@@ -36,6 +36,11 @@ pub async fn stop_app_prepare(
     let mut sm = StateMachine::new(StopAppStates::RunDockerCompose, StopAppStates::Done);
     sm.set_error_state(StopAppStates::SetFailed);
 
+    // Intentionally no EnsureAppNetwork/TeardownAppNetwork here: `compose stop`
+    // neither attaches nor validates networks, and the app's containers stay in
+    // place (and on the per-app network), so the network must NOT be removed. Do
+    // not add network teardown to stop — it would orphan running containers from
+    // their network and break the next `app:run`.
     sm.add_handler(
         StopAppStates::RunDockerCompose,
         Arc::new(RunDockerComposeHandler::<StopAppStates> {

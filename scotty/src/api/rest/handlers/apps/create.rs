@@ -6,8 +6,13 @@ use crate::{
     docker::create_app::create_app,
     services::{authorization::Permission, AuthorizationService},
 };
-use axum::{debug_handler, extract::State, response::IntoResponse, Extension, Json};
-use base64::prelude::*;
+use axum::{
+    debug_handler,
+    extract::{rejection::JsonRejection, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Extension, Json,
+};
 use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
@@ -16,9 +21,20 @@ use scotty_core::{
     },
     settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
+    utils::format::format_bytes,
 };
 use std::io::Read;
 use tracing::error;
+
+/// Human-readable `Content-Length`, for error messages only.
+fn declared_body_size(headers: &HeaderMap) -> String {
+    headers
+        .get(axum::http::header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(format_bytes)
+        .unwrap_or_else(|| "unknown size".to_string())
+}
 
 #[utoipa::path(
     post,
@@ -36,8 +52,22 @@ use tracing::error;
 pub async fn create_app_handler(
     State(state): State<SharedAppState>,
     Extension(auth_context): Extension<AuthorizationContext>,
-    Json(mut payload): Json<CreateAppRequest>,
+    headers: HeaderMap,
+    payload: Result<Json<CreateAppRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Axum's own 413 says only "length limit exceeded", which leaves no clue
+    // about how big the body was or which setting caps it.
+    let Json(mut payload) = payload.map_err(|rejection| {
+        if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            AppError::CreateAppPayloadTooLarge(
+                declared_body_size(&headers),
+                format_bytes(state.settings.api.create_app_max_size),
+            )
+        } else {
+            AppError::BadRequest(rejection.body_text())
+        }
+    })?;
+
     // Check scope-based permissions before proceeding
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     let auth_service = &state.auth_service;
@@ -73,8 +103,9 @@ pub async fn create_app_handler(
         .files
         .iter()
         .map(|f| {
-            // First decode base64
-            let decoded = BASE64_STANDARD.decode(&f.content).map_err(|e| {
+            // Content arrives base64-encoded; legacy clients wrapped it twice
+            // (see `FileContent`), which `decode` unwraps.
+            let decoded = f.content.decode().map_err(|e| {
                 error!("Failed to decode base64 content for {}: {}", f.name, e);
                 AppError::FileContentDecodingError
             })?;
@@ -105,12 +136,12 @@ pub async fn create_app_handler(
 
                 decompressed
             } else {
-                decoded
+                decoded.into_owned()
             };
 
             Ok(File {
                 name: f.name.clone(),
-                content,
+                content: content.into(),
                 compressed: false, // After decompression, content is uncompressed
             })
         })
@@ -158,6 +189,7 @@ pub async fn create_app_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::prelude::*;
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::io::Write;
@@ -172,18 +204,15 @@ mod tests {
         encoder.write_all(original_content).unwrap();
         let compressed = encoder.finish().unwrap();
 
-        // Encode as base64
-        let base64_encoded = BASE64_STANDARD.encode(&compressed);
-
         // Create a File with compressed flag
         let file = File {
             name: "test.txt".to_string(),
-            content: base64_encoded.into_bytes(),
+            content: compressed.into(),
             compressed: true,
         };
 
         // Simulate the decompression logic from the handler
-        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let decoded = file.content.decode().unwrap();
         let mut decoder = GzDecoder::new(&decoded[..]);
         let mut decompressed = Vec::new();
         decoder.read_to_end(&mut decompressed).unwrap();
@@ -197,21 +226,44 @@ mod tests {
         // Original content
         let original_content = b"Hello, World! This is not compressed.";
 
-        // Encode as base64 directly
-        let base64_encoded = BASE64_STANDARD.encode(original_content);
-
         // Create a File without compression flag
         let file = File {
             name: "test.txt".to_string(),
-            content: base64_encoded.into_bytes(),
+            content: original_content.to_vec().into(),
             compressed: false,
         };
 
         // Simulate the passthrough logic from the handler
-        let decoded = BASE64_STANDARD.decode(&file.content).unwrap();
+        let decoded = file.content.decode().unwrap();
 
         // Verify decoded content matches original
-        assert_eq!(decoded, original_content);
+        assert_eq!(&*decoded, original_content);
+    }
+
+    /// A scottyctl <= 0.3.3 payload (base64 ASCII as a JSON int array) must
+    /// still decode to the same bytes as the new string form.
+    #[test]
+    fn test_legacy_client_payload_still_decodes() {
+        let original_content = b"Hello from an old client.";
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(original_content).unwrap();
+        let compressed = encoder.finish().unwrap();
+
+        let legacy = serde_json::json!({
+            "name": "test.txt",
+            "content": BASE64_STANDARD.encode(&compressed).into_bytes(),
+            "compressed": true,
+        });
+        let file: File = serde_json::from_value(legacy).unwrap();
+
+        let decoded = file.content.decode().unwrap();
+        let mut decompressed = Vec::new();
+        GzDecoder::new(&decoded[..])
+            .read_to_end(&mut decompressed)
+            .unwrap();
+
+        assert_eq!(decompressed, original_content);
     }
 
     #[test]

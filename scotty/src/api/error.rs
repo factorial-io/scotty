@@ -35,6 +35,12 @@ pub enum AppError {
     #[error("File content could not be decoded!")]
     FileContentDecodingError,
 
+    #[error(
+        "Request body ({0}) exceeds the configured limit of {1}; \
+         raise api.create_app_max_size (SCOTTY__API__CREATE_APP_MAX_SIZE) on the server"
+    )]
+    CreateAppPayloadTooLarge(String, String),
+
     #[error("File compression corrupted for {0}: {1}")]
     FileCompressionCorrupted(String, String),
 
@@ -130,6 +136,7 @@ impl AppError {
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::CreateAppPayloadTooLarge(_, _) => StatusCode::PAYLOAD_TOO_LARGE,
             AppError::FileCompressionCorrupted(_, _) => StatusCode::BAD_REQUEST,
             AppError::FileDecompressedSizeExceeded(_, _) => StatusCode::BAD_REQUEST,
             AppError::CantAdoptAppWithExistingSettings(_) => StatusCode::BAD_REQUEST,

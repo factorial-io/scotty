@@ -111,8 +111,8 @@ impl AppSettings {
             if !found {
                 return Err(anyhow::anyhow!(
                     "Service {} for custom domain {} not found",
-                    &custom_domain.service,
-                    &custom_domain.domain
+                    custom_domain.service,
+                    custom_domain.domain
                 ));
             }
         }

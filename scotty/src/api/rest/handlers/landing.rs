@@ -9,7 +9,6 @@ use crate::app_state::SharedAppState;
 use crate::static_files::serve_embedded_file;
 
 use scotty_core::apps::app_data::AppStatus;
-use scotty_core::settings::api_server::DEFAULT_FRONTEND_BASE_URL;
 
 /// Build a Response with no-cache headers to prevent browsers and proxies
 /// from caching redirect or error responses for stopped apps.
@@ -156,51 +155,53 @@ pub async fn landing_or_frontend_handler(
 
 /// Check if the given hostname matches Scotty's own domain.
 fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
-    // Check against configured base_url
-    if let Some(base_url) = &state.settings.api.base_url {
-        if let Ok(url) = Url::parse(base_url) {
-            if let Some(host) = url.host_str() {
-                return hostname.eq_ignore_ascii_case(host);
-            }
+    let Some(base_url) = state.settings.api.configured_base_url() else {
+        // Nothing configured: assume it's Scotty (don't redirect).
+        // Log a warning once so operators notice the missing configuration.
+        static WARN_UNCONFIGURED: Once = Once::new();
+        WARN_UNCONFIGURED.call_once(|| {
+            tracing::warn!(
+                "api.base_url is not configured. All requests will be served as \
+                 Scotty frontend — per-app domains will not redirect to the \
+                 landing page."
+            );
+        });
+        return true;
+    };
+
+    match Url::parse(&base_url).ok().and_then(|url| {
+        url.host_str()
+            .map(|host| hostname.eq_ignore_ascii_case(host))
+    }) {
+        Some(matches) => matches,
+        None => {
+            // Configured but not a parseable absolute URL: we cannot tell
+            // Scotty's own domain apart from app domains. Serve everything as
+            // Scotty rather than 404-ing its own UI; the startup warning from
+            // base_url_config_warnings() points the operator at the broken
+            // value.
+            static WARN_MALFORMED: Once = Once::new();
+            WARN_MALFORMED.call_once(|| {
+                tracing::warn!(
+                    "the configured public base URL ('{}') is not a valid absolute \
+                     URL. All requests will be served as Scotty frontend — per-app \
+                     domains will not redirect to the landing page.",
+                    base_url
+                );
+            });
+            true
         }
     }
-
-    // Fallback: check against oauth frontend_base_url
-    if let Ok(url) = Url::parse(&state.settings.api.oauth.frontend_base_url) {
-        if let Some(host) = url.host_str() {
-            return hostname.eq_ignore_ascii_case(host);
-        }
-    }
-
-    // If nothing is configured, assume it's Scotty (don't redirect).
-    // Log a warning once so operators notice the missing configuration.
-    static WARN_UNCONFIGURED: Once = Once::new();
-    WARN_UNCONFIGURED.call_once(|| {
-        tracing::warn!(
-            "Neither api.base_url nor api.oauth.frontend_base_url is configured. \
-             All requests will be served as Scotty frontend — \
-             per-app domains will not redirect to the landing page."
-        );
-    });
-    true
 }
 
-/// Extract the base URL for constructing redirect targets.
+/// Extract the base URL for constructing redirect targets. Returns None for
+/// unparseable values so we never emit a broken Location header.
 fn get_scotty_base_url(state: &SharedAppState) -> Option<String> {
-    if let Some(base_url) = &state.settings.api.base_url {
-        if !base_url.is_empty() {
-            return Some(base_url.clone());
-        }
-    }
-
-    // Fallback to oauth frontend_base_url, but skip the default localhost value
-    // since it indicates no explicit configuration was provided.
-    let frontend_url = &state.settings.api.oauth.frontend_base_url;
-    if !frontend_url.is_empty() && frontend_url != DEFAULT_FRONTEND_BASE_URL {
-        return Some(frontend_url.clone());
-    }
-
-    None
+    state.settings.api.configured_base_url().filter(|base_url| {
+        Url::parse(base_url)
+            .map(|url| url.host_str().is_some())
+            .unwrap_or(false)
+    })
 }
 
 #[cfg(test)]

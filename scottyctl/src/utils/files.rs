@@ -102,7 +102,7 @@ pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
             let relative_path_str = format!("./{}", relative_path.display());
             files.push(File {
                 name: relative_path_str,
-                content,
+                content: content.into(),
                 compressed: false,
             });
         }

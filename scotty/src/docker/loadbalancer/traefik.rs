@@ -6,10 +6,15 @@ use regex::Regex;
 use crate::settings::config::Settings;
 use scotty_core::apps::app_data::AppSettings;
 
+use super::app_proxy_network_name;
 use super::types::{
     DockerComposeConfig, DockerComposeNetworkConfig, DockerComposeServiceConfig, LoadBalancerImpl,
-    LoadBalancerInfo,
+    LoadBalancerInfo, ServiceNetworkAttachment,
 };
+
+/// Value of the `X-Robots-Tag` header injected when `disallow_robots` is set.
+/// Kept as a single constant so production code and tests cannot drift apart.
+const ROBOTS_HEADER_VALUE: &str = "none, noarchive, nosnippet, notranslate, noimageindex";
 
 pub struct TraefikLoadBalancer;
 
@@ -58,11 +63,18 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             networks: Some(HashMap::new()),
         };
 
-        // Setup external network with traefik
+        // Each app gets its own dedicated external proxy network instead of a
+        // single shared one, so Docker DNS names never collide across apps.
+        // Scotty creates this network and connects Traefik to it via the
+        // network lifecycle handlers; here we only reference it as external.
+        let app_network = app_proxy_network_name(&global_settings.traefik.network, app_name);
         let networks = config.networks.as_mut().unwrap();
         networks.insert(
-            global_settings.traefik.network.clone(),
-            DockerComposeNetworkConfig { external: true },
+            app_network.clone(),
+            DockerComposeNetworkConfig {
+                external: true,
+                name: Some(app_network.clone()),
+            },
         );
 
         // First, apply environment variables to all services
@@ -101,28 +113,44 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             if service_config.environment.is_none() {
                 service_config.environment = Some(HashMap::new());
             }
-            // Initialize or update networks
-            service_config.networks = Some(vec![
-                "default".into(),
-                global_settings.traefik.network.clone(),
-            ]);
+            let service_name = format!("{}--{}", service.service, app_name);
+
+            // Attach the public service to its project `default` network and to
+            // the per-app proxy network. On the proxy network we set an explicit
+            // app-scoped alias so the service is reachable under a unique name
+            // (Compose still adds the bare service name as an alias, but the
+            // network itself is no longer shared, so that no longer collides).
+            let mut service_networks = std::collections::HashMap::new();
+            service_networks.insert("default".to_string(), ServiceNetworkAttachment::default());
+            service_networks.insert(
+                app_network.clone(),
+                ServiceNetworkAttachment {
+                    aliases: Some(vec![service_name.clone()]),
+                },
+            );
+            service_config.networks = Some(service_networks);
 
             let labels = service_config.labels.as_mut().unwrap();
-            let service_name = format!("{}--{}", &service.service, &app_name);
 
             // Add Traefik labels
             labels.insert("traefik.enable".to_string(), "true".to_string());
 
+            // Tell Traefik which network to use to reach this container. The
+            // container is on multiple networks and Traefik only resolves the
+            // backend IP once at discovery time, so this label is required for
+            // correct routing.
+            labels.insert("traefik.docker.network".to_string(), app_network.clone());
+
             let domains = service.get_domains(&settings.domain);
             for (idx, domain) in domains.iter().enumerate() {
                 labels.insert(
-                    format!("traefik.http.routers.{}-{}.rule", &service_name, idx),
+                    format!("traefik.http.routers.{}-{}.rule", service_name, idx),
                     format!("Host(`{domain}`)"),
                 );
 
                 if global_settings.traefik.use_tls {
                     labels.insert(
-                        format!("traefik.http.routers.{}-{}.tls", &service_name, idx),
+                        format!("traefik.http.routers.{}-{}.tls", service_name, idx),
                         "true".to_string(),
                     );
 
@@ -130,7 +158,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
                         labels.insert(
                             format!(
                                 "traefik.http.routers.{}-{}.tls.certresolver",
-                                &service_name, idx
+                                service_name, idx
                             ),
                             certresolver.clone(),
                         );
@@ -141,26 +169,26 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             labels.insert(
                 format!(
                     "traefik.http.services.{}.loadbalancer.server.port",
-                    &service_name,
+                    service_name,
                 ),
-                format!("{}", &service.port),
+                format!("{}", service.port),
             );
 
             let mut middlewares = vec![];
 
             if let Some((basic_auth_user, basic_auth_pass)) = &settings.basic_auth {
-                let middleware_name = format!("{}--{}", &service_name, "basic-auth");
+                let middleware_name = format!("{}--{}", service_name, "basic-auth");
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.basicauth.users",
-                        &middleware_name
+                        middleware_name
                     ),
                     format!("{}:{}", basic_auth_user, htpasswd(basic_auth_pass, true)?),
                 );
                 labels.insert(
                     format!(
                         "traefik.http.middlewares.{}.basicauth.removeheader",
-                        &middleware_name
+                        middleware_name
                     ),
                     "true".to_string(),
                 );
@@ -169,13 +197,13 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             }
 
             if settings.disallow_robots {
-                let middleware_name = format!("{}--{}", &service_name, "robots");
+                let middleware_name = format!("{}--{}", service_name, "robots");
                 labels.insert(
                     format!(
-                        "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tags",
-                        &middleware_name
+                        "traefik.http.middlewares.{}.headers.customresponseheaders.X-Robots-Tag",
+                        middleware_name
                     ),
-                    "none, noarchive, nosnippet, notranslate, noimageindex".to_string(),
+                    ROBOTS_HEADER_VALUE.to_string(),
                 );
 
                 middlewares.push(middleware_name.clone());
@@ -189,7 +217,7 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             // Connect the middleware to the router
             for (idx, _domain) in domains.iter().enumerate() {
                 labels.insert(
-                    format!("traefik.http.routers.{}-{}.middlewares", &service_name, idx),
+                    format!("traefik.http.routers.{}-{}.middlewares", service_name, idx),
                     middlewares.join(","),
                 );
             }
@@ -221,7 +249,13 @@ mod tests {
     #[test]
     fn test_traefik_get_docker_compose_override() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![]),
+            traefik: TraefikSettings::new(
+                true,
+                "proxy".into(),
+                Some("myresolver".into()),
+                vec![],
+                "traefik".into(),
+            ),
             ..Default::default()
         };
 
@@ -262,13 +296,34 @@ mod tests {
         let labels = service_config.labels.as_ref().unwrap();
         let environment = service_config.environment.as_ref().unwrap();
 
-        // check networks.
+        // check networks: the service joins its `default` network and the
+        // per-app proxy network (base "proxy" + app "myapp"), with an
+        // app-scoped alias on the proxy network.
         let networks = service_config.networks.as_ref().unwrap();
-        assert!(networks.contains(&"default".to_string()));
-        assert!(networks.contains(&"proxy".to_string()));
+        assert!(networks.contains_key("default"));
+        assert!(networks.contains_key("proxy--myapp"));
+        assert_eq!(
+            networks
+                .get("proxy--myapp")
+                .unwrap()
+                .aliases
+                .as_ref()
+                .unwrap(),
+            &vec!["web--myapp".to_string()]
+        );
+
+        // The top-level network definition is the per-app external network.
+        let defined_networks = result.networks.as_ref().unwrap();
+        let net = defined_networks.get("proxy--myapp").unwrap();
+        assert!(net.external);
+        assert_eq!(net.name.as_deref(), Some("proxy--myapp"));
 
         // Check labels.
         assert_eq!(labels.get("traefik.enable").unwrap(), "true");
+        assert_eq!(
+            labels.get("traefik.docker.network").unwrap(),
+            "proxy--myapp"
+        );
         assert_eq!(
             labels
                 .get("traefik.http.routers.web--myapp-0.rule")
@@ -297,7 +352,12 @@ mod tests {
         assert!(labels.contains_key(
             "traefik.http.middlewares.web--myapp--basic-auth.basicauth.removeheader"
         ));
-        assert!(labels.contains_key("traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tags"));
+        assert_eq!(
+            labels.get(
+                "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
+            ),
+            Some(&ROBOTS_HEADER_VALUE.to_string())
+        );
         assert_eq!(
             labels
                 .get("traefik.http.routers.web--myapp-0.middlewares")
@@ -311,9 +371,65 @@ mod tests {
     }
 
     #[test]
+    fn test_traefik_override_serializes_to_valid_compose() {
+        let global_settings = Settings {
+            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![], "traefik".into()),
+            ..Default::default()
+        };
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "nginx".to_string(),
+                port: 80,
+                domains: vec![],
+            }],
+            ..Default::default()
+        };
+
+        let result = TraefikLoadBalancer
+            .get_docker_compose_override(
+                &global_settings,
+                "stiftung",
+                &app_settings,
+                &app_settings.environment.expose_all(),
+                &["nginx".to_string()],
+            )
+            .unwrap();
+
+        let yaml = serde_norway::to_string(&result).unwrap();
+
+        // The serialized override must round-trip as valid YAML and carry the
+        // per-app network with an app-scoped alias (not the bare service name).
+        let parsed: serde_norway::Value = serde_norway::from_str(&yaml).unwrap();
+        let net = &parsed["services"]["nginx"]["networks"];
+        assert!(
+            net.get("default").is_some(),
+            "missing default network in:\n{yaml}"
+        );
+        // Pin the empty-attachment shape: `default: {}` (a mapping), not `null`.
+        assert!(
+            net["default"].is_mapping(),
+            "expected `default` to serialize as a mapping, got: {:?}\n{yaml}",
+            net.get("default")
+        );
+        let aliases = &parsed["services"]["nginx"]["networks"]["proxy--stiftung"]["aliases"];
+        assert_eq!(aliases[0].as_str(), Some("nginx--stiftung"));
+        assert_eq!(
+            parsed["networks"]["proxy--stiftung"]["external"].as_bool(),
+            Some(true)
+        );
+    }
+
+    #[test]
     fn test_traefik_env_vars_applied_to_all_containers() {
         let global_settings = Settings {
-            traefik: TraefikSettings::new(true, "proxy".into(), Some("myresolver".into()), vec![]),
+            traefik: TraefikSettings::new(
+                true,
+                "proxy".into(),
+                Some("myresolver".into()),
+                vec![],
+                "traefik".into(),
+            ),
             ..Default::default()
         };
 
@@ -358,6 +474,17 @@ mod tests {
         );
         assert!(web_config.labels.is_some()); // Has load balancer labels
         assert!(web_config.networks.is_some()); // Has networks
+
+        // With disallow_robots: false, the robots header must not be emitted
+        let web_labels = web_config.labels.as_ref().unwrap();
+        assert!(!web_labels.contains_key(
+            "traefik.http.middlewares.web--myapp--robots.headers.customresponseheaders.X-Robots-Tag"
+        ));
+        // ...and the robots middleware must not be wired into the router chain
+        assert!(!web_labels
+            .get("traefik.http.routers.web--myapp-0.middlewares")
+            .map(|s| s.contains("web--myapp--robots"))
+            .unwrap_or(false));
 
         // Check that db service has environment variables but no load balancer config
         let db_config = result.services.get("db").unwrap();

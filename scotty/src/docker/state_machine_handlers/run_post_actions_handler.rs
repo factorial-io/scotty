@@ -158,7 +158,7 @@ where
                 "docker-compose",
                 &args,
                 &environment,
-                &format!("action {:?} on service {}", &self.action, service),
+                &format!("action {:?} on service {}", self.action, service),
             )
             .await?;
         }

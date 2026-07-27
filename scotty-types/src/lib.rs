@@ -642,7 +642,7 @@ impl fmt::Display for WebSocketMessage {
                 let data_preview = if data.data.len() > 50 {
                     format!("{}... ({} bytes)", &data.data[..50], data.data.len())
                 } else {
-                    format!("{} ({} bytes)", &data.data, data.data.len())
+                    format!("{} ({} bytes)", data.data, data.data.len())
                 };
                 write!(
                     f,

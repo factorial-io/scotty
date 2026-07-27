@@ -40,7 +40,7 @@ pub async fn setup_http_server(
         app
     };
 
-    println!("🚀 API-Server starting at http://{}", &bind_address);
+    println!("🚀 API-Server starting at http://{}", bind_address);
     let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();
 
     let stop_flag = app_state.clone().stop_flag.clone();

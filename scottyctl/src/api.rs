@@ -132,20 +132,20 @@ pub async fn get_or_post(
             if err.is_client_error() {
                 Err(anyhow::anyhow!(
                     "Client error calling scotty API at {}: {}",
-                    &url,
+                    url,
                     err
                 ))
             } else {
                 Err(anyhow::anyhow!(
                     "Failed to call scotty API at {}: {}",
-                    &url,
+                    url,
                     err
                 ))
             }
         }
         Err(RetryError::ExhaustedRetries { error, attempts }) => Err(anyhow::anyhow!(
             "Failed to call scotty API at {} after {} retries: {}",
-            &url,
+            url,
             attempts,
             error
         )),
@@ -254,7 +254,7 @@ pub async fn wait_for_task(
         // Poll for task completion status
         let mut done = false;
         while !done {
-            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let result = get(server, &format!("task/{}", context.task.id)).await?;
             let task: TaskDetails =
                 serde_json::from_value(result).context("Failed to parse task")?;
 
@@ -319,7 +319,7 @@ pub async fn wait_for_task(
 
         let mut done = false;
         while !done {
-            let result = get(server, &format!("task/{}", &context.task.id)).await?;
+            let result = get(server, &format!("task/{}", context.task.id)).await?;
             let task: TaskDetails =
                 serde_json::from_value(result).context("Failed to parse task")?;
 

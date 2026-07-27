@@ -3,8 +3,7 @@
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { redirectAfterLogin } from '../../lib/landingResume';
 
 	let password = '';
 	let loading = true;
@@ -25,13 +24,13 @@
 
 			// Handle dev mode - redirect directly to dashboard
 			if (authMode === 'dev') {
-				await goto(resolve('/dashboard'));
+				await redirectAfterLogin();
 				return;
 			}
 
 			// Check if already authenticated and redirect
 			if (authService.isAuthenticated()) {
-				await goto(resolve('/dashboard'));
+				await redirectAfterLogin();
 				return;
 			}
 		} catch (err) {
@@ -59,7 +58,7 @@
 				if (result.redirectUrl) {
 					window.location.href = result.redirectUrl;
 				} else {
-					await goto(resolve('/dashboard'));
+					await redirectAfterLogin();
 				}
 			} else {
 				error = result.error || 'Login failed';

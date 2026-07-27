@@ -21,8 +21,8 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
     let ui = context.ui();
     ui.new_status_line(format!(
         "Running custom action {} on app {}...",
-        &cmd.action_name.yellow(),
-        &cmd.app_name.yellow()
+        cmd.action_name.yellow(),
+        cmd.app_name.yellow()
     ));
     ui.run(async || {
         // Connect WebSocket before starting the task
@@ -35,7 +35,7 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
 
         let result = get_or_post(
             context.server(),
-            &format!("apps/{}/actions", &cmd.app_name),
+            &format!("apps/{}/actions", cmd.app_name),
             "POST",
             Some(payload),
         )
@@ -50,8 +50,8 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
 
         ui.success(format!(
             "Custom action {} completed successfully for app {}",
-            &cmd.action_name.yellow(),
-            &cmd.app_name.yellow()
+            cmd.action_name.yellow(),
+            cmd.app_name.yellow()
         ));
 
         format_app_info(&app_data)
@@ -67,12 +67,12 @@ pub async fn list_custom_actions(
     let ui = context.ui();
     ui.new_status_line(format!(
         "Getting custom actions for app {}...",
-        &cmd.app_name.yellow()
+        cmd.app_name.yellow()
     ));
     ui.run(async || {
         let result = get(
             context.server(),
-            &format!("apps/{}/custom-actions", &cmd.app_name),
+            &format!("apps/{}/custom-actions", cmd.app_name),
         )
         .await?;
 
@@ -123,13 +123,13 @@ pub async fn get_custom_action(context: &AppContext, cmd: &ActionGetCommand) -> 
     let ui = context.ui();
     ui.new_status_line(format!(
         "Getting custom action '{}' for app '{}'...",
-        &cmd.action_name.yellow(),
-        &cmd.app_name.yellow()
+        cmd.action_name.yellow(),
+        cmd.app_name.yellow()
     ));
     ui.run(async || {
         let result = get(
             context.server(),
-            &format!("apps/{}/custom-actions/{}", &cmd.app_name, &cmd.action_name),
+            &format!("apps/{}/custom-actions/{}", cmd.app_name, cmd.action_name),
         )
         .await?;
 
@@ -156,8 +156,8 @@ pub async fn create_custom_action(
     let ui = context.ui();
     ui.new_status_line(format!(
         "Creating custom action '{}' for app '{}'...",
-        &cmd.action_name.yellow(),
-        &cmd.app_name.yellow()
+        cmd.action_name.yellow(),
+        cmd.app_name.yellow()
     ));
 
     // Parse commands from SERVICE:COMMAND format
@@ -190,7 +190,7 @@ pub async fn create_custom_action(
 
     let result = post(
         context.server(),
-        &format!("apps/{}/custom-actions", &cmd.app_name),
+        &format!("apps/{}/custom-actions", cmd.app_name),
         payload,
     )
     .await?;
@@ -223,13 +223,13 @@ pub async fn delete_custom_action(
     let ui = context.ui();
     ui.new_status_line(format!(
         "Deleting custom action '{}' from app '{}'...",
-        &cmd.action_name.yellow(),
-        &cmd.app_name.yellow()
+        cmd.action_name.yellow(),
+        cmd.app_name.yellow()
     ));
 
     delete(
         context.server(),
-        &format!("apps/{}/custom-actions/{}", &cmd.app_name, &cmd.action_name),
+        &format!("apps/{}/custom-actions/{}", cmd.app_name, cmd.action_name),
         None::<serde_json::Value>,
     )
     .await?;

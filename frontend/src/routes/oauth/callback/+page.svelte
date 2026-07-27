@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { authService } from '../../../lib/authService';
+	import { redirectAfterLogin } from '../../../lib/landingResume';
 
 	let loading = true;
 	let error: string | null = null;
@@ -43,32 +42,9 @@
 				const { loadUserPermissions } = await import('../../../stores/permissionStore');
 				await loadUserPermissions();
 
-				// Check if we came from the landing page flow.
-				// The sessionStorage key is read-then-removed here so that the
-				// landing page receives the autostart=true query param instead of
-				// re-reading from sessionStorage. This avoids a stale entry if the
-				// user later visits the landing page for a different app.
-				const pendingStart = sessionStorage.getItem('scotty_landing_pending_start');
-				if (pendingStart) {
-					try {
-						const pending = JSON.parse(pendingStart);
-						sessionStorage.removeItem('scotty_landing_pending_start');
-						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive context
-						const params = new URLSearchParams({ autostart: 'true' });
-						if (pending.returnUrl) {
-							params.set('return_url', pending.returnUrl);
-						}
-						await goto(
-							resolve(`/landing/${encodeURIComponent(pending.appName)}?${params}`)
-						);
-						return;
-					} catch {
-						sessionStorage.removeItem('scotty_landing_pending_start');
-					}
-				}
-
-				// Default: redirect to dashboard
-				await goto(resolve('/dashboard'));
+				// If we came from the landing page flow, return there so the
+				// app is started; otherwise go to the dashboard.
+				await redirectAfterLogin();
 			} else {
 				error = result.error || 'Authentication failed';
 				loading = false;

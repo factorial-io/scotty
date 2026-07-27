@@ -150,6 +150,18 @@ impl Settings {
             .validate()
             .map_err(|e| ConfigError::Message(e.to_string()))?;
 
+        // The per-app proxy network is named `<traefik.network>--<app>`, so a
+        // base network containing `--` makes the derived name non-unique across
+        // apps (base `a--b` + app `c` collides with base `a` + app `b--c`).
+        if settings.load_balancer_type == LoadBalancerType::Traefik
+            && settings.traefik.network.contains("--")
+        {
+            return Err(ConfigError::Message(format!(
+                "traefik.network must not contain '--' (got {:?}); it is the base for per-app network names",
+                settings.traefik.network
+            )));
+        }
+
         Ok(settings)
     }
 

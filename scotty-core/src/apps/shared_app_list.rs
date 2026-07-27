@@ -221,6 +221,7 @@ mod tests {
                 started_at: None,
                 used_registry: None,
                 basic_auth: None,
+                exit_code: None,
             }],
         );
         list.add_app(app).await.unwrap();

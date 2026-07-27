@@ -9,6 +9,7 @@ use crate::{
     app_state::SharedAppState,
     docker::state_machine_handlers::{
         context::Context, create_load_balancer_config::CreateLoadBalancerConfig,
+        network_handler::EnsureAppNetworkHandler,
         run_docker_compose_handler::RunDockerComposeHandler,
         run_docker_login_handler::RunDockerLoginHandler,
         run_post_actions_handler::RunPostActionsHandler,
@@ -26,6 +27,7 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 pub enum RebuildAppStates {
     RecreateLoadBalancerConfig,
     RunDockerLogin,
+    EnsureAppNetwork,
     RunDockerComposePull,
     RunDockerComposeBuild,
     RunDockerComposeStop,
@@ -73,8 +75,18 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::RunDockerLogin,
         Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposePull,
+            next_state: RebuildAppStates::EnsureAppNetwork,
             registry: app.get_registry(),
+        }),
+    );
+    // Ensure the per-app network exists before ANY compose subcommand runs:
+    // the override declares it as external, and compose can reject commands
+    // (e.g. on a freshly adopted app, or after the network was removed) when a
+    // declared external network is missing.
+    sm.add_handler(
+        RebuildAppStates::EnsureAppNetwork,
+        Arc::new(EnsureAppNetworkHandler::<RebuildAppStates> {
+            next_state: RebuildAppStates::RunDockerComposePull,
         }),
     );
     sm.add_handler(

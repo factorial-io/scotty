@@ -37,7 +37,7 @@ where
                 .collect::<Vec<&str>>()
                 .as_slice(),
             &self.env,
-            &format!("docker-compose {}", &self.command.join(" ")),
+            &format!("docker-compose {}", self.command.join(" ")),
         )
         .await?;
 

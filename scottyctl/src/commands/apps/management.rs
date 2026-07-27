@@ -7,7 +7,6 @@ use crate::{
     context::AppContext,
     utils::{files::collect_files, parsers::parse_env_file},
 };
-use base64::prelude::*;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use scotty_core::{
@@ -26,7 +25,7 @@ use super::{format_app_info, get_app_info};
 /// Create a new app
 pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Result<()> {
     let ui = context.ui();
-    ui.new_status_line(format!("Creating app {}...", &cmd.app_name.yellow()));
+    ui.new_status_line(format!("Creating app {}...", cmd.app_name.yellow()));
     ui.run(async || {
         ui.new_status_line("Collecting files...");
         let file_list = collect_files(&cmd.docker_compose_path)?;
@@ -55,7 +54,8 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
 
                     Ok(File {
                         name: f.name.clone(),
-                        content: BASE64_STANDARD.encode(&compressed).into(),
+                        // Raw gzip bytes; serialization base64-encodes them.
+                        content: compressed.into(),
                         compressed: true,
                     })
                 })
@@ -138,21 +138,21 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
 
         ui.new_status_line(format!(
             "Beaming your app {} up to {} ({})...",
-            &cmd.app_name.yellow(),
-            &context.server().server.yellow(),
+            cmd.app_name.yellow(),
+            context.server().server.yellow(),
             size.blue()
         ));
         let result = get_or_post(context.server(), "apps/create", "POST", Some(payload)).await?;
 
         ui.success(format!(
             "App {} beamed up to {} ({})!",
-            &cmd.app_name.yellow(),
-            &context.server().server.yellow(),
+            cmd.app_name.yellow(),
+            context.server().server.yellow(),
             size.blue()
         ));
         ui.new_status_line(format!(
             "Waiting for app {} to start...",
-            &cmd.app_name.yellow()
+            cmd.app_name.yellow()
         ));
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
@@ -161,7 +161,7 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
         let app_data = get_app_info(context.server(), &app_context.app_data.name).await?;
         ui.success(format!(
             "App {} started successfully!",
-            &cmd.app_name.yellow(),
+            cmd.app_name.yellow(),
         ));
 
         format_app_info(&app_data)

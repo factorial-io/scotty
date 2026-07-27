@@ -203,7 +203,7 @@
 				<td><AppStatusPill status={service.status || 'unknown'} /></td>
 				<td
 					>{#if service.domains && service.domains.length > 0}
-						<AppServiceButton property="domain" {service} status={data.status} />
+						<AppServiceButton property="domain" {service} />
 					{:else}
 						--
 					{/if}

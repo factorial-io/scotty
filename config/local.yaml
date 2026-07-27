@@ -1,5 +1,6 @@
 api:
     bind_address: "127.0.0.1:21342"
+    base_url: "http://localhost:21342" # required for landing-page redirects of stopped apps
     auth_mode: oauth
     oauth:
         oidc_issuer_url: "https://source.factorial.io"

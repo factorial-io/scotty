@@ -68,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command.as_ref().unwrap_or(&Commands::Run) {
         Commands::Config => {
             let app_state = app_state::AppState::new_for_config_only().await?;
-            println!("{:#?}", &app_state.settings);
+            println!("{:#?}", app_state.settings);
             return Ok(());
         }
         Commands::Run => {
@@ -80,6 +80,12 @@ async fn main() -> anyhow::Result<()> {
 
     let app_state = app_state::AppState::new().await?;
     init_telemetry::init_telemetry_and_tracing(&app_state.clone().settings.telemetry)?;
+
+    // Surface base-url misconfiguration early: a missing or conflicting
+    // public base URL silently breaks OAuth redirects and the landing page.
+    for warning in app_state.settings.api.base_url_config_warnings() {
+        warn!("⚠️  {}", warning);
+    }
 
     // Warn if running in development mode
     if matches!(app_state.settings.api.auth_mode, AuthMode::Development) {

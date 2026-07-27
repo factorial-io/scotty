@@ -149,7 +149,7 @@ mod tests {
         };
 
         let global_settings = Settings {
-            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![]),
+            traefik: TraefikSettings::new(false, "proxy".into(), None, vec![], "traefik".into()),
             ..Default::default()
         };
 

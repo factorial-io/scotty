@@ -279,9 +279,11 @@ days or forever.
 You can add basic auth to the app with the `--basic-auth` argument. The argument
 should contain a username and a password separated by a colon.
 
-By default, Scotty injects a `X-Robots-Tag: noindex` header into all responses
-to prevent search engines from indexing the app. The `--allow-robots` argument
-disables this behavior, allowing search engines to index the app.
+By default, Scotty injects a `X-Robots-Tag: none, noarchive, nosnippet, notranslate, noimageindex`
+header into all responses to prevent search engines from indexing the app (this
+also suppresses caching, snippets, translation, and image indexing). The
+`--allow-robots` argument disables this behavior, allowing search engines to
+index the app.
 (Not supported by all proxies)
 
 The `--destroy-on-ttl` argument will destroy the app after the specified ttl
@@ -374,7 +376,7 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
 
 will beam up the current folder to the server and start the nginx service on port 80.
 It will add basic auth with the username `user` and the password `password` and
-allow search engines to index the app (no `X-Robots-Tag: noindex` header). The app will run forever.
+allow search engines to index the app (no `X-Robots-Tag` header). The app will run forever.
 
 ```shell
 scottyctl --server <SERVER> --access-token <TOKEN> app:create my-nginx-test \
@@ -402,6 +404,14 @@ environment variables into the `.scotty.yml` file.
 
 After adopting an app, it is strongly advised to check the `.scotty.yml` file and
 remove any unnecessary information from it and double-check the configuration.
+
+> **Note:** `app:adopt` only creates the Scotty settings (`.scotty.yml`) so the
+> app is recognized and managed by Scotty. It does **not** apply the load
+> balancer configuration to the running app: it writes no
+> `docker-compose.override.yml`, does not create the per-app proxy network, and
+> does not connect Traefik. The app keeps running as-is. To get the app fully
+> wired into Scotty's Traefik integration (override file, per-app network,
+> Traefik routing), run `app:rebuild` after adopting it.
 
 ## Destroy an app
 
