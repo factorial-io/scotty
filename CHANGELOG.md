@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4](https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4) (2026-07-27)
+
+
+### Bug Fixes
+
+* **api:** explain why an app create payload was rejected ([66fec44](https://github.com/factorial-io/scotty/commit/66fec44f65c2f01dafdd10f405c2e353036ba798))
+* **api:** stop double-encoding app files on the wire ([3a17724](https://github.com/factorial-io/scotty/commit/3a177240a0311324095bb07d02b9523fca19cf4f))
+* remove redundant references in format macro arguments ([3061026](https://github.com/factorial-io/scotty/commit/30610261ff4f45403e1ca2b39ff9068e0027b7f0))
+* **scottyctl:** use --server URL for device flow, remove oauth2_proxy_base_url ([e77c6c4](https://github.com/factorial-io/scotty/commit/e77c6c4e1aaf11edb281b603080962116a3df995))
+
 ## [0.3.3](https://github.com/factorial-io/scotty/compare/v0.3.2...v0.3.3) (2026-07-06)
 
 
