@@ -16,7 +16,7 @@ _None._
 - Open [**Local observability stack: prerequisite and access URLs**](map-observability-local-access.md) to learn about: The observability stack (observability/docker-compose) needs Traefik running first for .ddev.site routing; Grafana/Jaeger/VictoriaMetrics are reached via *.ddev.site URLs. #observability #ddev #traefik #local-dev
 - Open [**Observability stack architecture**](map-observability-stack-architecture.md) to learn about: Scotty exports OTLP telemetry to an OpenTelemetry Collector, which routes traces to Jaeger and metrics to VictoriaMetrics, visualized in Grafana. #observability #opentelemetry #metrics #tracing #grafana
 - Open [**Observability stack config file locations**](map-observability-config-files.md) to learn about: docker-compose.yml, otel-collector-config.yaml, and grafana/ provisioning/dashboards dirs define the observability stack's setup. #observability #grafana #configuration
-- Open [**Observability stack data retention limits**](map-observability-data-retention.md) to learn about: VictoriaMetrics retains metrics 30 days by default (configurable); Jaeger traces are in-memory only and lost on restart. #observability #jaeger #victoriametrics
+- Open [**Observability stack data retention limits**](map-observability-data-retention.md) to learn about: VictoriaMetrics retains metrics 7 days (configurable); Jaeger traces are in-memory only and lost on restart. #observability #jaeger #victoriametrics
 - Open [**Scotty metrics families and prefix**](map-scotty-metrics-families.md) to learn about: All Scotty metrics use the scotty_ prefix, grouped by subsystem: log streaming, shell sessions, websocket, tasks, HTTP server, memory, application fleet, and Tokio runtime. #observability #metrics
 
 ## By topic
@@ -42,7 +42,7 @@ _None._
 ### #ddev
 - Open [**Local observability stack: prerequisite and access URLs**](map-observability-local-access.md) — The observability stack (observability/docker-compose) needs Traefik running first for .ddev.site routing; Grafana/Jaeger/VictoriaMetrics are reached via *.ddev.site URLs.
 ### #jaeger
-- Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 30 days by default (configurable); Jaeger traces are in-memory only and lost on restart.
+- Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 7 days (configurable); Jaeger traces are in-memory only and lost on restart.
 ### #local-dev
 - Open [**Start Traefik before local development**](../traefik/practice-local-dev-traefik-prereq.md) — Local dev requires Traefik running via docker compose in apps/traefik as a prerequisite.
 - Open [**/apps is gitignored except the tracked apps/traefik local-dev setup**](../traefik/map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup.md) — .gitignore excludes /apps/* but re-includes /apps/traefik (compose plus dynamic file-provider config) so the local-dev Traefik setup ships with the repo.
@@ -58,4 +58,4 @@ _None._
 - Open [**/apps is gitignored except the tracked apps/traefik local-dev setup**](../traefik/map-apps-is-gitignored-except-the-tracked-apps-traefik-local-dev-setup.md) — .gitignore excludes /apps/* but re-includes /apps/traefik (compose plus dynamic file-provider config) so the local-dev Traefik setup ships with the repo.
 - Open [**Local *.localhost subdomains may not auto-resolve to 127.0.0.1**](../traefik/practice-localhost-subdomain-dns-gotcha.md) — Not all systems resolve wildcard *.localhost subdomains; add explicit /etc/hosts entries for each app hostname used in local dev.
 ### #victoriametrics
-- Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 30 days by default (configurable); Jaeger traces are in-memory only and lost on restart.
+- Open [**Observability stack data retention limits**](map-observability-data-retention.md) — VictoriaMetrics retains metrics 7 days (configurable); Jaeger traces are in-memory only and lost on restart.

@@ -28,8 +28,8 @@ _None yet._
 - Open [**rustls CryptoProvider is installed explicitly at process start**](map-rustls-crypto-provider-init.md) — scotty and scottyctl both call scotty_core::http::ensure_crypto_provider() before any TLS use, and Docker builds pin dependency versions with --locked.
 ### #map
 - Open [**Blueprints are reusable app templates**](../apps/blueprints/map-blueprints-concept.md) — Templates defining required/public services, port mappings, lifecycle actions, and per-service custom actions.
-- Open [**Scotty server key modules and their locations**](map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 - Open [**scottyctl CLI namespace and behavior**](../cli/map-scottyctl-cli-structure.md) — Colon-namespaced commands, global flags, version preflight check, and gzip+base64 file upload with .scottyignore.
+- Open [**Scotty server key modules and their locations**](map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 ### #overview
 - Open [**Scotty workspace components**](map-project-workspace-components.md) — The crates/apps making up the Scotty micro-PaaS and what each one does.
 ### #positioning

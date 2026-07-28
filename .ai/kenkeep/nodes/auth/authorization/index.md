@@ -41,8 +41,8 @@ _None._
 - Open [**Bearer token comparison is constant-time**](../bearer-tokens/practice-bearer-token-constant-time-comparison.md) — Bearer token validation uses the subtle crate's constant-time equality instead of standard string comparison.
 ### #map
 - Open [**Blueprints are reusable app templates**](../../apps/blueprints/map-blueprints-concept.md) — Templates defining required/public services, port mappings, lifecycle actions, and per-service custom actions.
-- Open [**Scotty server key modules and their locations**](../../architecture/map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 - Open [**scottyctl CLI namespace and behavior**](../../cli/map-scottyctl-cli-structure.md) — Colon-namespaced commands, global flags, version preflight check, and gzip+base64 file upload with .scottyignore.
+- Open [**Scotty server key modules and their locations**](../../architecture/map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 ### #rbac
 - Open [**Built-in authorization roles and their permission sets**](map-authorization-builtin-roles.md) — Named RBAC roles beyond admin/developer/viewer: operator, system_admin, action_approver.
 ### #roles

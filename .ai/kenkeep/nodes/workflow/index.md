@@ -12,9 +12,9 @@ _None._
 ## Conventions (how we build)
 - Open [**Git conventions for this repo**](practice-git-rules.md) to learn about: Never delete frontend/build/.gitkeep; no emojis in commit messages; use conventional commits. #git #conventions
 - Open [**Primary VCS workflow is jj; never depend on git commit hooks**](practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks.md) to learn about: The maintainer drives this repo with jj, so git commit/pre-commit hooks never fire; tooling must work hook-free. #vcs #jj #git-hooks #workflow
+- Open [**Releases are fully automated via release-please**](practice-release-process-automation.md) to learn about: Never manually bump versions or edit the changelog; conventional-commit type drives the version bump; merging the standing release PR performs the release. #release #versioning #ci
 - Open [**Contributor setup instructions belong in the root README**](practice-contributor-setup-instructions-belong-in-the-root-readme.md) to learn about: Per-clone setup steps go in the root README's Developing/Contributing section, not in subdirectory READMEs. #documentation #readme #conventions
 - Open [**frontend/build/.gitkeep must stay tracked or the server fails to compile**](practice-frontend-build-gitkeep-must-stay-tracked-or-the-server-fails-to-compile.md) to learn about: include_dir!("frontend/build") panics at compile time when the directory is missing from a checkout; local frontend builds can silently delete .gitkeep. #ci #frontend #build #gotcha
-- Open [**Releases are fully automated via release-please**](practice-release-process-automation.md) to learn about: Never manually bump versions or edit the changelog; conventional-commit type drives the version bump; merging the standing release PR performs the release. #release #versioning #ci
 - Open [**Test placement and tooling conventions**](practice-testing-conventions.md) to learn about: Unit tests are colocated with implementation; integration tests live in scotty/tests; axum-test and wiremock are used for HTTP/mocking. #testing #conventions
 - Open [**Use beans CLI for issue tracking, not ad hoc todo lists**](practice-project-management-beans.md) to learn about: Beans is the agentic-first issue tracker; the .beans/ directory is committed; agents should track work via beans. #project-management #beans #workflow
 
@@ -28,8 +28,8 @@ _None._
 - Open [**Test placement and tooling conventions**](practice-testing-conventions.md) — Unit tests are colocated with implementation; integration tests live in scotty/tests; axum-test and wiremock are used for HTTP/mocking.
 - Open [**Contributor setup instructions belong in the root README**](practice-contributor-setup-instructions-belong-in-the-root-readme.md) — Per-clone setup steps go in the root README's Developing/Contributing section, not in subdirectory READMEs.
 ### #ci
-- Open [**frontend/build/.gitkeep must stay tracked or the server fails to compile**](practice-frontend-build-gitkeep-must-stay-tracked-or-the-server-fails-to-compile.md) — include_dir!("frontend/build") panics at compile time when the directory is missing from a checkout; local frontend builds can silently delete .gitkeep.
 - Open [**Releases are fully automated via release-please**](practice-release-process-automation.md) — Never manually bump versions or edit the changelog; conventional-commit type drives the version bump; merging the standing release PR performs the release.
+- Open [**frontend/build/.gitkeep must stay tracked or the server fails to compile**](practice-frontend-build-gitkeep-must-stay-tracked-or-the-server-fails-to-compile.md) — include_dir!("frontend/build") panics at compile time when the directory is missing from a checkout; local frontend builds can silently delete .gitkeep.
 ### #git
 - Open [**Git conventions for this repo**](practice-git-rules.md) — Never delete frontend/build/.gitkeep; no emojis in commit messages; use conventional commits.
 - Open [**Pre-push git hook installed via cargo-husky**](map-pre-push-hook-cargo-husky.md) — The project uses a pre-push git hook installed by cargo-husky, set up automatically.
@@ -47,13 +47,13 @@ _None._
 ### #frontend
 - Open [**Follow mode is a no-op notice, not an error, on stopped containers**](../apps/logs/map-follow-mode-unavailable-for-stopped-containers.md) — Requesting live log follow on a stopped container returns historical logs plus an informational notice and a clean stream end, not LogsStreamError.
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](../apps/lifecycle/practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
-- Open [**Frontend src/ layout and dev-server proxy targets**](../frontend/map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
+- Open [**Frontend has no API versioning, evolves in lockstep with backend**](../frontend/practice-frontend-backend-tight-coupling.md) — Scotty frontend is tightly coupled to the backend API; no versioning or backwards compatibility is maintained, so breaking API changes are acceptable.
 ### #git-hooks
 - Open [**Primary VCS workflow is jj; never depend on git commit hooks**](practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks.md) — The maintainer drives this repo with jj, so git commit/pre-commit hooks never fire; tooling must work hook-free.
 ### #gotcha
 - Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
-- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 - Open [**OAuth config has two distinct URLs that must not be confused**](../auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
+- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #hooks
 - Open [**Pre-push git hook installed via cargo-husky**](map-pre-push-hook-cargo-husky.md) — The project uses a pre-push git hook installed by cargo-husky, set up automatically.
 ### #husky

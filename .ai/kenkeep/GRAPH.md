@@ -1,11 +1,11 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:961f7e1dec1f22fdc2b74837137255011b90d53fa2ac8b485f4ac141aae03dec'
-node_count: 81
+nodes_hash: 'sha256:2232d57165271e8cc365380cd4f71d266bbf0187bd4ca1cc489034ac80761a79'
+node_count: 83
 ---
 # kenkeep Graph
 
-Total nodes: 81
+Total nodes: 83
 
 ## map-app-anatomy
 
@@ -13,6 +13,15 @@ Total nodes: 81
 - **title:** An app is any folder in the apps directory containing compose.yml
 - **path:** apps/anatomy/map-app-anatomy.md
 - **tags:** scotty, apps, vocabulary
+
+## map-app-create-file-content-is-a-base64-string-on-the-wire
+
+- **kind:** map
+- **title:** App-create file content is a base64 string on the wire
+- **path:** apps/lifecycle/map-app-create-file-content-is-a-base64-string-on-the-wire.md
+- **tags:** api, app-create, serialization, file-upload
+- **relates_to:** practice-wire-format-changes-must-be-backward-compatible-in-both-directions, map-scottyctl-cli-structure
+- **derived_from:** f2e204e5-c4ad-4433-b498-0707aeed9618:map:0
 
 ## map-app-scope-declaration-in-scotty-yml
 
@@ -586,3 +595,12 @@ Total nodes: 81
 - **title:** compose.yml must not expose ports directly or use env-var expansion
 - **path:** apps/lifecycle/practice-unsupported-compose-features.md
 - **tags:** scotty, compose, restriction
+
+## practice-wire-format-changes-must-be-backward-compatible-in-both-directions
+
+- **kind:** practice
+- **title:** Wire-format changes must be backward compatible in both directions
+- **path:** cli/practice-wire-format-changes-must-be-backward-compatible-in-both-directions.md
+- **tags:** api, compatibility, scottyctl, gotcha
+- **relates_to:** map-scottyctl-cli-structure, map-app-create-file-content-is-a-base64-string-on-the-wire, practice-frontend-backend-tight-coupling, practice-release-process-automation
+- **derived_from:** f2e204e5-c4ad-4433-b498-0707aeed9618:practice:0

@@ -43,8 +43,8 @@ _None._
 - Open [**Each app gets its own dedicated Traefik proxy network**](map-traefik-per-app-proxy-network.md) — Scotty creates a per-app network (<network>--<app-name>) instead of one shared network, to avoid Docker DNS alias collisions.
 ### #gotcha
 - Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
-- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 - Open [**OAuth config has two distinct URLs that must not be confused**](../auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
+- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #load-balancer
 - Open [**Scotty as Traefik default backend / landing page**](map-default-backend-landing-page.md) — Scotty can serve as the load balancer's catch-all backend, showing a Start-app landing page for stopped apps instead of a gateway error.
 - Open [**Scotty supports Traefik and legacy Haproxy-config load balancers**](map-load-balancer-support.md) — Traefik is the primary supported load balancer; haproxy-config is legacy/deprecated and lacks robots-blocking support.

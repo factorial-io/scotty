@@ -15,6 +15,7 @@ _None._
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](practice-container-status-one-shot-completion.md) to learn about: App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status. #docker #status #container #frontend
 
 ## Components (what exists)
+- Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) to learn about: File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer. #api #app-create #serialization #file-upload
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) to learn about: Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees. #scotty #apps #vocabulary
 - Open [**State machine handler errors always mark the task Failed**](map-state-machine-errors-bubble-to-task-failure.md) to learn about: App lifecycle state machines propagate handler errors (and panics) up through spawn() so the owning task is always marked Failed instead of hanging forever. #state-machine #tasks #docker
 
@@ -28,28 +29,40 @@ _None._
 - Open [**Log streaming behavior for stopped vs missing containers**](../logs/map-container-log-streaming-for-stopped-containers.md) — Stopped/exited containers return retained historical logs instead of an error; only a truly missing container is an error.
 - Open [**Follow mode is a no-op notice, not an error, on stopped containers**](../logs/map-follow-mode-unavailable-for-stopped-containers.md) — Requesting live log follow on a stopped container returns historical logs plus an informational notice and a clean stream end, not LogsStreamError.
 - Open [**Each app gets its own dedicated Traefik proxy network**](../../traefik/map-traefik-per-app-proxy-network.md) — Scotty creates a per-app network (<network>--<app-name>) instead of one shared network, to avoid Docker DNS alias collisions.
+### #api
+- Open [**Frontend has no API versioning, evolves in lockstep with backend**](../../frontend/practice-frontend-backend-tight-coupling.md) — Scotty frontend is tightly coupled to the backend API; no versioning or backwards compatibility is maintained, so breaking API changes are acceptable.
+- Open [**Rate limiting has three independent tiers keyed differently**](../../auth/rate-limiting/map-rate-limiting-tiers.md) — public_auth and oauth tiers rate-limit by client IP; the authenticated tier rate-limits per bearer token (per-user).
+- Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
+### #app-create
+- Open [**app:create --registry and --middleware require server-side allow-listing**](../../cli/map-cli-app-create-registry-middleware-allowlist.md) — Custom registries and middleware referenced by app:create must be pre-configured/allow-listed on the server; middleware is Traefik-only.
+- Open [**app:create injects a noindex X-Robots-Tag by default**](../../cli/map-cli-app-create-robots-header-default.md) — Scotty adds X-Robots-Tag: none,noarchive,... to every app response unless --allow-robots is set.
+- Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
 ### #apps
 - Open [**An app is any folder in the apps directory containing compose.yml**](../anatomy/map-app-anatomy.md) — Apps are identified by folder name; service hostnames derive from app name + service name unless overridden.
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) — Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees.
 ### #cli
+- Open [**scottyctl CLI namespace and behavior**](../../cli/map-scottyctl-cli-structure.md) — Colon-namespaced commands, global flags, version preflight check, and gzip+base64 file upload with .scottyignore.
 - Open [**app:cp path-spec parsing and pipe-mode semantics**](../../cli/practice-app-cp-path-spec-and-pipe-mode.md) — app:cp resolves remote/local/stdio arguments docker-cp-style, resolves omitted service names from the blueprint, and treats pipe mode as single-file tar with lossy metadata.
 - Open [**scottyctl app:cp moves files between workstation and app containers**](../../cli/map-scottyctl-app-cp.md) — CLI subcommand to copy files in/out of a service container, supports stdin/stdout piping.
-- Open [**scottyctl CLI namespace and behavior**](../../cli/map-scottyctl-cli-structure.md) — Colon-namespaced commands, global flags, version preflight check, and gzip+base64 file upload with .scottyignore.
 ### #compose
 - Open [**compose.yml must not expose ports directly or use env-var expansion**](practice-unsupported-compose-features.md) — Scotty marks apps unsupported if compose.yml exposes ports directly or uses environment-variable expansion.
 - Open [**Scotty only writes compose.override.yml and .scotty.yml in an app directory**](../anatomy/practice-scotty-only-touches-override-and-settings-files.md) — Scotty must not modify any file in an app's directory besides compose.override.yml and .scotty.yml.
 ### #container
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
+### #file-upload
+- Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
 ### #frontend
 - Open [**Follow mode is a no-op notice, not an error, on stopped containers**](../logs/map-follow-mode-unavailable-for-stopped-containers.md) — Requesting live log follow on a stopped container returns historical logs plus an informational notice and a clean stream end, not LogsStreamError.
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
-- Open [**Frontend src/ layout and dev-server proxy targets**](../../frontend/map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
+- Open [**Frontend has no API versioning, evolves in lockstep with backend**](../../frontend/practice-frontend-backend-tight-coupling.md) — Scotty frontend is tightly coupled to the backend API; no versioning or backwards compatibility is maintained, so breaking API changes are acceptable.
 ### #gotcha
 - Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
-- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 - Open [**OAuth config has two distinct URLs that must not be confused**](../../auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
+- Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
 ### #restriction
 - Open [**compose.yml must not expose ports directly or use env-var expansion**](practice-unsupported-compose-features.md) — Scotty marks apps unsupported if compose.yml exposes ports directly or uses environment-variable expansion.
+### #serialization
+- Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
 ### #state-machine
 - Open [**State machine handler errors always mark the task Failed**](map-state-machine-errors-bubble-to-task-failure.md) — App lifecycle state machines propagate handler errors (and panics) up through spawn() so the owning task is always marked Failed instead of hanging forever.
 ### #status
