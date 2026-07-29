@@ -206,10 +206,18 @@ pub async fn reconcile_traefik_networks(
 /// Reconciliation pass driven by something other than the app check — currently
 /// the Docker event watcher.
 ///
-/// Works from the cached app list, writes the annotations back, and tells
-/// connected clients to refresh. It never prunes: the cache can be up to one
-/// check interval stale, and while a stale list can only delay a *connect* to
+/// Works from the cached app list, writes the observed connectivity back, and
+/// tells connected clients to refresh. It never prunes: the cache can be up to
+/// one check interval stale, and while a stale list can only delay a *connect* to
 /// the next scheduled pass, it could make a *removal* wrong.
+///
+/// The write-back deliberately patches one field per app via
+/// [`SharedAppList::set_load_balancer_connectivity`] instead of storing the
+/// mutated snapshot. This pass does slow Docker I/O between reading the cache and
+/// writing to it, and the cache has other writers that know nothing about
+/// [`PASS_LOCK`] — every state-machine transition, notification change and custom
+/// action calls `update_app` directly. Writing whole `AppData` values back would
+/// revert whatever they changed in that window.
 #[instrument(skip(app_state))]
 pub async fn reconcile_from_cache(app_state: &SharedAppState) -> anyhow::Result<()> {
     let Ok(_guard) = PASS_LOCK.try_lock() else {
@@ -225,15 +233,26 @@ pub async fn reconcile_from_cache(app_state: &SharedAppState) -> anyhow::Result<
 
     run_pass(app_state, &mut apps, false).await?;
 
-    for app in apps {
-        if let Err(e) = app_state.apps.update_app(app.clone()).await {
-            debug!("Could not update connectivity for app {}: {}", app.name, e);
+    // Only apps whose connectivity actually changed are touched, so a converged
+    // host does no cache writes and broadcasts nothing.
+    let mut changed = 0;
+    for app in &apps {
+        if app_state
+            .apps
+            .set_load_balancer_connectivity(&app.name, app.load_balancer_connectivity)
+            .await
+        {
+            changed += 1;
         }
     }
-    app_state
-        .messenger
-        .broadcast_to_all(scotty_core::websocket::message::WebSocketMessage::AppListUpdated)
-        .await;
+
+    if changed > 0 {
+        debug!("Connectivity changed for {changed} app(s), notifying clients");
+        app_state
+            .messenger
+            .broadcast_to_all(scotty_core::websocket::message::WebSocketMessage::AppListUpdated)
+            .await;
+    }
 
     Ok(())
 }
@@ -298,7 +317,8 @@ async fn run_pass(
         .filter(|app| is_running(app))
         .map(|app| app.name.clone())
         .collect();
-    let existing: HashSet<&str> = networks.iter().map(|n| n.name.as_str()).collect();
+    let by_name: HashMap<&str, &ProxyNetwork> =
+        networks.iter().map(|n| (n.name.as_str(), n)).collect();
 
     // 3. Connect what should be connected, then record what we see.
     let mut attached = attached;
@@ -306,9 +326,15 @@ async fn run_pass(
 
     for app in apps.iter_mut() {
         let network = target.network_for(&app.name);
-        let network_exists = existing.contains(network.as_str());
+        // Both loops in this pass ask `classify` rather than re-deriving the
+        // decision, so "which networks does Traefik belong on" has exactly one
+        // implementation — and it is the one the unit tests cover.
+        let verdict = by_name
+            .get(network.as_str())
+            .map(|n| classify(n, &app_networks, &running_apps));
+        let network_exists = verdict.is_some();
 
-        if network_exists && is_running(app) && !attached.contains(&network) {
+        if verdict == Some(NetworkVerdict::Desired) && !attached.contains(&network) {
             outcome.drifted += 1;
             warn!(
                 "App '{}' is not reachable by Traefik: '{}' is not attached to network {}. Reconnecting.",
