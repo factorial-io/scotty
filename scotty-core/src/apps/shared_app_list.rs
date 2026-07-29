@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 
 use tracing::instrument;
 
-use super::app_data::AppData;
+use super::app_data::{AppData, LoadBalancerConnectivity};
 
 pub type AppHashMap = HashMap<String, AppData>;
 
@@ -87,6 +87,32 @@ impl SharedAppList {
             .await
             .insert(app.name.clone(), app.clone());
         Ok(app)
+    }
+
+    /// Patches only the load-balancer connectivity of one app.
+    ///
+    /// Deliberately *not* an `update_app` with a modified copy: the proxy-network
+    /// reconciler works from a snapshot taken before a round of Docker calls, and
+    /// writing that whole snapshot back would revert any field another writer
+    /// (a state machine transition, a notification change) touched in the
+    /// meantime. Read-modify-write happens here under a single write lock, so the
+    /// only field this can ever change is the one it is named after.
+    ///
+    /// Returns `true` when the app exists and the value actually changed, so
+    /// callers can skip broadcasting a no-op update.
+    pub async fn set_load_balancer_connectivity(
+        &self,
+        app_name: &str,
+        connectivity: LoadBalancerConnectivity,
+    ) -> bool {
+        let mut apps = self.apps.write().await;
+        match apps.get_mut(app_name) {
+            Some(app) if app.load_balancer_connectivity != connectivity => {
+                app.load_balancer_connectivity = connectivity;
+                true
+            }
+            _ => false,
+        }
     }
 
     pub async fn len(&self) -> usize {
@@ -289,5 +315,66 @@ mod tests {
         let found = list.find_app_by_domain("API.OTHERAPP.EXAMPLE.COM").await;
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "otherapp");
+    }
+
+    /// The reconciler snapshots the app list, does Docker I/O, and only then
+    /// writes connectivity back. Other writers (state machine transitions,
+    /// notification changes) touch the same cache in that window, so the patch
+    /// must not carry a stale copy of the rest of the app with it.
+    #[tokio::test]
+    async fn set_load_balancer_connectivity_does_not_revert_concurrent_changes() {
+        use crate::apps::app_data::AppStatus;
+
+        let list = SharedAppList::new();
+        let mut app = make_app_with_settings("myapp", "myapp.example.com", vec![]);
+        app.status = AppStatus::Creating;
+        list.add_app(app.clone()).await.unwrap();
+
+        // A reconciliation pass takes its snapshot here (`app`, still `Creating`).
+
+        // Meanwhile a state machine finishes the deploy and stores the new status.
+        let mut deployed = app.clone();
+        deployed.status = AppStatus::Running;
+        list.update_app(deployed).await.unwrap();
+
+        // The pass now writes back what it observed.
+        assert!(
+            list.set_load_balancer_connectivity("myapp", LoadBalancerConnectivity::Connected)
+                .await
+        );
+
+        let stored = list.get_app("myapp").await.unwrap();
+        assert_eq!(
+            stored.load_balancer_connectivity,
+            LoadBalancerConnectivity::Connected
+        );
+        // The concurrent update survives instead of being reverted to `Creating`.
+        assert_eq!(stored.status, AppStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn set_load_balancer_connectivity_reports_whether_it_changed_anything() {
+        let list = SharedAppList::new();
+        let app = make_app_with_settings("myapp", "myapp.example.com", vec![]);
+        list.add_app(app).await.unwrap();
+
+        // First write changes it, the second is a no-op the caller can skip
+        // broadcasting.
+        assert!(
+            list.set_load_balancer_connectivity("myapp", LoadBalancerConnectivity::Connected)
+                .await
+        );
+        assert!(
+            !list
+                .set_load_balancer_connectivity("myapp", LoadBalancerConnectivity::Connected)
+                .await
+        );
+        // An app that is not in the cache (destroyed mid-pass) is not resurrected.
+        assert!(
+            !list
+                .set_load_balancer_connectivity("gone", LoadBalancerConnectivity::Connected)
+                .await
+        );
+        assert!(list.get_app("gone").await.is_none());
     }
 }
