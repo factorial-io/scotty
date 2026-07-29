@@ -533,26 +533,37 @@ async fn prune_orphans(
             continue;
         }
 
-        // Disconnect first: Docker refuses to remove a network while an endpoint
-        // is attached. `force` is safe here because the app is gone, so there is
-        // no in-flight request to disrupt.
-        if let Err(e) = app_state
-            .docker
-            .disconnect_network(
-                &network.name,
-                NetworkDisconnectRequest {
-                    container: target.container.clone(),
-                    force: Some(true),
-                },
-            )
-            .await
-        {
-            if !matches!(server_status(&e), Some(403 | 404 | 409)) {
-                info!(
-                    "Could not disconnect Traefik from orphaned network {}: {}",
-                    network.name, e
-                );
-                continue;
+        // Disconnect first, but only when Traefik is actually one of the endpoints
+        // the inspect just listed. Disconnecting a container that is not attached
+        // makes Docker answer `500: container ... is not connected to network`,
+        // which is not in the tolerated set below and would abort the prune — so an
+        // orphan Traefik never joined could never be removed. That happens for real:
+        // recreating Traefik drops its per-app attachments, and any app destroyed
+        // afterwards leaves an orphan with no Traefik endpoint.
+        let traefik_attached = attached.iter().any(|name| name == &target.container);
+        if traefik_attached {
+            if let Err(e) = app_state
+                .docker
+                .disconnect_network(
+                    &network.name,
+                    NetworkDisconnectRequest {
+                        container: target.container.clone(),
+                        force: Some(true),
+                    },
+                )
+                .await
+            {
+                // 500 covers "is not connected to network", which the check above
+                // makes unlikely but a detach racing this pass can still produce.
+                // Tolerating it is safe: `remove_network` below is the real gate and
+                // reports its own 409 if an endpoint is genuinely still attached.
+                if !matches!(server_status(&e), Some(403 | 404 | 409 | 500)) {
+                    info!(
+                        "Could not disconnect Traefik from orphaned network {}: {}",
+                        network.name, e
+                    );
+                    continue;
+                }
             }
         }
 
