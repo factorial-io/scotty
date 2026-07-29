@@ -37,7 +37,8 @@ Constraints that shape the design:
 - No configuration for reconciliation itself. Only event watching is configurable; periodic reconciliation is a bug fix and always on for Traefik.
 - No migration of legacy shared-network apps (`app:rebuild` remains the migration path).
 - No change to `ContainerState` or the ts-rs generated bindings; connectivity is app-level, not per-service.
-- No connectivity column on the dashboard app list, and no active HTTP probing of app URLs — the indicator reflects Docker network membership only.
+- No connectivity column or badge on the dashboard app list — decided, not deferred; the detail-page indicator plus the metric is the whole UI surface. The list response carries the field, so adding one later is presentation-only.
+- No active HTTP probing of app URLs — the indicator reflects Docker network membership only.
 - No health endpoint change; the machine-readable signals are the metrics and the API field.
 
 ## Decisions
@@ -255,7 +256,3 @@ Both passes share one internal implementation parameterized by "may prune" and "
 - On first start after the upgrade, the startup app check repairs a host that is already broken; orphaned `proxy--*` networks left behind by earlier versions are pruned on the same pass. Thereafter a Traefik recreate is repaired within seconds via the event watcher.
 - Deployment note for the incident host: the manual `docker network connect proxy--<app> traefik` workaround is no longer needed and is idempotent with the reconciler.
 - Rollback: revert the commit. Nothing persists state; membership stops being reconciled and reverts to deploy-time-only behavior, and the `AppData` field disappears (older clients already tolerate its absence).
-
-## Open Questions
-
-- Should the dashboard app list also carry a connectivity column or badge, or is the detail-page indicator plus the metric enough? Deferrable: it is presentation only, on data the list response already contains after this change.
