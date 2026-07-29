@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import PageHeader from '../../../components/page-header.svelte';
 	import AppStatusPill from '../../../components/app-status-pill.svelte';
+	import AppConnectivityPill from '../../../components/app-connectivity-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
 	import { monitorTask } from '../../../stores/tasksStore';
@@ -135,8 +136,9 @@
 
 <PageHeader>
 	<h2 class="card-title" slot="header">App-Details for {data.name}</h2>
-	<div slot="meta">
+	<div slot="meta" class="flex items-center gap-2">
 		<AppStatusPill status={data.status} />
+		<AppConnectivityPill connectivity={data.load_balancer_connectivity} />
 	</div>
 </PageHeader>
 

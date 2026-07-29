@@ -1,37 +1,23 @@
 use std::sync::Arc;
 
-use bollard::errors::Error as BollardError;
 use bollard_stubs::models::{
     NetworkConnectRequest, NetworkCreateRequest, NetworkDisconnectRequest,
 };
-use scotty_core::settings::loadbalancer::LoadBalancerType;
 use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 
-use crate::docker::loadbalancer::app_proxy_network_name;
+use crate::docker::loadbalancer::{server_status, traefik_target};
 use crate::state_machine::StateHandler;
 
 use super::context::Context;
-
-/// Returns the HTTP status code for a Docker daemon error, if any.
-fn server_status(err: &BollardError) -> Option<u16> {
-    match err {
-        BollardError::DockerResponseServerError { status_code, .. } => Some(*status_code),
-        _ => None,
-    }
-}
 
 /// Resolves the per-app proxy network name and the Traefik container to
 /// connect to, or `None` when load balancing is not Traefik (e.g. HAProxy),
 /// in which case the network handlers are a no-op.
 fn proxy_network_target(context: &Context) -> Option<(String, String)> {
-    let settings = &context.app_state.settings;
-    if settings.load_balancer_type != LoadBalancerType::Traefik {
-        return None;
-    }
-    let network = app_proxy_network_name(&settings.traefik.network, &context.app_data.name);
-    let container = settings.traefik.container_name.clone();
-    Some((network, container))
+    let target = traefik_target(&context.app_state.settings)?;
+    let network = target.network_for(&context.app_data.name);
+    Some((network, target.container))
 }
 
 /// Creates the app's dedicated proxy network (if missing) and connects the

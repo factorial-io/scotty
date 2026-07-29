@@ -7,7 +7,10 @@ use crate::{
     context::{AppContext, ServerSettings},
     utils::formatting::format_since,
 };
-use scotty_core::{apps::app_data::AppData, tasks::running_app_context::RunningAppContext};
+use scotty_core::{
+    apps::app_data::{AppData, LoadBalancerConnectivity},
+    tasks::running_app_context::RunningAppContext,
+};
 
 // Re-export submodules
 pub mod actions;
@@ -200,6 +203,16 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     if let Some(settings) = &app_data.settings {
         if !settings.scopes.is_empty() {
             result += &format!("\nScopes: {}", settings.scopes.join(", "));
+        }
+    }
+
+    // Only worth a line when the server actually observed something. `Unknown`
+    // means no reconciliation pass has seen this app yet (or the server predates
+    // the field), and `NotApplicable` means the app declares no public services.
+    match app_data.load_balancer_connectivity {
+        LoadBalancerConnectivity::Unknown | LoadBalancerConnectivity::NotApplicable => {}
+        connectivity => {
+            result += &format!("\nLoad balancer: {connectivity}");
         }
     }
 

@@ -42,6 +42,7 @@ fn create_test_app_data(settings: AppSettings) -> AppData {
         root_directory: "/path/to/app".to_string(),
         status: AppStatus::Running,
         last_checked: None,
+        ..Default::default()
     }
 }
 

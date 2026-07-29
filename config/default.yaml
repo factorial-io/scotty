@@ -37,5 +37,9 @@ traefik:
     network: "proxy"
     use_tls: true
     certresolver: "myresolver"
+    # Reconcile the per-app proxy networks as soon as the traefik container
+    # starts, instead of waiting for the next scheduler.running_app_check.
+    # Override with SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS=false.
+    watch_docker_events: true
 haproxy:
     use_tls: true

@@ -205,6 +205,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             services: Vec::new(),
             settings: Some(frontend_settings),
             last_checked: None,
+            ..Default::default()
         };
 
         let backend_app = AppData {
@@ -215,6 +216,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             services: Vec::new(),
             settings: Some(backend_settings),
             last_checked: None,
+            ..Default::default()
         };
 
         let fullstack_app = AppData {
@@ -225,6 +227,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             services: Vec::new(),
             settings: Some(fullstack_settings),
             last_checked: None,
+            ..Default::default()
         };
 
         let staging_app = AppData {
@@ -235,6 +238,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             services: Vec::new(),
             settings: Some(staging_settings),
             last_checked: None,
+            ..Default::default()
         };
 
         // Add apps to shared list

@@ -264,6 +264,9 @@ pub async fn create_app(
         root_directory,
         status: scotty_core::apps::app_data::AppStatus::Creating,
         last_checked: None,
+        // The app does not exist yet; the reconciler fills this in once it has
+        // observed the app's proxy network.
+        load_balancer_connectivity: Default::default(),
     };
     let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
     run_sm(app_state, &app_data, sm).await

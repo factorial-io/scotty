@@ -289,6 +289,16 @@ impl MetricsRecorder for OtelRecorder {
             .record(seconds, &[]);
     }
 
+    fn record_traefik_network_drift_apps(&self, count: u64) {
+        self.instruments
+            .traefik_network_drift_apps
+            .record(count, &[]);
+    }
+
+    fn record_traefik_unroutable_apps(&self, count: u64) {
+        self.instruments.traefik_unroutable_apps.record(count, &[]);
+    }
+
     // Memory metrics
     fn record_memory_rss_bytes(&self, bytes: u64) {
         self.instruments.memory_rss_bytes.record(bytes, &[]);

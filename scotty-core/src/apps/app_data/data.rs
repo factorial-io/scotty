@@ -6,6 +6,7 @@ use utoipa::{ToResponse, ToSchema};
 use crate::notification_types::NotificationReceiver;
 use crate::utils::{format::sanitize_env_var_name, secret::SecretHashMap, slugify::slugify};
 
+use super::connectivity::LoadBalancerConnectivity;
 use super::container::ContainerState;
 use super::settings::AppSettings;
 use super::status::{get_app_status_from_services, AppStatus};
@@ -20,6 +21,13 @@ pub struct AppData {
     pub services: Vec<ContainerState>,
     pub settings: Option<AppSettings>,
     pub last_checked: Option<chrono::DateTime<chrono::Local>>,
+    /// Whether the load balancer can reach this app. Only the proxy-network
+    /// reconciler sets a definite value; every other construction path leaves
+    /// it `Unknown`, which is honest rather than optimistic. `serde(default)`
+    /// keeps the wire format compatible in both directions with clients that
+    /// predate the field.
+    #[serde(default)]
+    pub load_balancer_connectivity: LoadBalancerConnectivity,
 }
 
 impl Default for AppData {
@@ -45,6 +53,7 @@ impl Default for AppData {
             services: Vec::new(),
             settings: None,
             last_checked: None,
+            load_balancer_connectivity: LoadBalancerConnectivity::default(),
         }
     }
 }
@@ -78,6 +87,7 @@ impl AppData {
             services,
             settings,
             last_checked: None,
+            load_balancer_connectivity: LoadBalancerConnectivity::default(),
         }
     }
 
