@@ -1,47 +1,78 @@
-## 1. Reconciler scaffolding
+## 1. Types and configuration
 
-- [ ] 1.1 Add `scotty/src/docker/loadbalancer/network_reconciler.rs` and register it in `loadbalancer/mod.rs`; define the entry point `reconcile_traefik_networks(app_state: &SharedAppState, apps: &AppDataVec) -> anyhow::Result<()>` that returns `Ok(())` immediately when `settings.load_balancer_type != LoadBalancerType::Traefik`
-- [ ] 1.2 Move/share the "is Traefik + resolve container name + base network" lookup so the reconciler and `state_machine_handlers/network_handler.rs::proxy_network_target` cannot drift apart
-- [ ] 1.3 Confirm the bollard 0.21 signatures for `list_networks` (label filter) and `inspect_network` against the crate, and add the label-filter helper (`label=scotty.managed=true`)
+- [ ] 1.1 Add `LoadBalancerConnectivity` (`Unknown` as `Default`, `NotApplicable`, `Connected`, `Disconnected`, `LoadBalancerUnavailable`) in `scotty-core/src/apps/app_data/`, deriving `Serialize`/`Deserialize`/`Clone`/`PartialEq`/`ToSchema`, and export it from `app_data/mod.rs`
+- [ ] 1.2 Add `#[serde(default)] pub load_balancer_connectivity: LoadBalancerConnectivity` to `AppData`, updating `Default` and `AppData::new` so every existing construction site keeps compiling and reports `Unknown`
+- [ ] 1.3 Add `watch_docker_events: bool` to `TraefikSettings` with `default_traefik_watch_docker_events() -> bool { true }`, wire it into the `Default` impl and `TraefikSettings::new`, and check for callers of `new` that need updating
+- [ ] 1.4 Document the key in `config/default.yaml` and `config/default.yaml.example` (with the `SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS` override noted), and confirm existing config files without the key still load
 
-## 2. Observation
+## 2. Reconciler scaffolding
 
-- [ ] 2.1 Read Traefik's current membership: `inspect_container(container_name, None::<InspectContainerOptions>)` → `NetworkSettings.Networks` keys as a `HashSet<String>`; on failure log `error!` once, count apps with public services as unroutable, and return `Ok(())`
-- [ ] 2.2 List candidate networks via label-filtered `list_networks`, capturing each network's name and its `scotty.app` label; on failure log `error!` and skip the pass
-- [ ] 2.3 Add the name-based fallback set: for each discovered app, `app_proxy_network_name(base, &app.name)` matched against existing network names, so unlabelled per-app networks are still connect-eligible (never prune-eligible)
+- [ ] 2.1 Add `scotty/src/docker/loadbalancer/network_reconciler.rs`, register it in `loadbalancer/mod.rs`, and define the shared internal pass parameterized by "may prune" and app source, returning `Ok(())` immediately when `settings.load_balancer_type != LoadBalancerType::Traefik`
+- [ ] 2.2 Move/share the "is Traefik + resolve container name + base network" lookup so the reconciler and `state_machine_handlers/network_handler.rs::proxy_network_target` cannot drift apart
+- [ ] 2.3 Add the single-flight guard (`tokio::sync::Mutex<()>`, e.g. on `AppState`): periodic passes `lock().await`, event-driven passes `try_lock` and skip
+- [ ] 2.4 Confirm the bollard 0.21 signatures for `list_networks` (label filter), `inspect_network`, and `events` (filters) against the crate, and add the label-filter helper (`label=scotty.managed=true`)
 
-## 3. Classification (pure, unit-testable)
+## 3. Observation
 
-- [ ] 3.1 Implement `classify(...) -> NetworkVerdict` with `Desired` (app discovered and has a container where `ContainerState::is_running()`), `Ignore` (app discovered, nothing running), `OrphanCandidate` (no matching discovered app)
-- [ ] 3.2 Implement `is_prunable(inspected_containers, traefik_name) -> bool`: true only when no attached endpoint other than the Traefik container remains
-- [ ] 3.3 Implement the "has public services" predicate from `app.settings.public_services` (apps without settings are reconciled but never counted unroutable)
-- [ ] 3.4 Unit-test 3.1–3.3 with hand-built `AppDataVec`/network fixtures: running app, stopped app, unknown app, legacy app with no per-app network, unlabelled per-app network, base network itself, network with a foreign container attached
+- [ ] 3.1 Read Traefik's current membership: `inspect_container(container_name, None::<InspectContainerOptions>)` → `NetworkSettings.Networks` keys as a `HashSet<String>`; on failure log `error!` once, mark apps with public services `LoadBalancerUnavailable`, count them unroutable, and return `Ok(())`
+- [ ] 3.2 List candidate networks via label-filtered `list_networks`, capturing each network's name and its `scotty.app` label; on failure log `error!` and skip the pass
+- [ ] 3.3 Add the name-based fallback set: for each discovered app, `app_proxy_network_name(base, &app.name)` matched against existing network names, so unlabelled per-app networks are still connect-eligible (never prune-eligible)
 
-## 4. Convergence actions
+## 4. Classification (pure, unit-testable)
 
-- [ ] 4.1 Connect: for each `Desired` network absent from Traefik's membership, `warn!` naming app and network, `connect_network`, `info!` on success, tolerating 403/409 (already connected) and 404 (network/container vanished mid-pass) exactly as `EnsureAppNetworkHandler` does
-- [ ] 4.2 Prune: for each `OrphanCandidate`, `inspect_network`, and when `is_prunable`, `disconnect_network` with `force` then `remove_network`, tolerating 403/404/409; `info!` each prune and each skipped orphan with the reason
-- [ ] 4.3 Ensure no single-app failure aborts the pass: accumulate failures, keep iterating, and never create a network in this code path
+- [ ] 4.1 Implement `classify(...) -> NetworkVerdict` with `Desired` (app discovered and has a container where `ContainerState::is_running()`), `Ignore` (app discovered, nothing running), `OrphanCandidate` (no matching discovered app)
+- [ ] 4.2 Implement `is_prunable(inspected_containers, traefik_name) -> bool`: true only when no attached endpoint other than the Traefik container remains
+- [ ] 4.3 Implement the "has public services" predicate from `app.settings.public_services` (apps without settings are reconciled but never counted unroutable)
+- [ ] 4.4 Implement `connectivity_for(...) -> LoadBalancerConnectivity`, using the same public-services predicate so the field and the unroutable metric can never disagree
+- [ ] 4.5 Unit-test 4.1–4.4 with hand-built `AppDataVec`/network fixtures: running app connected, running app disconnected, stopped app, unknown app, legacy app with no per-app network, app with no public services, unlabelled per-app network, base network itself, network with a foreign container attached, Traefik container missing
 
-## 5. Reporting
+## 5. Convergence actions
 
-- [ ] 5.1 Add `record_traefik_network_drift_apps` and `record_traefik_unroutable_apps` to `metrics/recorder_trait.rs`, implement in `metrics/otel_recorder.rs` (family `scotty_traefik_*`, no per-app labels) and `metrics/noop.rs`
-- [ ] 5.2 Record both gauges at the end of every pass, including zero, and keep a converged pass silent apart from `debug!`
+- [ ] 5.1 Connect: for each `Desired` network absent from Traefik's membership, `warn!` naming app and network, `connect_network`, `info!` on success, tolerating 403/409 (already connected) and 404 (network/container vanished mid-pass) exactly as `EnsureAppNetworkHandler` does
+- [ ] 5.2 Prune (periodic pass only): for each `OrphanCandidate`, `inspect_network`, and when `is_prunable`, `disconnect_network` with `force` then `remove_network`, tolerating 403/404/409; `info!` each prune and each skipped orphan with the reason
+- [ ] 5.3 Annotate every app in the pass with its `LoadBalancerConnectivity`, computed after the connect attempts so a failed repair reads `Disconnected`, not `Connected`
+- [ ] 5.4 Ensure no single-app failure aborts the pass: accumulate failures, keep iterating, and never create a network in this code path
 
-## 6. Wiring
+## 6. Docker event watcher
 
-- [ ] 6.1 Call `reconcile_traefik_networks` from `docker/setup.rs::schedule_app_check`, inside the `Ok(apps)` arm after `set_apps`, logging any `Err` without failing the check (this is also what gives "discovery failed → no pruning")
-- [ ] 6.2 Verify the startup path runs it before the scheduler loop starts (the initial `schedule_app_check` call in `setup_docker_integration`)
+- [ ] 6.1 Implement `watch_traefik_events(app_state)`: subscribe to `docker.events` filtered to `type=container`, `event=start`, `container=<traefik.container_name>`, looping until `stop_flag.is_stopped()`
+- [ ] 6.2 Reconcile once on every successful (re)subscribe, so a container start missed while the stream was down is still repaired
+- [ ] 6.3 Add capped exponential backoff (1s → 30s) on stream end/error with a single `warn!` per reconnect cycle, so a daemon restart cannot spin
+- [ ] 6.4 Debounce bursts (~2s coalescing window) so a `die`+`start` recreate triggers one pass, not several
+- [ ] 6.5 Implement `reconcile_from_cache`: work from `app_state.apps.get_apps()`, connect only (never prune), write annotations back with `SharedAppList::update_app`, and broadcast `AppListUpdated`
+- [ ] 6.6 Spawn the watcher from `setup_docker_integration` via `crate::metrics::spawn_instrumented`, only when the load balancer is Traefik and `traefik.watch_docker_events` is true; log once at startup which mode is active
 
-## 7. Verification
+## 7. Reporting
 
-- [ ] 7.1 `cargo test` and `cargo clippy --all-targets` clean
-- [ ] 7.2 Manual scenario against local Traefik (`apps/traefik`): deploy an app, confirm reachable, `docker compose up -d --force-recreate traefik`, confirm the hostname hangs and `docker inspect traefik` shows only `proxy`, then confirm the next app check reconnects the app's `proxy--<app>` network and the app is reachable again
-- [ ] 7.3 Manual scenario: stop an app and confirm it is not attached; remove an app directory by hand and confirm its empty proxy network is pruned while a network with a live foreign container is left alone
-- [ ] 7.4 Manual scenario: stop the Traefik container entirely and confirm the app check still completes, logs the unroutable error, and reports a non-zero `scotty_traefik_unroutable_apps`
+- [ ] 7.1 Add `record_traefik_network_drift_apps` and `record_traefik_unroutable_apps` to `metrics/recorder_trait.rs`, implement in `metrics/otel_recorder.rs` (family `scotty_traefik_*`, no per-app labels) and `metrics/noop.rs`
+- [ ] 7.2 Record both gauges at the end of every pass, including zero, and keep a converged pass silent apart from `debug!`
 
-## 8. Documentation
+## 8. Wiring the periodic pass
 
-- [ ] 8.1 Document the reconciliation behavior where per-app proxy networks are described in `docs/`
-- [ ] 8.2 Update the kenkeep node `.ai/kenkeep/nodes/traefik/map-traefik-per-app-proxy-network.md` to state that Traefik's membership is reconciled on every app check, not only at deploy time (via `/kk-add` or a direct node edit)
-- [ ] 8.3 Commit with a conventional-commit `fix:` message referencing issue #880, then `openspec archive` the change
+- [ ] 8.1 Call `reconcile_traefik_networks` from `docker/setup.rs::schedule_app_check`, inside the `Ok(apps)` arm and *before* `set_apps` so the cache is published already annotated, logging any `Err` without failing the check (being in the `Ok` arm is also what gives "discovery failed → no pruning")
+- [ ] 8.2 Verify the startup path runs it before the scheduler loop starts (the initial `schedule_app_check` call in `setup_docker_integration`)
+
+## 9. API and clients
+
+- [ ] 9.1 Verify `apps/info/{app_id}` and `apps/list` serve the annotated field from the cache, and regenerate/verify the utoipa OpenAPI schema for the new enum
+- [ ] 9.2 Add `load_balancer_connectivity: string` to the `App` interface in `frontend/src/types.ts`
+- [ ] 9.3 Add `frontend/src/components/app-connectivity-pill.svelte` on top of `pill.svelte`: green "Routable", red "Not routable" with an explanatory `title`, amber "LB unavailable", nothing for `NotApplicable`/`Unknown`
+- [ ] 9.4 Render the pill in the app detail page `PageHeader` `meta` slot next to `<AppStatusPill>` (`routes/dashboard/[slug]/+page.svelte`), and confirm it updates via the existing `apps` store subscription
+- [ ] 9.5 Add a "Load balancer" row to `format_app_info` in `scottyctl/src/commands/apps/mod.rs`, leaving the `app:list` table columns unchanged
+- [ ] 9.6 Confirm wire compatibility both ways: an older client ignores the field, and a payload without the field deserializes to `Unknown`
+
+## 10. Verification
+
+- [ ] 10.1 `cargo test` and `cargo clippy --all-targets` clean; `cd frontend && bun run check && bun run lint` clean
+- [ ] 10.2 Manual scenario against local Traefik (`apps/traefik`): deploy an app, confirm reachable and the pill reads "Routable", `docker compose up -d --force-recreate traefik`, and confirm the event watcher reconnects the app's `proxy--<app>` network within seconds and the app is reachable again
+- [ ] 10.3 Manual scenario with `SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS=false`: same recreate is repaired by the next scheduled `running_app_check` instead, and no events subscription is opened
+- [ ] 10.4 Manual scenario: block the repair (e.g. remove the app's proxy network while the app runs, or stop the Traefik container) and confirm the detail page shows "Not routable" / "LB unavailable", the error is logged, and `scotty_traefik_unroutable_apps` is non-zero
+- [ ] 10.5 Manual scenario: stop an app and confirm it is not attached; remove an app directory by hand and confirm its empty proxy network is pruned while a network with a live foreign container is left alone
+- [ ] 10.6 Manual scenario: restart the Docker daemon and confirm the watcher backs off, resubscribes, and reconciles on resubscribe without the server dying
+- [ ] 10.7 Confirm an app with no public services shows no indicator and is never counted unroutable
+
+## 11. Documentation
+
+- [ ] 11.1 Document the reconciliation behavior, the new setting, and the connectivity states where per-app proxy networks are described in `docs/`
+- [ ] 11.2 Update the kenkeep node `.ai/kenkeep/nodes/traefik/map-traefik-per-app-proxy-network.md` to state that Traefik's membership is reconciled on every app check and on Traefik container start, not only at deploy time (via `/kk-add` or a direct node edit)
+- [ ] 11.3 Commit with a conventional-commit `fix:` message referencing issue #880, then `openspec archive` the change
