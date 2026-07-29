@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines how Scotty keeps the load balancer's membership in per-app proxy networks converged with the set of deployed apps, so that recreating or replacing the Traefik container never leaves already-running apps silently unroutable, and so that stale proxy networks do not accumulate.
+Defines how Scotty keeps the load balancer's membership in per-app proxy networks converged with the set of deployed apps, so that recreating or replacing the Traefik container never leaves already-running apps silently unroutable, and so that stale proxy networks do not accumulate. Also defines how each app's resulting load-balancer connectivity is reported through logs, metrics, the app detail data, and the web UI, so the condition is visible instead of silent.
 
 ## ADDED Requirements
 
@@ -24,6 +24,44 @@ When the configured load balancer is Traefik, the system SHALL periodically reco
 
 - **WHEN** the server starts up and performs its initial running-app check
 - **THEN** proxy network membership is reconciled as part of that check, before any user request depends on it
+
+### Requirement: Reconciliation is triggered by the load balancer container starting
+
+The system SHALL watch Docker container lifecycle events for the configured load balancer container and SHALL reconcile proxy network membership when that container starts, so that a recreated or restarted load balancer is repaired within seconds instead of after up to a full running-app check interval. Event-triggered reconciliation SHALL apply the same connect, prune, and reporting rules as the periodic pass. Event watching SHALL be controlled by a configuration setting that defaults to enabled, and SHALL be independent of the periodic pass: disabling it SHALL NOT disable periodic reconciliation, and its failure SHALL NOT disable periodic reconciliation.
+
+#### Scenario: Traefik container is recreated
+
+- **WHEN** the Traefik container starts, having lost its per-app network attachments
+- **THEN** the system reconciles proxy network membership without waiting for the next scheduled app check
+- **AND** running apps become reachable again
+
+#### Scenario: Repeated events are coalesced
+
+- **WHEN** several container lifecycle events for the load balancer arrive in quick succession
+- **THEN** the system performs reconciliation without running overlapping passes
+- **AND** does not issue redundant network changes
+
+#### Scenario: Event watching disabled by configuration
+
+- **WHEN** the event-watching setting is disabled
+- **THEN** the system does not watch Docker events
+- **AND** reconciliation still runs on startup and on every scheduled running-app check
+
+#### Scenario: Event stream is interrupted
+
+- **WHEN** the Docker event stream ends or fails
+- **THEN** the system keeps retrying in the background without terminating the server or the scheduled checks
+- **AND** reconciles when the stream is re-established, so any container start missed while disconnected is still repaired
+
+#### Scenario: Events for other containers are ignored
+
+- **WHEN** a container other than the configured load balancer starts
+- **THEN** no event-triggered reconciliation is performed
+
+#### Scenario: Event watching is inactive for non-Traefik load balancers
+
+- **WHEN** the configured load balancer type is not Traefik
+- **THEN** the system does not watch Docker events regardless of the setting value
 
 ### Requirement: Only existing per-app proxy networks of running apps are attached
 
@@ -128,3 +166,67 @@ The system SHALL make the outage condition observable rather than silent. When r
 - **WHEN** a reconciliation pass finds no drift
 - **THEN** no warning or error is logged for routing drift
 - **AND** the drifted and unroutable counts reported are zero
+
+### Requirement: App detail data reports load-balancer connectivity
+
+The app detail data returned for an app SHALL include that app's load-balancer connectivity as an explicit state, distinguishing at least: reachable by the load balancer; not reachable because the load balancer is not attached to the app's proxy network; not reachable because the load balancer itself is unavailable; not applicable (no public services, a non-Traefik load balancer, or an app that does not use a per-app proxy network); and not yet determined. The state SHALL reflect what was observed from Docker during the most recent reconciliation, not an assumption derived from the app's status. Clients that do not send or understand the field SHALL remain compatible: the field SHALL be optional on the wire in both directions.
+
+#### Scenario: Connected app
+
+- **WHEN** a client requests the detail data for a running app with public services whose proxy network the load balancer is attached to
+- **THEN** the connectivity state reports that the app is reachable by the load balancer
+
+#### Scenario: Unroutable app
+
+- **WHEN** a running app with public services is not reachable because the load balancer could not be attached to its proxy network
+- **THEN** the connectivity state reports it as not reachable
+- **AND** the app's own status is unchanged, since its containers are running
+
+#### Scenario: Load balancer unavailable
+
+- **WHEN** the configured load balancer container does not exist
+- **THEN** apps with public services report the load-balancer-unavailable state rather than a plain connected or disconnected state
+
+#### Scenario: Not applicable
+
+- **WHEN** an app has no public services, or the load balancer is not Traefik, or the app routes over the legacy shared network
+- **THEN** the connectivity state reports that connectivity is not applicable
+
+#### Scenario: Before the first reconciliation
+
+- **WHEN** app detail data is produced by a path that has not yet observed connectivity, such as immediately after a deploy and before the next reconciliation pass
+- **THEN** the connectivity state reports that it is not yet determined, rather than guessing connected or disconnected
+
+#### Scenario: Older client reads the new payload
+
+- **WHEN** a client built before this change deserializes app detail data containing the connectivity field
+- **THEN** it ignores the field and continues to work
+
+#### Scenario: Newer client reads an older payload
+
+- **WHEN** a client built after this change deserializes app detail data from a server that does not send the connectivity field
+- **THEN** the state is treated as not yet determined rather than failing to parse
+
+### Requirement: Web UI shows a connectivity indicator on the app detail page
+
+The web UI SHALL display an indicator of the app's load-balancer connectivity on the app detail page, alongside the app status, so that an app whose containers are running but which is unreachable is visually distinguishable from a healthy one. The indicator SHALL visually distinguish the reachable state from the unreachable states, SHALL convey which unreachable condition applies, and SHALL NOT add visual noise for apps where connectivity is not applicable or not yet determined.
+
+#### Scenario: Unroutable app is visible in the UI
+
+- **WHEN** a user opens the detail page of a running app that the load balancer cannot reach
+- **THEN** the page shows an indicator marking the app as not reachable, distinct from the running status shown for its containers
+
+#### Scenario: Healthy app in the UI
+
+- **WHEN** a user opens the detail page of a running app that is reachable by the load balancer
+- **THEN** the page shows the indicator in its reachable state
+
+#### Scenario: Connectivity not applicable
+
+- **WHEN** a user opens the detail page of an app with no public services
+- **THEN** no connectivity indicator is shown
+
+#### Scenario: Indicator follows live updates
+
+- **WHEN** the app list is refreshed while the detail page is open and the app's connectivity has changed
+- **THEN** the indicator updates without requiring a manual page reload
