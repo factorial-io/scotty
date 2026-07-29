@@ -61,6 +61,11 @@ traefik:
     container_name: "traefik"   # Traefik container scotty connects to each app network
     use_tls: true
     certresolver: "myresolver"
+    # Watch docker events and reconnect traefik to the per-app proxy networks as
+    # soon as the traefik container starts. The periodic running-app check
+    # reconciles regardless, so turning this off only widens the repair window.
+    # Override with SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS=false.
+    watch_docker_events: true
 
 haproxy:
     use_tls: true

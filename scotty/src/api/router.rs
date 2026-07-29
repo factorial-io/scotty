@@ -4,10 +4,10 @@ use axum::routing::{get, post, put};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
-use scotty_core::apps::app_data::AppStatus;
 use scotty_core::apps::app_data::AppTtl;
 use scotty_core::apps::app_data::ContainerState;
 use scotty_core::apps::app_data::ServicePortMapping;
+use scotty_core::apps::app_data::{AppStatus, LoadBalancerConnectivity};
 use scotty_core::apps::create_app_request::CreateAppRequest;
 use scotty_core::apps::file_list::File;
 use scotty_core::apps::file_list::FileList;
@@ -196,7 +196,7 @@ use scotty_core::admin::{
             GitlabContext, WebhookContext, MattermostContext, NotificationReceiver,
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
-            AppStatus, AppTtl, ServicePortMapping, RunningAppContext,
+            AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
             ScopeInfo, UserScopesResponse,
             // Admin API schemas

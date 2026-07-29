@@ -130,6 +130,12 @@ impl MetricsRecorder for NoOpRecorder {
     fn record_apps_by_status(&self, _status: &str, _count: u64) {}
 
     #[inline(always)]
+    fn record_traefik_network_drift_apps(&self, _count: u64) {}
+
+    #[inline(always)]
+    fn record_traefik_unroutable_apps(&self, _count: u64) {}
+
+    #[inline(always)]
     fn record_app_services_count(&self, _count: f64) {}
 
     #[inline(always)]

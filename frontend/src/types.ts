@@ -43,12 +43,20 @@ export interface AppSettings {
 	middlewares: string[];
 }
 
+export type LoadBalancerConnectivity =
+	| 'Unknown'
+	| 'NotApplicable'
+	| 'Connected'
+	| 'Disconnected'
+	| 'LoadBalancerUnavailable';
+
 export interface App {
 	name: string;
 	status: string;
 	services: AppService[];
 	settings: AppSettings | null;
 	last_checked: string | null;
+	load_balancer_connectivity: LoadBalancerConnectivity;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
 // The old interface with stdout/stderr is deprecated

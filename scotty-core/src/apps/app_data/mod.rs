@@ -1,3 +1,4 @@
+mod connectivity;
 mod container;
 mod data;
 mod service;
@@ -6,6 +7,7 @@ mod status;
 mod ttl;
 
 // Re-export all components
+pub use connectivity::*;
 pub use container::*;
 pub use data::*;
 pub use service::*;

@@ -62,6 +62,10 @@ pub struct ScottyMetrics {
     pub app_services_count: Histogram<f64>,
     pub app_last_check_age_seconds: Histogram<f64>,
 
+    // Traefik proxy-network reconciliation metrics
+    pub traefik_network_drift_apps: Gauge<u64>,
+    pub traefik_unroutable_apps: Gauge<u64>,
+
     // OAuth session metrics
     pub oauth_device_flow_sessions_active: Gauge<i64>,
     pub oauth_web_flow_sessions_active: Gauge<i64>,
@@ -292,6 +296,21 @@ impl ScottyMetrics {
             app_services_count: meter
                 .f64_histogram("scotty.app.services.count")
                 .with_description("Number of services per application")
+                .build(),
+
+            // Traefik proxy-network reconciliation
+            traefik_network_drift_apps: meter
+                .u64_gauge("scotty.traefik.network.drift_apps")
+                .with_description(
+                    "Apps whose proxy network the load balancer was missing, per reconciliation pass",
+                )
+                .build(),
+
+            traefik_unroutable_apps: meter
+                .u64_gauge("scotty.traefik.unroutable_apps")
+                .with_description(
+                    "Apps with public services still unreachable by the load balancer after a reconciliation pass",
+                )
                 .build(),
 
             app_last_check_age_seconds: meter

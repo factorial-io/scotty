@@ -20,6 +20,16 @@ pub fn default_traefik_network() -> String {
     "proxy".to_string()
 }
 
+/// Watch Docker events for the Traefik container starting, by default.
+///
+/// Enabled by default because the failure it prevents — a recreated Traefik
+/// that is no longer attached to any per-app proxy network — is a silent
+/// outage. Disabling it only widens the repair window to one
+/// `scheduler.running_app_check` interval; it never disables repair.
+pub fn default_traefik_watch_docker_events() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct TraefikSettings {
     pub use_tls: bool,
@@ -32,6 +42,12 @@ pub struct TraefikSettings {
     /// app's public services without sharing a single global network.
     #[serde(default = "default_traefik_container_name")]
     pub container_name: String,
+    /// Watch Docker container events and reconcile the per-app proxy networks
+    /// as soon as the Traefik container starts, instead of waiting for the next
+    /// scheduled running-app check. The periodic check reconciles regardless;
+    /// this only shortens the repair window.
+    #[serde(default = "default_traefik_watch_docker_events")]
+    pub watch_docker_events: bool,
 }
 
 impl Default for TraefikSettings {
@@ -46,6 +62,7 @@ impl Default for TraefikSettings {
             certresolver: None,
             allowed_middlewares: Vec::new(),
             container_name: default_traefik_container_name(),
+            watch_docker_events: default_traefik_watch_docker_events(),
         }
     }
 }
@@ -64,6 +81,7 @@ impl TraefikSettings {
             certresolver,
             allowed_middlewares,
             container_name,
+            watch_docker_events: default_traefik_watch_docker_events(),
         }
     }
 }

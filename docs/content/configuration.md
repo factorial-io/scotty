@@ -546,6 +546,7 @@ traefik:
   container_name: "traefik"
   use_tls: true
   certresolver: "myresolver"
+  watch_docker_events: true
 haproxy:
   use_tls: true
 ```
@@ -564,6 +565,26 @@ it, and removes it again when the app is destroyed or purged. Public services
 are tagged with the `traefik.docker.network` label so Traefik knows which
 network to route over.
 
+That attachment lives in Docker's container state, not in the Traefik compose
+file, so recreating the Traefik container would otherwise drop every deployed
+app off the load balancer — silently, since the app containers stay up, TLS keeps
+terminating, and requests simply hang. Scotty therefore treats the membership as
+a **reconciled** property: every running-app check (see
+`scheduler.running_app_check`) reconnects Traefik to the proxy network of any
+running app it is missing, and removes proxy networks belonging to apps that no
+longer exist. A network is only removed if Scotty created it and nothing but
+Traefik is still attached to it.
+
+Each app's observed connectivity is reported in the app detail data as
+`load_balancer_connectivity` (`Connected`, `Disconnected`,
+`LoadBalancerUnavailable`, `NotApplicable`, or `Unknown` before the first check
+has seen it). The web UI shows it as a pill next to the app status, and
+`scottyctl app:info` prints it as a *Load balancer* line — but only when there is
+something to report, so an app with no public services shows nothing. Two
+metrics track it fleet-wide: `scotty_traefik_network_drift_apps` (apps repaired
+in a pass) and `scotty_traefik_unroutable_apps` (apps still unreachable
+afterwards — a sustained non-zero value is an outage).
+
 * `network` The base name used to derive each app's dedicated proxy network
   (`<network>--<app-name>`). The default is `proxy`. Scotty creates and tears
   down these per-app networks automatically; you do not need to create them
@@ -576,6 +597,12 @@ network to route over.
 * `certresolver` The certresolver to use for the tls-certificate. The
   certresolver must be configured in traefik. The default is `myresolver` shown
   also in the example `compose.yml` from the [installation-documentation](installation.md)
+* `watch_docker_events` If set to true (the default), scotty watches Docker
+  events and reconciles the per-app proxy networks as soon as the Traefik
+  container starts, so a `docker compose up -d --force-recreate traefik` is
+  repaired within seconds instead of at the next running-app check. Turning it
+  off only widens that window — the periodic check reconciles either way.
+  Override with `SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS=false`.
 
 > **Upgrading from a shared-network version:** apps created before this change
 > still have a `docker-compose.override.yml` that references the old shared
