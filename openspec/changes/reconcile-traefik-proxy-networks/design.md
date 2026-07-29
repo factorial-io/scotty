@@ -82,7 +82,7 @@ Three properties matter:
 - **Exponential backoff with a cap** (e.g. 1s → 30s) on stream failure, so a daemon restart does not spin.
 - **Coalescing, not per-event work.** Recreating a container emits `die` then `start`, and compose can emit bursts. A short debounce (~2s) plus the single-flight lock from Decision 7 collapses a burst into one pass.
 
-The event-driven pass has no fresh `find_apps` result, so it works from the `app_state.apps` cache (at most one check interval stale — good enough, since a network cannot exist for an app that was never deployed), writes annotations back with `SharedAppList::update_app`, and broadcasts `AppListUpdated` so open UIs refresh. It never prunes on a cache-only pass: pruning decisions require the authoritative on-disk app list, and the cache could omit an app added since the last check. Pruning therefore stays exclusive to the periodic pass.
+The event-driven pass has no fresh `find_apps` result, so it works from the `app_state.apps` cache (at most one check interval stale — good enough, since a network cannot exist for an app that was never deployed), writes annotations back with `SharedAppList::set_load_balancer_connectivity` (a one-field patch — see the risk section for why `update_app` is wrong here), and broadcasts `AppListUpdated` when anything changed so open UIs refresh. It never prunes on a cache-only pass: pruning decisions require the authoritative on-disk app list, and the cache could omit an app added since the last check. Pruning therefore stays exclusive to the periodic pass.
 
 *Alternatives considered:* events as the only trigger — rejected, it misses Scotty's own restart and any event lost while disconnected. Polling `inspect_container` on Traefik every few seconds — rejected, same latency benefit at a much worse cost. Making the setting an interval rather than a boolean — rejected as unnecessary surface; `running_app_check` already governs the polling cadence.
 
@@ -157,9 +157,11 @@ Log lines carry the app name and network so the incident is greppable:
 Two metrics are added to `MetricsRecorder` (`recorder_trait.rs`, `otel_recorder.rs`, `noop.rs`) and recorded at the end of every pass, including with value 0, so absence-of-data is distinguishable from zero:
 
 - `scotty_traefik_network_drift_apps` (gauge): apps found drifted in this pass.
-- `scotty_traefik_unroutable_apps` (gauge): apps with public services still unroutable after this pass — the alertable signal, since a sustained non-zero value is the outage.
+- `scotty_traefik_network_unroutable_apps` (gauge): apps that need routing and are still unroutable after this pass — the alertable signal, since a sustained non-zero value is the outage.
 
-Whether an app "has public services" comes from `app.settings.public_services` being non-empty; apps without settings are reconciled but never counted as unroutable.
+One deliberate exception to "every pass": a pass that cannot list the host's networks records nothing. It has no idea what the state is, and since a gauge cannot express "unknown", reporting zero would read as an all-clear. The previous values are left standing instead (raised in review; the alternative of recording a default outcome was rejected for exactly that reason).
+
+Whether an app needs routing is one predicate, `needs_routing` = declares public services **and** has a running container. Both the reported state and the unroutable metric go through it, so they cannot disagree — and it is checked *before* the load-balancer-availability branch, so a failure to inspect Traefik does not report every stopped app as unroutable (a bug found in review: the two halves were originally checked on either side of that branch). Apps without settings are reconciled but never counted.
 
 ### Decision 10: Connectivity is an app-level enum on `AppData`, written by the reconciler
 

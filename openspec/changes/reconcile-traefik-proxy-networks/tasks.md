@@ -39,13 +39,13 @@
 - [x] 6.2 Reconcile once on every successful (re)subscribe, so a container start missed while the stream was down is still repaired
 - [x] 6.3 Add capped exponential backoff (1s → 30s) on stream end/error with a single `warn!` per reconnect cycle, so a daemon restart cannot spin
 - [x] 6.4 Debounce bursts (~2s coalescing window) so a `die`+`start` recreate triggers one pass, not several
-- [x] 6.5 Implement `reconcile_from_cache`: work from `app_state.apps.get_apps()`, connect only (never prune), write annotations back with `SharedAppList::update_app`, and broadcast `AppListUpdated`
+- [x] 6.5 Implement `reconcile_from_cache`: work from `app_state.apps.get_apps()`, connect only (never prune), patch connectivity back with `SharedAppList::set_load_balancer_connectivity` for changed apps only (not `update_app`, which would revert concurrent writers), and broadcast `AppListUpdated` when anything changed
 - [x] 6.6 Spawn the watcher from `setup_docker_integration` via `crate::metrics::spawn_instrumented`, only when the load balancer is Traefik and `traefik.watch_docker_events` is true; log once at startup which mode is active
 
 ## 7. Reporting
 
-- [x] 7.1 Add `record_traefik_network_drift_apps` and `record_traefik_unroutable_apps` to `metrics/recorder_trait.rs`, implement in `metrics/otel_recorder.rs` (family `scotty_traefik_*`, no per-app labels) and `metrics/noop.rs`
-- [x] 7.2 Record both gauges at the end of every pass, including zero, and keep a converged pass silent apart from `debug!`
+- [x] 7.1 Add `record_traefik_network_drift_apps` and `record_traefik_network_unroutable_apps` to `metrics/recorder_trait.rs`, implement in `metrics/otel_recorder.rs` (family `scotty_traefik_network_*`, no per-app labels) and `metrics/noop.rs`
+- [x] 7.2 Record both gauges at the end of every pass, including zero, and keep a converged pass silent apart from `debug!`. Exception: a pass that could not list networks records nothing, since a zero would be a false all-clear (documented on `record`)
 
 ## 8. Wiring the periodic pass
 

@@ -92,7 +92,7 @@ pub trait MetricsRecorder: Send + Sync {
         not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
         allow(dead_code)
     )]
-    fn record_traefik_unroutable_apps(&self, count: u64);
+    fn record_traefik_network_unroutable_apps(&self, count: u64);
 
     #[cfg_attr(
         not(any(feature = "telemetry-grpc", feature = "telemetry-http")),

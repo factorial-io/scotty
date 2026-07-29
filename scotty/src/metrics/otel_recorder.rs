@@ -295,8 +295,10 @@ impl MetricsRecorder for OtelRecorder {
             .record(count, &[]);
     }
 
-    fn record_traefik_unroutable_apps(&self, count: u64) {
-        self.instruments.traefik_unroutable_apps.record(count, &[]);
+    fn record_traefik_network_unroutable_apps(&self, count: u64) {
+        self.instruments
+            .traefik_network_unroutable_apps
+            .record(count, &[]);
     }
 
     // Memory metrics

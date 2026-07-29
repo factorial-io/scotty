@@ -154,28 +154,36 @@ fn is_prunable(attached_containers: &[String], traefik_container: &str) -> bool 
         .all(|name| name == traefik_container)
 }
 
+/// Whether the app currently needs to be reachable through the load balancer at
+/// all: it declares public services *and* something of it is up.
+///
+/// This is the single gate in front of every other connectivity verdict. A
+/// stopped app is unreachable by definition with nothing to repair, and an app
+/// with no public services never wanted routing — flagging either would light up
+/// the indicator for apps that are fine and make it meaningless for the case
+/// that matters. Keeping the two conditions in one predicate is deliberate: when
+/// they were checked separately around the load-balancer check, a stopped app
+/// was reported as `LoadBalancerUnavailable` whenever the Traefik container
+/// could not be inspected.
+fn needs_routing(app: &AppData) -> bool {
+    has_public_services(app) && is_running(app)
+}
+
 /// Derives the connectivity state to report for one app.
 ///
-/// Uses the same public-services predicate as the unroutable metric, so the
-/// reported state and the metric can never disagree.
+/// Uses the same predicate as the unroutable metric, so the reported state and
+/// the metric can never disagree.
 fn connectivity_for(
     app: &AppData,
     network: Option<&str>,
     attached: &HashSet<String>,
     load_balancer_available: bool,
 ) -> LoadBalancerConnectivity {
-    if !has_public_services(app) {
+    if !needs_routing(app) {
         return LoadBalancerConnectivity::NotApplicable;
     }
     if !load_balancer_available {
         return LoadBalancerConnectivity::LoadBalancerUnavailable;
-    }
-    // A stopped app is not reachable by definition and there is nothing to
-    // repair, so connectivity does not apply to it. Reporting `Disconnected`
-    // here would light up the indicator for every stopped app and make it
-    // meaningless for the case that matters.
-    if !is_running(app) {
-        return LoadBalancerConnectivity::NotApplicable;
     }
     match network {
         // No per-app proxy network exists: either the app predates them and
@@ -303,6 +311,9 @@ async fn run_pass(
     let networks = match list_proxy_networks(app_state).await {
         Ok(networks) => networks,
         Err(e) => {
+            // Deliberately no `record()` here: this pass learned nothing, and
+            // reporting zero drift would be a false all-clear. Leaving the gauges
+            // at their previous value is the honest option — see `record`.
             error!("Could not list Docker networks, skipping reconciliation pass: {e}");
             return Ok(());
         }
@@ -547,10 +558,17 @@ async fn prune_orphans(
     }
 }
 
+/// Publishes the outcome of a pass, including zeroes, so a healthy host reports
+/// "0 unroutable" rather than no data at all.
+///
+/// One exception: a pass that could not list the host's networks does not call
+/// this. It has no idea what the state is, and a gauge cannot say "unknown" —
+/// reporting zero would look like an all-clear, so the previous values are left
+/// standing instead.
 fn record(outcome: &PassOutcome) {
     let m = crate::metrics::metrics();
     m.record_traefik_network_drift_apps(outcome.drifted as u64);
-    m.record_traefik_unroutable_apps(outcome.unroutable as u64);
+    m.record_traefik_network_unroutable_apps(outcome.unroutable as u64);
 }
 
 /// Watches Docker for the Traefik container starting, and reconciles when it
@@ -849,6 +867,54 @@ mod tests {
             connectivity_for(&app, None, &HashSet::new(), false),
             LoadBalancerConnectivity::LoadBalancerUnavailable
         );
+    }
+
+    /// A failure to inspect the Traefik container marks every app at once, so the
+    /// "does this app need routing" gate has to come first: otherwise a daemon
+    /// hiccup or a mid-recreate Traefik reports every *stopped* app with public
+    /// services as unroutable and inflates the metric exactly when an operator is
+    /// using it to judge blast radius.
+    #[test]
+    fn stopped_apps_are_not_unroutable_when_the_load_balancer_is_missing() {
+        let stopped = app("blog", ContainerStatus::Exited, true);
+        assert_eq!(
+            connectivity_for(&stopped, Some("proxy--blog"), &HashSet::new(), false),
+            LoadBalancerConnectivity::NotApplicable
+        );
+        assert_eq!(
+            connectivity_for(&stopped, None, &HashSet::new(), false),
+            LoadBalancerConnectivity::NotApplicable
+        );
+
+        // An app with no public services is equally unaffected, running or not.
+        let private = app("worker", ContainerStatus::Running, false);
+        assert_eq!(
+            connectivity_for(&private, None, &HashSet::new(), false),
+            LoadBalancerConnectivity::NotApplicable
+        );
+
+        // Only a running app that wants routing is reported as affected.
+        let running = app("blog", ContainerStatus::Running, true);
+        assert!(
+            connectivity_for(&running, None, &HashSet::new(), false).is_problem(),
+            "a running public app must still be counted when the LB is gone"
+        );
+    }
+
+    #[test]
+    fn needs_routing_requires_both_public_services_and_a_running_container() {
+        assert!(needs_routing(&app("blog", ContainerStatus::Running, true)));
+        assert!(!needs_routing(&app("blog", ContainerStatus::Exited, true)));
+        assert!(!needs_routing(&app(
+            "worker",
+            ContainerStatus::Running,
+            false
+        )));
+        assert!(!needs_routing(&app(
+            "worker",
+            ContainerStatus::Exited,
+            false
+        )));
     }
 
     #[test]

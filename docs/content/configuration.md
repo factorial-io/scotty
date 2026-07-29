@@ -582,7 +582,7 @@ has seen it). The web UI shows it as a pill next to the app status, and
 `scottyctl app:info` prints it as a *Load balancer* line — but only when there is
 something to report, so an app with no public services shows nothing. Two
 metrics track it fleet-wide: `scotty_traefik_network_drift_apps` (apps repaired
-in a pass) and `scotty_traefik_unroutable_apps` (apps still unreachable
+in a pass) and `scotty_traefik_network_unroutable_apps` (apps still unreachable
 afterwards — a sustained non-zero value is an outage).
 
 * `network` The base name used to derive each app's dedicated proxy network
