@@ -201,7 +201,15 @@ The system SHALL make the outage condition observable rather than silent. When r
 
 ### Requirement: App detail data reports load-balancer connectivity
 
-The app detail data returned for an app SHALL include that app's load-balancer connectivity as an explicit state, distinguishing at least: reachable by the load balancer; not reachable because the load balancer is not attached to the app's proxy network; not reachable because the load balancer itself is unavailable; not applicable (no public services, a non-Traefik load balancer, or an app that does not use a per-app proxy network); and not yet determined. The state SHALL reflect what was observed from Docker during the most recent reconciliation, not an assumption derived from the app's status. Clients that do not send or understand the field SHALL remain compatible: the field SHALL be optional on the wire in both directions.
+The app detail data returned for an app SHALL include that app's load-balancer connectivity as an explicit state, distinguishing at least: the load balancer is running and attached to the app's proxy network; not reachable because the load balancer is not attached to the app's proxy network; not reachable because the load balancer itself is unavailable; not applicable (no public services, a non-Traefik load balancer, or an app that does not use a per-app proxy network); and not yet determined. The state SHALL reflect what was observed from Docker during the most recent reconciliation, not an assumption derived from the app's status. Clients that do not send or understand the field SHALL remain compatible: the field SHALL be optional on the wire in both directions.
+
+**Scope limitation — the load-balancer side only.** The connected state asserts one fact: the load balancer is running and joined to the app's proxy network. It does NOT assert that requests to the app's domains succeed. In particular it does not verify that the app's own containers are joined to that same network, that the app declares usable Traefik labels, that referenced middlewares exist, or that the app answers on its configured port. An app can therefore report the connected state and still return an HTTP error. This is deliberate: the state's job is to make the one failure mode that reconciliation owns — a load balancer that lost its network membership — visible and machine-readable, not to be a health check. Consumers SHALL NOT present the connected state as a guarantee of reachability.
+
+#### Scenario: Only the load balancer is attached to the proxy network
+
+- **WHEN** the load balancer is running and attached to a running app's per-app proxy network, but the app's own containers are not attached to that network (for example an app whose override still joins the legacy shared network)
+- **THEN** the app reports the connected state, because the load-balancer side of the network is in the desired condition
+- **AND** requests to the app's domains may still fail, which this state does not claim to detect
 
 #### Scenario: Connected app
 
@@ -241,7 +249,15 @@ The app detail data returned for an app SHALL include that app's load-balancer c
 
 ### Requirement: Web UI shows a connectivity indicator on the app detail page
 
-The web UI SHALL display an indicator of the app's load-balancer connectivity on the app detail page, alongside the app status, so that an app whose containers are running but which is unreachable is visually distinguishable from a healthy one. The indicator SHALL visually distinguish the reachable state from the unreachable states, SHALL convey which unreachable condition applies, and SHALL NOT add visual noise for apps where connectivity is not applicable or not yet determined.
+The web UI SHALL display an indicator of the app's load-balancer connectivity on the app detail page, alongside the app status, so that an app whose containers are running but whose load balancer has lost its proxy network membership is visually distinguishable from a healthy one. The indicator SHALL visually distinguish the connected state from the unreachable states, SHALL convey which unreachable condition applies, and SHALL NOT add visual noise for apps where connectivity is not applicable or not yet determined.
+
+Because the connected state covers the load-balancer side of the network only (see the scope limitation above), the indicator's explanatory text for that state SHALL describe what was observed — that the load balancer is attached to the app's proxy network — rather than promise that requests succeed, so a connected app that nonetheless errors does not make the indicator read as wrong.
+
+#### Scenario: Connected state describes what was observed
+
+- **WHEN** the indicator shows the connected state
+- **THEN** its explanatory text states that the load balancer is attached to the app's proxy network
+- **AND** it does not claim that the app's domains serve requests successfully
 
 #### Scenario: Unroutable app is visible in the UI
 
