@@ -15,6 +15,7 @@
 ## 3. Observation
 
 - [x] 3.1 Read Traefik's current membership: `inspect_container(container_name, None::<InspectContainerOptions>)` → `NetworkSettings.Networks` keys as a `HashSet<String>`; on failure log `error!` once, mark apps with public services `LoadBalancerUnavailable`, count them unroutable, and return `Ok(())`
+- [ ] 3.4 Gate the membership read on liveness: return the attachment set only when `State.Running == Some(true)`, and treat a non-running container exactly like an absent one (the unavailable path from 3.1). Docker retains `NetworkSettings.Networks` on a stopped container, so without this an exited Traefik reads as attached and every running app is reported `Connected` — see design Decision 13. One guard in `traefik_networks`, so all three triggers inherit it
 - [x] 3.2 List candidate networks via `list_networks`, capturing each network's name, `scotty.app` label and managed flag; on failure log `error!` and skip the pass
 - [x] 3.3 Add the name-based fallback set: for each discovered app, `app_proxy_network_name(base, &app.name)` matched against existing network names, so unlabelled per-app networks are still connect-eligible (never prune-eligible)
 
@@ -25,6 +26,7 @@
 - [x] 4.3 Implement the "has public services" predicate from `app.settings.public_services` (apps without settings are reconciled but never counted unroutable)
 - [x] 4.4 Implement `connectivity_for(...) -> LoadBalancerConnectivity`, using the same public-services predicate so the field and the unroutable metric can never disagree
 - [x] 4.5 Unit-test 4.1–4.4 with hand-built `AppDataVec`/network fixtures: running app connected, running app disconnected, stopped app, unknown app, legacy app with no per-app network, app with no public services, unlabelled per-app network, base network itself, network with a foreign container attached, Traefik container missing
+- [ ] 4.6 Add the stopped-load-balancer case to the 4.5 fixtures: a running app with public services whose per-app network *is* in the attachment set, but with the load balancer not running, reports `LoadBalancerUnavailable` and never `Connected`. This is the regression that a green "Routable" pill in front of a dead Traefik would otherwise re-introduce
 
 ## 5. Convergence actions
 
@@ -41,6 +43,7 @@
 - [x] 6.4 Debounce bursts (~2s coalescing window) so a `die`+`start` recreate triggers one pass, not several
 - [x] 6.5 Implement `reconcile_from_cache`: work from `app_state.apps.get_apps()`, connect only (never prune), patch connectivity back with `SharedAppList::set_load_balancer_connectivity` for changed apps only (not `update_app`, which would revert concurrent writers), and broadcast `AppListUpdated` when anything changed
 - [x] 6.6 Spawn the watcher from `setup_docker_integration` via `crate::metrics::spawn_instrumented`, only when the load balancer is Traefik and `traefik.watch_docker_events` is true; log once at startup which mode is active
+- [ ] 6.7 Extend the event filter to `event=["start", "die"]` and update `is_container_start` accordingly (e.g. `is_reconcile_trigger`), so a load balancer going away degrades the reported state within seconds instead of after up to a full `running_app_check`. `die` rather than `stop`, because it also covers `docker kill`, a crash and an OOM; the existing 2s debounce plus single-flight already coalesce the `die`+`start` recreate pair
 
 ## 7. Reporting
 
@@ -66,7 +69,8 @@
 - [x] 10.1 `cargo test` (198 lib + all integration suites) and `cargo clippy --all-targets` clean, `cargo fmt` applied; `bun run check` (0 errors) and `bun run lint` clean
 - [ ] 10.2 Manual scenario against local Traefik (`apps/traefik`): deploy an app, confirm reachable and the pill reads "Routable", `docker compose up -d --force-recreate traefik`, and confirm the event watcher reconnects the app's `proxy--<app>` network within seconds and the app is reachable again
 - [ ] 10.3 Manual scenario with `SCOTTY__TRAEFIK__WATCH_DOCKER_EVENTS=false`: same recreate is repaired by the next scheduled `running_app_check` instead, and no events subscription is opened
-- [ ] 10.4 Manual scenario: block the repair (e.g. remove the app's proxy network while the app runs, or stop the Traefik container) and confirm the detail page shows "Not routable" / "LB unavailable", the error is logged, and `scotty_traefik_unroutable_apps` is non-zero
+- [ ] 10.4 Manual scenario: block the repair (e.g. remove the app's proxy network while the app runs, or stop the Traefik container) and confirm the detail page shows "Not routable" / "LB unavailable", the error is logged, and `scotty_traefik_unroutable_apps` is non-zero.
+      **Ran 2026-07-29 and it failed:** with `traefik` exited, a fresh sweep reported `conn=Connected` for the running `simple-nginx` app, so the pill read "Routable" while nothing routed. Cause: availability was inferred from `inspect_container` succeeding, and a stopped container still lists `proxy--simple-nginx` in `NetworkSettings.Networks`. Fixed by 3.4; re-run this scenario, and re-run it once more with the container `die`d rather than removed to confirm 6.7 degrades the state within seconds instead of after a full interval
 - [ ] 10.5 Manual scenario: stop an app and confirm it is not attached; remove an app directory by hand and confirm its empty proxy network is pruned while a network with a live foreign container is left alone
 - [ ] 10.6 Manual scenario: restart the Docker daemon and confirm the watcher backs off, resubscribes, and reconciles on resubscribe without the server dying
 - [ ] 10.7 Confirm an app with no public services shows no indicator and is never counted unroutable
