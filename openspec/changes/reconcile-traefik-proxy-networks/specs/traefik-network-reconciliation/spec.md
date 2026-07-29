@@ -25,15 +25,21 @@ When the configured load balancer is Traefik, the system SHALL periodically reco
 - **WHEN** the server starts up and performs its initial running-app check
 - **THEN** proxy network membership is reconciled as part of that check, before any user request depends on it
 
-### Requirement: Reconciliation is triggered by the load balancer container starting
+### Requirement: Reconciliation is triggered by load balancer container lifecycle events
 
-The system SHALL watch Docker container lifecycle events for the configured load balancer container and SHALL reconcile proxy network membership when that container starts, so that a recreated or restarted load balancer is repaired within seconds instead of after up to a full running-app check interval. Event-triggered reconciliation SHALL apply the same connect, prune, and reporting rules as the periodic pass. Event watching SHALL be controlled by a configuration setting that defaults to enabled, and SHALL be independent of the periodic pass: disabling it SHALL NOT disable periodic reconciliation, and its failure SHALL NOT disable periodic reconciliation.
+The system SHALL watch Docker container lifecycle events for the configured load balancer container and SHALL reconcile proxy network membership when that container starts, so that a recreated or restarted load balancer is repaired within seconds instead of after up to a full running-app check interval. The system SHALL also re-evaluate connectivity when that container stops, so that the reported state degrades as promptly as it recovers rather than remaining stale for up to a full running-app check interval. Event-triggered reconciliation SHALL apply the same connect, prune, and reporting rules as the periodic pass. Event watching SHALL be controlled by a configuration setting that defaults to enabled, and SHALL be independent of the periodic pass: disabling it SHALL NOT disable periodic reconciliation, and its failure SHALL NOT disable periodic reconciliation.
 
 #### Scenario: Traefik container is recreated
 
 - **WHEN** the Traefik container starts, having lost its per-app network attachments
 - **THEN** the system reconciles proxy network membership without waiting for the next scheduled app check
 - **AND** running apps become reachable again
+
+#### Scenario: Traefik container is stopped
+
+- **WHEN** the Traefik container stops while apps with public services are running
+- **THEN** the system re-evaluates connectivity without waiting for the next scheduled app check
+- **AND** those apps report the load-balancer-unavailable state within seconds rather than continuing to report the connected state
 
 #### Scenario: Repeated events are coalesced
 
@@ -104,15 +110,41 @@ Reconciliation SHALL remove per-app proxy networks that Scotty created for apps 
 - **WHEN** the app list could not be determined for the current check
 - **THEN** reconciliation performs no pruning in that pass
 
+### Requirement: Load balancer availability means running, not merely present
+
+The system SHALL treat the load balancer as available only when its container both exists **and** is running. A container that exists but is not running SHALL be treated exactly as an absent one, and the network attachments recorded on it SHALL NOT be read as evidence that any app is reachable: Docker retains a container's network attachments while it is stopped, so those attachments outlive the container's ability to route traffic. Whenever the load balancer is unavailable, every app that needs routing SHALL report the load-balancer-unavailable state and SHALL NOT report the connected state.
+
+#### Scenario: Stopped load balancer still lists per-app networks
+
+- **WHEN** the load balancer container is stopped while still recorded as attached to a running app's per-app proxy network
+- **THEN** the app reports the load-balancer-unavailable state
+- **AND** it does not report the connected state on the basis of that retained attachment
+
+#### Scenario: Running load balancer attached to the app's network
+
+- **WHEN** the load balancer container is running and attached to a running app's per-app proxy network
+- **THEN** the app reports the connected state
+
+#### Scenario: Availability is judged the same way on every trigger
+
+- **WHEN** availability is evaluated during a scheduled pass, a startup pass, or an event-triggered pass
+- **THEN** the same running-container rule applies, so the reported state cannot differ by which trigger observed it
+
 ### Requirement: Reconciliation never disrupts working routing
 
-Reconciliation SHALL be safe to run repeatedly and concurrently with app deployments. Attaching an already-attached load balancer, removing an already-removed network, and a load balancer container that is absent SHALL all be tolerated without failing the running-app check. A failure to reconcile one app SHALL NOT prevent the remaining apps from being reconciled, and no reconciliation outcome SHALL stop, restart, or otherwise alter app containers.
+Reconciliation SHALL be safe to run repeatedly and concurrently with app deployments. Attaching an already-attached load balancer, removing an already-removed network, and a load balancer container that is absent or not running SHALL all be tolerated without failing the running-app check. A failure to reconcile one app SHALL NOT prevent the remaining apps from being reconciled, and no reconciliation outcome SHALL stop, restart, or otherwise alter app containers.
 
 #### Scenario: Load balancer container is missing
 
 - **WHEN** reconciliation cannot find the configured load balancer container
 - **THEN** the running-app check completes successfully
 - **AND** the system reports that apps with public services cannot be made routable
+
+#### Scenario: Load balancer container exists but is not running
+
+- **WHEN** the configured load balancer container exists but is stopped, exited, created, or otherwise not running
+- **THEN** the running-app check completes successfully
+- **AND** the system reports that apps with public services cannot be made routable, exactly as when the container is absent
 
 #### Scenario: One app fails to reconcile
 
@@ -184,7 +216,7 @@ The app detail data returned for an app SHALL include that app's load-balancer c
 
 #### Scenario: Load balancer unavailable
 
-- **WHEN** the configured load balancer container does not exist
+- **WHEN** the configured load balancer container does not exist, or exists but is not running
 - **THEN** apps with public services report the load-balancer-unavailable state rather than a plain connected or disconnected state
 
 #### Scenario: Not applicable
