@@ -1,4 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicI64, Ordering},
+        Arc,
+    },
+};
 
 use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
@@ -54,11 +60,30 @@ pub struct AppState {
     pub shell_service: ShellService,
     pub task_output_service: TaskOutputStreamingService,
     pub messenger: WebSocketMessenger,
+    /// Unix timestamp (seconds) of the next scheduled app-state sweep, `0` when no
+    /// sweep has run yet. Server-global on purpose: a single scheduler job inspects
+    /// every app, so there is no per-app next-check time. Written by the sweep, read
+    /// via [`AppState::next_app_check_at`].
+    pub next_app_check: Arc<AtomicI64>,
 }
 
 pub type SharedAppState = Arc<AppState>;
 
 impl AppState {
+    /// Records when the next scheduled app-state sweep is due.
+    pub fn set_next_app_check(&self, at: chrono::DateTime<chrono::Local>) {
+        self.next_app_check.store(at.timestamp(), Ordering::Relaxed);
+    }
+
+    /// The next scheduled app-state sweep, or `None` if no sweep has run yet.
+    pub fn next_app_check_at(&self) -> Option<chrono::DateTime<chrono::Local>> {
+        match self.next_app_check.load(Ordering::Relaxed) {
+            0 => None,
+            timestamp => chrono::DateTime::from_timestamp(timestamp, 0)
+                .map(|dt| dt.with_timezone(&chrono::Local)),
+        }
+    }
+
     pub async fn new() -> anyhow::Result<SharedAppState> {
         let settings = Settings::new()?;
 
@@ -129,6 +154,7 @@ impl AppState {
             shell_service,
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
+            next_app_check: Arc::new(AtomicI64::new(0)),
         });
 
         Ok(state)
@@ -153,6 +179,7 @@ impl AppState {
             shell_service: ShellService::new(docker, settings.shell.clone()),
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
+            next_app_check: Arc::new(AtomicI64::new(0)),
         }))
     }
 }

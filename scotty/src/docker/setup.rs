@@ -174,6 +174,17 @@ pub async fn setup_docker_integration(
 #[instrument(skip(app_state))]
 async fn schedule_app_check(app_state: SharedAppState) {
     tracing::info!("Checking running apps");
+    // Record the next due time before inspecting, so `inspect_app` can stamp it onto
+    // every app it visits. Measured from the start of the sweep, which makes the
+    // reported time pessimistic by the sweep's duration -- seconds against an
+    // interval measured in minutes.
+    let interval: chrono::Duration = app_state
+        .settings
+        .scheduler
+        .running_app_check
+        .clone()
+        .into();
+    app_state.set_next_app_check(chrono::Local::now() + interval);
     match find_apps(&app_state).await {
         Ok(mut apps) => {
             // Reconcile before publishing, so the app list is stored with the

@@ -144,6 +144,10 @@ pub async fn inspect_app(
 
     // Set the last_checked timestamp to the current time
     app_data.last_checked = Some(chrono::Local::now());
+    // Read the scheduler's next due time rather than computing `now + interval`: this
+    // function also runs for manual actions between sweeps, which must not shift the
+    // reported next check.
+    app_data.next_check = app_state.next_app_check_at();
 
     if !valid_settings
         && validate_docker_compose_content(content.as_bytes(), &dc_services, None).is_err()

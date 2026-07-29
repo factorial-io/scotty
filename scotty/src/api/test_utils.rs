@@ -86,5 +86,6 @@ pub async fn create_test_app_state_with_settings(
         ),
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         settings,
+        next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
     })
 }

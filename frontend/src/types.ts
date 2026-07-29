@@ -56,6 +56,8 @@ export interface App {
 	services: AppService[];
 	settings: AppSettings | null;
 	last_checked: string | null;
+	/** When the server's next scheduled app-state sweep is due; null before the first sweep. */
+	next_check: string | null;
 	load_balancer_connectivity: LoadBalancerConnectivity;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
