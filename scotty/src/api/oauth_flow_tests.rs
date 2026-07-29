@@ -60,6 +60,7 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
         settings,
+        next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
     });
 
     ApiRoutes::create(app_state)
@@ -553,6 +554,7 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         messenger: create_test_websocket_messenger(),
         settings,
+        next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
     });
 
     let router = ApiRoutes::create(app_state.clone());

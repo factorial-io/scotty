@@ -257,8 +257,10 @@
 	<h3 class="text-xl mt-16 mb-4">Latest task-invocations</h3>
 	<TasksTable taskList={app_tasks} />
 {/if}
-<div class="text-right mt-8">
-	<Pill>
-		Updated <TimeAgo dateString={data.last_checked} />
-	</Pill>
-</div>
+{#if data.next_check}
+	<div class="text-right mt-8">
+		<Pill>
+			Next update <TimeAgo dateString={data.next_check} />
+		</Pill>
+	</div>
+{/if}

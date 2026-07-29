@@ -21,6 +21,14 @@ pub struct AppData {
     pub services: Vec<ContainerState>,
     pub settings: Option<AppSettings>,
     pub last_checked: Option<chrono::DateTime<chrono::Local>>,
+    /// When the server's next scheduled app-state sweep is due, or `None` before the
+    /// first sweep has run. Server-global rather than per-app: one scheduler job
+    /// inspects every app. It is read from the scheduler instead of extrapolated from
+    /// `last_checked`, because `last_checked` also moves when a manual run/stop/rebuild
+    /// inspects a single app between sweeps. `serde(default)` keeps the wire format
+    /// compatible with clients that predate the field.
+    #[serde(default)]
+    pub next_check: Option<chrono::DateTime<chrono::Local>>,
     /// Whether the load balancer can reach this app. Only the proxy-network
     /// reconciler sets a definite value; every other construction path leaves
     /// it `Unknown`, which is honest rather than optimistic. `serde(default)`
@@ -53,6 +61,7 @@ impl Default for AppData {
             services: Vec::new(),
             settings: None,
             last_checked: None,
+            next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
         }
     }
@@ -87,6 +96,7 @@ impl AppData {
             services,
             settings,
             last_checked: None,
+            next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
         }
     }

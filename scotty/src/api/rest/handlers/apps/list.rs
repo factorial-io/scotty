@@ -273,6 +273,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             ),
             task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
             settings,
+            next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
         });
 
         (app_state, temp_dir)
