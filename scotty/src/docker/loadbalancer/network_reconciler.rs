@@ -287,11 +287,11 @@ async fn run_pass(
     let attached = match traefik_networks(app_state, &target).await {
         Ok(attached) => attached,
         Err(e) => {
-            // The load balancer itself is missing or unreadable, so nothing can
-            // be routable. Report it once, mark the affected apps, and let the
+            // The load balancer is missing, not running, or unreadable, so nothing
+            // can be routable. Report it once, mark the affected apps, and let the
             // check complete: this must never fail the surrounding task.
             error!(
-                "Could not inspect Traefik container '{}', apps with public services cannot be made routable: {}",
+                "Traefik container '{}' is unavailable, apps with public services cannot be made routable: {}",
                 target.container, e
             );
             let mut outcome = PassOutcome::default();
@@ -397,7 +397,16 @@ async fn run_pass(
     Ok(())
 }
 
-/// Names of the networks the Traefik container is currently attached to.
+/// Names of the networks the *running* Traefik container is currently attached to.
+///
+/// Errors when the container is absent **or** not running, which the caller maps to
+/// `LoadBalancerUnavailable` for every app that needs routing. Liveness has to be
+/// checked here rather than inferred from the inspect call succeeding: Docker keeps
+/// `NetworkSettings.Networks` populated on a stopped container, so an exited Traefik
+/// reports every per-app network it used to serve. Reading those retained attachments
+/// as availability reports a dead load balancer as `Connected` — a green "Routable"
+/// pill in front of an app that answers nothing, which is the exact silent
+/// unreachability this module exists to surface.
 async fn traefik_networks(
     app_state: &SharedAppState,
     target: &TraefikTarget,
@@ -406,6 +415,10 @@ async fn traefik_networks(
         .docker
         .inspect_container(&target.container, None::<InspectContainerOptions>)
         .await?;
+
+    if insights.state.as_ref().and_then(|s| s.running) != Some(true) {
+        anyhow::bail!("container '{}' exists but is not running", target.container);
+    }
 
     Ok(insights
         .network_settings
@@ -586,7 +599,14 @@ pub async fn watch_traefik_events(app_state: SharedAppState) {
 
     let mut filters = HashMap::new();
     filters.insert("type".to_string(), vec!["container".to_string()]);
-    filters.insert("event".to_string(), vec!["start".to_string()]);
+    // `start` accelerates recovery, `die` accelerates degradation: without the
+    // latter, a load balancer going away leaves every app reporting the state
+    // observed before it went, for up to a full `running_app_check`. `die` rather
+    // than `stop` because it also covers `docker kill`, a crash and an OOM.
+    filters.insert(
+        "event".to_string(),
+        vec!["start".to_string(), "die".to_string()],
+    );
     filters.insert("container".to_string(), vec![target.container.clone()]);
     let options = EventsOptions {
         since: None,
@@ -598,14 +618,14 @@ pub async fn watch_traefik_events(app_state: SharedAppState) {
     const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
     info!(
-        "Watching Docker events for container '{}' starts",
+        "Watching Docker events for container '{}' starts and deaths",
         target.container
     );
 
     while !app_state.stop_flag.is_stopped() {
         // Reconcile on every (re)subscribe, not only on events: a container
-        // start that happened while the stream was down would otherwise wait
-        // for the next scheduled pass.
+        // start or death that happened while the stream was down would otherwise
+        // wait for the next scheduled pass.
         if let Err(e) = reconcile_from_cache(&app_state).await {
             error!("Reconciliation on event-stream (re)subscribe failed: {e:?}");
         }
@@ -619,12 +639,12 @@ pub async fn watch_traefik_events(app_state: SharedAppState) {
             }
             match event {
                 Ok(event) => {
-                    if !is_container_start(&event) {
+                    let Some(action) = reconcile_trigger(&event) else {
                         continue;
-                    }
+                    };
                     info!(
-                        "Container '{}' started, reconciling proxy networks",
-                        target.container
+                        "Container '{}' emitted '{}', reconciling proxy networks",
+                        target.container, action
                     );
                     // Coalesce bursts: recreating a container emits `die` then
                     // `start`, and compose can emit several in a row. Waiting
@@ -657,12 +677,22 @@ pub async fn watch_traefik_events(app_state: SharedAppState) {
     }
 }
 
-/// Whether an event message is a container start.
+/// The action to reconcile on, if this event message is one of them.
+///
+/// `start` repairs a load balancer that came back; `die` re-evaluates one that went
+/// away, so the reported connectivity degrades within seconds rather than at the next
+/// scheduled pass. Both run the same pass — it re-reads Docker state either way.
 ///
 /// The daemon filters already narrow this down, but the filters are advisory on
 /// old daemons and cheap to re-check.
-fn is_container_start(event: &bollard_stubs::models::EventMessage) -> bool {
-    event.typ == Some(EventMessageTypeEnum::CONTAINER) && event.action.as_deref() == Some("start")
+fn reconcile_trigger(event: &bollard_stubs::models::EventMessage) -> Option<&str> {
+    if event.typ != Some(EventMessageTypeEnum::CONTAINER) {
+        return None;
+    }
+    match event.action.as_deref() {
+        Some(action @ ("start" | "die")) => Some(action),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -867,6 +897,50 @@ mod tests {
             connectivity_for(&app, None, &HashSet::new(), false),
             LoadBalancerConnectivity::LoadBalancerUnavailable
         );
+    }
+
+    /// A stopped Traefik keeps its `NetworkSettings.Networks`, so the attachment set
+    /// still contains the app's network. Availability, not membership, has to decide
+    /// here — otherwise a dead load balancer reports `Connected` and the indicator
+    /// shows "Routable" for an app that answers nothing.
+    #[test]
+    fn connectivity_ignores_retained_attachments_of_a_stopped_load_balancer() {
+        let app = app("blog", ContainerStatus::Running, true);
+        let attached = HashSet::from(["proxy--blog".to_string()]);
+
+        assert_eq!(
+            connectivity_for(&app, Some("proxy--blog"), &attached, false),
+            LoadBalancerConnectivity::LoadBalancerUnavailable
+        );
+        // Same inputs, load balancer running: this is the only path to Connected.
+        assert_eq!(
+            connectivity_for(&app, Some("proxy--blog"), &attached, true),
+            LoadBalancerConnectivity::Connected
+        );
+    }
+
+    #[test]
+    fn reconcile_triggers_on_start_and_death_only() {
+        let event = |action: &str| bollard_stubs::models::EventMessage {
+            typ: Some(EventMessageTypeEnum::CONTAINER),
+            action: Some(action.to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(reconcile_trigger(&event("start")), Some("start"));
+        // Degradation must trigger a pass too, or a stopped load balancer keeps
+        // reporting whatever was observed before it stopped.
+        assert_eq!(reconcile_trigger(&event("die")), Some("die"));
+        assert_eq!(reconcile_trigger(&event("stop")), None);
+        assert_eq!(reconcile_trigger(&event("health_status")), None);
+
+        // Non-container events never trigger, whatever the action says.
+        let network_event = bollard_stubs::models::EventMessage {
+            typ: Some(EventMessageTypeEnum::NETWORK),
+            action: Some("start".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(reconcile_trigger(&network_event), None);
     }
 
     /// A failure to inspect the Traefik container marks every app at once, so the

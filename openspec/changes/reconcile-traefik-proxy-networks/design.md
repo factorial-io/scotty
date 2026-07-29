@@ -254,6 +254,19 @@ The mirror-image gap is in the event filter. `event=start` accelerates only *rec
 
 *Alternatives considered:* checking `State.Running` in `connectivity_for` instead — rejected, it would have to be threaded through both passes and could drift per caller; the point is that there is exactly one place where "what is Traefik attached to?" is answered. Treating a stopped Traefik as `Disconnected` rather than `LoadBalancerUnavailable` — rejected, it points the operator at the app's network membership when the actual fault is the load balancer, and membership is in fact intact. Subscribing to `health_status` events as well — rejected as scope; an unhealthy-but-running Traefik is a different condition from a stopped one, and the periodic pass still covers it.
 
+### Decision 14: Connectivity covers the load-balancer side only, and says so
+
+`connectivity_for` asks one question — is the load balancer running and joined to `proxy--<app>`? It does not ask whether the *app's* containers are joined to that network. Observed while running task 10.5 and 10.2 on 2026-07-29: both `simple-nginx` and `test-env` reported `Connected` while returning HTTP 502, because Traefik was attached to `proxy--<app>` but the app's own container was still on the legacy shared `proxy` (an override predating per-app networks). The network was half-attached, and the indicator called it connected.
+
+The data to close this is already in hand — `inspect_network(...).containers` is fetched for orphan candidates and would list the app's endpoints. It is nevertheless **not** used for connectivity, and the limitation is written into the spec instead:
+
+- **It is one network read per app per pass, not one per pass.** Today a converged host costs 2 reads total; verifying the app side costs `1 + n` for `n` running apps, on the interval that already inspects every container of every app. The cost is not prohibitive, but it buys a partial answer.
+- **The app side has many more failure modes than membership**, and fixing only the network one moves the goalposts without reaching them. `test-env`'s 502 was a *missing middleware*, not a missing endpoint — network membership was correct by then. An indicator that means "attached on both sides" would still have been green in front of a 502. Chasing genuine reachability means an actual request, i.e. health checking, which is a different feature with its own cadence, timeout, TLS and auth questions.
+- **Reconciliation does not own the app side.** The deploy path attaches the app's containers; the reconciler deliberately never creates networks or touches app containers (Decision 5, and the "never disrupts working routing" requirement). Reporting a fault this module will not repair invites the operator to wait for a self-heal that cannot come.
+- **The overclaim was in the wording, not the value.** `Connected` is a true statement about membership; "reachable" was the word doing the lying. The existing pill tooltip already says "The load balancer is attached to this app's proxy network", which is exactly right.
+
+So the state stays as-is, the spec states plainly what it does and does not assert, and consumers are told not to read it as a reachability guarantee. If genuine reachability is wanted later, the honest shape is an explicit health check with its own state, not a quietly widened definition of this one. The remaining wart is the pill *label* "Routable", which does promise more than the state delivers — tracked as an open question rather than changed here, since renaming it is a UX call.
+
 ## Risks / Trade-offs
 
 - **Mass pruning if `find_apps` returns a short list (I/O error on the apps root, wrong `root_folder` after a config change)** → three independent guards: reconciliation runs only in the `Ok` arm of the app check; only `scotty.managed`-labelled networks are prunable; and a network with any non-Traefik endpoint is never touched, which covers every app whose containers are up. Worst realistic case is removing an empty network belonging to a stopped, undiscovered app — recreated on the next `app:run`.
@@ -278,3 +291,7 @@ The mirror-image gap is in the event filter. `event=start` accelerates only *rec
 - On first start after the upgrade, the startup app check repairs a host that is already broken; orphaned `proxy--*` networks left behind by earlier versions are pruned on the same pass. Thereafter a Traefik recreate is repaired within seconds via the event watcher.
 - Deployment note for the incident host: the manual `docker network connect proxy--<app> traefik` workaround is no longer needed and is idempotent with the reconciler.
 - Rollback: revert the commit. Nothing persists state; membership stops being reconciled and reverts to deploy-time-only behavior, and the `AppData` field disappears (older clients already tolerate its absence).
+
+## Open Questions
+
+- The pill label for the connected state reads "Routable", which promises more than the state asserts (Decision 14). Something like "LB attached" would match the value exactly, at the cost of being less immediately meaningful to a reader who has not internalised the model. The explanatory tooltip is already accurate either way. Left to a UX call.
