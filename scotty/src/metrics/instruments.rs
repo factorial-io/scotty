@@ -64,7 +64,7 @@ pub struct ScottyMetrics {
 
     // Traefik proxy-network reconciliation metrics
     pub traefik_network_drift_apps: Gauge<u64>,
-    pub traefik_unroutable_apps: Gauge<u64>,
+    pub traefik_network_unroutable_apps: Gauge<u64>,
 
     // OAuth session metrics
     pub oauth_device_flow_sessions_active: Gauge<i64>,
@@ -306,8 +306,8 @@ impl ScottyMetrics {
                 )
                 .build(),
 
-            traefik_unroutable_apps: meter
-                .u64_gauge("scotty.traefik.unroutable_apps")
+            traefik_network_unroutable_apps: meter
+                .u64_gauge("scotty.traefik.network.unroutable_apps")
                 .with_description(
                     "Apps with public services still unreachable by the load balancer after a reconciliation pass",
                 )
