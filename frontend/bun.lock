@@ -5,7 +5,7 @@
     "": {
       "name": "frontend",
       "dependencies": {
-        "@iconify-icons/ph": "^1.2.5",
+        "@iconify-icons/ph": "^2.0.0",
         "@iconify/svelte": "^5.2.1",
         "@tailwindcss/typography": "^0.5.19",
         "crypto-js": "^4.2.0",
@@ -74,7 +74,7 @@
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
-    "@iconify-icons/ph": ["@iconify-icons/ph@1.2.5", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-Ox2VkJDoFowrf0e74LlLUuLMiN73PsCN28MUx9wCQfyZAFrL8ntfBnMpzukfi/0vN9qpJKAiKYZ3dQ5JjBqt/A=="],
+    "@iconify-icons/ph": ["@iconify-icons/ph@2.0.0", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-X2bxpVWpMUayUHTIZl5Ue4xk/2JWtyafCLPVXA4i0P0lUk75A4in7rdv4ZfjV2U67mK8yf/L7tRPPlG57pgW8Q=="],
 
     "@iconify/svelte": ["@iconify/svelte@5.2.1", "", { "dependencies": { "@iconify/types": "^2.0.0" }, "peerDependencies": { "svelte": ">5.0.0" } }, "sha512-zHmsIPmnIhGd5gc95bNN5FL+GifwMZv7M2rlZEpa7IXYGFJm/XGHdWf6PWQa6OBoC+R69WyiPO9NAj5wjfjbow=="],
 
