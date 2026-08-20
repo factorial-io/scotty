@@ -37,7 +37,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@iconify-icons/ph": "^1.2.5",
+		"@iconify-icons/ph": "^2.0.0",
 		"@iconify/svelte": "^5.2.1",
 		"@tailwindcss/typography": "^0.5.19",
 		"crypto-js": "^4.2.0"
