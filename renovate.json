@@ -50,7 +50,8 @@
         "opentelemetry_sdk",
         "opentelemetry-otlp",
         "opentelemetry-appender-tracing",
-        "tracing-opentelemetry"
+        "tracing-opentelemetry",
+        "init-tracing-opentelemetry",
       ],
       "groupName": "opentelemetry"
     },
