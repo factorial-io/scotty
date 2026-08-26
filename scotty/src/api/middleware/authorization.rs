@@ -32,13 +32,13 @@ pub async fn authorization_middleware(
     Extension(user): Extension<CurrentUser>,
     mut req: Request,
     next: Next,
-) -> Result<Response, axum::response::Response> {
+) -> Response {
     let auth_service = &state.auth_service;
 
     // Check if authorization has any assignments configured
     if !auth_service.is_enabled().await {
         warn!("Authorization is not properly configured - no assignments found. Denying request for security.");
-        return Err(AppError::AuthorizationNotConfigured.into_response());
+        return AppError::AuthorizationNotConfigured.into_response();
     }
 
     let user_id = AuthorizationService::get_user_id_for_authorization(&user);
@@ -59,7 +59,7 @@ pub async fn authorization_middleware(
 
     req.extensions_mut().insert(auth_context);
 
-    Ok(next.run(req).await)
+    next.run(req).await
 }
 
 /// Future type for the permission middleware
