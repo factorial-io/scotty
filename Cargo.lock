@@ -3137,7 +3137,7 @@ dependencies = [
  "axum",
  "axum-test",
  "axum-tracing-opentelemetry",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bcrypt",
  "bollard",
  "bollard-stubs",
@@ -3204,7 +3204,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bollard",
  "bollard-stubs",
  "cargo-husky",
@@ -3257,7 +3257,7 @@ name = "scottyctl"
 version = "0.3.4"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "clap",
