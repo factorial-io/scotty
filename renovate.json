@@ -41,13 +41,18 @@
       ]
     },
     {
-      "groupName": "opentelemetry packages",
+      "description": "Group OpenTelemetry crates so they bump together (opentelemetry + sdk + otlp + appender + tracing-opentelemetry release in lockstep and depend on matching versions of each other)",
+      "matchManagers": [
+        "cargo"
+      ],
       "matchPackageNames": [
-        "/^opentelemetry[-_]?/",
-        "/^tracing-opentelemetry$/",
-        "/^init-tracing-opentelemetry$/",
-        "/^axum-tracing-opentelemetry$/"
-      ]
+        "opentelemetry",
+        "opentelemetry_sdk",
+        "opentelemetry-otlp",
+        "opentelemetry-appender-tracing",
+        "tracing-opentelemetry"
+      ],
+      "groupName": "opentelemetry"
     },
     {
       "groupName": "gRPC-related packages",
