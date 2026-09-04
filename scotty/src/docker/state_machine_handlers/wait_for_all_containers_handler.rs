@@ -2,7 +2,7 @@ use super::context::Context;
 use crate::docker::helper::wait_for_containers_ready;
 use crate::state_machine::StateHandler;
 use anyhow::Context as _;
-use scotty_core::websocket::message::WebSocketMessage;
+use scotty_core::output::OutputStreamType;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, instrument, warn};
@@ -30,12 +30,12 @@ where
 {
     #[instrument(skip(context))]
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        let (app_state, app_data, task_clone) = {
+        let (app_state, app_data, writer) = {
             let ctx = context.read().await;
             (
                 ctx.app_state.clone(),
                 ctx.app_data.clone(),
-                ctx.task.clone(),
+                ctx.task.writer().clone(),
             )
         };
 
@@ -55,24 +55,14 @@ where
 
         debug!("Found {} containers to wait for", container_ids.len());
 
-        // Add progress message to task output for client visibility
-        let task_id = task_clone.read().await.id;
-        app_state
-            .task_manager
-            .add_task_progress(
-                &task_id,
+        writer
+            .output(
+                OutputStreamType::Progress,
                 format!("Waiting for {} containers to be ready", container_ids.len()),
             )
             .await;
 
         info!("Waiting for containers to be ready: {:?}", container_ids);
-
-        app_state
-            .messenger
-            .broadcast_to_all(WebSocketMessage::TaskInfoUpdated(
-                task_clone.read().await.clone(),
-            ))
-            .await;
 
         // Wait for all containers to reach a non-starting state
         let container_states =
@@ -80,21 +70,10 @@ where
                 .await
                 .context("Failed to wait for containers to be ready")?;
 
-        // Add completion status message to task output for client visibility
-        app_state
-            .task_manager
-            .add_task_status(&task_id, "All containers are ready".to_string())
-            .await;
+        writer.status("All containers are ready").await;
 
         info!("All containers have reached a ready state");
         debug!("Container states: {:?}", container_states);
-
-        app_state
-            .messenger
-            .broadcast_to_all(WebSocketMessage::TaskInfoUpdated(
-                task_clone.read().await.clone(),
-            ))
-            .await;
 
         // Return the next state
         Ok(self.next_state.clone())

@@ -13,7 +13,7 @@ use scotty_core::notification_types::Message;
 use scotty_core::notification_types::MessageType;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_sm;
+use super::helper::{join_outcome, run_sm};
 use super::purge_app::purge_app_prepare;
 use super::purge_app::PurgeAppMethod;
 use super::state_machine_handlers::context::Context;
@@ -37,14 +37,11 @@ impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<Des
         // TeardownAppNetworkHandler. That is why destroy has no explicit network
         // teardown state of its own: the per-app proxy network is removed here,
         // via the nested purge state machine.
-        let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down).await?;
+        let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down, true).await?;
         let handle = sm.spawn(context.clone());
 
-        // Gracefully handle both errors and panics from nested state machine
-        handle
-            .await
-            .map_err(|e| anyhow::anyhow!("Docker compose down task panicked: {}", e))?
-            .context("Docker compose down failed")?;
+        // Errors and panics of the nested machine fail this handler.
+        join_outcome(handle.await).context("Docker compose down failed")?;
 
         Ok(self.next_state)
     }

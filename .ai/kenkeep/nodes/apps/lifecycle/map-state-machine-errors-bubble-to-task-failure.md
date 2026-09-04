@@ -1,9 +1,10 @@
 ---
 type: map
-title: State machine handler errors always mark the task Failed
+title: Task state is owned by a per-task actor; errors and panics always mark it Failed
 description: >-
-  App lifecycle state machines propagate handler errors (and panics) up through
-  spawn() so the owning task is always marked Failed instead of hanging forever.
+  One actor per task owns TaskDetails; the state machine Context holds the only
+  TaskHandle, so a dropped, errored or panicked operation is always marked Failed
+  and the terminal transition happens exactly once.
 tags:
   - state-machine
   - tasks
@@ -13,8 +14,15 @@ kk_id: map-state-machine-errors-bubble-to-task-failure
 kk_derived_from: []
 kk_relates_to: []
 kk_depends_on: []
-kk_confidence: medium
+kk_confidence: high
 ---
-The state machine runner's `spawn()` returns a joinable result that propagates handler errors instead of only logging them internally. Callers (including nested state machines used by create/destroy app flows) route through a single shared completion helper (`Context::complete_task()`) so a task is always marked Failed on handler error or panic, and the WebSocket completion broadcast always fires exactly once.
+Each task is owned by one actor (`scotty/src/tasks/actor.rs`): the actor holds the `TaskDetails`, folds `TaskEvent`s from a bounded mailbox, and publishes immutable `Arc<TaskDetails>` snapshots on a `watch` channel. `TaskManager` only stores snapshot receivers. Writers use a cloneable `TaskWriter` (output lines, step started, subprocess exited); the single non-clonable `TaskHandle` lives in the state machine `Context` and is the only thing that can terminate the task.
 
-Any new state-machine handler or nested state machine must let errors propagate through this path rather than swallowing them, otherwise the owning task can be left running indefinitely with no terminal state reported to clients.
+Guarantees that follow from ownership rather than discipline:
+- `Terminate` is applied once; later terminations are logged and ignored, so the completion broadcast and status line happen exactly once.
+- Dropping the `TaskHandle` without terminating (panic, swallowed error, forgotten completion handler) fails the task with "aborted unexpectedly", so nothing can stay `Running` forever. `run_sm` therefore drops the machine's JoinHandle.
+- A subprocess exit (`run_task_and_wait`) only records the exit code; it never changes the task state. Only `TaskCompletionHandler` terminates, after refreshing app data (a failed refresh fails the task with `FailureKind::RefreshFailed`; a missing compose file after destroy is not a failure).
+- Nested machines (`rebuild_app_prepare`/`purge_app_prepare` with `nested: true`) have no completion handler and no error state; they share the parent's context and let errors propagate via `helper::join_outcome`.
+- Output streaming follows the snapshot `watch` and ends only when the snapshot is terminal and every line was sent, so the final status line is never lost.
+
+New handlers write via `ctx.task.writer()` and must not terminate; if a new top-level operation is added it ends with `TaskCompletionHandler::success`/`failure`.

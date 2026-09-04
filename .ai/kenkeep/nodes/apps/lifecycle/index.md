@@ -17,7 +17,7 @@ _None._
 ## Components (what exists)
 - Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) to learn about: File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer. #api #app-create #serialization #file-upload
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) to learn about: Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees. #scotty #apps #vocabulary
-- Open [**State machine handler errors always mark the task Failed**](map-state-machine-errors-bubble-to-task-failure.md) to learn about: App lifecycle state machines propagate handler errors (and panics) up through spawn() so the owning task is always marked Failed instead of hanging forever. #state-machine #tasks #docker
+- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) to learn about: One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once. #state-machine #tasks #docker
 
 ## By topic
 
@@ -64,11 +64,11 @@ _None._
 ### #serialization
 - Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
 ### #state-machine
-- Open [**State machine handler errors always mark the task Failed**](map-state-machine-errors-bubble-to-task-failure.md) — App lifecycle state machines propagate handler errors (and panics) up through spawn() so the owning task is always marked Failed instead of hanging forever.
+- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) — One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once.
 ### #status
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
 ### #tasks
-- Open [**State machine handler errors always mark the task Failed**](map-state-machine-errors-bubble-to-task-failure.md) — App lifecycle state machines propagate handler errors (and panics) up through spawn() so the owning task is always marked Failed instead of hanging forever.
+- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) — One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once.
 ### #vocabulary
 - Open [**An app is any folder in the apps directory containing compose.yml**](../anatomy/map-app-anatomy.md) — Apps are identified by folder name; service hostnames derive from app name + service name unless overridden.
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) — Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees.

@@ -1,35 +1,23 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
-use scotty_core::{tasks::task_details::TaskDetails, utils::secret::SecretHashMap};
-use tokio::sync::RwLock;
+use scotty_core::utils::secret::SecretHashMap;
 use tracing::instrument;
 
-use crate::{app_state::SharedAppState, onepassword::lookup::resolve_environment_variables};
+use crate::{
+    app_state::SharedAppState, onepassword::lookup::resolve_environment_variables,
+    tasks::actor::TaskWriter,
+};
 
-/// Runs a docker-compose command asynchronously as a task
-///
-/// # Arguments
-///
-/// * `shared_app` - The shared application state
-/// * `docker_compose_path` - Path to the docker-compose file
-/// * `command` - The main command to run
-/// * `args` - Additional arguments for the command
-/// * `env` - Environment variables (SecretHashMap) to pass to the command
-/// * `task` - Task details for tracking
-///
-/// # Returns
-///
-/// Task details after execution
+/// Runs a docker-compose command as a step of the task behind `writer`.
+/// Resolves to the process exit code; the task state is left to its owner.
 pub async fn run_task(
     shared_app: &SharedAppState,
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
     env: &SecretHashMap,
-    task: Arc<RwLock<TaskDetails>>,
-) -> anyhow::Result<TaskDetails> {
-    let manager = shared_app.task_manager.clone();
-
+    writer: TaskWriter,
+) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<i32>>> {
     // Resolve environment variables (1Password, substitutions, etc.)
     let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
 
@@ -37,16 +25,10 @@ pub async fn run_task(
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Docker compose path has no parent directory"))?;
 
-    // Expose secrets for process execution
     let exposed_env = resolved_environment.expose_all();
-    let task_id = manager
-        .start_process(parent_dir, command, args, &exposed_env, task.clone())
-        .await;
-
-    manager
-        .get_task_details(&task_id)
-        .await
-        .ok_or_else(|| anyhow::anyhow!("Task not found"))
+    Ok(shared_app
+        .task_manager
+        .start_process(parent_dir, command, args, &exposed_env, writer))
 }
 
 /// Runs a docker-compose command synchronously and returns the output
