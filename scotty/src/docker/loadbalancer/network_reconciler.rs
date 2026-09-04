@@ -35,6 +35,7 @@ use bollard_stubs::query_parameters::{
 use futures_util::StreamExt;
 use scotty_core::apps::app_data::{AppData, LoadBalancerConnectivity};
 use scotty_core::apps::shared_app_list::AppDataVec;
+use scotty_core::utils::slugify::slugify;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -141,6 +142,23 @@ fn classify(
         None if network.managed => NetworkVerdict::OrphanCandidate,
         None => NetworkVerdict::Ignore,
     }
+}
+
+/// Whether the app named by a network's label still has a directory under the
+/// apps root.
+///
+/// Orphan means "no app owns this network", and ownership is a directory on
+/// disk — a stopped app keeps its network too. The pass classifies against a
+/// discovery snapshot that can predate a concurrent create, so this re-checks
+/// the one place create writes to (`<root>/<slug>`), right before the removal.
+/// Networks without an app label were not created by this code and are left to
+/// the label-only classification.
+fn owning_app_dir_exists(root_folder: &str, network: &ProxyNetwork) -> bool {
+    network.app.as_deref().is_some_and(|app| {
+        std::path::Path::new(root_folder)
+            .join(slugify(app))
+            .is_dir()
+    })
 }
 
 /// Whether an orphaned network can be removed.
@@ -504,6 +522,17 @@ async fn prune_orphans(
             continue;
         }
 
+        // The app list is a snapshot from the start of this pass. An app created
+        // since then has a directory on disk and a network in Docker but is in no
+        // list, so re-ask the filesystem before removing anything (GH #893).
+        if owning_app_dir_exists(&app_state.settings.apps.root_folder, network) {
+            debug!(
+                "Skipping orphaned network {}: app directory exists (app created after this pass started)",
+                network.name
+            );
+            continue;
+        }
+
         let inspected = match app_state
             .docker
             .inspect_network(&network.name, None::<InspectNetworkOptions>)
@@ -842,6 +871,92 @@ mod tests {
             ),
             NetworkVerdict::Ignore
         );
+    }
+
+    #[test]
+    fn orphan_with_app_dir_on_disk_is_kept() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("fresh-app")).unwrap();
+        let root = root.path().to_str().unwrap();
+        assert!(owning_app_dir_exists(
+            root,
+            &network("proxy--fresh-app", Some("fresh-app"), true)
+        ));
+        assert!(!owning_app_dir_exists(
+            root,
+            &network("proxy--gone", Some("gone"), true)
+        ));
+        assert!(!owning_app_dir_exists(
+            root,
+            &network("proxy--unlabelled", None, true)
+        ));
+    }
+
+    /// Reproduces GH #893 against a real daemon: the pass's app snapshot was
+    /// taken before a concurrent create, so the app is in no list while its
+    /// labelled network (Traefik not yet attached, no containers) already exists.
+    /// With the app directory on disk the network must survive; without it the
+    /// same call must remove the network, proving the test exercises the prune.
+    #[tokio::test]
+    async fn prune_keeps_network_of_app_created_after_snapshot() {
+        use bollard_stubs::models::NetworkCreateRequest;
+        use bollard_stubs::query_parameters::InspectNetworkOptions;
+
+        let docker = match bollard::Docker::connect_with_local_defaults() {
+            Ok(d) if d.ping().await.is_ok() => d,
+            _ => {
+                eprintln!("Docker not available, skipping");
+                return;
+            }
+        };
+
+        let root = tempfile::tempdir().unwrap();
+        let mut settings = crate::settings::config::Settings::default();
+        settings.apps.root_folder = root.path().to_str().unwrap().to_string();
+        settings.traefik.network = format!("scotty-test-{}", uuid::Uuid::new_v4().simple());
+        let app_state =
+            crate::api::test_utils::create_test_app_state_with_settings(settings, None).await;
+        let target = traefik_target(&app_state.settings).unwrap();
+
+        let app_name = "fresh-app";
+        let network_name = target.network_for(app_name);
+        let create = || async {
+            docker
+                .create_network(NetworkCreateRequest {
+                    name: network_name.clone(),
+                    labels: Some(HashMap::from([
+                        (LABEL_MANAGED.to_string(), "true".to_string()),
+                        (LABEL_APP.to_string(), app_name.to_string()),
+                    ])),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+        };
+        let exists = || async {
+            docker
+                .inspect_network(&network_name, None::<InspectNetworkOptions>)
+                .await
+                .is_ok()
+        };
+        let networks = vec![network(&network_name, Some(app_name), true)];
+        // Stale snapshot: the create started after the scan, so nothing is known.
+        let (empty_nets, empty_running) = (HashMap::new(), HashSet::new());
+
+        // Create in flight: directory exists, network exists, snapshot is stale.
+        std::fs::create_dir(root.path().join(app_name)).unwrap();
+        create().await;
+        prune_orphans(&app_state, &target, &networks, &empty_nets, &empty_running).await;
+        let kept = exists().await;
+
+        // Control: same situation but the app really is gone.
+        std::fs::remove_dir(root.path().join(app_name)).unwrap();
+        prune_orphans(&app_state, &target, &networks, &empty_nets, &empty_running).await;
+        let removed = !exists().await;
+
+        let _ = docker.remove_network(&network_name).await;
+        assert!(kept, "network of an app being created was pruned");
+        assert!(removed, "network of a gone app was not pruned");
     }
 
     #[test]
