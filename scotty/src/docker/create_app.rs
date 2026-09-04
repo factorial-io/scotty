@@ -16,7 +16,7 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_sm;
+use super::helper::{join_outcome, run_sm};
 use super::rebuild_app::rebuild_app_prepare;
 use super::state_machine_handlers::context::Context;
 use super::state_machine_handlers::create_directory_handler::CreateDirectoryHandler;
@@ -41,14 +41,11 @@ impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<Cre
         context: Arc<RwLock<Context>>,
     ) -> anyhow::Result<CreateAppStates> {
         let app_state = &context.read().await.app_state;
-        let sm = rebuild_app_prepare(app_state, &self.app, false).await?;
+        let sm = rebuild_app_prepare(app_state, &self.app, false, true).await?;
         let handle = sm.spawn(context.clone());
 
-        // Gracefully handle both errors and panics from nested state machine
-        handle
-            .await
-            .map_err(|e| anyhow::anyhow!("Docker compose rebuild task panicked: {}", e))?
-            .context("Docker compose rebuild failed")?;
+        // Errors and panics of the nested machine fail this handler.
+        join_outcome(handle.await).context("Docker compose rebuild failed")?;
 
         Ok(self.next_state)
     }

@@ -16,6 +16,8 @@ use scotty_types::State;
 
 /// `identifier:client-a` has the `developer` role in scope `client-a` only.
 const SCOPED_TOKEN: &str = "client-a-secure-token-456";
+/// `identifier:admin` may destroy.
+const ADMIN_TOKEN: &str = "test-bearer-token-123";
 
 #[tokio::test]
 #[ignore]
@@ -73,24 +75,8 @@ async fn scoped_token_can_read_app_it_just_created() {
         .unwrap()
         .to_string();
 
-    // Poll quickly: before the fix the task flipped to Finished after each
-    // subprocess, so the window in which apps/info fails is short.
-    let deadline = Instant::now() + Duration::from_secs(120);
-    loop {
-        let task: scotty_types::TaskDetails = server
-            .get(&format!("/api/v1/authenticated/task/{task_id}"))
-            .authorization_bearer(SCOPED_TOKEN)
-            .await
-            .json();
-        match task.state {
-            State::Finished => break,
-            State::Failed => panic!("create task failed"),
-            State::Running => {
-                assert!(Instant::now() < deadline, "create task did not finish");
-                tokio::time::sleep(Duration::from_millis(20)).await;
-            }
-        }
-    }
+    let created = wait_for_task(&server, &task_id, SCOPED_TOKEN).await;
+    assert_eq!(created.state, State::Finished, "{created:#?}");
 
     let info = server
         .get(&format!("/api/v1/authenticated/apps/info/{app_name}"))
@@ -98,6 +84,58 @@ async fn scoped_token_can_read_app_it_just_created() {
         .await;
 
     assert_eq!(info.status_code(), 200, "{}", info.text());
+
+    // Exactly one completion: the nested rebuild machine must not have
+    // completed the shared task before the create machine did.
+    let task = app_state
+        .task_manager
+        .get_task_details(&uuid::Uuid::parse_str(&task_id).unwrap())
+        .await
+        .unwrap();
+    let completions = task
+        .output
+        .lines
+        .iter()
+        .filter(|l| l.content.contains("Successfully completed operation"))
+        .count();
+    assert_eq!(completions, 1, "{:#?}", task.output.lines);
+
+    // Destroy removes the app directory before its completion handler runs;
+    // that must not turn a successful destroy into a Failed task.
+    let response = server
+        .get(&format!("/api/v1/authenticated/apps/destroy/{app_name}"))
+        .authorization_bearer(ADMIN_TOKEN)
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let task_id = response.json::<serde_json::Value>()["task"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let task = wait_for_task(&server, &task_id, ADMIN_TOKEN).await;
+    assert_eq!(task.state, State::Finished, "{task:#?}");
+    assert!(!root.join(app_name).exists());
+}
+
+/// Poll quickly: before the fix the task flipped to Finished after each
+/// subprocess, so the window in which apps/info fails is short.
+async fn wait_for_task(
+    server: &TestServer,
+    task_id: &str,
+    token: &str,
+) -> scotty_types::TaskDetails {
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        let task: scotty_types::TaskDetails = server
+            .get(&format!("/api/v1/authenticated/task/{task_id}"))
+            .authorization_bearer(token)
+            .await
+            .json();
+        if task.state != State::Running {
+            return task;
+        }
+        assert!(Instant::now() < deadline, "task did not finish");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }
 
 struct Cleanup {
