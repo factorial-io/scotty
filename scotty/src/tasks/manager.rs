@@ -50,26 +50,33 @@ async fn add_output_line(
     add_output_lines(details, vec![(stream_type, line)], task_id).await;
 }
 
-/// Helper function to handle task completion consistently
+/// Record the exit code of one subprocess on its task.
+///
+/// A task usually spans several subprocesses (compose pull, build, up, ...)
+/// driven by a state machine, so a subprocess exit must NOT change the task
+/// state: only the state machine's `TaskCompletionHandler` (via
+/// `Context::complete_task`) terminates a task. Marking it `Finished` here let
+/// clients observe `Finished` after the first subprocess and query the app
+/// before its scopes were synced (#894). A non-zero exit is surfaced through
+/// `last_exit_code`, which `run_task_and_wait` turns into a handler error.
 async fn handle_task_completion(
     details: &Arc<RwLock<TaskDetails>>,
-    _messenger: &WebSocketMessenger,
-    _task_manager: &TaskManager,
     task_id: uuid::Uuid,
     exit_code: Result<i32, anyhow::Error>,
 ) {
-    debug!("Handling task completion for task {}", task_id);
-    let (state, status_code, _reason) = match exit_code {
-        Ok(0) => (State::Finished, Some(0), "completed"),
-        Ok(e) => (State::Failed, Some(e), "failed"),
-        Err(_) => (State::Failed, None, "failed"),
+    let exit_code = match exit_code {
+        Ok(code) => Some(code),
+        Err(e) => {
+            // Spawn/wait failures have no exit code; keep the reason in the output.
+            add_output_line(details, OutputStreamType::Stderr, format!("{e:#}"), task_id).await;
+            None
+        }
     };
-
-    TaskManager::set_task_finished(details, status_code, state.clone()).await;
-
-    // With the new self-contained streaming approach, no cleanup is needed.
-    // Streams detect task completion and terminate naturally.
-    debug!("Task {} completed with status {:?}", task_id, state);
+    details.write().await.last_exit_code = exit_code;
+    debug!(
+        "Subprocess for task {} exited with {:?}",
+        task_id, exit_code
+    );
 }
 
 #[derive(Clone, Debug)]
@@ -207,34 +214,11 @@ impl TaskManager {
         task_state.handle.clone()
     }
 
-    /// Set task state to finished with completion details
-    async fn set_task_finished(
-        details: &Arc<RwLock<TaskDetails>>,
-        exit_code: Option<i32>,
-        state: State,
-    ) {
-        debug!(
-            "TaskManager: Setting task finished for {}",
-            details.read().await.id
-        );
-
-        let start_time = details.read().await.start_time;
-        let mut details_guard = details.write().await;
-
-        let finish_time = chrono::Utc::now();
-        details_guard.last_exit_code = exit_code;
-        details_guard.finish_time = Some(finish_time);
-        details_guard.state = state.clone();
-
-        // Record metrics
-        let duration_secs = finish_time
-            .signed_duration_since(start_time)
-            .num_milliseconds() as f64
-            / 1000.0;
-        let failed = matches!(state, State::Failed);
-        metrics::metrics().record_task_finished(duration_secs, failed);
-    }
-
+    /// Start a subprocess as one step of `details`' task.
+    ///
+    /// Contract: a task started here never reaches `Finished` on its own; the
+    /// owning state machine's `TaskCompletionHandler` must terminate it (see
+    /// `handle_task_completion`). Do not call this outside a state machine.
     pub async fn start_process(
         &self,
         cwd: &Path,
@@ -266,12 +250,13 @@ impl TaskManager {
             debug!("details write lock, setting state to running");
             let mut details = details.write().await;
             details.state = State::Running;
+            // Belongs to the previous subprocess; must not be read as this one's.
+            details.last_exit_code = None;
         }
 
         let handle = {
             let details = details.clone();
             let messenger = self.messenger.clone();
-            let task_manager = self.clone(); // Clone the TaskManager for cleanup
 
             tokio::task::spawn(async move {
                 info!(
@@ -293,7 +278,7 @@ impl TaskManager {
                 )
                 .await;
 
-                handle_task_completion(&details, &messenger, &task_manager, id, exit_result).await;
+                handle_task_completion(&details, id, exit_result).await;
             })
         };
         {
@@ -395,7 +380,7 @@ async fn spawn_process(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .expect("Failed to start command");
+        .map_err(|e| anyhow::anyhow!("failed to start `{cmd}`: {e}"))?;
 
     let stdout = child.stdout.take().expect("Failed to get stdout");
     let stderr = child.stderr.take().expect("Failed to get stderr");
@@ -468,5 +453,56 @@ async fn read_unified_output(
     // Flush any remaining buffered lines when stream ends
     if buffer.has_data() {
         add_output_lines(&details, buffer.flush(), task_id).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::test_utils::create_test_websocket_messenger;
+
+    async fn run(cmd: &str) -> TaskDetails {
+        let manager = TaskManager::new(create_test_websocket_messenger());
+        let details = Arc::new(RwLock::new(TaskDetails::default()));
+        let id = manager
+            .start_process(Path::new("."), cmd, &[], &HashMap::new(), details)
+            .await;
+        let handle = manager.get_task_handle(&id).await.unwrap();
+        while !handle.read().await.is_finished() {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        manager.get_task_details(&id).await.unwrap()
+    }
+
+    /// #894: a subprocess is one step of a task, not its end. Only the state
+    /// machine terminates the task; the exit code is what it reads.
+    #[tokio::test]
+    async fn successful_subprocess_leaves_task_running() {
+        let task = run("true").await;
+        assert_eq!(task.last_exit_code, Some(0));
+        assert_eq!(task.state, State::Running);
+        assert!(task.finish_time.is_none());
+    }
+
+    /// A process that cannot be spawned yields no exit code; run_task_and_wait
+    /// treats `None` as a failure.
+    #[tokio::test]
+    async fn unspawnable_subprocess_clears_exit_code() {
+        let task = run("scotty-test-no-such-command").await;
+        assert_eq!(task.last_exit_code, None);
+        assert_eq!(task.state, State::Running);
+        assert!(task
+            .output
+            .lines
+            .iter()
+            .any(|l| l.content.contains("failed to start")));
+    }
+
+    #[tokio::test]
+    async fn failed_subprocess_only_records_exit_code() {
+        let task = run("false").await;
+        assert_eq!(task.last_exit_code, Some(1));
+        assert_eq!(task.state, State::Running);
+        assert!(task.finish_time.is_none());
     }
 }

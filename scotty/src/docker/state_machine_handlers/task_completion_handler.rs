@@ -73,26 +73,46 @@ where
     #[instrument(skip(self, _from, context))]
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
         // Determine state and message based on completion type
-        let (target_state, status_msg_prefix, use_error_status) = match self.completion_type {
-            CompletionType::Success => (State::Finished, "Successfully completed", false),
-            CompletionType::Failure => (State::Failed, "Operation failed for", true),
+        let (mut target_state, status_msg_prefix) = match self.completion_type {
+            CompletionType::Success => (State::Finished, "Successfully completed"),
+            CompletionType::Failure => (State::Failed, "Operation failed for"),
         };
 
         // Refresh app state to get current Docker container info
-        {
+        let refresh_error = {
             let ctx = context.read().await;
             let docker_compose_path = std::path::PathBuf::from(&ctx.app_data.docker_compose_path);
 
-            let app_data = inspect_app(&ctx.app_state, &docker_compose_path).await?;
-            ctx.app_state.apps.update_app(app_data).await?;
+            // The task must reach a terminal state even if this refresh fails:
+            // nothing else marks it Finished/Failed (see TaskManager), so a `?`
+            // here would leave it Running forever.
+            let refresh = match inspect_app(&ctx.app_state, &docker_compose_path).await {
+                Ok(app_data) => ctx.app_state.apps.update_app(app_data).await.map(|_| ()),
+                Err(e) => Err(e),
+            };
 
             // Use the shared helper - single source of truth for task completion
             let app_name = ctx.app_data.name.clone();
-            let status_msg = format!("{} operation for app '{}'", status_msg_prefix, app_name);
+            let mut status_msg = format!("{} operation for app '{}'", status_msg_prefix, app_name);
+            if let Err(e) = &refresh {
+                target_state = State::Failed;
+                status_msg = format!(
+                    "{} operation for app '{}', but refreshing app data failed: {}",
+                    status_msg_prefix, app_name, e
+                );
+            }
 
-            ctx.complete_task(target_state, status_msg, use_error_status)
-                .await;
-        } // Drop ctx read lock here
+            let is_error = matches!(target_state, State::Failed);
+            ctx.complete_task(target_state, status_msg, is_error).await;
+            refresh.err()
+        }; // Drop ctx read lock here
+
+        // A failed refresh fails the whole operation: propagate so the state
+        // machine (and any parent state machine awaiting it) sees the error,
+        // and so no success notification goes out.
+        if let Some(e) = refresh_error {
+            return Err(e.context("Refreshing app data after task completion failed"));
+        }
 
         // Send notifications in a dedicated thread (for both success and failure)
         if self.notification.is_some() {

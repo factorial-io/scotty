@@ -11,6 +11,7 @@ use scotty_core::{
 use tokio::sync::RwLock;
 
 use crate::app_state::SharedAppState;
+use crate::metrics;
 
 pub struct Context {
     pub app_state: SharedAppState,
@@ -80,7 +81,15 @@ impl Context {
             // Update state
             task_details.state = target_state;
             task_details.output_collection_active = false;
-            task_details.finish_time = Some(chrono::Utc::now());
+            let finish_time = chrono::Utc::now();
+            task_details.finish_time = Some(finish_time);
+
+            let duration_secs = finish_time
+                .signed_duration_since(task_details.start_time)
+                .num_milliseconds() as f64
+                / 1000.0;
+            metrics::metrics()
+                .record_task_finished(duration_secs, matches!(task_details.state, State::Failed));
 
             // Clone for broadcast (released write lock before broadcast)
             task_details.clone()

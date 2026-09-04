@@ -76,32 +76,27 @@ pub async fn run_task_and_wait(
         .await
         .ok_or_else(|| anyhow::anyhow!("Task not found"))?;
 
-    // Add completion status based on exit code
-    if let Some(last_exit_code) = task.last_exit_code {
-        if last_exit_code != 0 {
-            context
-                .app_state
-                .task_manager
-                .add_task_status_error(
-                    &task_id,
-                    format!("Failed: {} (exit code {})", msg, last_exit_code),
-                )
-                .await;
+    // A missing exit code means the process could not be spawned or waited on;
+    // the reason is already in the task output. Treat it as a failure too.
+    if task.last_exit_code != Some(0) {
+        let exit_code = task
+            .last_exit_code
+            .map_or("no exit code".to_string(), |c| format!("exit code {c}"));
+        context
+            .app_state
+            .task_manager
+            .add_task_status_error(&task_id, format!("Failed: {} ({})", msg, exit_code))
+            .await;
 
-            error!(
-                app_name = %context.app_data.name,
-                command = %command,
-                args = ?args,
-                exit_code = last_exit_code,
-                "Task failed: {}", msg
-            );
+        error!(
+            app_name = %context.app_data.name,
+            command = %command,
+            args = ?args,
+            exit_code = %exit_code,
+            "Task failed: {}", msg
+        );
 
-            return Err(anyhow::anyhow!(
-                "{} failed with exit code {}",
-                msg,
-                last_exit_code
-            ));
-        }
+        return Err(anyhow::anyhow!("{} failed with {}", msg, exit_code));
     }
 
     context
