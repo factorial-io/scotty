@@ -40,11 +40,18 @@ pub enum RebuildAppStates {
     Done,
 }
 
+/// Build the rebuild state machine.
+///
+/// `nested` means the machine runs inside another operation (create) that
+/// shares the same task: it then neither terminates the task nor sends a
+/// notification, and errors propagate to the parent instead of being routed
+/// to its own failure state. Only the outermost operation completes a task.
 #[instrument]
 pub async fn rebuild_app_prepare(
     app_state: &SharedAppState,
     app: &AppData,
     recreate_load_balancer_config: bool,
+    nested: bool,
 ) -> anyhow::Result<StateMachine<RebuildAppStates, Context>> {
     info!(
         "Rebuilding app {} at {}",
@@ -60,7 +67,9 @@ pub async fn rebuild_app_prepare(
         },
         RebuildAppStates::Done,
     );
-    sm.set_error_state(RebuildAppStates::SetFailed);
+    if !nested {
+        sm.set_error_state(RebuildAppStates::SetFailed);
+    }
 
     if start_with_recreate {
         sm.add_handler(
@@ -139,20 +148,26 @@ pub async fn rebuild_app_prepare(
     sm.add_handler(
         RebuildAppStates::UpdateAppData,
         Arc::new(UpdateAppDataHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::SetFinished,
+            next_state: if nested {
+                RebuildAppStates::Done
+            } else {
+                RebuildAppStates::SetFinished
+            },
         }),
     );
-    sm.add_handler(
-        RebuildAppStates::SetFinished,
-        Arc::new(TaskCompletionHandler::success(
-            RebuildAppStates::Done,
-            Some(Message::new(MessageType::AppRebuilt, app)),
-        )),
-    );
-    sm.add_handler(
-        RebuildAppStates::SetFailed,
-        Arc::new(TaskCompletionHandler::failure(RebuildAppStates::Done, None)),
-    );
+    if !nested {
+        sm.add_handler(
+            RebuildAppStates::SetFinished,
+            Arc::new(TaskCompletionHandler::success(
+                RebuildAppStates::Done,
+                Some(Message::new(MessageType::AppRebuilt, app)),
+            )),
+        );
+        sm.add_handler(
+            RebuildAppStates::SetFailed,
+            Arc::new(TaskCompletionHandler::failure(RebuildAppStates::Done, None)),
+        );
+    }
     Ok(sm)
 }
 
@@ -164,6 +179,6 @@ pub async fn rebuild_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = rebuild_app_prepare(&app_state, app, true).await?;
+    let sm = rebuild_app_prepare(&app_state, app, true, false).await?;
     run_sm(app_state, app, sm).await
 }

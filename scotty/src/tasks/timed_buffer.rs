@@ -65,11 +65,6 @@ impl<T> TimedBuffer<T> {
         std::mem::take(&mut self.items)
     }
 
-    /// Check if the buffer contains any items
-    pub fn has_data(&self) -> bool {
-        !self.items.is_empty()
-    }
-
     /// Get the number of items currently in the buffer
     #[allow(dead_code)]
     pub fn len(&self) -> usize {
@@ -120,12 +115,12 @@ mod tests {
         let mut buffer = TimedBuffer::new(10, 100);
         assert!(buffer.is_empty());
         assert_eq!(buffer.len(), 0);
-        assert!(!buffer.has_data());
+        assert!(buffer.is_empty());
 
         buffer.push(1);
         buffer.push(2);
         assert!(!buffer.is_empty());
         assert_eq!(buffer.len(), 2);
-        assert!(buffer.has_data());
+        assert!(!buffer.is_empty());
     }
 }

@@ -287,7 +287,9 @@ pub async fn wait_for_task(
                     }
                     State::Failed => {
                         ui.set_status("Task failed", Status::Failed);
-                        if let Some(exit_code) = task.last_exit_code {
+                        // A task can fail without a failing subprocess; do not
+                        // show a misleading "Exit code: 0".
+                        if let Some(exit_code) = task.last_exit_code.filter(|c| *c != 0) {
                             ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
                         }
                     }
@@ -295,10 +297,13 @@ pub async fn wait_for_task(
                 }
 
                 // Return error if task failed
-                if let Some(exit_code) = task.last_exit_code {
-                    if exit_code != 0 {
-                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
-                    }
+                // The server may fail a task without a failing subprocess (e.g. a
+                // panic or a failed app-data refresh), so the state is authoritative.
+                if task.state == State::Failed || task.last_exit_code.is_some_and(|c| c != 0) {
+                    return Err(match task.last_exit_code {
+                        Some(c) if c != 0 => anyhow::anyhow!("Task failed with exit code {}", c),
+                        _ => anyhow::anyhow!("Task failed"),
+                    });
                 }
             } else {
                 // Poll every 500ms
@@ -339,17 +344,22 @@ pub async fn wait_for_task(
                     }
                     State::Failed => {
                         ui.set_status("Task failed", Status::Failed);
-                        if let Some(exit_code) = task.last_exit_code {
+                        // A task can fail without a failing subprocess; do not
+                        // show a misleading "Exit code: 0".
+                        if let Some(exit_code) = task.last_exit_code.filter(|c| *c != 0) {
                             ui.eprintln(format!("Exit code: {}", exit_code).red().to_string());
                         }
                     }
                     State::Running => {} // Should not happen
                 }
 
-                if let Some(exit_code) = task.last_exit_code {
-                    if exit_code != 0 {
-                        return Err(anyhow::anyhow!("Task failed with exit code {}", exit_code));
-                    }
+                // The server may fail a task without a failing subprocess (e.g. a
+                // panic or a failed app-data refresh), so the state is authoritative.
+                if task.state == State::Failed || task.last_exit_code.is_some_and(|c| c != 0) {
+                    return Err(match task.last_exit_code {
+                        Some(c) if c != 0 => anyhow::anyhow!("Task failed with exit code {}", c),
+                        _ => anyhow::anyhow!("Task failed"),
+                    });
                 }
             } else {
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;

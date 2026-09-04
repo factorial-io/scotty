@@ -1,6 +1,6 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:2232d57165271e8cc365380cd4f71d266bbf0187bd4ca1cc489034ac80761a79'
+nodes_hash: 'sha256:754d76b36a1600268ce752761f9ff1cc5c92f0ddb3a1ddbea1c97cb0f6d16200'
 node_count: 83
 ---
 # kenkeep Graph
@@ -305,7 +305,7 @@ Total nodes: 83
 ## map-state-machine-errors-bubble-to-task-failure
 
 - **kind:** map
-- **title:** State machine handler errors always mark the task Failed
+- **title:** Task state is owned by a per-task actor; errors and panics always mark it Failed
 - **path:** apps/lifecycle/map-state-machine-errors-bubble-to-task-failure.md
 - **tags:** state-machine, tasks, docker
 

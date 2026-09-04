@@ -34,15 +34,20 @@ pub enum PurgeAppMethod {
     Down,
     Rm,
 }
+/// Build the purge state machine. See `rebuild_app_prepare` for `nested`:
+/// when run inside destroy, this machine must not complete the shared task.
 #[instrument]
 pub async fn purge_app_prepare(
     app: &AppData,
     purge_method: PurgeAppMethod,
+    nested: bool,
 ) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
     info!("Purging app {} at {}", app.name, &app.docker_compose_path);
 
     let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
-    sm.set_error_state(PurgeAppStates::SetFailed);
+    if !nested {
+        sm.set_error_state(PurgeAppStates::SetFailed);
+    }
 
     let command = match purge_method {
         PurgeAppMethod::Down => vec!["down", "-v", "--rmi", "all"],
@@ -66,20 +71,26 @@ pub async fn purge_app_prepare(
     sm.add_handler(
         PurgeAppStates::UpdateAppData,
         Arc::new(UpdateAppDataHandler::<PurgeAppStates> {
-            next_state: PurgeAppStates::SetFinished,
+            next_state: if nested {
+                PurgeAppStates::Done
+            } else {
+                PurgeAppStates::SetFinished
+            },
         }),
     );
-    sm.add_handler(
-        PurgeAppStates::SetFinished,
-        Arc::new(TaskCompletionHandler::success(
-            PurgeAppStates::Done,
-            Some(Message::new(MessageType::AppPurged, app)),
-        )),
-    );
-    sm.add_handler(
-        PurgeAppStates::SetFailed,
-        Arc::new(TaskCompletionHandler::failure(PurgeAppStates::Done, None)),
-    );
+    if !nested {
+        sm.add_handler(
+            PurgeAppStates::SetFinished,
+            Arc::new(TaskCompletionHandler::success(
+                PurgeAppStates::Done,
+                Some(Message::new(MessageType::AppPurged, app)),
+            )),
+        );
+        sm.add_handler(
+            PurgeAppStates::SetFailed,
+            Arc::new(TaskCompletionHandler::failure(PurgeAppStates::Done, None)),
+        );
+    }
     Ok(sm)
 }
 
@@ -91,6 +102,6 @@ pub async fn purge_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = purge_app_prepare(app, PurgeAppMethod::Rm).await?;
+    let sm = purge_app_prepare(app, PurgeAppMethod::Rm, false).await?;
     run_sm(app_state, app, sm).await
 }

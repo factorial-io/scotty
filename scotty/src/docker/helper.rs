@@ -23,33 +23,31 @@ where
         + std::marker::Send
         + std::fmt::Debug,
 {
-    let context = Context::create(app_state, app);
-    {
-        let context = context.write().await;
-        let task = context.task.clone();
-        let task_id = task.read().await.id;
-        context
-            .app_state
-            .task_manager
-            .add_task(&task_id, task.clone(), None)
+    let context = Context::create(app_state, app).await;
+    let running = {
+        let ctx = context.read().await;
+        ctx.task
+            .writer()
+            .status(format!("Starting app '{}'", app.name))
             .await;
+        ctx.as_running_app_context()
+    };
+    // The join handle is not needed: the context owns the task handle, so a
+    // panicking or erroring machine that never reaches its completion handler
+    // fails the task when the context is dropped.
+    let _handle = sm.spawn(context);
+    Ok(running)
+}
 
-        // Add initial status message for the app operation
-        context
-            .app_state
-            .task_manager
-            .add_task_status(&task_id, format!("Starting app '{}'", app.name))
-            .await;
+/// Flatten the result of awaiting a spawned state machine.
+pub fn join_outcome(
+    joined: Result<anyhow::Result<()>, tokio::task::JoinError>,
+) -> anyhow::Result<()> {
+    match joined {
+        Ok(result) => result,
+        Err(join) if join.is_panic() => Err(anyhow!("aborted unexpectedly (internal error)")),
+        Err(join) => Err(anyhow!("was cancelled: {join}")),
     }
-    // TODO(scotty-f1dd): State machine handle is intentionally dropped here to allow immediate
-    // API response. This means we cannot detect panics in the state machine task.
-    // Errors are handled via TaskCompletionHandler, but panics are silently lost.
-    // Future refactoring should support multiple handles in TaskState to track both
-    // the state machine handle and any subprocess handles it spawns.
-    let _handle = sm.spawn(context.clone());
-
-    // Return immediately with the context, task is running in background
-    Ok(context.clone().read().await.as_running_app_context().await)
 }
 
 /// Wait for all containers to reach a non-starting state.
@@ -151,5 +149,118 @@ pub async fn wait_for_containers_ready(
     match result {
         Ok(r) => r,
         Err(_) => Err(anyhow!("Timeout waiting for containers to be ready")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state_machine::StateHandler;
+    use crate::tasks::actor::{FailureKind, Outcome};
+    use scotty_core::tasks::task_details::{State, TaskDetails};
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::sync::RwLock;
+
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+    enum S {
+        Start,
+        Fail,
+        Done,
+    }
+
+    enum Behaviour {
+        Panic,
+        Error,
+        TerminateThenError,
+    }
+
+    struct H(Behaviour);
+
+    #[async_trait::async_trait]
+    impl StateHandler<S, Context> for H {
+        async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
+            match self.0 {
+                Behaviour::Panic => panic!("boom"),
+                Behaviour::Error => anyhow::bail!("step failed"),
+                Behaviour::TerminateThenError => {
+                    context
+                        .read()
+                        .await
+                        .task
+                        .terminate(Outcome::failed(FailureKind::StepFailed, "handler said so"))
+                        .await;
+                    anyhow::bail!("after completion")
+                }
+            }
+        }
+    }
+
+    async fn run(start: Behaviour, on_error: Behaviour) -> TaskDetails {
+        let app_state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let mut sm = StateMachine::new(S::Start, S::Done);
+        sm.set_error_state(S::Fail);
+        sm.add_handler(S::Start, Arc::new(H(start)));
+        sm.add_handler(S::Fail, Arc::new(H(on_error)));
+        let app = AppData {
+            name: "supervised".into(),
+            ..Default::default()
+        };
+        let ctx = run_sm(app_state.clone(), &app, sm).await.unwrap();
+        assert_eq!(ctx.task.state, State::Running);
+
+        let mut rx = app_state
+            .task_manager
+            .subscribe(&ctx.task.id)
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let task = rx.borrow_and_update().clone();
+                if task.state != State::Running {
+                    return (*task).clone();
+                }
+                rx.changed().await.unwrap();
+            }
+        })
+        .await
+        .expect("task never left Running")
+    }
+
+    #[tokio::test]
+    async fn panicking_handler_fails_task() {
+        let task = run(Behaviour::Panic, Behaviour::Error).await;
+        assert_eq!(task.state, State::Failed);
+        assert!(task.finish_time.is_some());
+        assert!(task
+            .output
+            .lines
+            .iter()
+            .any(|l| l.content.contains("aborted unexpectedly")));
+    }
+
+    #[tokio::test]
+    async fn failing_error_handler_still_fails_task() {
+        let task = run(Behaviour::Error, Behaviour::Error).await;
+        assert_eq!(task.state, State::Failed);
+        assert!(task.finish_time.is_some());
+    }
+
+    #[tokio::test]
+    async fn drop_does_not_overwrite_terminal_state() {
+        let task = run(Behaviour::Error, Behaviour::TerminateThenError).await;
+        assert_eq!(task.state, State::Failed);
+        let statuses: Vec<_> = task
+            .output
+            .lines
+            .iter()
+            .filter(|l| l.content.contains("handler said so") || l.content.contains("aborted"))
+            .collect();
+        assert_eq!(statuses.len(), 1, "{statuses:?}");
+        assert!(statuses[0].content.contains("handler said so"));
     }
 }

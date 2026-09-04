@@ -1,10 +1,15 @@
 use std::sync::Arc;
 
-use scotty_core::{notification_types::Message, tasks::task_details::State};
+use anyhow::Context as _;
+use scotty_core::notification_types::Message;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::{docker::find_apps::inspect_app, state_machine::StateHandler};
+use crate::{
+    docker::find_apps::inspect_app,
+    state_machine::StateHandler,
+    tasks::actor::{FailureKind, Outcome},
+};
 
 use super::context::Context;
 
@@ -72,27 +77,53 @@ where
 {
     #[instrument(skip(self, _from, context))]
     async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        // Determine state and message based on completion type
-        let (target_state, status_msg_prefix, use_error_status) = match self.completion_type {
-            CompletionType::Success => (State::Finished, "Successfully completed", false),
-            CompletionType::Failure => (State::Failed, "Operation failed for", true),
+        let ctx = context.read().await;
+        // Already terminated (e.g. the success handler failed its refresh and
+        // routed here): nothing left to do.
+        if ctx.task.is_terminated() {
+            return Ok(self.next_state.clone());
+        }
+        let app_name = ctx.app_data.name.clone();
+
+        // Refresh app state to get current Docker container info. No compose
+        // file means the app was removed (destroy deletes the directory before
+        // completing): nothing to refresh, not a failure.
+        let docker_compose_path = std::path::PathBuf::from(&ctx.app_data.docker_compose_path);
+        let refresh = if !docker_compose_path.exists() {
+            tracing::debug!(
+                "Compose file {} is gone, skipping app data refresh",
+                docker_compose_path.display()
+            );
+            Ok(())
+        } else {
+            match inspect_app(&ctx.app_state, &docker_compose_path).await {
+                Ok(app_data) => ctx.app_state.apps.update_app(app_data).await.map(|_| ()),
+                Err(e) => Err(e),
+            }
         };
 
-        // Refresh app state to get current Docker container info
-        {
-            let ctx = context.read().await;
-            let docker_compose_path = std::path::PathBuf::from(&ctx.app_data.docker_compose_path);
+        let outcome = match (&refresh, self.completion_type) {
+            (Err(e), _) => Outcome::failed(
+                FailureKind::RefreshFailed,
+                format!(
+                    "Operation for app '{app_name}' ended, but refreshing app data failed: {e:#}"
+                ),
+            ),
+            (Ok(()), CompletionType::Success) => Outcome::finished(format!(
+                "Successfully completed operation for app '{app_name}'"
+            )),
+            (Ok(()), CompletionType::Failure) => Outcome::failed(
+                FailureKind::StepFailed,
+                format!("Operation failed for app '{app_name}'"),
+            ),
+        };
+        ctx.task.terminate(outcome).await;
+        drop(ctx);
 
-            let app_data = inspect_app(&ctx.app_state, &docker_compose_path).await?;
-            ctx.app_state.apps.update_app(app_data).await?;
-
-            // Use the shared helper - single source of truth for task completion
-            let app_name = ctx.app_data.name.clone();
-            let status_msg = format!("{} operation for app '{}'", status_msg_prefix, app_name);
-
-            ctx.complete_task(target_state, status_msg, use_error_status)
-                .await;
-        } // Drop ctx read lock here
+        // A failed refresh fails the whole operation: propagate so the state
+        // machine (and any parent awaiting it) sees the error and no success
+        // notification goes out.
+        refresh.context("Refreshing app data after task completion failed")?;
 
         // Send notifications in a dedicated thread (for both success and failure)
         if self.notification.is_some() {
@@ -135,5 +166,93 @@ where
         }
 
         Ok(self.next_state.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scotty_core::apps::app_data::AppData;
+    use scotty_core::tasks::task_details::State;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum S {
+        Done,
+    }
+
+    async fn completed(app: AppData) -> (anyhow::Result<S>, scotty_types::TaskDetails) {
+        let app_state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let context = Context::create(app_state.clone(), &app).await;
+        let result = TaskCompletionHandler::success(S::Done, None)
+            .transition(&S::Done, context.clone())
+            .await;
+
+        let id = context.read().await.task.id();
+        let mut rx = app_state.task_manager.subscribe(&id).await.unwrap();
+        let task = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let task = rx.borrow_and_update().clone();
+                if task.state != State::Running {
+                    return (*task).clone();
+                }
+                rx.changed().await.unwrap();
+            }
+        })
+        .await
+        .expect("task never terminated");
+        (result, task)
+    }
+
+    /// A compose file outside the apps root cannot be inspected; the task
+    /// must still terminate and the error must propagate.
+    #[tokio::test]
+    async fn failed_refresh_still_terminates_task() {
+        let dir = std::env::temp_dir().join(format!("scotty-refresh-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let compose = dir.join("docker-compose.yml");
+        std::fs::write(&compose, "services: {}\n").unwrap();
+
+        let (result, task) = completed(AppData {
+            name: "unrefreshable".into(),
+            docker_compose_path: compose.to_string_lossy().into_owned(),
+            root_directory: dir.to_string_lossy().into_owned(),
+            ..Default::default()
+        })
+        .await;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(result.is_err(), "refresh failure must propagate");
+        assert_eq!(task.state, State::Failed);
+        assert!(task.finish_time.is_some());
+        assert!(task
+            .output
+            .lines
+            .iter()
+            .any(|l| l.content.contains("refreshing app data failed")));
+    }
+
+    /// destroy removes the app directory before completing: a missing compose
+    /// file is not a refresh failure.
+    #[tokio::test]
+    async fn missing_compose_file_completes_successfully() {
+        let (result, task) = completed(AppData {
+            name: "destroyed".into(),
+            docker_compose_path: "/nonexistent/scotty-test/docker-compose.yml".into(),
+            root_directory: "/nonexistent/scotty-test".into(),
+            ..Default::default()
+        })
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(task.state, State::Finished);
+        assert!(task
+            .output
+            .lines
+            .iter()
+            .any(|l| l.content == "Successfully completed operation for app 'destroyed'"));
     }
 }
