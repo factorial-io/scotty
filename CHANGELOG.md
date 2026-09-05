@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0](https://github.com/factorial-io/scotty/compare/v0.3.4...v0.4.0) (2026-09-05)
+
+
+### Features
+
+* **frontend:** show next app-state update instead of last update ([e58ea36](https://github.com/factorial-io/scotty/commit/e58ea3695d1e103e9c6cf9436cda0c5aeedb40da))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @iconify-icons/ph to v2 ([923ec53](https://github.com/factorial-io/scotty/commit/923ec53add8d570f7770e0510474c4ff84c60736))
+* **frontend:** gate app actions per scope and show refused actions ([d9260c8](https://github.com/factorial-io/scotty/commit/d9260c816f997060ade7362ad7db575fff299d76))
+* resolve clippy result_large_err in authorization middleware ([c11a9f6](https://github.com/factorial-io/scotty/commit/c11a9f67d9483e49c22c8a20e2a9b9b64313d7b6))
+* **traefik:** do not prune the proxy network of an app being created ([50cbcf1](https://github.com/factorial-io/scotty/commit/50cbcf13b3d6bf110bca49a3b36046189152a5fc)), closes [#893](https://github.com/factorial-io/scotty/issues/893)
+* **traefik:** do not report stopped apps as unroutable when traefik is missing ([33fe12d](https://github.com/factorial-io/scotty/commit/33fe12d334cc41c12c85483fef4e66213d5be986)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** patch connectivity per app instead of storing stale snapshots ([fe13282](https://github.com/factorial-io/scotty/commit/fe13282fb8ae3177bb60c23003f6a377b94573a3)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** prune orphaned proxy networks traefik was never attached to ([79a5616](https://github.com/factorial-io/scotty/commit/79a5616182ec075d82c6bca55a2a20e4215ee592))
+* **traefik:** reconcile proxy network membership instead of setting it once ([297ff88](https://github.com/factorial-io/scotty/commit/297ff88181d04663e881e956930490f17a9a06c1)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** treat a stopped load balancer as unavailable, not attached ([e2c4a5d](https://github.com/factorial-io/scotty/commit/e2c4a5d67c66911f303523fd4ec3acd90d0e57ef))
+
+
+### Refactor
+
+* **docker:** replace lifecycle state machines with linear operations ([76b7730](https://github.com/factorial-io/scotty/commit/76b77303b619794308d222755706ddc4722380f9))
+* **tasks:** own task state in a per-task actor ([174ad74](https://github.com/factorial-io/scotty/commit/174ad741bb400bf69c1f8956ec1969d81f9f3d63)), closes [#894](https://github.com/factorial-io/scotty/issues/894)
+* **tasks:** own task state in a per-task actor ([bf2b22d](https://github.com/factorial-io/scotty/commit/bf2b22def4686225b75c2b34c0df5a4703d60dac)), closes [#894](https://github.com/factorial-io/scotty/issues/894)
+
+
+### Documentation
+
+* **kenkeep:** correct VictoriaMetrics retention to 7d ([ae2df1d](https://github.com/factorial-io/scotty/commit/ae2df1df72d65c4fdf6d41e30aed1bd3ff1d1dae))
+* **kenkeep:** record app-create wire format and client/server compat rule ([b10b9d4](https://github.com/factorial-io/scotty/commit/b10b9d4c98f4e28eb2811c7ec7aa22dfc1cd5333))
+* **kenkeep:** record app-create wire format and client/server compat rule ([81270be](https://github.com/factorial-io/scotty/commit/81270befa369015a557f146ec5dbaea4015c7a7a))
+* **openspec:** add event-driven reconciliation and connectivity indicator ([87c9b3c](https://github.com/factorial-io/scotty/commit/87c9b3c8d93a77733352e07d59cda1a331533048)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **openspec:** archive next-update-indicator and sync app-refresh-indicator spec ([4c71955](https://github.com/factorial-io/scotty/commit/4c71955c8d71792b00d0b32bce1e30cbb6693d16))
+* **openspec:** archive reconcile-traefik-proxy-networks and sync its spec ([2f16a69](https://github.com/factorial-io/scotty/commit/2f16a69e173b7cab30d5e5f9bf26b7b70edb4159))
+* **openspec:** cover stopped traefik in reconcile-traefik-proxy-networks ([133ce18](https://github.com/factorial-io/scotty/commit/133ce18168cea4c9a0f7b649cb2aa5258380056d))
+* **openspec:** propose frontend-app-permissions-and-errors and frontend-unit-tests ([a6f0dc5](https://github.com/factorial-io/scotty/commit/a6f0dc56465acfa0c3b67bfa8f9fd1d4a1403ecc))
+* **openspec:** propose linear-operations ([752836e](https://github.com/factorial-io/scotty/commit/752836ef3bdf2ceef0a57922aa1df69e4f27638d))
+* **openspec:** propose next-update indicator for app detail ([166b4e2](https://github.com/factorial-io/scotty/commit/166b4e208aa2b490fb5cc89f10b57ff782bceddb))
+* **openspec:** propose reconciling Traefik proxy network membership ([da3e8f2](https://github.com/factorial-io/scotty/commit/da3e8f2cf6f7147997cf889755cb57f00f676e9b)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **openspec:** propose task-actor ([bf2b22d](https://github.com/factorial-io/scotty/commit/bf2b22def4686225b75c2b34c0df5a4703d60dac))
+* **openspec:** scope out dashboard connectivity badge ([5dd2935](https://github.com/factorial-io/scotty/commit/5dd29353b9ab05b2c3c3d61bbbdd74c5f178452d)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+
+
+### Testing
+
+* **frontend:** add Vitest unit tests for stores and lib ([14f9f52](https://github.com/factorial-io/scotty/commit/14f9f521113bfdb307e1e1fa3a703a1f8b10dbff))
+
 ## [0.3.4](https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4) (2026-07-27)
 
 
