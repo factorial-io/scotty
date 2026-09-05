@@ -1,53 +1,106 @@
-use crate::{app_state::SharedAppState, state_machine::StateMachine};
-use anyhow::anyhow;
+use std::future::Future;
+use std::sync::Arc;
+
+use crate::app_state::SharedAppState;
+use crate::docker::find_apps::inspect_app;
+use crate::tasks::actor::{FailureKind, Outcome};
+use anyhow::{anyhow, Context as _};
 use bollard::models::ContainerStateStatusEnum;
 use bollard::query_parameters::InspectContainerOptions;
 use scotty_core::apps::app_data::AppData;
+use scotty_core::notification_types::Message;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use tracing::error;
 
-use super::state_machine_handlers::context::Context;
+use super::steps::context::Context;
 
-pub async fn run_sm<S>(
+/// Run an app operation in the background and own its task.
+///
+/// Creates the [`Context`] (and with it the task), returns the
+/// [`RunningAppContext`] immediately, and spawns `op`. When `op` returns the
+/// app data is refreshed and the task is terminated exactly once: a refresh
+/// error wins over success, a step error fails the task with its cause, and
+/// `notification` is sent only on success. A panic inside `op` is covered by
+/// `TaskHandle::Drop`, which fails the task when the context is dropped.
+pub async fn run_operation<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
-    sm: StateMachine<S, Context>,
+    notification: Option<Message>,
+    op: F,
 ) -> anyhow::Result<RunningAppContext>
 where
-    S: Copy
-        + PartialEq
-        + Eq
-        + std::hash::Hash
-        + 'static
-        + std::marker::Sync
-        + std::marker::Send
-        + std::fmt::Debug,
+    F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
+    Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let context = Context::create(app_state, app).await;
-    let running = {
-        let ctx = context.read().await;
-        ctx.task
-            .writer()
-            .status(format!("Starting app '{}'", app.name))
-            .await;
-        ctx.as_running_app_context()
-    };
-    // The join handle is not needed: the context owns the task handle, so a
-    // panicking or erroring machine that never reaches its completion handler
-    // fails the task when the context is dropped.
-    let _handle = sm.spawn(context);
+    let ctx = Context::create(app_state, app).await;
+    ctx.task
+        .writer()
+        .status(format!("Starting app '{}'", app.name))
+        .await;
+    let running = ctx.as_running_app_context();
+    crate::metrics::spawn_instrumented(async move {
+        let result = op(ctx.clone()).await;
+        finish_operation(&ctx, result, notification).await;
+    });
     Ok(running)
 }
 
-/// Flatten the result of awaiting a spawned state machine.
-pub fn join_outcome(
-    joined: Result<anyhow::Result<()>, tokio::task::JoinError>,
-) -> anyhow::Result<()> {
-    match joined {
-        Ok(result) => result,
-        Err(join) if join.is_panic() => Err(anyhow!("aborted unexpectedly (internal error)")),
-        Err(join) => Err(anyhow!("was cancelled: {join}")),
+/// Refresh app data, terminate the task once, notify on success.
+pub async fn finish_operation(
+    ctx: &Context,
+    result: anyhow::Result<()>,
+    notification: Option<Message>,
+) {
+    let app_name = &ctx.app_data.name;
+    let outcome = match (result, refresh_app_data(ctx).await) {
+        (_, Err(e)) => Outcome::failed(
+            FailureKind::RefreshFailed,
+            format!("Operation for app '{app_name}' ended, but refreshing app data failed: {e:#}"),
+        ),
+        (Err(e), Ok(())) => {
+            error!(app = %app_name, error = %format!("{e:#}"), "Operation failed");
+            Outcome::failed(
+                FailureKind::StepFailed,
+                format!("Operation failed for app '{app_name}': {e:#}"),
+            )
+        }
+        (Ok(()), Ok(())) => Outcome::finished(format!(
+            "Successfully completed operation for app '{app_name}'"
+        )),
+    };
+    let finished = matches!(outcome, Outcome::Finished { .. });
+    ctx.task.terminate(outcome).await;
+
+    if !finished {
+        return;
     }
+    if let (Some(settings), Some(notification)) = (&ctx.app_data.settings, notification) {
+        if let Err(err) =
+            crate::notification::notify::notify(&ctx.app_state, &settings.notify, &notification)
+                .await
+        {
+            error!(app = %app_name, "Failed to send notification: {err:?}");
+        }
+    }
+}
+
+/// Re-inspect the app after an operation. No compose file means the app was
+/// removed (destroy deletes the directory before completing): nothing to
+/// refresh, not a failure.
+async fn refresh_app_data(ctx: &Context) -> anyhow::Result<()> {
+    let docker_compose_path = std::path::PathBuf::from(&ctx.app_data.docker_compose_path);
+    if !docker_compose_path.exists() {
+        tracing::debug!(
+            "Compose file {} is gone, skipping app data refresh",
+            docker_compose_path.display()
+        );
+        return Ok(());
+    }
+    let app_data = inspect_app(&ctx.app_state, &docker_compose_path)
+        .await
+        .context("Refreshing app data after task completion failed")?;
+    ctx.app_state.apps.update_app(app_data).await?;
+    Ok(())
 }
 
 /// Wait for all containers to reach a non-starting state.
@@ -155,69 +208,16 @@ pub async fn wait_for_containers_ready(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state_machine::StateHandler;
-    use crate::tasks::actor::{FailureKind, Outcome};
     use scotty_core::tasks::task_details::{State, TaskDetails};
-    use std::sync::Arc;
     use std::time::Duration;
-    use tokio::sync::RwLock;
 
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-    enum S {
-        Start,
-        Fail,
-        Done,
-    }
-
-    enum Behaviour {
-        Panic,
-        Error,
-        TerminateThenError,
-    }
-
-    struct H(Behaviour);
-
-    #[async_trait::async_trait]
-    impl StateHandler<S, Context> for H {
-        async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-            match self.0 {
-                Behaviour::Panic => panic!("boom"),
-                Behaviour::Error => anyhow::bail!("step failed"),
-                Behaviour::TerminateThenError => {
-                    context
-                        .read()
-                        .await
-                        .task
-                        .terminate(Outcome::failed(FailureKind::StepFailed, "handler said so"))
-                        .await;
-                    anyhow::bail!("after completion")
-                }
-            }
-        }
-    }
-
-    async fn run(start: Behaviour, on_error: Behaviour) -> TaskDetails {
-        let app_state = crate::api::test_utils::create_test_app_state_with_config(
-            "tests/test_bearer_auth",
-            None,
-        )
-        .await;
-        let mut sm = StateMachine::new(S::Start, S::Done);
-        sm.set_error_state(S::Fail);
-        sm.add_handler(S::Start, Arc::new(H(start)));
-        sm.add_handler(S::Fail, Arc::new(H(on_error)));
-        let app = AppData {
-            name: "supervised".into(),
-            ..Default::default()
-        };
-        let ctx = run_sm(app_state.clone(), &app, sm).await.unwrap();
-        assert_eq!(ctx.task.state, State::Running);
-
-        let mut rx = app_state
-            .task_manager
-            .subscribe(&ctx.task.id)
+    async fn test_app_state() -> SharedAppState {
+        crate::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
             .await
-            .unwrap();
+    }
+
+    async fn wait_terminal(app_state: &SharedAppState, id: uuid::Uuid) -> TaskDetails {
+        let mut rx = app_state.task_manager.subscribe(&id).await.unwrap();
         tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 let task = rx.borrow_and_update().clone();
@@ -231,36 +231,105 @@ mod tests {
         .expect("task never left Running")
     }
 
-    #[tokio::test]
-    async fn panicking_handler_fails_task() {
-        let task = run(Behaviour::Panic, Behaviour::Error).await;
-        assert_eq!(task.state, State::Failed);
-        assert!(task.finish_time.is_some());
-        assert!(task
-            .output
+    fn statuses(task: &TaskDetails) -> Vec<String> {
+        task.output
             .lines
             .iter()
-            .any(|l| l.content.contains("aborted unexpectedly")));
+            .map(|l| l.content.clone())
+            .collect()
+    }
+
+    /// An app whose compose file does not exist: refresh is skipped.
+    fn gone_app(name: &str) -> AppData {
+        AppData {
+            name: name.into(),
+            docker_compose_path: "/nonexistent/scotty-test/docker-compose.yml".into(),
+            root_directory: "/nonexistent/scotty-test".into(),
+            ..Default::default()
+        }
+    }
+
+    async fn run<Fut>(
+        app: AppData,
+        op: impl FnOnce(Arc<Context>) -> Fut + Send + 'static,
+    ) -> TaskDetails
+    where
+        Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
+    {
+        let app_state = test_app_state().await;
+        let ctx = run_operation(app_state.clone(), &app, None, op)
+            .await
+            .unwrap();
+        assert_eq!(ctx.task.state, State::Running);
+        wait_terminal(&app_state, ctx.task.id).await
     }
 
     #[tokio::test]
-    async fn failing_error_handler_still_fails_task() {
-        let task = run(Behaviour::Error, Behaviour::Error).await;
-        assert_eq!(task.state, State::Failed);
+    async fn success_ends_finished_with_success_line() {
+        let task = run(gone_app("ok"), |ctx| async move {
+            ctx.task.writer().status("step one").await;
+            Ok(())
+        })
+        .await;
+        assert_eq!(task.state, State::Finished);
         assert!(task.finish_time.is_some());
+        assert_eq!(
+            statuses(&task),
+            [
+                "Starting app 'ok'",
+                "step one",
+                "Successfully completed operation for app 'ok'"
+            ]
+        );
     }
 
     #[tokio::test]
-    async fn drop_does_not_overwrite_terminal_state() {
-        let task = run(Behaviour::Error, Behaviour::TerminateThenError).await;
+    async fn step_error_ends_failed_with_cause() {
+        let task = run(gone_app("broken"), |_| async {
+            anyhow::bail!("step failed")
+        })
+        .await;
         assert_eq!(task.state, State::Failed);
-        let statuses: Vec<_> = task
-            .output
-            .lines
-            .iter()
-            .filter(|l| l.content.contains("handler said so") || l.content.contains("aborted"))
-            .collect();
-        assert_eq!(statuses.len(), 1, "{statuses:?}");
-        assert!(statuses[0].content.contains("handler said so"));
+        assert!(task.finish_time.is_some());
+        let last = statuses(&task).pop().unwrap();
+        assert_eq!(last, "Operation failed for app 'broken': step failed");
+    }
+
+    #[tokio::test]
+    async fn panicking_operation_ends_failed() {
+        let task = run(gone_app("panic"), |_| async { panic!("boom") }).await;
+        assert_eq!(task.state, State::Failed);
+        assert!(statuses(&task)
+            .last()
+            .unwrap()
+            .contains("aborted unexpectedly"));
+    }
+
+    /// A compose file outside the apps root cannot be inspected; the task
+    /// must still terminate and report the refresh failure.
+    #[tokio::test]
+    async fn failed_refresh_ends_failed() {
+        let dir = std::env::temp_dir().join(format!("scotty-refresh-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let compose = dir.join("docker-compose.yml");
+        std::fs::write(&compose, "services: {}\n").unwrap();
+
+        let task = run(
+            AppData {
+                name: "unrefreshable".into(),
+                docker_compose_path: compose.to_string_lossy().into_owned(),
+                root_directory: dir.to_string_lossy().into_owned(),
+                ..Default::default()
+            },
+            |_| async { Ok(()) },
+        )
+        .await;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(task.state, State::Failed);
+        assert!(statuses(&task)
+            .last()
+            .unwrap()
+            .contains("refreshing app data failed"));
     }
 }

@@ -1,174 +1,42 @@
-use std::sync::Arc;
-
 use tracing::{info, instrument};
 
-use super::helper::run_sm;
-use crate::docker::state_machine_handlers::wait_for_all_containers_handler::WaitForAllContainersHandler;
-use crate::{
-    api::error::AppError,
-    app_state::SharedAppState,
-    docker::state_machine_handlers::{
-        context::Context, create_load_balancer_config::CreateLoadBalancerConfig,
-        network_handler::EnsureAppNetworkHandler,
-        run_docker_compose_handler::RunDockerComposeHandler,
-        run_docker_login_handler::RunDockerLoginHandler,
-        run_post_actions_handler::RunPostActionsHandler,
-        task_completion_handler::TaskCompletionHandler,
-        update_app_data_handler::UpdateAppDataHandler,
-    },
-    state_machine::StateMachine,
-};
+use crate::{api::error::AppError, app_state::SharedAppState};
 use scotty_core::apps::app_data::{AppData, AppStatus};
 use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RebuildAppStates {
-    RecreateLoadBalancerConfig,
-    RunDockerLogin,
-    EnsureAppNetwork,
-    RunDockerComposePull,
-    RunDockerComposeBuild,
-    RunDockerComposeStop,
-    RunDockerComposeRun,
-    WaitForAllContainers,
-    RunPostActions,
-    UpdateAppData,
-    SetFinished,
-    SetFailed,
-    Done,
-}
+use super::helper::run_operation;
+use super::steps::compose::{docker_compose, docker_login, update_app_data};
+use super::steps::context::Context;
+use super::steps::load_balancer::create_load_balancer_config;
+use super::steps::network::ensure_app_network;
+use super::steps::post_actions::run_post_actions;
+use super::steps::wait_for_containers::wait_for_all_containers;
 
-/// Build the rebuild state machine.
-///
-/// `nested` means the machine runs inside another operation (create) that
-/// shares the same task: it then neither terminates the task nor sends a
-/// notification, and errors propagate to the parent instead of being routed
-/// to its own failure state. Only the outermost operation completes a task.
-#[instrument]
-pub async fn rebuild_app_prepare(
-    app_state: &SharedAppState,
-    app: &AppData,
+/// Rebuild and restart the app. Also used by create, which passes
+/// `recreate_load_balancer_config = false` because it has just written the
+/// load balancer config itself.
+pub async fn rebuild_steps(
+    ctx: &Context,
     recreate_load_balancer_config: bool,
-    nested: bool,
-) -> anyhow::Result<StateMachine<RebuildAppStates, Context>> {
-    info!(
-        "Rebuilding app {} at {}",
-        app.name, &app.docker_compose_path
-    );
-
-    let start_with_recreate = app.settings.is_some() && recreate_load_balancer_config;
-
-    let mut sm = StateMachine::new(
-        match start_with_recreate {
-            true => RebuildAppStates::RecreateLoadBalancerConfig,
-            false => RebuildAppStates::RunDockerLogin,
-        },
-        RebuildAppStates::Done,
-    );
-    if !nested {
-        sm.set_error_state(RebuildAppStates::SetFailed);
+) -> anyhow::Result<()> {
+    if let (true, Some(settings)) = (recreate_load_balancer_config, &ctx.app_data.settings) {
+        create_load_balancer_config(ctx, settings).await?;
     }
-
-    if start_with_recreate {
-        sm.add_handler(
-            RebuildAppStates::RecreateLoadBalancerConfig,
-            Arc::new(CreateLoadBalancerConfig::<RebuildAppStates> {
-                next_state: RebuildAppStates::RunDockerLogin,
-                load_balancer_type: app_state.settings.load_balancer_type.clone(),
-                settings: app.settings.as_ref().unwrap().clone(),
-            }),
-        );
-    }
-    sm.add_handler(
-        RebuildAppStates::RunDockerLogin,
-        Arc::new(RunDockerLoginHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::EnsureAppNetwork,
-            registry: app.get_registry(),
-        }),
-    );
+    docker_login(ctx).await?;
     // Ensure the per-app network exists before ANY compose subcommand runs:
     // the override declares it as external, and compose can reject commands
     // (e.g. on a freshly adopted app, or after the network was removed) when a
     // declared external network is missing.
-    sm.add_handler(
-        RebuildAppStates::EnsureAppNetwork,
-        Arc::new(EnsureAppNetworkHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposePull,
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::RunDockerComposePull,
-        Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposeBuild,
-            command: ["pull"].iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::RunDockerComposeBuild,
-        Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposeStop,
-            command: ["build"].iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::RunDockerComposeStop,
-        Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunDockerComposeRun,
-            command: ["stop"].iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::RunDockerComposeRun,
-        Arc::new(RunDockerComposeHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::WaitForAllContainers,
-            command: ["up", "-d"].iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::WaitForAllContainers,
-        Arc::new(WaitForAllContainersHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::RunPostActions,
-            timeout_seconds: Some(300),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::RunPostActions,
-        Arc::new(RunPostActionsHandler::<RebuildAppStates> {
-            next_state: RebuildAppStates::UpdateAppData,
-            action: ActionName::PostRebuild,
-            settings: app.settings.clone(),
-        }),
-    );
-    sm.add_handler(
-        RebuildAppStates::UpdateAppData,
-        Arc::new(UpdateAppDataHandler::<RebuildAppStates> {
-            next_state: if nested {
-                RebuildAppStates::Done
-            } else {
-                RebuildAppStates::SetFinished
-            },
-        }),
-    );
-    if !nested {
-        sm.add_handler(
-            RebuildAppStates::SetFinished,
-            Arc::new(TaskCompletionHandler::success(
-                RebuildAppStates::Done,
-                Some(Message::new(MessageType::AppRebuilt, app)),
-            )),
-        );
-        sm.add_handler(
-            RebuildAppStates::SetFailed,
-            Arc::new(TaskCompletionHandler::failure(RebuildAppStates::Done, None)),
-        );
-    }
-    Ok(sm)
+    ensure_app_network(ctx).await?;
+    docker_compose(ctx, &["pull"]).await?;
+    docker_compose(ctx, &["build"]).await?;
+    docker_compose(ctx, &["stop"]).await?;
+    docker_compose(ctx, &["up", "-d"]).await?;
+    wait_for_all_containers(ctx, Some(300)).await?;
+    run_post_actions(ctx, &ActionName::PostRebuild).await?;
+    update_app_data(ctx).await
 }
 
 #[instrument(skip(app_state))]
@@ -179,6 +47,15 @@ pub async fn rebuild_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = rebuild_app_prepare(&app_state, app, true, false).await?;
-    run_sm(app_state, app, sm).await
+    info!(
+        "Rebuilding app {} at {}",
+        app.name, &app.docker_compose_path
+    );
+    run_operation(
+        app_state,
+        app,
+        Some(Message::new(MessageType::AppRebuilt, app)),
+        |ctx| async move { rebuild_steps(&ctx, true).await },
+    )
+    .await
 }

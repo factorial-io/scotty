@@ -1,13 +1,9 @@
-use std::sync::Arc;
-
 use bollard_stubs::models::{
     NetworkConnectRequest, NetworkCreateRequest, NetworkDisconnectRequest,
 };
-use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 
 use crate::docker::loadbalancer::{server_status, traefik_target};
-use crate::state_machine::StateHandler;
 
 use super::context::Context;
 
@@ -24,24 +20,11 @@ fn proxy_network_target(context: &Context) -> Option<(String, String)> {
 /// Traefik container to it. Runs before `docker compose up`, because the
 /// override declares the network as external and Compose fails if it does not
 /// already exist. All operations are idempotent so retries are safe.
-#[derive(Debug)]
-pub struct EnsureAppNetworkHandler<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    pub next_state: S,
-}
-
-#[async_trait::async_trait]
-impl<S> StateHandler<S, Context> for EnsureAppNetworkHandler<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    #[instrument(skip(context))]
-    async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        let context = context.read().await;
-        let Some((network, container)) = proxy_network_target(&context) else {
-            return Ok(self.next_state.clone());
+#[instrument(skip_all, fields(app = %context.app_data.name))]
+pub async fn ensure_app_network(context: &Context) -> anyhow::Result<()> {
+    {
+        let Some((network, container)) = proxy_network_target(context) else {
+            return Ok(());
         };
         let docker = &context.app_state.docker;
 
@@ -101,7 +84,7 @@ where
             Err(e) => return Err(anyhow::Error::from(e)),
         }
 
-        Ok(self.next_state.clone())
+        Ok(())
     }
 }
 
@@ -109,24 +92,11 @@ where
 /// Runs after `docker compose down`/`rm`, because Docker refuses to remove a
 /// network while an endpoint (Traefik) is still attached. All operations are
 /// idempotent and best-effort: teardown never fails the surrounding task.
-#[derive(Debug)]
-pub struct TeardownAppNetworkHandler<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    pub next_state: S,
-}
-
-#[async_trait::async_trait]
-impl<S> StateHandler<S, Context> for TeardownAppNetworkHandler<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    #[instrument(skip(context))]
-    async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        let context = context.read().await;
-        let Some((network, container)) = proxy_network_target(&context) else {
-            return Ok(self.next_state.clone());
+#[instrument(skip_all, fields(app = %context.app_data.name))]
+pub async fn teardown_app_network(context: &Context) -> anyhow::Result<()> {
+    {
+        let Some((network, container)) = proxy_network_target(context) else {
+            return Ok(());
         };
         let docker = &context.app_state.docker;
 
@@ -178,6 +148,6 @@ where
             ),
         }
 
-        Ok(self.next_state.clone())
+        Ok(())
     }
 }

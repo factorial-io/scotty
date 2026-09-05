@@ -1,73 +1,33 @@
-use std::sync::Arc;
-
 use tracing::{info, instrument};
 
-use crate::{
-    api::error::AppError,
-    app_state::SharedAppState,
-    docker::state_machine_handlers::{
-        context::Context, run_docker_compose_handler::RunDockerComposeHandler,
-        task_completion_handler::TaskCompletionHandler,
-        update_app_data_handler::UpdateAppDataHandler,
-    },
-    state_machine::StateMachine,
-};
+use crate::{api::error::AppError, app_state::SharedAppState};
 use scotty_core::apps::app_data::{AppData, AppStatus};
 use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_sm;
+use super::helper::run_operation;
+use super::steps::compose::{docker_compose, update_app_data};
+use super::steps::context::Context;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub(crate) enum StopAppStates {
-    RunDockerCompose,
-    UpdateAppData,
-    SetFinished,
-    SetFailed,
-    Done,
+/// Intentionally no ensure/teardown of the app network here: `compose stop`
+/// neither attaches nor validates networks, and the app's containers stay in
+/// place (and on the per-app network), so the network must NOT be removed. Do
+/// not add network teardown to stop: it would orphan running containers from
+/// their network and break the next `app:run`.
+pub async fn stop_steps(ctx: &Context) -> anyhow::Result<()> {
+    docker_compose(ctx, &["stop"]).await?;
+    update_app_data(ctx).await
 }
-#[allow(private_interfaces)]
-#[instrument]
-pub async fn stop_app_prepare(
-    app: &AppData,
-) -> anyhow::Result<StateMachine<StopAppStates, Context>> {
+
+async fn start_stop(app_state: SharedAppState, app: &AppData) -> anyhow::Result<RunningAppContext> {
     info!("Stopping app {} at {}", app.name, &app.docker_compose_path);
-
-    let mut sm = StateMachine::new(StopAppStates::RunDockerCompose, StopAppStates::Done);
-    sm.set_error_state(StopAppStates::SetFailed);
-
-    // Intentionally no EnsureAppNetwork/TeardownAppNetwork here: `compose stop`
-    // neither attaches nor validates networks, and the app's containers stay in
-    // place (and on the per-app network), so the network must NOT be removed. Do
-    // not add network teardown to stop — it would orphan running containers from
-    // their network and break the next `app:run`.
-    sm.add_handler(
-        StopAppStates::RunDockerCompose,
-        Arc::new(RunDockerComposeHandler::<StopAppStates> {
-            next_state: StopAppStates::UpdateAppData,
-            command: ["stop"].iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        StopAppStates::UpdateAppData,
-        Arc::new(UpdateAppDataHandler::<StopAppStates> {
-            next_state: StopAppStates::SetFinished,
-        }),
-    );
-    sm.add_handler(
-        StopAppStates::SetFinished,
-        Arc::new(TaskCompletionHandler::success(
-            StopAppStates::Done,
-            Some(Message::new(MessageType::AppStopped, app)),
-        )),
-    );
-    sm.add_handler(
-        StopAppStates::SetFailed,
-        Arc::new(TaskCompletionHandler::failure(StopAppStates::Done, None)),
-    );
-
-    Ok(sm)
+    run_operation(
+        app_state,
+        app,
+        Some(Message::new(MessageType::AppStopped, app)),
+        |ctx| async move { stop_steps(&ctx).await },
+    )
+    .await
 }
 
 #[instrument(skip(app_state))]
@@ -78,8 +38,7 @@ pub async fn stop_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = stop_app_prepare(app).await?;
-    run_sm(app_state, app, sm).await
+    start_stop(app_state, app).await
 }
 
 #[instrument(skip(app_state))]
@@ -87,6 +46,5 @@ pub async fn force_stop_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
-    let sm = stop_app_prepare(app).await?;
-    run_sm(app_state, app, sm).await
+    start_stop(app_state, app).await
 }

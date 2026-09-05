@@ -16,7 +16,6 @@ pub mod oauth;
 pub mod onepassword;
 pub mod services;
 pub mod settings;
-pub mod state_machine;
 pub mod static_files;
 pub mod stop_flag;
 pub mod tasks;

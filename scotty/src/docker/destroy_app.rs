@@ -1,133 +1,27 @@
-use std::sync::Arc;
-
 use anyhow::Context as _;
-use tokio::sync::RwLock;
 
 use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
-use crate::state_machine::StateHandler;
-use crate::state_machine::StateMachine;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppStatus;
 use scotty_core::notification_types::Message;
 use scotty_core::notification_types::MessageType;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::{join_outcome, run_sm};
-use super::purge_app::purge_app_prepare;
-use super::purge_app::PurgeAppMethod;
-use super::state_machine_handlers::context::Context;
-use super::state_machine_handlers::remove_directory_handler::RemoveDirectoryHandler;
-use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
-use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
+use super::helper::run_operation;
+use super::purge_app::{purge_steps, PurgeAppMethod};
+use super::steps::context::Context;
+use super::steps::files::remove_directory;
 
-struct RunDockerComposeDownHandler<S> {
-    next_state: S,
-    app: AppData,
-}
-
-#[async_trait::async_trait]
-impl StateHandler<DestroyAppStates, Context> for RunDockerComposeDownHandler<DestroyAppStates> {
-    async fn transition(
-        &self,
-        _from: &DestroyAppStates,
-        context: Arc<RwLock<Context>>,
-    ) -> anyhow::Result<DestroyAppStates> {
-        // Delegates compose-down to purge_app_prepare(Down), which also runs
-        // TeardownAppNetworkHandler. That is why destroy has no explicit network
-        // teardown state of its own: the per-app proxy network is removed here,
-        // via the nested purge state machine.
-        let sm = purge_app_prepare(&self.app, PurgeAppMethod::Down, true).await?;
-        let handle = sm.spawn(context.clone());
-
-        // Errors and panics of the nested machine fail this handler.
-        join_outcome(handle.await).context("Docker compose down failed")?;
-
-        Ok(self.next_state)
-    }
-}
-
-struct RemoveAppDataHandler {
-    app_id: String,
-    next_state: DestroyAppStates,
-}
-
-#[async_trait::async_trait]
-impl StateHandler<DestroyAppStates, Context> for RemoveAppDataHandler {
-    async fn transition(
-        &self,
-        _from: &DestroyAppStates,
-        _context: Arc<RwLock<Context>>,
-    ) -> anyhow::Result<DestroyAppStates> {
-        let app_state = _context.read().await.app_state.clone();
-        app_state.apps.remove_app(&self.app_id).await?;
-
-        Ok(self.next_state)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum DestroyAppStates {
-    RemoveDockerContainers,
-    UpdateAppData,
-    RemoveFilesAndDirectories,
-    RemoveAppData,
-    SetFinished,
-    SetFailed,
-    Done,
-}
-
-async fn destroy_app_prepare(
-    app: &AppData,
-) -> anyhow::Result<StateMachine<DestroyAppStates, Context>> {
-    let mut sm = StateMachine::new(
-        DestroyAppStates::RemoveDockerContainers,
-        DestroyAppStates::Done,
-    );
-    sm.set_error_state(DestroyAppStates::SetFailed);
-
-    sm.add_handler(
-        DestroyAppStates::RemoveDockerContainers,
-        Arc::new(RunDockerComposeDownHandler::<DestroyAppStates> {
-            next_state: DestroyAppStates::UpdateAppData,
-            app: app.clone(),
-        }),
-    );
-
-    sm.add_handler(
-        DestroyAppStates::UpdateAppData,
-        Arc::new(UpdateAppDataHandler::<DestroyAppStates> {
-            next_state: DestroyAppStates::RemoveFilesAndDirectories,
-        }),
-    );
-
-    sm.add_handler(
-        DestroyAppStates::RemoveFilesAndDirectories,
-        Arc::new(RemoveDirectoryHandler::<DestroyAppStates> {
-            next_state: DestroyAppStates::RemoveAppData,
-        }),
-    );
-
-    sm.add_handler(
-        DestroyAppStates::RemoveAppData,
-        Arc::new(RemoveAppDataHandler {
-            next_state: DestroyAppStates::SetFinished,
-            app_id: app.name.clone(),
-        }),
-    );
-
-    sm.add_handler(
-        DestroyAppStates::SetFinished,
-        Arc::new(TaskCompletionHandler::success(
-            DestroyAppStates::Done,
-            Some(Message::new(MessageType::AppDestroyed, app)),
-        )),
-    );
-    sm.add_handler(
-        DestroyAppStates::SetFailed,
-        Arc::new(TaskCompletionHandler::failure(DestroyAppStates::Done, None)),
-    );
-    Ok(sm)
+pub async fn destroy_steps(ctx: &Context) -> anyhow::Result<()> {
+    // Compose down, proxy network teardown and the app data refresh are the
+    // purge steps; that is why destroy has no network teardown of its own.
+    purge_steps(ctx, PurgeAppMethod::Down)
+        .await
+        .context("Docker compose down failed")?;
+    remove_directory(ctx).await?;
+    ctx.app_state.apps.remove_app(&ctx.app_data.name).await?;
+    Ok(())
 }
 
 pub async fn destroy_app(
@@ -137,6 +31,11 @@ pub async fn destroy_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = destroy_app_prepare(app).await?;
-    run_sm(app_state, app, sm).await
+    run_operation(
+        app_state,
+        app,
+        Some(Message::new(MessageType::AppDestroyed, app)),
+        |ctx| async move { destroy_steps(&ctx).await },
+    )
+    .await
 }

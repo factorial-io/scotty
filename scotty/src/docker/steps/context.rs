@@ -4,14 +4,14 @@ use scotty_core::{
     apps::app_data::AppData,
     tasks::{running_app_context::RunningAppContext, task_details::TaskDetails},
 };
-use tokio::sync::{watch, RwLock};
+use tokio::sync::watch;
 
 use crate::{
     app_state::SharedAppState,
     tasks::actor::{Snapshot, TaskHandle},
 };
 
-/// Shared by every handler of one operation, including nested state machines.
+/// Shared by every step of one operation, including nested operations.
 /// The context owns the task: when the last reference goes away (normal end,
 /// error, or panic) without `task.terminate`, the task is failed automatically.
 pub struct Context {
@@ -22,7 +22,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn create(app_state: SharedAppState, app_data: &AppData) -> Arc<RwLock<Self>> {
+    pub async fn create(app_state: SharedAppState, app_data: &AppData) -> Arc<Self> {
         let (task, task_snapshot) = app_state
             .task_manager
             .create_task(TaskDetails {
@@ -30,12 +30,12 @@ impl Context {
                 ..TaskDetails::default()
             })
             .await;
-        Arc::new(RwLock::new(Context {
+        Arc::new(Context {
             app_state,
             task,
             task_snapshot,
             app_data: app_data.clone(),
-        }))
+        })
     }
 
     pub fn task_snapshot(&self) -> Snapshot {

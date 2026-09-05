@@ -1,6 +1,6 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:754d76b36a1600268ce752761f9ff1cc5c92f0ddb3a1ddbea1c97cb0f6d16200'
+nodes_hash: 'sha256:ff733e5b839127afd2aace9266bc19dc31a7b84dd7c345ed9538a175a47ead69'
 node_count: 83
 ---
 # kenkeep Graph
@@ -165,6 +165,13 @@ Total nodes: 83
 - **path:** frontend/map-frontend-src-layout.md
 - **tags:** frontend, structure, sveltekit
 
+## map-lifecycle-operations-linear-run-operation
+
+- **kind:** map
+- **title:** Lifecycle operations are linear async fns; run_operation owns the task
+- **path:** apps/lifecycle/map-lifecycle-operations-linear-run-operation.md
+- **tags:** lifecycle, tasks, docker
+
 ## map-load-balancer-support
 
 - **kind:** map
@@ -301,13 +308,6 @@ Total nodes: 83
 - **title:** scottyctl CLI namespace and behavior
 - **path:** cli/map-scottyctl-cli-structure.md
 - **tags:** cli, scottyctl, map
-
-## map-state-machine-errors-bubble-to-task-failure
-
-- **kind:** map
-- **title:** Task state is owned by a per-task actor; errors and panics always mark it Failed
-- **path:** apps/lifecycle/map-state-machine-errors-bubble-to-task-failure.md
-- **tags:** state-machine, tasks, docker
 
 ## map-traefik-per-app-proxy-network
 

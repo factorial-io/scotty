@@ -1,97 +1,35 @@
-use std::sync::Arc;
-
 use tracing::{info, instrument};
 
-use crate::{
-    api::error::AppError,
-    app_state::SharedAppState,
-    docker::state_machine_handlers::{
-        context::Context, network_handler::TeardownAppNetworkHandler,
-        run_docker_compose_handler::RunDockerComposeHandler,
-        task_completion_handler::TaskCompletionHandler,
-        update_app_data_handler::UpdateAppDataHandler,
-    },
-    state_machine::StateMachine,
-};
+use crate::{api::error::AppError, app_state::SharedAppState};
 use scotty_core::apps::app_data::{AppData, AppStatus};
 use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_sm;
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum PurgeAppStates {
-    RunDockerCompose,
-    TeardownAppNetwork,
-    UpdateAppData,
-    SetFinished,
-    SetFailed,
-    Done,
-}
+use super::helper::run_operation;
+use super::steps::compose::{docker_compose, update_app_data};
+use super::steps::context::Context;
+use super::steps::network::teardown_app_network;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PurgeAppMethod {
     Down,
     Rm,
 }
-/// Build the purge state machine. See `rebuild_app_prepare` for `nested`:
-/// when run inside destroy, this machine must not complete the shared task.
-#[instrument]
-pub async fn purge_app_prepare(
-    app: &AppData,
-    purge_method: PurgeAppMethod,
-    nested: bool,
-) -> anyhow::Result<StateMachine<PurgeAppStates, Context>> {
-    info!("Purging app {} at {}", app.name, &app.docker_compose_path);
 
-    let mut sm = StateMachine::new(PurgeAppStates::RunDockerCompose, PurgeAppStates::Done);
-    if !nested {
-        sm.set_error_state(PurgeAppStates::SetFailed);
+impl PurgeAppMethod {
+    pub fn compose_args(self) -> &'static [&'static str] {
+        match self {
+            PurgeAppMethod::Down => &["down", "-v", "--rmi", "all"],
+            PurgeAppMethod::Rm => &["rm", "-s", "-f"],
+        }
     }
+}
 
-    let command = match purge_method {
-        PurgeAppMethod::Down => vec!["down", "-v", "--rmi", "all"],
-        PurgeAppMethod::Rm => vec!["rm", "-s", "-f"],
-    };
-
-    sm.add_handler(
-        PurgeAppStates::RunDockerCompose,
-        Arc::new(RunDockerComposeHandler::<PurgeAppStates> {
-            next_state: PurgeAppStates::TeardownAppNetwork,
-            command: command.iter().map(|s| s.to_string()).collect(),
-            env: app.get_environment(),
-        }),
-    );
-    sm.add_handler(
-        PurgeAppStates::TeardownAppNetwork,
-        Arc::new(TeardownAppNetworkHandler::<PurgeAppStates> {
-            next_state: PurgeAppStates::UpdateAppData,
-        }),
-    );
-    sm.add_handler(
-        PurgeAppStates::UpdateAppData,
-        Arc::new(UpdateAppDataHandler::<PurgeAppStates> {
-            next_state: if nested {
-                PurgeAppStates::Done
-            } else {
-                PurgeAppStates::SetFinished
-            },
-        }),
-    );
-    if !nested {
-        sm.add_handler(
-            PurgeAppStates::SetFinished,
-            Arc::new(TaskCompletionHandler::success(
-                PurgeAppStates::Done,
-                Some(Message::new(MessageType::AppPurged, app)),
-            )),
-        );
-        sm.add_handler(
-            PurgeAppStates::SetFailed,
-            Arc::new(TaskCompletionHandler::failure(PurgeAppStates::Done, None)),
-        );
-    }
-    Ok(sm)
+/// Remove the app's containers and its proxy network. Also used by destroy.
+pub async fn purge_steps(ctx: &Context, method: PurgeAppMethod) -> anyhow::Result<()> {
+    docker_compose(ctx, method.compose_args()).await?;
+    teardown_app_network(ctx).await?;
+    update_app_data(ctx).await
 }
 
 #[instrument(skip(app_state))]
@@ -102,6 +40,12 @@ pub async fn purge_app(
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
-    let sm = purge_app_prepare(app, PurgeAppMethod::Rm, false).await?;
-    run_sm(app_state, app, sm).await
+    info!("Purging app {} at {}", app.name, &app.docker_compose_path);
+    run_operation(
+        app_state,
+        app,
+        Some(Message::new(MessageType::AppPurged, app)),
+        |ctx| async move { purge_steps(&ctx, PurgeAppMethod::Rm).await },
+    )
+    .await
 }

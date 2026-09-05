@@ -1,14 +1,9 @@
-use std::sync::Arc;
-
 use anyhow::Context as _;
 use scotty_core::utils::slugify::slugify;
-use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
-use crate::state_machine::StateHandler;
-use crate::state_machine::StateMachine;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
 use scotty_core::apps::file_list::{File, FileList};
@@ -16,132 +11,31 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::{join_outcome, run_sm};
-use super::rebuild_app::rebuild_app_prepare;
-use super::state_machine_handlers::context::Context;
-use super::state_machine_handlers::create_directory_handler::CreateDirectoryHandler;
-use super::state_machine_handlers::create_load_balancer_config::CreateLoadBalancerConfig;
-use super::state_machine_handlers::run_post_actions_handler::RunPostActionsHandler;
-use super::state_machine_handlers::save_files_handler::SaveFilesHandler;
-use super::state_machine_handlers::save_settings_handler::SaveSettingsHandler;
-use super::state_machine_handlers::task_completion_handler::TaskCompletionHandler;
-use super::state_machine_handlers::update_app_data_handler::UpdateAppDataHandler;
+use super::helper::run_operation;
+use super::rebuild_app::rebuild_steps;
+use super::steps::compose::update_app_data;
+use super::steps::context::Context;
+use super::steps::files::{create_directory, save_files, save_settings};
+use super::steps::load_balancer::create_load_balancer_config;
+use super::steps::post_actions::run_post_actions;
 use super::validation::validate_docker_compose_content;
 
-struct RunDockerComposeBuildHandler<S> {
-    next_state: S,
-    app: AppData,
-}
-
-#[async_trait::async_trait]
-impl StateHandler<CreateAppStates, Context> for RunDockerComposeBuildHandler<CreateAppStates> {
-    async fn transition(
-        &self,
-        _from: &CreateAppStates,
-        context: Arc<RwLock<Context>>,
-    ) -> anyhow::Result<CreateAppStates> {
-        let app_state = &context.read().await.app_state;
-        let sm = rebuild_app_prepare(app_state, &self.app, false, true).await?;
-        let handle = sm.spawn(context.clone());
-
-        // Errors and panics of the nested machine fail this handler.
-        join_outcome(handle.await).context("Docker compose rebuild failed")?;
-
-        Ok(self.next_state)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum CreateAppStates {
-    CreateDirectory,
-    SaveSettings,
-    SaveFiles,
-    CreateLoadBalancerConfig,
-    RunDockerComposeBuildAndRun,
-    RunPostActions,
-    UpdateAppData,
-    SetFinished,
-    SetFailed,
-    Done,
-}
-
-async fn create_app_prepare(
-    app_state: SharedAppState,
-    app: &AppData,
+pub async fn create_steps(
+    ctx: &Context,
     settings: &AppSettings,
     files: &FileList,
-) -> anyhow::Result<StateMachine<CreateAppStates, Context>> {
-    let mut sm = StateMachine::new(CreateAppStates::CreateDirectory, CreateAppStates::Done);
-    sm.set_error_state(CreateAppStates::SetFailed);
-    sm.add_handler(
-        CreateAppStates::CreateDirectory,
-        Arc::new(CreateDirectoryHandler::<CreateAppStates> {
-            next_state: CreateAppStates::SaveSettings,
-        }),
-    );
-    sm.add_handler(
-        CreateAppStates::SaveSettings,
-        Arc::new(SaveSettingsHandler::<CreateAppStates> {
-            next_state: CreateAppStates::SaveFiles,
-            settings: settings.clone(),
-        }),
-    );
-    sm.add_handler(
-        CreateAppStates::SaveFiles,
-        Arc::new(SaveFilesHandler::<CreateAppStates> {
-            next_state: CreateAppStates::CreateLoadBalancerConfig,
-            files: files.clone(),
-        }),
-    );
-
-    sm.add_handler(
-        CreateAppStates::CreateLoadBalancerConfig,
-        Arc::new(CreateLoadBalancerConfig::<CreateAppStates> {
-            next_state: CreateAppStates::RunDockerComposeBuildAndRun,
-            load_balancer_type: app_state.settings.load_balancer_type.clone(),
-            settings: settings.clone(),
-        }),
-    );
-
-    // Note: the per-app network is ensured by the nested rebuild state machine
-    // (RunDockerComposeBuildHandler delegates to rebuild_app_prepare, which runs
-    // EnsureAppNetworkHandler before any compose command), so create_app does
-    // not ensure it separately.
-    sm.add_handler(
-        CreateAppStates::RunDockerComposeBuildAndRun,
-        Arc::new(RunDockerComposeBuildHandler::<CreateAppStates> {
-            next_state: CreateAppStates::RunPostActions,
-            app: app.clone(),
-        }),
-    );
-
-    sm.add_handler(
-        CreateAppStates::RunPostActions,
-        Arc::new(RunPostActionsHandler::<CreateAppStates> {
-            next_state: CreateAppStates::UpdateAppData,
-            action: ActionName::PostCreate,
-            settings: app.settings.clone(),
-        }),
-    );
-    sm.add_handler(
-        CreateAppStates::UpdateAppData,
-        Arc::new(UpdateAppDataHandler::<CreateAppStates> {
-            next_state: CreateAppStates::SetFinished,
-        }),
-    );
-
-    sm.add_handler(
-        CreateAppStates::SetFinished,
-        Arc::new(TaskCompletionHandler::success(
-            CreateAppStates::Done,
-            Some(Message::new(MessageType::AppCreated, app)),
-        )),
-    );
-    sm.add_handler(
-        CreateAppStates::SetFailed,
-        Arc::new(TaskCompletionHandler::failure(CreateAppStates::Done, None)),
-    );
-    Ok(sm)
+) -> anyhow::Result<()> {
+    create_directory(ctx).await?;
+    save_settings(ctx, settings).await?;
+    save_files(ctx, files).await?;
+    create_load_balancer_config(ctx, settings).await?;
+    // The per-app network is ensured inside rebuild_steps before any compose
+    // command, so create does not ensure it separately.
+    rebuild_steps(ctx, false)
+        .await
+        .context("Docker compose rebuild failed")?;
+    run_post_actions(ctx, &ActionName::PostCreate).await?;
+    update_app_data(ctx).await
 }
 
 async fn validate_app(
@@ -220,7 +114,7 @@ async fn validate_app(
     Ok(docker_compose_file.unwrap().clone())
 }
 
-/// Asynchronously creates a new application by validating input files, preparing application data, and running the creation state machine.
+/// Asynchronously creates a new application by validating input files, preparing application data, and running the creation steps.
 ///
 /// This function validates the provided Docker Compose files and settings, constructs the necessary application directories and metadata, and executes the stepwise creation workflow. Returns a context representing the running application upon successful creation.
 ///
@@ -267,6 +161,14 @@ pub async fn create_app(
         // observed the app's proxy network.
         load_balancer_connectivity: Default::default(),
     };
-    let sm = create_app_prepare(app_state.clone(), &app_data, settings, files).await?;
-    run_sm(app_state, &app_data, sm).await
+    let notification = Message::new(MessageType::AppCreated, &app_data);
+    let settings = settings.clone();
+    let files = files.clone();
+    run_operation(
+        app_state,
+        &app_data,
+        Some(notification),
+        move |ctx| async move { create_steps(&ctx, &settings, &files).await },
+    )
+    .await
 }
