@@ -37,18 +37,18 @@ tokio-metrics = "0.5"
 tracing = { version = "0.1.40", default-features = false, features = ["std", "attributes"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log", "std"] }
 ts-rs = "12.0"
-opentelemetry = { version = "0.31.0", default-features = false, features = ["trace", "metrics"] }
+opentelemetry = { version = "0.32.0", default-features = false, features = ["trace", "metrics"] }
 opentelemetry_sdk = { version = "0.31", default-features = false, features = [
     "rt-tokio",
     "metrics",
 ] }
-tracing-opentelemetry = { version = "0.32", default-features = false }
-init-tracing-opentelemetry = { version = "0.32.1", default-features = false, features = [
+tracing-opentelemetry = { version = "0.33", default-features = false }
+init-tracing-opentelemetry = { version = "0.41.0", default-features = false, features = [
     "otlp",
     "tracing_subscriber_ext",
 ] }
 axum-tracing-opentelemetry = { version = "0.32.1", default-features = false }
-opentelemetry-otlp = { version = "0.31.0", default-features = false, features = ["metrics"] }
+opentelemetry-otlp = { version = "0.32.0", default-features = false, features = ["metrics"] }
 
 utoipa = { version = "5.4", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9.0", default-features = false, features = ["axum"] }
