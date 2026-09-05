@@ -35,9 +35,9 @@ _None._
 - Open [**Pre-push git hook installed via cargo-husky**](map-pre-push-hook-cargo-husky.md) — The project uses a pre-push git hook installed by cargo-husky, set up automatically.
 - Open [**Which files under config/ are committed vs git-ignored**](../configuration/map-config-directory-git-tracking.md) — config/*.example and casbin/model.conf are committed templates; default.yaml, local.yaml, and casbin/policy.yaml hold real values and are meant to stay out of git (policy.yaml only if it has no secrets).
 ### #workflow
+- Open [**Frontend unit tests run with Vitest, colocated as *.test.ts**](../frontend/practice-frontend-unit-tests-vitest.md) — \`bun run test\` runs Vitest through vite.config.ts (jsdom, src/**/*.test.ts); tests sit next to the module, mock $app/* and stores with vi.mock, stub browser APIs with vi.stubGlobal, and set the page URL via a @vitest-environment-options docblock. No component tests yet.
+- Open [**Regenerate frontend TypeScript types after backend Rust type changes**](../frontend/practice-frontend-types-regenerate-after-backend-change.md) — After changing Rust types, run \`cargo run --bin ts-generator\` from the repo root to refresh generated TypeScript in frontend/src/generated/.
 - Open [**Custom actions require approval before execution**](../apps/custom-actions/map-custom-actions-approval-workflow.md) — Actions move Pending -> Approved (or Rejected/Revoked/Expired); only Approved actions can run, gated by 4 dedicated permissions.
-- Open [**Use beans CLI for issue tracking, not ad hoc todo lists**](practice-project-management-beans.md) — Beans is the agentic-first issue tracker; the .beans/ directory is committed; agents should track work via beans.
-- Open [**Primary VCS workflow is jj; never depend on git commit hooks**](practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks.md) — The maintainer drives this repo with jj, so git commit/pre-commit hooks never fire; tooling must work hook-free.
 ### #beans
 - Open [**Use beans CLI for issue tracking, not ad hoc todo lists**](practice-project-management-beans.md) — Beans is the agentic-first issue tracker; the .beans/ directory is committed; agents should track work via beans.
 ### #build
@@ -45,8 +45,8 @@ _None._
 ### #documentation
 - Open [**Contributor setup instructions belong in the root README**](practice-contributor-setup-instructions-belong-in-the-root-readme.md) — Per-clone setup steps go in the root README's Developing/Contributing section, not in subdirectory READMEs.
 ### #frontend
-- Open [**Follow mode is a no-op notice, not an error, on stopped containers**](../apps/logs/map-follow-mode-unavailable-for-stopped-containers.md) — Requesting live log follow on a stopped container returns historical logs plus an informational notice and a clean stream end, not LogsStreamError.
-- Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](../apps/lifecycle/practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
+- Open [**Frontend tooling uses bun, not npm**](../frontend/practice-frontend-uses-bun.md) — Frontend install/dev/build/check run via bun; lint (Prettier + ESLint) must pass before push.
+- Open [**Frontend src/ layout and dev-server proxy targets**](../frontend/map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
 - Open [**Frontend has no API versioning, evolves in lockstep with backend**](../frontend/practice-frontend-backend-tight-coupling.md) — Scotty frontend is tightly coupled to the backend API; no versioning or backwards compatibility is maintained, so breaking API changes are acceptable.
 ### #git-hooks
 - Open [**Primary VCS workflow is jj; never depend on git commit hooks**](practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks.md) — The maintainer drives this repo with jj, so git commit/pre-commit hooks never fire; tooling must work hook-free.
@@ -67,10 +67,11 @@ _None._
 ### #release
 - Open [**Releases are fully automated via release-please**](practice-release-process-automation.md) — Never manually bump versions or edit the changelog; conventional-commit type drives the version bump; merging the standing release PR performs the release.
 ### #testing
+- Open [**Frontend unit tests run with Vitest, colocated as *.test.ts**](../frontend/practice-frontend-unit-tests-vitest.md) — \`bun run test\` runs Vitest through vite.config.ts (jsdom, src/**/*.test.ts); tests sit next to the module, mock $app/* and stores with vi.mock, stub browser APIs with vi.stubGlobal, and set the page URL via a @vitest-environment-options docblock. No component tests yet.
 - Open [**Test placement and tooling conventions**](practice-testing-conventions.md) — Unit tests are colocated with implementation; integration tests live in scotty/tests; axum-test and wiremock are used for HTTP/mocking.
 ### #tooling
-- Open [**Pre-push git hook installed via cargo-husky**](map-pre-push-hook-cargo-husky.md) — The project uses a pre-push git hook installed by cargo-husky, set up automatically.
 - Open [**Frontend tooling uses bun, not npm**](../frontend/practice-frontend-uses-bun.md) — Frontend install/dev/build/check run via bun; lint (Prettier + ESLint) must pass before push.
+- Open [**Pre-push git hook installed via cargo-husky**](map-pre-push-hook-cargo-husky.md) — The project uses a pre-push git hook installed by cargo-husky, set up automatically.
 ### #vcs
 - Open [**Primary VCS workflow is jj; never depend on git commit hooks**](practice-primary-vcs-workflow-is-jj-never-depend-on-git-commit-hooks.md) — The maintainer drives this repo with jj, so git commit/pre-commit hooks never fire; tooling must work hook-free.
 ### #versioning

@@ -109,6 +109,9 @@ jobs:
             - name: Run lint check
               run: bun run lint
               working-directory: frontend
+            - name: Run tests
+              run: bun run test
+              working-directory: frontend
             - name: Run build
               run: bun run build
               working-directory: frontend

@@ -1,11 +1,11 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:ff733e5b839127afd2aace9266bc19dc31a7b84dd7c345ed9538a175a47ead69'
-node_count: 83
+nodes_hash: 'sha256:99712c28eba3a1d91d422b7e8a198171cb59ef854792cc2fc1bdded121f51856'
+node_count: 84
 ---
 # kenkeep Graph
 
-Total nodes: 83
+Total nodes: 84
 
 ## map-app-anatomy
 
@@ -453,6 +453,14 @@ Total nodes: 83
 - **title:** Regenerate frontend TypeScript types after backend Rust type changes
 - **path:** frontend/practice-frontend-types-regenerate-after-backend-change.md
 - **tags:** frontend, types, ts-rs, workflow
+
+## practice-frontend-unit-tests-vitest
+
+- **kind:** practice
+- **title:** Frontend unit tests run with Vitest, colocated as *.test.ts
+- **path:** frontend/practice-frontend-unit-tests-vitest.md
+- **tags:** frontend, testing, vitest, workflow
+- **relates_to:** map-frontend-src-layout, practice-frontend-uses-bun
 
 ## practice-frontend-uses-bun
 
