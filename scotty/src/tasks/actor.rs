@@ -265,11 +265,6 @@ impl TaskHandle {
         &self.writer
     }
 
-    /// Whether `terminate` has been called on this handle.
-    pub fn is_terminated(&self) -> bool {
-        self.terminated.load(Ordering::Acquire)
-    }
-
     /// Terminate the task. Returns `false` if it was already terminated
     /// through this handle; the actor ignores duplicates as well.
     pub async fn terminate(&self, outcome: Outcome) -> bool {

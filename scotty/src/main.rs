@@ -13,7 +13,6 @@ mod oauth;
 mod onepassword;
 mod services;
 mod settings;
-mod state_machine;
 mod static_files;
 mod stop_flag;
 mod tasks;

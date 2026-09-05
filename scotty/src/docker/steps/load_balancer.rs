@@ -1,17 +1,13 @@
-use std::sync::Arc;
-
 use scotty_core::{
     apps::app_data::AppSettings, settings::loadbalancer::LoadBalancerType,
     utils::secret::SecretHashMap,
 };
-use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::{
     docker::loadbalancer::{factory::LoadBalancerFactory, types::DockerComposeConfig},
     onepassword::lookup::resolve_environment_variables,
     settings::config::Settings,
-    state_machine::StateHandler,
 };
 
 use super::context::Context;
@@ -37,16 +33,6 @@ async fn get_service_names_from_compose(
     Ok(service_names)
 }
 
-#[derive(Debug)]
-pub struct CreateLoadBalancerConfig<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    pub next_state: S,
-    pub load_balancer_type: LoadBalancerType,
-    pub settings: AppSettings,
-}
-
 fn get_docker_compose_override(
     load_balancer_type: &LoadBalancerType,
     global_settings: &Settings,
@@ -68,17 +54,16 @@ fn get_docker_compose_override(
     Ok(docker_compose_override)
 }
 
-#[async_trait::async_trait]
-impl<S> StateHandler<S, Context> for CreateLoadBalancerConfig<S>
-where
-    S: Send + Sync + Clone + std::fmt::Debug,
-{
-    async fn transition(&self, _from: &S, context: Arc<RwLock<Context>>) -> anyhow::Result<S> {
-        let context = context.read().await;
+/// Write the load balancer's docker-compose override file for `settings`.
+#[instrument(skip_all, fields(app = %context.app_data.name))]
+pub async fn create_load_balancer_config(
+    context: &Context,
+    settings: &AppSettings,
+) -> anyhow::Result<()> {
+    {
         let root_directory = std::path::PathBuf::from(&context.app_data.root_directory);
         let resolved_environment =
-            resolve_environment_variables(&context.app_state.settings, &self.settings.environment)
-                .await;
+            resolve_environment_variables(&context.app_state.settings, &settings.environment).await;
 
         // Find and read all service names from the compose file
         let compose_path = scotty_core::utils::compose::find_config_file_in_dir(&root_directory)
@@ -93,10 +78,10 @@ where
 
         // Pass SecretHashMap - secrets will be exposed inside get_docker_compose_override
         let docker_compose_override = get_docker_compose_override(
-            &self.load_balancer_type,
+            &context.app_state.settings.load_balancer_type,
             &context.app_state.settings,
             &context.app_data.name,
-            &self.settings,
+            settings,
             &resolved_environment,
             &all_services,
         )?;
@@ -113,7 +98,7 @@ where
         let yaml = serde_norway::to_string(&docker_compose_override)?;
         tokio::fs::write(&override_file, yaml).await?;
 
-        Ok(self.next_state.clone())
+        Ok(())
     }
 }
 

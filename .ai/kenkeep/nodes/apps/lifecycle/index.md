@@ -17,7 +17,7 @@ _None._
 ## Components (what exists)
 - Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) to learn about: File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer. #api #app-create #serialization #file-upload
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) to learn about: Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees. #scotty #apps #vocabulary
-- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) to learn about: One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once. #state-machine #tasks #docker
+- Open [**Lifecycle operations are linear async fns; run_operation owns the task**](map-lifecycle-operations-linear-run-operation.md) to learn about: Each app operation (create, destroy, rebuild, purge, run, stop, custom action) is one async fn sequencing step functions in docker/steps/; helper::run_operation owns the per-task actor handle, so errors and panics always end the task Failed exactly once, and nesting is a plain function call. #lifecycle #tasks #docker
 
 ## By topic
 
@@ -59,16 +59,16 @@ _None._
 - Open [**api.access_token is legacy — only honored in the Casbin fallback path**](../../configuration/practice-access-token-config-removed-use-bearer-tokens.md) — api.access_token still exists but is only used when the Casbin config fails to load, where it grants admin on the default scope; use api.bearer_tokens.
 - Open [**OAuth config has two distinct URLs that must not be confused**](../../auth/oauth/practice-oauth-redirect-url-vs-frontend-base-url.md) — redirect_url is the backend's OAuth callback (must match the OIDC provider's app config); frontend_base_url is the frontend's base URL Scotty redirects users back to.
 - Open [**apps.root_folder must match the host mount path when Scotty runs in Docker**](../../configuration/practice-root-folder-must-match-docker-mount-path.md) — If Scotty runs containerized, the apps root_folder path inside the container must equal the host path, or docker-compose fails to run apps.
+### #lifecycle
+- Open [**Lifecycle operations are linear async fns; run_operation owns the task**](map-lifecycle-operations-linear-run-operation.md) — Each app operation (create, destroy, rebuild, purge, run, stop, custom action) is one async fn sequencing step functions in docker/steps/; helper::run_operation owns the per-task actor handle, so errors and panics always end the task Failed exactly once, and nesting is a plain function call.
 ### #restriction
 - Open [**compose.yml must not expose ports directly or use env-var expansion**](practice-unsupported-compose-features.md) — Scotty marks apps unsupported if compose.yml exposes ports directly or uses environment-variable expansion.
 ### #serialization
 - Open [**App-create file content is a base64 string on the wire**](map-app-create-file-content-is-a-base64-string-on-the-wire.md) — File.content serializes as a base64 string; deserialization also accepts a legacy JSON int array and strips the extra base64 layer.
-### #state-machine
-- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) — One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once.
 ### #status
 - Open [**Running status treats clean one-shot exits as completed, gates URLs per-service**](practice-container-status-one-shot-completion.md) — App status aggregation distinguishes a clean Exited(0) one-shot container from a crash, and the frontend shows a service's URL based on that service's own status rather than the aggregate app status.
 ### #tasks
-- Open [**Task state is owned by a per-task actor; errors and panics always mark it Failed**](map-state-machine-errors-bubble-to-task-failure.md) — One actor per task owns TaskDetails; the state machine Context holds the only TaskHandle, so a dropped, errored or panicked operation is always marked Failed and the terminal transition happens exactly once.
+- Open [**Lifecycle operations are linear async fns; run_operation owns the task**](map-lifecycle-operations-linear-run-operation.md) — Each app operation (create, destroy, rebuild, purge, run, stop, custom action) is one async fn sequencing step functions in docker/steps/; helper::run_operation owns the per-task actor handle, so errors and panics always end the task Failed exactly once, and nesting is a plain function call.
 ### #vocabulary
 - Open [**An app is any folder in the apps directory containing compose.yml**](../anatomy/map-app-anatomy.md) — Apps are identified by folder name; service hostnames derive from app name + service name unless overridden.
 - Open [**Apps are categorized as owned, supported, or unsupported**](map-app-types-owned-supported-unsupported.md) — Scotty validates compose.yml and sorts apps into owned/supported/unsupported, each with different lifecycle guarantees.

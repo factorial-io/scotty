@@ -10,7 +10,7 @@ pub mod run_app;
 pub mod run_app_custom_action;
 pub mod services;
 pub mod setup;
-pub mod state_machine_handlers;
+pub mod steps;
 pub mod stop_app;
 pub mod ttl_checker;
 pub mod validation;
