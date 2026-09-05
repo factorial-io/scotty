@@ -1,11 +1,11 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:99712c28eba3a1d91d422b7e8a198171cb59ef854792cc2fc1bdded121f51856'
-node_count: 84
+nodes_hash: 'sha256:267f63a31d2982fbb3cf1629bce2a8f3945f0793fcc07d9a3e626d2bb5a76449'
+node_count: 85
 ---
 # kenkeep Graph
 
-Total nodes: 84
+Total nodes: 85
 
 ## map-app-anatomy
 
@@ -157,6 +157,14 @@ Total nodes: 84
 - **title:** Follow mode is a no-op notice, not an error, on stopped containers
 - **path:** apps/logs/map-follow-mode-unavailable-for-stopped-containers.md
 - **tags:** logs, docker, websocket, frontend
+
+## map-frontend-per-app-permissions-and-action-errors
+
+- **kind:** map
+- **title:** Frontend gates app actions per scope and shows refused dispatches inline
+- **path:** frontend/map-frontend-per-app-permissions-and-action-errors.md
+- **tags:** frontend, permissions, svelte, errors
+- **relates_to:** map-root-layout-loads-user-permissions-when-the-user-is-logged-in
 
 ## map-frontend-src-layout
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorDialog from '../components/error-dialog.svelte';
 	import '../app.css';
 	import logo from '$lib/assets/scotty.svg';
 	import { publicApiCall, initializeAuth } from '$lib';
@@ -77,6 +78,7 @@
 		<div class="my-4">
 			<slot />
 		</div>
+		<ErrorDialog />
 	</div>
 	<footer class="px-4 pb-4 flex justify-between items-center">
 		<p class="text-sm text-gray-500">

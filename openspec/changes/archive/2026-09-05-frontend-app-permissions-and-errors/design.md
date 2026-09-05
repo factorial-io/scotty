@@ -18,7 +18,7 @@ See proposal.md. The frontend loads the user's scopes with their permissions fro
 
 ### D1: Resolve app scopes client-side from the apps store
 
-`hasPermission(appName, permission)` keeps its signature. It looks the app up in `appsStore` and uses `app.settings?.scopes ?? ['default']`; the permission is granted if any of the user's `ScopeInfo` entries with a matching name lists the permission or `*`. If the app is not in the store yet (detail page opened directly before the list loaded), it falls back to the previous any-scope behavior so the page is not needlessly empty; the server remains authoritative and D3 shows any refusal.
+`hasPermission(app | appName, permission)` accepts the `App` itself or a name. Callers that hold the `App` (detail page `data`, list rows) pass it; a name is looked up in `appsStore`. Either way it uses `app.settings?.scopes ?? ['default']`; the permission is granted if any of the user's `ScopeInfo` entries with a matching name lists the permission or `*`. Only an unknown name falls back to the previous any-scope behavior (`_global`). Passing the `App` matters on the detail page: a direct page load leaves the apps store empty, and the fallback would show buttons the server refuses (observed in manual testing).
 
 Alternative: a new endpoint returning per-app effective permissions. Rejected for now: it adds a round trip per app and duplicates data the client has; revisit if the client-side rule diverges from the server's (e.g. when invalid scopes fall back to `default`, which the client cannot see; that case now surfaces as a displayed 403 instead of a silent one).
 
@@ -26,9 +26,9 @@ Alternative: a new endpoint returning per-app effective permissions. Rejected fo
 
 `hasAdminPermission` and other callers passing `_global` keep the any-scope semantics; the server's middleware uses the same rule for routes without an app in the path.
 
-### D3: Inline error state per dispatch site
+### D3: One global error dialog
 
-Each of the three dispatch sites (detail page, list start/stop button, custom actions dropdown) gets a local `actionError: string | null`, set in a `catch`, cleared on the next click, rendered as a DaisyUI `alert alert-error` (detail page) or an error tooltip (list button, matching the existing failed-task tooltip). `current_action`/`task_id`/`currentAction` are reset in `finally`.
+Each of the three dispatch sites (detail page, list start/stop button, custom actions dropdown) catches and calls `showError(context, err)` from `stores/errorStore.ts`. A single `components/error-dialog.svelte` (native `<dialog>` with DaisyUI `modal`) is mounted in the root layout and opens whenever the store holds a message; closing clears it. Busy state (`current_action`/`task_id`/`currentAction`) is reset in the `catch`. Chosen over per-site inline alerts after manual testing: a modal is harder to miss and avoids three ad-hoc renderings.
 
 Alternative: a global error store and toast component. More code and a new UI pattern for three call sites; not warranted yet.
 

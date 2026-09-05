@@ -1,5 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { authMode, isLoggedIn } from './userStore';
+import { apps } from './appsStore';
+import type { App } from '../types';
 import { authenticatedApiCall } from '$lib';
 
 export type Permission =
@@ -18,15 +20,8 @@ interface ScopeInfo {
 	permissions: string[];
 }
 
-interface AppScopeMapping {
-	[appName: string]: string[]; // app -> scopes it belongs to
-}
-
 // Store for user's scopes and their permissions
 const userScopes = writable<ScopeInfo[]>([]);
-
-// Store for app to scope mappings (we'll need to fetch this)
-const appScopes = writable<AppScopeMapping>({});
 
 // Loading state
 const permissionsLoading = writable<boolean>(false);
@@ -43,16 +38,8 @@ export async function loadUserPermissions(): Promise<void> {
 	permissionsLoadAttempted.set(true);
 
 	try {
-		// Load user scopes with permissions
-		console.log('Loading user permissions from scopes/list endpoint...');
-		const scopesResponse = await authenticatedApiCall('scopes/list');
-		const response = scopesResponse as { scopes: ScopeInfo[] };
-		console.log('Received scopes:', response);
+		const response = (await authenticatedApiCall('scopes/list')) as { scopes: ScopeInfo[] };
 		userScopes.set(response.scopes);
-
-		// For now, we don't have an endpoint that gives us app->scope mappings
-		// Apps are filtered by backend, so we assume user can see apps they have permissions for
-		// This is a simplification - in a full implementation, you'd want this mapping
 	} catch (error) {
 		console.error('Error loading user permissions:', error);
 		userScopes.set([]);
@@ -62,21 +49,27 @@ export async function loadUserPermissions(): Promise<void> {
 }
 
 /**
- * Check if user has a specific permission for an app
- * This is now synchronous and uses cached data
+ * Check if user has a specific permission for an app.
+ *
+ * Grants are resolved from the scopes the app belongs to (apps without
+ * settings live in `default`). Pass the `App` itself where you have it; a
+ * name is looked up in the loaded app list. Unknown names and the `_global`
+ * pseudo-app fall back to "any scope grants it".
  */
-export function hasPermission(appName: string, permission: Permission): boolean {
+export function hasPermission(appOrName: App | string, permission: Permission): boolean {
 	// In development mode, allow everything
-	const currentAuthMode = get(authMode);
-	if (currentAuthMode === 'dev') {
+	if (get(authMode) === 'dev') {
 		return true;
 	}
 
-	const scopes = get(userScopes);
+	let scopes = get(userScopes);
+	const app =
+		typeof appOrName === 'string' ? get(apps).find((a) => a.name === appOrName) : appOrName;
+	if (app) {
+		const appScopes = app.settings?.scopes ?? ['default'];
+		scopes = scopes.filter((scope) => appScopes.includes(scope.name));
+	}
 
-	// Check if user has this permission in any of their scopes
-	// Since we don't have app->scope mapping yet, we check all user scopes
-	// This is permissive - if user has the permission in any scope, they can use it
 	return scopes.some(
 		(scope) => scope.permissions.includes(permission) || scope.permissions.includes('*')
 	);
@@ -93,13 +86,13 @@ export function hasAdminPermission(): boolean {
  * Get all permissions for an app (batch operation)
  */
 export function getAppPermissions(
-	appName: string,
+	app: App | string,
 	permissions: Permission[]
 ): Record<string, boolean> {
 	const results: Record<string, boolean> = {};
 
 	permissions.forEach((permission) => {
-		results[permission] = hasPermission(appName, permission);
+		results[permission] = hasPermission(app, permission);
 	});
 
 	return results;
@@ -140,7 +133,6 @@ export function getUserEffectivePermissions(): Permission[] {
  */
 export function clearPermissionCache(): void {
 	userScopes.set([]);
-	appScopes.set({});
 }
 
 /**

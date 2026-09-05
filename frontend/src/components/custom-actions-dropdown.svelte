@@ -5,6 +5,8 @@
 	import { resolve } from '$app/paths';
 	import { sessionStore } from '../stores/sessionStore';
 
+	import { showError } from '../stores/errorStore';
+
 	export let app: App;
 	export let canManage: boolean = false;
 
@@ -104,6 +106,7 @@
 			}
 		} catch (err) {
 			console.error('Error triggering custom action:', err);
+			showError(`${actionName} failed`, err);
 			currentAction = null;
 		}
 	}

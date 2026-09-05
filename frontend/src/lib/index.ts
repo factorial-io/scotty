@@ -44,13 +44,27 @@ export async function authenticatedApiCall(
 		}
 
 		if (!response.ok) {
-			throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+			throw new Error(await errorMessage(response));
 		}
 
 		return await response.json();
 	} catch (error) {
 		console.error('API call failed:', error);
 		throw error;
+	}
+}
+
+/**
+ * Server errors carry `{ error: true, message }`; prefer that message, fall
+ * back to the HTTP status for non-JSON bodies.
+ */
+async function errorMessage(response: Response): Promise<string> {
+	const fallback = `API call failed: ${response.status} ${response.statusText}`;
+	try {
+		const body = (await response.json()) as { message?: unknown };
+		return typeof body?.message === 'string' && body.message ? body.message : fallback;
+	} catch {
+		return fallback;
 	}
 }
 

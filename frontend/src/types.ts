@@ -41,6 +41,7 @@ export interface AppSettings {
 	basic_auth: [string, string] | null;
 	environment: Map<string, string> | null;
 	middlewares: string[];
+	scopes: string[];
 }
 
 export type LoadBalancerConnectivity =

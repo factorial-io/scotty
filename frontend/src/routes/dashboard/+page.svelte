@@ -90,7 +90,7 @@
 	<tbody>
 		{#each $filteredAndSortedApps as app (app.name)}
 			<tr>
-				<td><StartStopAppAction name={app.name} status={app.status} /></td>
+				<td><StartStopAppAction {app} /></td>
 				<td
 					><a class="link-primary" href={resolve(`/dashboard/${app.name}`)}>{app.name}</a
 					></td

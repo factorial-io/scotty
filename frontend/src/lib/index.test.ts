@@ -48,9 +48,17 @@ describe('authenticatedApiCall', () => {
 		expect(init.headers).toMatchObject({ Authorization: 'Bearer test-token' });
 	});
 
-	it('throws with status and status text on a non-2xx response', async () => {
+	it('throws the server message on a JSON error response', async () => {
 		fetchMock.mockResolvedValue(
-			jsonResponse(403, { error: true, message: 'nope' }, 'Forbidden')
+			jsonResponse(403, { error: true, message: 'Access denied: nope' }, 'Forbidden')
+		);
+
+		await expect(authenticatedApiCall('apps/rebuild/x')).rejects.toThrow('Access denied: nope');
+	});
+
+	it('throws with status and status text when the error body is not JSON', async () => {
+		fetchMock.mockResolvedValue(
+			new Response('<html>', { status: 403, statusText: 'Forbidden' })
 		);
 
 		await expect(authenticatedApiCall('apps/rebuild/x')).rejects.toThrow(

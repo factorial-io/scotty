@@ -21,6 +21,7 @@
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
+	import { showError } from '../../../stores/errorStore';
 	import Pill from '../../../components/pill.svelte';
 	import CustomActionsDropdown from '../../../components/custom-actions-dropdown.svelte';
 
@@ -41,7 +42,7 @@
 	});
 
 	$: permissions = $permissionsLoaded
-		? getAppPermissions(data.name, ['view', 'manage', 'destroy', 'shell', 'logs'])
+		? getAppPermissions(data, ['view', 'manage', 'destroy', 'shell', 'logs'])
 		: { view: false, manage: false, destroy: false, shell: false, logs: false };
 
 	$: isLoadingPermissions = $permissionsLoading || !$permissionsLoaded;
@@ -61,21 +62,6 @@
 		return actions;
 	})();
 
-	// Debug logging
-	$: {
-		console.log('App detail page - Permission state:', {
-			permissionsLoaded: $permissionsLoaded,
-			permissionsLoading: $permissionsLoading,
-			isLoadingPermissions,
-			permissions,
-			'permissions.manage': permissions.manage,
-			'permissions.destroy': permissions.destroy,
-			'data.settings': !!data.settings,
-			availableActions,
-			'availableActions.length': availableActions.length
-		});
-	}
-
 	let current_task: string | null = null;
 	let current_action: string | null = null;
 	let customActionsAvailable: boolean = false;
@@ -92,12 +78,18 @@
 			return;
 		}
 		current_action = action;
-		current_task = await dispatchAppCommand(action.toLowerCase(), data.name);
-		monitorTask(current_task, async () => {
+		try {
+			current_task = await dispatchAppCommand(action.toLowerCase(), data.name);
+			monitorTask(current_task, async () => {
+				current_task = null;
+				current_action = null;
+				data = (await updateAppInfo(data.name)) as App;
+			});
+		} catch (err) {
+			showError(`${action} failed`, err);
 			current_task = null;
 			current_action = null;
-			data = (await updateAppInfo(data.name)) as App;
-		});
+		}
 	}
 
 	function isSupported() {

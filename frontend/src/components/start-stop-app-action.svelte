@@ -7,10 +7,13 @@
 	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
 	import { monitorTask } from '../stores/tasksStore';
 	import { hasPermission, permissionsLoaded } from '../stores/permissionStore';
-	import type { TaskDetail } from '../types';
+	import type { App, TaskDetail } from '../types';
+	import { showError } from '../stores/errorStore';
 
-	export let name = '';
-	export let status = 'Stopped';
+	export let app: App;
+
+	$: name = app.name;
+	$: status = app.status;
 
 	let task_id: string = '';
 	let failed_task: TaskDetail | null = null;
@@ -19,7 +22,7 @@
 		return status !== 'Unsupported';
 	}
 
-	$: canManage = $permissionsLoaded ? hasPermission(name, 'manage') : false;
+	$: canManage = $permissionsLoaded ? hasPermission(app, 'manage') : false;
 	$: currentIcon = status === 'Running' ? stop : !isSupported() ? unsupported : play;
 	$: isDisabled = !isSupported() || !canManage;
 
@@ -27,7 +30,13 @@
 		if (!isSupported() || !canManage) return;
 		failed_task = null;
 		if (task_id !== '') return;
-		task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
+		try {
+			task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
+		} catch (err) {
+			showError(`${status === 'Running' ? 'Stop' : 'Run'} failed`, err);
+			task_id = '';
+			return;
+		}
 		monitorTask(task_id, (result) => {
 			if (result.state === 'Failed') {
 				failed_task = result;

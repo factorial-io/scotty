@@ -18,13 +18,21 @@ _None._
 ## Components (what exists)
 - Open [**Frontend src/ layout and dev-server proxy targets**](map-frontend-src-layout.md) to learn about: Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend. #frontend #structure #sveltekit
 - Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) to learn about: frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded. #frontend #permissions #svelte
+- Open [**Frontend gates app actions per scope and shows refused dispatches inline**](map-frontend-per-app-permissions-and-action-errors.md) to learn about: hasPermission(appName, perm) resolves the app's scopes from appsStore (settings.scopes, default \['default'\]) and grants only from matching user scopes; unknown apps and \`_global\` keep any-scope semantics. Failed action dispatches surface the server's \`{error, message}\` text inline (alert on the detail page, error tooltip on the list button) instead of dying silently. #frontend #permissions #svelte #errors
 
 ## By topic
 
 ### #frontend
-- Open [**Frontend tooling uses bun, not npm**](practice-frontend-uses-bun.md) — Frontend install/dev/build/check run via bun; lint (Prettier + ESLint) must pass before push.
+- Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) — frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded.
+- Open [**Frontend gates app actions per scope and shows refused dispatches inline**](map-frontend-per-app-permissions-and-action-errors.md) — hasPermission(appName, perm) resolves the app's scopes from appsStore (settings.scopes, default \['default'\]) and grants only from matching user scopes; unknown apps and \`_global\` keep any-scope semantics. Failed action dispatches surface the server's \`{error, message}\` text inline (alert on the detail page, error tooltip on the list button) instead of dying silently.
 - Open [**Frontend src/ layout and dev-server proxy targets**](map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
-- Open [**Frontend has no API versioning, evolves in lockstep with backend**](practice-frontend-backend-tight-coupling.md) — Scotty frontend is tightly coupled to the backend API; no versioning or backwards compatibility is maintained, so breaking API changes are acceptable.
+### #permissions
+- Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) — frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded.
+- Open [**Frontend gates app actions per scope and shows refused dispatches inline**](map-frontend-per-app-permissions-and-action-errors.md) — hasPermission(appName, perm) resolves the app's scopes from appsStore (settings.scopes, default \['default'\]) and grants only from matching user scopes; unknown apps and \`_global\` keep any-scope semantics. Failed action dispatches surface the server's \`{error, message}\` text inline (alert on the detail page, error tooltip on the list button) instead of dying silently.
+- Open [**app:cp permission split and transfer size limit**](../cli/map-cli-app-cp-permission-and-size-limit.md) — app:cp downloads need view permission, uploads need manage; transfers capped by SCOTTY__FILES__MAX_TRANSFER_SIZE (default 1GiB).
+### #svelte
+- Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) — frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded.
+- Open [**Frontend gates app actions per scope and shows refused dispatches inline**](map-frontend-per-app-permissions-and-action-errors.md) — hasPermission(appName, perm) resolves the app's scopes from appsStore (settings.scopes, default \['default'\]) and grants only from matching user scopes; unknown apps and \`_global\` keep any-scope semantics. Failed action dispatches surface the server's \`{error, message}\` text inline (alert on the detail page, error tooltip on the list button) instead of dying silently.
 ### #workflow
 - Open [**Frontend unit tests run with Vitest, colocated as *.test.ts**](practice-frontend-unit-tests-vitest.md) — \`bun run test\` runs Vitest through vite.config.ts (jsdom, src/**/*.test.ts); tests sit next to the module, mock $app/* and stores with vi.mock, stub browser APIs with vi.stubGlobal, and set the page URL via a @vitest-environment-options docblock. No component tests yet.
 - Open [**Regenerate frontend TypeScript types after backend Rust type changes**](practice-frontend-types-regenerate-after-backend-change.md) — After changing Rust types, run \`cargo run --bin ts-generator\` from the repo root to refresh generated TypeScript in frontend/src/generated/.
@@ -39,14 +47,11 @@ _None._
 - Open [**Scotty server key modules and their locations**](../architecture/map-scotty-server-module-map.md) — Map of scotty/src/ modules (api, docker, oauth, onepassword, tasks, notification, metrics) to responsibilities.
 ### #bun
 - Open [**Frontend tooling uses bun, not npm**](practice-frontend-uses-bun.md) — Frontend install/dev/build/check run via bun; lint (Prettier + ESLint) must pass before push.
-### #permissions
-- Open [**app:cp permission split and transfer size limit**](../cli/map-cli-app-cp-permission-and-size-limit.md) — app:cp downloads need view permission, uploads need manage; transfers capped by SCOTTY__FILES__MAX_TRANSFER_SIZE (default 1GiB).
-- Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) — frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded.
+### #errors
+- Open [**Frontend gates app actions per scope and shows refused dispatches inline**](map-frontend-per-app-permissions-and-action-errors.md) — hasPermission(appName, perm) resolves the app's scopes from appsStore (settings.scopes, default \['default'\]) and grants only from matching user scopes; unknown apps and \`_global\` keep any-scope semantics. Failed action dispatches surface the server's \`{error, message}\` text inline (alert on the detail page, error tooltip on the list button) instead of dying silently.
 ### #structure
 - Open [**Frontend src/ layout and dev-server proxy targets**](map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
 - Open [**Which files under config/ are committed vs git-ignored**](../configuration/map-config-directory-git-tracking.md) — config/*.example and casbin/model.conf are committed templates; default.yaml, local.yaml, and casbin/policy.yaml hold real values and are meant to stay out of git (policy.yaml only if it has no secrets).
-### #svelte
-- Open [**Root layout loads user permissions when the user is logged in**](map-root-layout-loads-user-permissions-when-the-user-is-logged-in.md) — frontend/src/routes/+layout.svelte reactively calls loadUserPermissions() on isLoggedIn; permission-gated UI derives from permissionsLoaded.
 ### #sveltekit
 - Open [**Frontend src/ layout and dev-server proxy targets**](map-frontend-src-layout.md) — Frontend src/ splits into routes, stores (webSocketStore.ts, userStore.ts), generated (ts-rs output), and lib; dev server proxies /api and /ws to the backend.
 ### #testing

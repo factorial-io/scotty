@@ -110,20 +110,14 @@ pub fn require_permission(
             };
 
             if !allowed {
-                if is_global_permission {
-                    warn!(
-                        "Access denied: user {} lacks global {} permission",
-                        auth_context.user.email,
-                        permission.as_str()
-                    );
-                } else {
-                    warn!(
-                        "Access denied: user {} lacks {} permission",
-                        auth_context.user.email,
-                        permission.as_str()
-                    );
-                }
-                return Err(StatusCode::FORBIDDEN);
+                let reason = format!(
+                    "user lacks {}{} permission",
+                    if is_global_permission { "global " } else { "" },
+                    permission.as_str()
+                );
+                warn!("Access denied: {} {}", auth_context.user.email, reason);
+                // Return a JSON body so clients can show why the action was refused.
+                return Ok(AppError::ScopeAccessDenied(reason).into_response());
             }
 
             if is_global_permission {
