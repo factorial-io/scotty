@@ -47,7 +47,7 @@ init-tracing-opentelemetry = { version = "0.32.1", default-features = false, fea
     "otlp",
     "tracing_subscriber_ext",
 ] }
-axum-tracing-opentelemetry = { version = "0.32.1", default-features = false }
+axum-tracing-opentelemetry = { version = "0.39.0", default-features = false }
 opentelemetry-otlp = { version = "0.31.0", default-features = false, features = ["metrics"] }
 
 utoipa = { version = "5.4", features = ["axum_extras", "uuid", "chrono"] }
