@@ -54,7 +54,7 @@ utoipa = { version = "5.4", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9.0", default-features = false, features = ["axum"] }
 utoipa-redoc = { version = "6.0", default-features = false, features = ["axum"] }
 utoipa-rapidoc = { version = "6.0", default-features = false, features = ["axum"] }
-utoipa-axum = "0.2"
+utoipa-axum = "0.3"
 
 tower-http = { version = "0.7.0", default-features = false, features = ["cors", "fs", "trace"] }
 tower_governor = "0.8"
