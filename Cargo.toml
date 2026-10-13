@@ -50,10 +50,10 @@ init-tracing-opentelemetry = { version = "0.32.1", default-features = false, fea
 axum-tracing-opentelemetry = { version = "0.32.1", default-features = false }
 opentelemetry-otlp = { version = "0.31.0", default-features = false, features = ["metrics"] }
 
-utoipa = { version = "5.4", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "9.0", default-features = false, features = ["axum"] }
-utoipa-redoc = { version = "6.0", default-features = false, features = ["axum"] }
-utoipa-rapidoc = { version = "6.0", default-features = false, features = ["axum"] }
+utoipa = { version = "6.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "10.0", default-features = false, features = ["axum"] }
+utoipa-redoc = { version = "7.0", default-features = false, features = ["axum"] }
+utoipa-rapidoc = { version = "7.0", default-features = false, features = ["axum"] }
 utoipa-axum = "0.2"
 
 tower-http = { version = "0.7.0", default-features = false, features = ["cors", "fs", "trace"] }
