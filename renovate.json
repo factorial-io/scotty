@@ -41,21 +41,6 @@
       ]
     },
     {
-      "description": "Group OpenTelemetry crates so they bump together (opentelemetry + sdk + otlp + appender + tracing-opentelemetry release in lockstep and depend on matching versions of each other)",
-      "matchManagers": [
-        "cargo"
-      ],
-      "matchPackageNames": [
-        "opentelemetry",
-        "opentelemetry_sdk",
-        "opentelemetry-otlp",
-        "opentelemetry-appender-tracing",
-        "tracing-opentelemetry",
-        "init-tracing-opentelemetry",
-      ],
-      "groupName": "opentelemetry"
-    },
-    {
       "groupName": "gRPC-related packages",
       "matchPackageNames": [
         "/^prost[-_]?/",
@@ -84,7 +69,7 @@
       "groupName": "tracing packages",
       "matchPackageNames": [
         "/^tracing[-_]?/",
-        "!tracing-opentelemetry"
+        "!/opentelemetry/"
       ]
     },
     {
@@ -121,6 +106,16 @@
         "patch"
       ],
       "groupName": "Rust dependencies auto-merge (patch)"
+    },
+    {
+      "description": "Group all OpenTelemetry crates into one PR. opentelemetry, opentelemetry_sdk, opentelemetry-otlp, tracing-opentelemetry and davidB's init-/axum-tracing-opentelemetry must agree on the same opentelemetry version, so bumping them separately leaves duplicate opentelemetry versions in the lockfile. This rule is placed after the patch auto-merge group so that its groupName wins for patch updates too.",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "/opentelemetry/"
+      ],
+      "groupName": "opentelemetry"
     },
     {
       "matchDatasources": [

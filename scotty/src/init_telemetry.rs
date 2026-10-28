@@ -8,7 +8,7 @@ use tracing_subscriber::{registry, EnvFilter};
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 use opentelemetry::trace::TracerProvider;
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-use opentelemetry_sdk::trace::{TraceError, Tracer};
+use opentelemetry_sdk::trace::Tracer;
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
 use tracing::Subscriber;
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
@@ -17,7 +17,7 @@ use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::registry::LookupSpan;
 
 #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-pub fn build_otel_layer<S>() -> Result<OpenTelemetryLayer<S, Tracer>, TraceError>
+pub fn build_otel_layer<S>() -> Result<OpenTelemetryLayer<S, Tracer>>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
@@ -31,8 +31,7 @@ where
         .with_fallback_service_name(env!("CARGO_PKG_NAME"))
         .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
         .build();
-    let tracerprovider =
-        init_tracerprovider(otel_rsrc, identity).map_err(|e| TraceError::Other(Box::new(e)))?;
+    let tracerprovider = init_tracerprovider(otel_rsrc, identity)?;
     // to not send trace somewhere, but continue to create and propagate,...
     // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
     // or to `std::io::stdout()` to print
