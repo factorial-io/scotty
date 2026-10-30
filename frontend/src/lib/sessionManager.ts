@@ -5,7 +5,7 @@
  * in sessionStorage, with type-safe key management and proper error handling.
  */
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import type { UserInfo } from '../types';
 
 export type AuthMode = 'dev' | 'oauth' | 'bearer';

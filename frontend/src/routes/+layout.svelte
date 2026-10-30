@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ErrorDialog from '../components/error-dialog.svelte';
 	import '../app.css';
-	import logo from '$lib/assets/scotty.svg';
-	import { publicApiCall, initializeAuth } from '$lib';
+	import logo from '#lib/assets/scotty.svg';
+	import { publicApiCall, initializeAuth } from '#lib';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import title from '../stores/titleStore';

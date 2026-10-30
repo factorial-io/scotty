@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 
-vi.mock('$lib', () => ({ authenticatedApiCall: vi.fn() }));
+vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn() }));
 
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 import { monitorTask, tasks, updateTask } from './tasksStore';
 import type { TaskDetail } from '../types';
 

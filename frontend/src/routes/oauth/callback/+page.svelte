@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { authService } from '../../../lib/authService';
 	import { redirectAfterLogin } from '../../../lib/landingResume';
 
@@ -13,7 +13,7 @@
 
 	async function handleOAuthCallback() {
 		try {
-			const urlParams = $page.url.searchParams;
+			const urlParams = page.url.searchParams;
 
 			// Check for OAuth error
 			const oauthError = urlParams.get('error');

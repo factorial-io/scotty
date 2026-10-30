@@ -1,5 +1,7 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "$app/tsconfig",
+	"include": ["src", "test", "*"],
+	"exclude": ["src/service-worker"],
 	"compilerOptions": {
 		"allowJs": true,
 		"checkJs": true,
@@ -11,8 +13,7 @@
 		"strict": true,
 		"moduleResolution": "bundler"
 	}
-	// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias
-	// except $lib which is handled by https://kit.svelte.dev/docs/configuration#files
+	// `#lib` is resolved via the `imports` field in package.json
 	//
 	// Note: Generated files in src/generated/ are excluded from linting via
 	// eslint.config.js and .prettierignore, but TypeScript still checks them
