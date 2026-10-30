@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getGravatarUrl, getUserInitials } from '$lib/gravatar';
+	import { getGravatarUrl, getUserInitials } from '#lib/gravatar.ts';
 
 	export let email: string = '';
 	export let name: string = '';

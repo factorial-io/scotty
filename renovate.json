@@ -118,6 +118,20 @@
       "groupName": "opentelemetry"
     },
     {
+      "description": "Group the Svelte/SvelteKit toolchain into one PR. @sveltejs/kit, its adapters, vite-plugin-svelte, svelte and the svelte tooling have tight peer-dependency ranges, so separate PRs (e.g. kit and adapter-static majors) fail CI on their own and compete with each other. Placed after the bun patch auto-merge group so that its groupName wins for patch updates too.",
+      "matchManagers": [
+        "bun"
+      ],
+      "matchPackageNames": [
+        "@sveltejs/**",
+        "svelte",
+        "svelte-check",
+        "prettier-plugin-svelte",
+        "eslint-plugin-svelte"
+      ],
+      "groupName": "sveltekit"
+    },
+    {
       "matchDatasources": [
         "docker"
       ],

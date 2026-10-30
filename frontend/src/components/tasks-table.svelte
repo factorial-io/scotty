@@ -22,15 +22,23 @@
 	<tbody>
 		{#each taskList.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) as task (task.id)}
 			<tr>
-				<td><a class="link-primary" href={resolve(`/tasks/${task.id}`)}>{task.id}</a></td>
+				<td
+					><a class="link-primary" href={resolve('/tasks/[slug]', { slug: task.id })}
+						>{task.id}</a
+					></td
+				>
 				<td><TaskStatusPill status={task.state} /></td>
 				<td><TimeAgo dateString={task.start_time} /></td>
 				<td><TimeAgo dateString={task.finish_time} /></td>
-				<td
-					><a class="link-secondary" href={resolve(`/dashboard/${task.app_name}`)}
-						>{task.app_name}</a
-					></td
-				>
+				<td>
+					{#if task.app_name}
+						<a
+							class="link-secondary"
+							href={resolve('/dashboard/[slug]', { slug: task.app_name })}
+							>{task.app_name}</a
+						>
+					{/if}
+				</td>
 			</tr>
 		{/each}
 	</tbody>

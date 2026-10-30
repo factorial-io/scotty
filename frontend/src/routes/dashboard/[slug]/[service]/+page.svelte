@@ -65,7 +65,7 @@
 		// Check permissions and redirect if needed
 		if ($permissionsLoaded && !permissions.logs) {
 			console.warn('User does not have logs permission, redirecting to app page');
-			goto(resolve(`/dashboard/${data.app.name}`));
+			goto(resolve('/dashboard/[slug]', { slug: data.app.name }));
 			return;
 		}
 
@@ -102,7 +102,7 @@
 <div class="text-sm breadcrumbs mb-4">
 	<ul>
 		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
-		<li><a href={resolve(`/dashboard/${data.app.name}`)}>{data.app.name}</a></li>
+		<li><a href={resolve('/dashboard/[slug]', { slug: data.app.name })}>{data.app.name}</a></li>
 		<li>{data.service.service}</li>
 	</ul>
 </div>
