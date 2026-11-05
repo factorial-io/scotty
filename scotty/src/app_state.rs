@@ -65,14 +65,44 @@ pub struct AppState {
     /// every app, so there is no per-app next-check time. Written by the sweep, read
     /// via [`AppState::next_app_check_at`].
     pub next_app_check: Arc<AtomicI64>,
+    /// Apps with an autowake start in flight; see [`AppState::begin_wake`].
+    pub waking_apps: WakingApps,
 }
 
 pub type SharedAppState = Arc<AppState>;
+
+/// Names of apps currently being started by autowake.
+// ponytail: per-process set; Scotty runs as a single instance.
+pub type WakingApps = Arc<std::sync::Mutex<std::collections::HashSet<String>>>;
+
+/// Marks an app as waking; removes the mark when dropped (also on panic).
+pub struct WakeGuard {
+    waking_apps: WakingApps,
+    app_name: String,
+}
+
+impl Drop for WakeGuard {
+    fn drop(&mut self) {
+        if let Ok(mut set) = self.waking_apps.lock() {
+            set.remove(&self.app_name);
+        }
+    }
+}
 
 impl AppState {
     /// Records when the next scheduled app-state sweep is due.
     pub fn set_next_app_check(&self, at: chrono::DateTime<chrono::Local>) {
         self.next_app_check.store(at.timestamp(), Ordering::Relaxed);
+    }
+
+    /// Claims the autowake slot for `app_name`. Returns `None` if a wake for
+    /// that app is already in flight.
+    pub fn begin_wake(&self, app_name: &str) -> Option<WakeGuard> {
+        let mut set = self.waking_apps.lock().unwrap_or_else(|e| e.into_inner());
+        set.insert(app_name.to_string()).then(|| WakeGuard {
+            waking_apps: self.waking_apps.clone(),
+            app_name: app_name.to_string(),
+        })
     }
 
     /// The next scheduled app-state sweep, or `None` if no sweep has run yet.
@@ -155,6 +185,7 @@ impl AppState {
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
+            waking_apps: Default::default(),
         });
 
         Ok(state)
@@ -180,6 +211,24 @@ impl AppState {
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
+            waking_apps: Default::default(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod wake_guard_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_begin_wake_is_exclusive_until_guard_drops() {
+        let state =
+            crate::api::test_utils::create_test_app_state_with_settings(Settings::default(), None)
+                .await;
+        let guard = state.begin_wake("myapp").expect("first claim succeeds");
+        assert!(state.begin_wake("myapp").is_none());
+        assert!(state.begin_wake("other").is_some());
+        drop(guard);
+        assert!(state.begin_wake("myapp").is_some());
     }
 }

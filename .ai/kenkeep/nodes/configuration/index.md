@@ -76,7 +76,7 @@ _None._
 - Open [**Which files under config/ are committed vs git-ignored**](map-config-directory-git-tracking.md) — config/*.example and casbin/model.conf are committed templates; default.yaml, local.yaml, and casbin/policy.yaml hold real values and are meant to stay out of git (policy.yaml only if it has no secrets).
 ### #landing-page
 - Open [**Default-backend setup requires api.base_url and a low-priority catch-all router**](../traefik/practice-default-backend-configuration.md) — Landing-page redirects only work if api.base_url is set and a lowest-priority catch-all Traefik router forwards unmatched domains to Scotty.
-- Open [**Public base URL resolves through two chains with different fallbacks**](map-public-base-url-resolves-through-two-chains-with-different-fallbacks.md) — public_base_url() falls back to the localhost default; landing-page own-domain detection requires an explicitly configured base URL and fail-safes to serving the frontend.
+- Open [**Autowake starts stopped apps from the catch-all, gated by basic auth**](../traefik/map-autowake-basic-auth-gated.md) — Apps with autowake: true are started by Scotty's catch-all handler when the request carries the app's basic-auth credentials; no Scotty login, no output.
 - Open [**Scotty as Traefik default backend / landing page**](../traefik/map-default-backend-landing-page.md) — Scotty can serve as the load balancer's catch-all backend, showing a Start-app landing page for stopped apps instead of a gateway error.
 ### #local-development
 - Open [**.env / .env.local precedence and usage convention**](practice-dotenv-precedence-scotty.md) — Scotty auto-loads .env and .env.local; env vars > .env.local > .env, with .env committable and .env.local gitignored.

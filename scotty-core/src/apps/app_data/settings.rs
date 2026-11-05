@@ -26,6 +26,10 @@ pub struct AppSettings {
     pub time_to_live: AppTtl,
     #[serde(default)]
     pub destroy_on_ttl: bool,
+    /// Start the app when a request with valid basic-auth credentials hits
+    /// its domain while it is stopped. Requires `basic_auth`.
+    #[serde(default)]
+    pub autowake: bool,
     pub basic_auth: Option<(String, String)>,
     pub disallow_robots: bool,
     #[schema(value_type = HashMap<String, String>)]
@@ -50,6 +54,7 @@ impl Default for AppSettings {
             domain: "".to_string(),
             time_to_live: AppTtl::Days(7),
             destroy_on_ttl: false,
+            autowake: false,
             basic_auth: None,
             disallow_robots: true,
             environment: SecretHashMap::new(),

@@ -255,7 +255,7 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
   --service <SERVICE:PORT> [--service <SERVICE:PORT> ...] \
   [--app-blueprint <BLUEPRINT>] [--ttl <LIFETIME>] \
   [--basic-auth <USERNAME:PASSWORD>] [--allow-robots] \
-  [--destroy-on-ttl] \
+  [--destroy-on-ttl] [--autowake] \
   [--custom-domain <DOMAIN:SERVICE>] [--custom-domain <DOMAIN:SERVICE> ...] \
   [--env <KEY=VALUE>] [--env <KEY=VALUE> ...] \
   [--env-file <FILE>] \
@@ -289,6 +289,10 @@ index the app.
 The `--destroy-on-ttl` argument will destroy the app after the specified ttl
 instead of just stopping it. Suitable for apps that are not expected to be used
 for a long time.
+
+The `--autowake` argument (requires `--basic-auth`) lets anyone holding the app's
+basic-auth credentials start the stopped app just by visiting its domain, without
+a Scotty login. See [Default backend & landing page](default-backend.md#autowake).
 
 The `--env-file` argument will load environment variables from a file. The file
 should contain key-value pairs separated by an equal sign.

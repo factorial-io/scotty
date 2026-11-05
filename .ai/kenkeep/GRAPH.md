@@ -1,11 +1,11 @@
 ---
 schema_version: 3
-nodes_hash: 'sha256:267f63a31d2982fbb3cf1629bce2a8f3945f0793fcc07d9a3e626d2bb5a76449'
-node_count: 85
+nodes_hash: 'sha256:778d4cdb0e17f80847e48d45b94dad9af7a69e27d40e3ec14ac36f0d744b785c'
+node_count: 86
 ---
 # kenkeep Graph
 
-Total nodes: 85
+Total nodes: 86
 
 ## map-app-anatomy
 
@@ -66,6 +66,14 @@ Total nodes: 85
 - **title:** Authorization uses Casbin RBAC
 - **path:** auth/authorization/map-authorization-casbin-rbac.md
 - **tags:** authorization, casbin, security, map
+
+## map-autowake-basic-auth-gated
+
+- **kind:** map
+- **title:** Autowake starts stopped apps from the catch-all, gated by basic auth
+- **path:** traefik/map-autowake-basic-auth-gated.md
+- **tags:** landing-page, traefik, security, autowake
+- **relates_to:** map-default-backend-landing-page, map-default-backend-security-model
 
 ## map-blueprint-injected-env-vars
 

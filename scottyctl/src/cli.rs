@@ -360,6 +360,10 @@ pub struct CreateCommand {
     )]
     pub destroy_on_ttl: bool,
 
+    /// Start the stopped app when a request with valid basic-auth credentials hits its domain (requires --basic-auth)
+    #[arg(long, default_value = "false", requires = "basic_auth")]
+    pub autowake: bool,
+
     /// Allow search engines to index the app
     #[arg(
         long,

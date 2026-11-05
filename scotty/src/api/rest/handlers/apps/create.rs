@@ -16,6 +16,7 @@ use axum::{
 use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
+        app_data::AppSettings,
         create_app_request::CreateAppRequest,
         file_list::{File, FileList},
     },
@@ -177,6 +178,8 @@ pub async fn create_app_handler(
         }
     }
 
+    check_autowake(&settings)?;
+
     match create_app(state, &payload.app_name, &settings, &file_list).await {
         Ok(app_data) => Ok(SecureJson(app_data)),
         Err(e) => {
@@ -186,9 +189,36 @@ pub async fn create_app_handler(
     }
 }
 
+/// Autowake is gated by the app's basic auth; without it anyone could wake the app.
+fn check_autowake(settings: &AppSettings) -> Result<(), AppError> {
+    if settings.autowake && settings.basic_auth.is_none() {
+        return Err(AppError::BadRequest(
+            "autowake requires basic auth to be configured".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_check_autowake() {
+        let mut settings = AppSettings {
+            autowake: true,
+            ..Default::default()
+        };
+        assert!(matches!(
+            check_autowake(&settings),
+            Err(AppError::BadRequest(_))
+        ));
+        settings.basic_auth = Some(("user".into(), "pass".into()));
+        assert!(check_autowake(&settings).is_ok());
+        settings.autowake = false;
+        settings.basic_auth = None;
+        assert!(check_autowake(&settings).is_ok());
+    }
     use base64::prelude::*;
     use flate2::write::GzEncoder;
     use flate2::Compression;

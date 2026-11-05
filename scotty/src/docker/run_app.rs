@@ -1,6 +1,7 @@
 use tracing::{info, instrument};
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::api::error::AppError;
+use crate::app_state::{SharedAppState, WakeGuard};
 use scotty_core::apps::app_data::{AppData, AppStatus};
 use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
@@ -37,5 +38,25 @@ pub async fn run_app(
         Some(Message::new(MessageType::AppStarted, app)),
         |ctx| async move { run_steps(&ctx).await },
     )
+    .await
+}
+
+/// Start an app on behalf of an incoming request (autowake): same steps as
+/// [`run_app`], but without the `AppStarted` notification. `guard` is held
+/// until the steps finish, so concurrent requests don't start the app twice.
+#[instrument(skip(app_state, guard))]
+pub async fn wake_app(
+    app_state: SharedAppState,
+    app: &AppData,
+    guard: WakeGuard,
+) -> anyhow::Result<RunningAppContext> {
+    if app.status == AppStatus::Unsupported {
+        return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
+    }
+    info!("Waking app {} at {}", app.name, &app.docker_compose_path);
+    run_operation(app_state, app, None, |ctx| async move {
+        let _guard = guard;
+        run_steps(&ctx).await
+    })
     .await
 }
