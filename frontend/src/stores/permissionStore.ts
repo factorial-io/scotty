@@ -2,7 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { authMode, isLoggedIn } from './userStore';
 import { apps } from './appsStore';
 import type { App } from '../types';
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 
 export type Permission =
 	| 'view'

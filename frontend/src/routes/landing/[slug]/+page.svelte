@@ -269,8 +269,9 @@
 						<strong>{data.appName}</strong> is now running.
 					</p>
 					<div class="card-actions mt-4">
-						<a href={resolve(`/dashboard/${data.appName}`)} class="btn btn-primary"
-							>View in Dashboard</a
+						<a
+							href={resolve('/dashboard/[slug]', { slug: data.appName })}
+							class="btn btn-primary">View in Dashboard</a
 						>
 					</div>
 				{/if}

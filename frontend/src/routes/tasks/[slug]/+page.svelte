@@ -75,7 +75,11 @@
 <div class="text-sm breadcrumbs mb-4">
 	<ul>
 		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
-		<li><a href={resolve(`/dashboard/${data.app_name}`)}>{data.app_name}</a></li>
+		{#if data.app_name}
+			<li>
+				<a href={resolve('/dashboard/[slug]', { slug: data.app_name })}>{data.app_name}</a>
+			</li>
+		{/if}
 		<li>{data.id}</li>
 	</ul>
 </div>
@@ -103,9 +107,13 @@
 		<tr>
 			<td class="text-gray-500"><strong>App</strong></td>
 			<td>
-				<a class="link link-primary" href={resolve(`/dashboard/${data.app_name}`)}
-					>{data.app_name}</a
-				>
+				{#if data.app_name}
+					<a
+						class="link link-primary"
+						href={resolve('/dashboard/[slug]', { slug: data.app_name })}
+						>{data.app_name}</a
+					>
+				{/if}
 			</td>
 		</tr>
 	</tbody>

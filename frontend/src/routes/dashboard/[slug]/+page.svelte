@@ -185,7 +185,10 @@
 				<td>
 					{#if permissions.logs}
 						<a
-							href={resolve(`/dashboard/${data.name}/${service.service}`)}
+							href={resolve('/dashboard/[slug]/[service]', {
+								slug: data.name,
+								service: service.service
+							})}
 							class="link link-primary"
 						>
 							{service.service}

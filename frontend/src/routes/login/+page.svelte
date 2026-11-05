@@ -1,5 +1,5 @@
 <script>
-	import logo from '$lib/assets/scotty.svg';
+	import logo from '#lib/assets/scotty.svg';
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';

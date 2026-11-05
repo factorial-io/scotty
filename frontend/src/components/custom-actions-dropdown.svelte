@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authenticatedApiCall } from '$lib';
+	import { authenticatedApiCall } from '#lib';
 	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -99,7 +99,7 @@
 			const context = result as RunningAppContext;
 			if (context && context.task && context.task.id) {
 				currentTaskId = context.task.id;
-				goto(resolve(`/tasks/${currentTaskId}`));
+				goto(resolve('/tasks/[slug]', { slug: currentTaskId }));
 			} else {
 				console.error('Unexpected API response:', result);
 				throw new Error('Invalid response from server');

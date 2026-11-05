@@ -92,7 +92,8 @@
 			<tr>
 				<td><StartStopAppAction {app} /></td>
 				<td
-					><a class="link-primary" href={resolve(`/dashboard/${app.name}`)}>{app.name}</a
+					><a class="link-primary" href={resolve('/dashboard/[slug]', { slug: app.name })}
+						>{app.name}</a
 					></td
 				>
 				<td
