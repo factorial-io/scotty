@@ -203,21 +203,18 @@ async fn try_autowake(
     Some(starting_response(&app.name))
 }
 
+/// Self-contained waiting page, styled like the frontend's landing page.
+const STARTING_PAGE: &str = include_str!("autowake_starting.html");
+
 /// 503 page that refreshes itself until the app's route is live.
 fn starting_response(app_name: &str) -> Response<Body> {
-    let name = html_escape(app_name);
     no_cache_response()
         .status(StatusCode::SERVICE_UNAVAILABLE)
         .header("content-type", "text/html; charset=utf-8")
         .header("Retry-After", "5")
-        .body(Body::from(format!(
-            "<!doctype html><html><head><meta charset=\"utf-8\">\
-             <meta http-equiv=\"refresh\" content=\"5\">\
-             <title>Starting {name}</title></head><body>\
-             <h1>Starting {name}</h1>\
-             <p>The application is starting. This page reloads automatically.</p>\
-             </body></html>"
-        )))
+        .body(Body::from(
+            STARTING_PAGE.replace("{{app_name}}", &html_escape(app_name)),
+        ))
         .expect("BUG: response builder failed")
 }
 

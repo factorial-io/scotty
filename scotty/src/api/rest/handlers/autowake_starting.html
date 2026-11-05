@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta http-equiv="refresh" content="5" />
+		<title>Starting {{app_name}} - Scotty</title>
+		<style>
+			/* Mirrors frontend/src/app.css (theme colors) and the daisyUI light/dark
+			   base colors, so this page looks like the landing page's "Starting" card. */
+			:root {
+				--color-primary: #e11d48;
+				--base-100: #ffffff;
+				--base-200: #f9fafb;
+				--base-content: #1f2937;
+				--muted: #6b7280;
+				--border: #f3f4f6;
+				--logo: #005fa3;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--base-100: #1d232a;
+					--base-200: #191e24;
+					--base-content: #ecf0f4;
+					--muted: #9ca3af;
+					--border: #111827;
+					--logo: #ffffff;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background: var(--base-100);
+				color: var(--base-content);
+				/* Tailwind's default sans stack */
+				font-family:
+					ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+					'Segoe UI Symbol', 'Noto Color Emoji';
+				line-height: 1.5;
+			}
+			.frame {
+				max-width: 1024px;
+				margin: 1rem auto;
+				padding: 1rem;
+				border: 2px solid var(--border);
+				border-radius: 0.25rem;
+				box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+			}
+			.card {
+				max-width: 36rem;
+				margin: 2rem auto;
+				padding: 2rem;
+				background: var(--base-100);
+				border-radius: 0.5rem;
+				box-shadow:
+					0 4px 6px -1px rgb(0 0 0 / 0.1),
+					0 2px 4px -2px rgb(0 0 0 / 0.1);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				text-align: center;
+			}
+			.logo {
+				height: 2.5rem;
+				width: auto;
+				margin-bottom: 1.5rem;
+				color: var(--logo);
+			}
+			.spinner {
+				width: 2.5rem;
+				height: 2.5rem;
+				border-radius: 50%;
+				border: 4px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+				border-top-color: var(--color-primary);
+				animation: spin 0.9s linear infinite;
+			}
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.spinner {
+					animation-duration: 3s;
+				}
+			}
+			h1 {
+				margin: 1rem 0 0;
+				font-size: 1.5rem;
+				line-height: 2rem;
+				font-weight: 600;
+			}
+			p {
+				margin: 0.5rem 0 0;
+				color: var(--muted);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="frame">
+			<main class="card" role="status" aria-live="polite">
+				<!-- Block logo from docs/content/assets/logo.svg -->
+				<svg class="logo" role="img" aria-label="Scotty" fill="none" viewBox="24 24 324 80" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor"><path d="m42 44h18v20h-18z"/><path d="m60 44h18v20h-18z"/><path d="m42 64h18v20h-18z"/><path d="m24 64h18v20h-18z"/><path d="m87 44h18v20h-18z"/><path d="m105 44h18v20h-18z"/><path d="m87 64h18v20h-18z"/><path d="m132 44h18v20h-18z"/><path d="m150 44h18v20h-18z"/><path d="m132 64h18v20h-18z"/><path d="m150 64h18v20h-18z"/><path d="m177 44h18v20h-18z"/><path d="m195 24h18v20h-18z"/><path d="m195 44h18v20h-18z"/><path d="m195 64h18v20h-18z"/><path d="m213 64h18v20h-18z"/><path d="m231 44h18v20h-18z"/><path d="m249 24h18v20h-18z"/><path d="m249 44h18v20h-18z"/><path d="m249 64h18v20h-18z"/><path d="m267 64h18v20h-18z"/><path d="m294 44h18v20h-18z"/><path d="m294 64h18v20h-18z"/><path d="m312 64h18v20h-18z"/><path d="m330 44h18v20h-18z"/><path d="m330 64h18v20h-18z"/><path d="m330 84h18v20h-18z"/><path d="m312 84h18v20h-18z"/></g></svg>
+				<div class="spinner" aria-hidden="true"></div>
+				<h1>Starting {{app_name}}...</h1>
+				<p>Please wait while the app is being started. This page reloads automatically.</p>
+			</main>
+		</div>
+	</body>
+</html>
