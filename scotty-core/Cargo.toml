@@ -17,6 +17,7 @@ default = []
 clap = ["dep:clap"]
 
 [dependencies]
+old-time = { package = "time", version = "=0.1.45" }
 # Import shared types from scotty-types
 scotty-types = { path = "../scotty-types" }
 

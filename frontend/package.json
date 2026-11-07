@@ -44,7 +44,8 @@
 		"@iconify-icons/ph": "^2.0.0",
 		"@iconify/svelte": "^5.2.4",
 		"@tailwindcss/typography": "^0.5.20",
-		"crypto-js": "^4.2.0"
+		"crypto-js": "^4.2.0",
+		"lodash": "4.17.20"
 	},
 	"overrides": {
 		"brace-expansion": "^5.0.12",
