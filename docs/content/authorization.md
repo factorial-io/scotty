@@ -196,6 +196,7 @@ All API endpoints are protected by permission checks:
 **App Management Endpoints:**
 - **App List**: `/api/v1/authenticated/apps/list` - Requires `view` permission, shows only accessible apps
 - **App Management**: Start/stop/restart operations - Requires `manage` permission
+- **Tasks**: `/api/v1/authenticated/tasks`, `/api/v1/authenticated/task/{uuid}`, task output streams and task update messages - Show only tasks for apps you have `view` on, tasks without an app if you have `admin_read`, and tasks you started yourself (so you can follow an app you are creating before it is assigned to a scope). Other tasks answer like missing ones (404)
 - **App Creation**: `/api/v1/authenticated/apps` (POST) - Requires `create` permission
 - **Shell Access**: WebSocket shell sessions - Requires `shell` permission
 - **Notifications**: `/api/v1/authenticated/apps/notify/add` and `/remove` - Require `manage` permission on the app
