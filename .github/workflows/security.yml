@@ -47,8 +47,8 @@ jobs:
     frontend-deps:
         name: Frontend dependencies (osv-scanner)
         runs-on: ubuntu-latest
-        # Report-only until the frontend and docs dependency upgrades in bean
-        # scotty-k2vd land; remove this line afterwards.
+        # Report-only until the frontend and docs dependency upgrades in
+        # issue #924 land; remove this line afterwards.
         continue-on-error: true
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
