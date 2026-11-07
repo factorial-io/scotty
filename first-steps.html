@@ -137,7 +137,8 @@ this setup.</p>
 <li>
 <p>Create a new directory for your Scotty installation:</p>
 <pre class="language-shell"><code class="language-shell"><span class="token function">mkdir</span> scotty-server <span class="token operator">&amp;&amp;</span> <span class="token builtin class-name">cd</span> scotty-server
-<span class="token function">mkdir</span> apps</code></pre>
+<span class="token function">mkdir</span> apps
+<span class="token function">mkdir</span> <span class="token parameter variable">-p</span> config/casbin</code></pre>
 </li>
 <li>
 <p>Create a <code>compose.yml</code> with the following content:</p>
@@ -170,11 +171,12 @@ this setup.</p>
     <span class="token key atrule">volumes</span><span class="token punctuation">:</span>
       <span class="token punctuation">-</span> ./apps<span class="token punctuation">:</span>$PWD/apps
       <span class="token punctuation">-</span> /var/run/docker.sock<span class="token punctuation">:</span>/var/run/docker.sock
+      <span class="token punctuation">-</span> ./config/casbin/policy.yaml<span class="token punctuation">:</span>/app/config/casbin/policy.yaml
     <span class="token key atrule">environment</span><span class="token punctuation">:</span>
       <span class="token key atrule">RUST_LOG</span><span class="token punctuation">:</span> info
       <span class="token key atrule">SCOTTY__APPS__ROOT_FOLDER</span><span class="token punctuation">:</span> $PWD/apps
       <span class="token key atrule">SCOTTY__APPS__DOMAIN_SUFFIX</span><span class="token punctuation">:</span> localhost
-      <span class="token key atrule">SCOTTY__API__ACCESS_TOKEN</span><span class="token punctuation">:</span> my<span class="token punctuation">-</span>secret<span class="token punctuation">-</span>token
+      <span class="token key atrule">SCOTTY__API__BEARER_TOKENS__ADMIN</span><span class="token punctuation">:</span> my<span class="token punctuation">-</span>secret<span class="token punctuation">-</span>token
       <span class="token key atrule">SCOTTY__TRAEFIK__USE_TLS</span><span class="token punctuation">:</span> <span class="token boolean important">false</span>
     <span class="token key atrule">networks</span><span class="token punctuation">:</span>
       <span class="token punctuation">-</span> default
@@ -189,13 +191,35 @@ this setup.</p>
   <span class="token key atrule">proxy</span><span class="token punctuation">:</span>
     <span class="token key atrule">external</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
 <ol start="3">
+<li>Create <code>config/casbin/policy.yaml</code> to give the <code>admin</code> token full access.
+Every bearer token needs an assignment here, keyed by <code>identifier:&lt;id&gt;</code>,
+where <code>&lt;id&gt;</code> is the token name from <code>SCOTTY__API__BEARER_TOKENS__&lt;id&gt;</code>
+(lowercase):</li>
+</ol>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+  <span class="token key atrule">default</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Default scope for unassigned apps
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token datetime number">2024-01-01T00:00:00Z</span>
+
+<span class="token key atrule">roles</span><span class="token punctuation">:</span>
+  <span class="token key atrule">admin</span><span class="token punctuation">:</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token string">'*'</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Full system access including destroy operations
+
+<span class="token key atrule">assignments</span><span class="token punctuation">:</span>
+  <span class="token key atrule">identifier:admin</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> admin
+    <span class="token key atrule">scopes</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token string">'*'</span></code></pre>
+<ol start="4">
 <li>Create the required network and start the services:</li>
 </ol>
 <pre class="language-shell"><code class="language-shell"><span class="token function">docker</span> network create proxy
 <span class="token function">docker</span> compose up <span class="token parameter variable">-d</span></code></pre>
 <p>The server should now be running and accessible at <code>http://scotty.localhost</code>. The password is
 <code>my-secret-token</code> and can be changed in the above <code>compose.yml</code>-file by changing
-the env-var <code>SCOTTY__API__ACCESS_TOKEN</code>.</p>
+the env-var <code>SCOTTY__API__BEARER_TOKENS__ADMIN</code>.</p>
 <h2 id="installing-the-client" tabindex="-1"><a class="header-anchor" href="#installing-the-client">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

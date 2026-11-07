@@ -166,7 +166,7 @@ OpenTelemetry Collector (port 4317)
       </a> Components</h3>
 <ul>
 <li><strong>OpenTelemetry Collector</strong>: Receives telemetry data from Scotty via OTLP protocol and routes it to appropriate backends</li>
-<li><strong>VictoriaMetrics</strong>: High-performance time-series database for metrics storage (30-day retention)</li>
+<li><strong>VictoriaMetrics</strong>: High-performance time-series database for metrics storage (7-day retention)</li>
 <li><strong>Jaeger</strong>: Distributed tracing backend for request traces and spans</li>
 <li><strong>Grafana</strong>: Visualization platform with pre-configured dashboards</li>
 </ul>
@@ -178,7 +178,7 @@ OpenTelemetry Collector (port 4317)
 <ul>
 <li><strong>Memory</strong>: 180-250 MB total</li>
 <li><strong>CPU</strong>: Minimal (&lt; 5% on modern systems)</li>
-<li><strong>Disk</strong>: ~1-2 GB for 30 days of metrics retention</li>
+<li><strong>Disk</strong>: depends on metrics volume and the retention period (7 days by default)</li>
 </ul>
 <h2 id="prometheus-compatibility-%26-flexibility" tabindex="-1"><a class="header-anchor" href="#prometheus-compatibility-%26-flexibility">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -601,6 +601,37 @@ Update <code>otel-collector-config.yaml</code> exporter from <code>prometheusrem
 <li>Track application health check timeliness</li>
 <li>Analyze service distribution</li>
 </ul>
+<h3 id="traefik-network-reconciliation-metrics" tabindex="-1"><a class="header-anchor" href="#traefik-network-reconciliation-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Traefik Network Reconciliation Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_traefik_network_drift_apps</code></td>
+<td>Gauge</td>
+<td>Apps whose proxy network the load balancer was missing, per reconciliation pass</td>
+</tr>
+<tr>
+<td><code>scotty_traefik_network_unroutable_apps</code></td>
+<td>Gauge</td>
+<td>Apps with public services still unreachable by the load balancer after a reconciliation pass</td>
+</tr>
+</tbody>
+</table>
+<p>Both gauges are updated after every reconciliation pass.</p>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Detect apps that lost their connection to Traefik</li>
+<li>Alert on apps that stay unroutable after reconciliation</li>
+</ul>
 <h3 id="tokio-runtime-metrics" tabindex="-1"><a class="header-anchor" href="#tokio-runtime-metrics">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -794,7 +825,7 @@ scotty_tasks_active</code></pre>
 <span class="token key atrule">services</span><span class="token punctuation">:</span>
   <span class="token key atrule">victoriametrics</span><span class="token punctuation">:</span>
     <span class="token key atrule">command</span><span class="token punctuation">:</span>
-      <span class="token punctuation">-</span> <span class="token string">'-retentionPeriod=14d'</span>  <span class="token comment"># Reduce from 30d</span></code></pre>
+      <span class="token punctuation">-</span> <span class="token string">'-retentionPeriod=3d'</span>  <span class="token comment"># Reduce from 7d</span></code></pre>
 <h3 id="connection-refused-errors" tabindex="-1"><a class="header-anchor" href="#connection-refused-errors">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -833,7 +864,7 @@ scotty_tasks_active</code></pre>
       </a> VictoriaMetrics</h3>
 <p>Configuration via docker-compose environment:</p>
 <ul>
-<li><strong>Retention</strong>: 30 days (<code>-retentionPeriod=30d</code>)</li>
+<li><strong>Retention</strong>: 7 days (<code>-retentionPeriod=7d</code>)</li>
 <li><strong>Storage path</strong>: <code>/victoria-metrics-data</code></li>
 <li><strong>HTTP port</strong>: 8428</li>
 </ul>

@@ -111,8 +111,8 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Configuration</h1>
-<p>Configuration on the server side is done using some toml files inside the
-config folder, see below.</p>
+<p>Configuration on the server side is done using some YAML or TOML files inside
+the config folder, see below. Blueprints are the exception: they must be YAML.</p>
 <p>The cli does not have any configuration. All it needs to know is the URL of the
 server and the api token to authenticate against the server.</p>
 <h2 id="the-cli" tabindex="-1"><a class="header-anchor" href="#the-cli">
@@ -140,19 +140,17 @@ via env-vars or by entire files. Best practice is to setup your app in
         <span aria-hidden="true">#</span>
       </a> Global settings</h3>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">debug</span><span class="token punctuation">:</span> <span class="token boolean important">false</span>
-<span class="token key atrule">telemetry</span><span class="token punctuation">:</span> None
-<span class="token key atrule">frontend_directory</span><span class="token punctuation">:</span> ./frontend/build</code></pre>
+<span class="token key atrule">telemetry</span><span class="token punctuation">:</span> None</code></pre>
 <ul>
 <li><code>debug</code>: If set to true, the server will log more information. The default is
 false.</li>
-<li><code>telemetry</code>: The telemetry backend to use. The default is <code>None</code>. Possible values
-are <code>None</code>, <code>traces</code> and <code>metrics</code>. Please set also the Opentelemetry endpoint
-via the env-var OTEL_where to deliver the traces or metrics. (Use this setting only for debugging)</li>
-<li>frontend_directory: The directory where the frontend is located. The default is
-<code>./frontend/build</code>. If you want to use a different frontend, you can set the
-directory here. All files in the directory are served by scotty as static files
-from <code>/</code>.</li>
+<li><code>telemetry</code>: Which telemetry signals to export. The default is <code>None</code>. The value
+is a comma-separated list (case-insensitive, no spaces) of <code>traces</code> and
+<code>metrics</code>, e.g. <code>traces</code>, <code>metrics</code> or <code>traces,metrics</code>. Any other value enables
+nothing. Please set also the Opentelemetry endpoint via the env-var OTEL_where
+to deliver the traces or metrics.</li>
 </ul>
+<p>The web frontend is embedded in the scotty binary and needs no configuration.</p>
 <h3 id="api-settings" tabindex="-1"><a class="header-anchor" href="#api-settings">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -176,10 +174,12 @@ from <code>/</code>.</li>
 <ul>
 <li><code>bind_address</code>: The address and port the server listens on.</li>
 <li><code>bearer_tokens</code>: <strong>Required for bearer authentication</strong>. Map of logical token identifiers to secure bearer tokens. <strong>Security Note</strong>: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).</li>
-<li><code>create_app_max_size</code>: The maximum size of the uploaded files. The default
-is 50M. As the payload gets base64-encoded, the actual possible size is a
-bit smaller (by ~ 2/3)</li>
-<li><code>base_url</code>: Public-facing base URL under which Scotty itself is reachable (e.g. <code>"https://scotty.example.com"</code>). Used for post-login OAuth redirects and by the <a href="default-backend.html">default backend / landing page</a> feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. <strong>Set this in any production deployment</strong> — when it is missing, Scotty falls back to <code>http://localhost:21342</code> and logs a warning at startup.</li>
+<li><code>create_app_max_size</code>: The maximum size of the uploaded files. The shipped
+<code>config/default.yaml</code> sets 50M (the built-in default is 10M). The limit applies
+to the whole request body: as the files are gzip-compressed and then
+base64-encoded, about 3/4 of the limit is usable as compressed payload. The
+same limit also caps the decompressed size of each individual file.</li>
+<li><code>base_url</code>: Public-facing base URL under which Scotty itself is reachable (e.g. <code>"https://scotty.example.com"</code>). Used for post-login OAuth redirects and by the <a href="default-backend.html">default backend / landing page</a> feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. <strong>Set this in any production deployment</strong> — when it is missing, OAuth redirects fall back to <code>http://localhost:21342</code>, the landing-page redirect for stopped apps is disabled (Scotty serves its frontend instead), and a warning is logged at startup.</li>
 <li><code>auth_mode</code>: Authentication mode. Options are:
 <ul>
 <li><code>"dev"</code>: Development mode with no authentication (uses fixed dev user)</li>
@@ -423,16 +423,16 @@ bit smaller (by ~ 2/3)</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Authorization settings</h3>
-<p>Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the <a href="authorization.html">Authorization System</a> documentation for complete details.</p>
-<p><strong>Authorization is entirely optional</strong> - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.</p>
+<p>Scotty includes a scope-based authorization system for controlling access to applications and operations. See the <a href="authorization.html">Authorization System</a> documentation for complete details.</p>
+<p><strong>Authorization is always active.</strong> If <code>config/casbin/policy.yaml</code> is missing, Scotty seeds it from <code>config/casbin/policy.yaml.example</code>; if that is missing too, it uses built-in default roles without any assignments. Bearer tokens need an assignment in <code>policy.yaml</code> even to authenticate.</p>
 <h4 id="configuration-files" tabindex="-1"><a class="header-anchor" href="#configuration-files">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Configuration Files</h4>
-<p>Authorization requires two configuration files in the <code>config/casbin/</code> directory:</p>
+<p>Authorization uses two configuration files in the <code>config/casbin/</code> directory:</p>
 <pre><code>config/
 ├── casbin/
-│   ├── model.conf       # Casbin RBAC model (auto-generated)
+│   ├── model.conf       # Casbin RBAC model (shipped with Scotty, do not edit)
 │   └── policy.yaml      # Groups, roles, and assignments
 └── default.yaml         # Main configuration
 </code></pre>
@@ -544,7 +544,7 @@ bit smaller (by ~ 2/3)</li>
 <p>Example CLI usage with authorized token:</p>
 <pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span><span class="token string">"secure-admin-token-abc123"</span>
 scottyctl app:list  <span class="token comment"># Shows only apps user has 'view' permission for</span></code></pre>
-<p><strong>Important</strong>: The <code>api.access_token</code> configuration is <strong>no longer supported</strong>. Use <code>api.bearer_tokens</code> instead.</p>
+<p><strong>Important</strong>: The <code>api.access_token</code> configuration is <strong>no longer supported</strong>. It is still parsed, but has no effect and cannot authenticate anyone. Use <code>api.bearer_tokens</code> instead.</p>
 <h4 id="bearer-token-security-best-practices" tabindex="-1"><a class="header-anchor" href="#bearer-token-security-best-practices">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -623,12 +623,12 @@ uuidgen</code></pre>
 <p>scotty is running some tasks in the background on a regular level. Here you can
 fine tune when certain tasks are executed:</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">scheduler</span><span class="token punctuation">:</span>
-  <span class="token key atrule">running_app_check</span><span class="token punctuation">:</span> <span class="token string">"15s"</span>
+  <span class="token key atrule">running_app_check</span><span class="token punctuation">:</span> <span class="token string">"1m"</span>
   <span class="token key atrule">ttl_check</span><span class="token punctuation">:</span> <span class="token string">"10m"</span>
   <span class="token key atrule">task_cleanup</span><span class="token punctuation">:</span> <span class="token string">"3m"</span></code></pre>
 <ul>
 <li><code>running_app_check</code> how often should the app-folder be traversed and the
-running apps be checked. The default is 15s.</li>
+running apps be checked. The default is 1m.</li>
 <li><code>ttl_check</code> how often should the ttl of the apps be checked. The default is
 10m. This setting describes the frequency of the ttl-check. The actual ttl is
 configured on a per app basis.</li>
@@ -645,6 +645,7 @@ the output of commands in the UI</li>
 <pre><code>apps:
   domain_suffix: "ddev.site"
   root_folder: "./apps" # Path to the folder where the apps are stored
+  max_depth: 3
 </code></pre>
 <ul>
 <li><code>domain_suffix</code> The suffix for auto-generated domains. Set this to the domain
@@ -655,6 +656,8 @@ If you run scotty in a docker container, and mount the apps-folder into the
 container, make sure that both paths are the same. Otherwise docker-compose
 can't run the apps, as there is a mismatch between the local path and the
 path on the host, where the docker daemon is running.</li>
+<li><code>max_depth</code> How many directory levels below <code>root_folder</code> scotty searches for
+apps. The default is 3.</li>
 </ul>
 <h3 id="docker-settings" tabindex="-1"><a class="header-anchor" href="#docker-settings">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -785,7 +788,7 @@ for haproxy-config to use tls.</li>
         <span aria-hidden="true">#</span>
       </a> Blueprints</h3>
 <p>Blueprints are a way to run certain tasks after specific events happened, like
-<code>app:create</code>, <code>app:run</code> or <code>app:destroy</code>. They are stored in <code>config/blueprints</code>
+<code>app:create</code>, <code>app:run</code> or <code>app:rebuild</code>. They are stored in <code>config/blueprints</code>
 and can be adopted by apps. They are stored as separate files in the
 <code>config/blueprints</code>-folder. Scotty is using the key of the blueprint to associate
 the blueprint with an app.</p>
@@ -803,14 +806,26 @@ the blueprint with an app.</p>
         <span class="token key atrule">nginx</span><span class="token punctuation">:</span> <span class="token number">8080</span>
       <span class="token key atrule">actions</span><span class="token punctuation">:</span>
         <span class="token key atrule">post_create</span><span class="token punctuation">:</span>
-          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
-            <span class="token punctuation">-</span> drush deploy
+          <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Run drush deploy after the application is created"</span>
+          <span class="token key atrule">commands</span><span class="token punctuation">:</span>
+            <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+              <span class="token punctuation">-</span> drush deploy
         <span class="token key atrule">post_rebuild</span><span class="token punctuation">:</span>
-          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
-            <span class="token punctuation">-</span> drush deploy
+          <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Run drush deploy after the application is rebuilt"</span>
+          <span class="token key atrule">commands</span><span class="token punctuation">:</span>
+            <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+              <span class="token punctuation">-</span> drush deploy
         <span class="token key atrule">post_run</span><span class="token punctuation">:</span>
-          <span class="token key atrule">cli</span><span class="token punctuation">:</span>
-            <span class="token punctuation">-</span> drush uli</code></pre>
+          <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Generate a one-time login link after the app started"</span>
+          <span class="token key atrule">commands</span><span class="token punctuation">:</span>
+            <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+              <span class="token punctuation">-</span> drush uli
+        <span class="token key atrule">drush:uli</span><span class="token punctuation">:</span>
+          <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Generate a one-time login link"</span>
+          <span class="token key atrule">permission</span><span class="token punctuation">:</span> action_read
+          <span class="token key atrule">commands</span><span class="token punctuation">:</span>
+            <span class="token key atrule">cli</span><span class="token punctuation">:</span>
+              <span class="token punctuation">-</span> drush uli</code></pre>
 <ul>
 <li><code>name</code> The name of the blueprint</li>
 <li><code>description</code> A short description of the blueprint</li>
@@ -819,15 +834,19 @@ work. If one of the services is missing, scotty will throw an error when an
 app tries to adopt the blueprint.</li>
 <li><code>public_services</code> A list of services that should be exposed to the public. The
 key is the service name, the value is the port to expose.</li>
-<li><code>actions</code> A list of action-hooks and their corresponding commands. The
-following hooks are available:
+<li><code>actions</code> A list of actions and their corresponding commands. The
+following hooks are run automatically:
 <ul>
 <li><code>post_create</code> Run after the app was created</li>
 <li><code>post_rebuild</code> Run after the app was rebuilt</li>
-<li><code>post_run</code> Run after the app was started</li>
-<li><code>post_destroy</code> Run after the app was destroyed
-The key is the service name, the value is a list of commands to run on that
-service.</li>
+<li><code>post_run</code> Run after the app was started
+Any other key defines a custom action that users can run on demand. Each
+action has:</li>
+<li><code>description</code> A short description of the action</li>
+<li><code>commands</code> The key is the service name, the value is a list of commands to
+run on that service.</li>
+<li><code>permission</code> The permission needed to run the action on demand, e.g.
+<code>action_read</code> or <code>action_write</code>. The default is <code>action_write</code>.</li>
 </ul>
 </li>
 </ul>

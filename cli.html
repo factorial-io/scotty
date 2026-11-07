@@ -218,13 +218,14 @@ destroy apps, as well as manage authorization (scopes, roles, assignments).</p>
 <ol>
 <li>Open your browser to authenticate with the OIDC provider</li>
 <li>Store the OAuth token securely for future commands</li>
-<li>Automatically refresh tokens when they expire</li>
 </ol>
+<p>scottyctl does not refresh tokens. When your token expires, run <code>auth:login</code>
+again.</p>
 <p><strong>Managing OAuth sessions:</strong></p>
 <pre class="language-shell"><code class="language-shell"><span class="token comment"># Check authentication status</span>
 scottyctl auth:status
 
-<span class="token comment"># Refresh the token</span>
+<span class="token comment"># Check whether the stored token is still valid</span>
 scottyctl auth:refresh
 
 <span class="token comment"># Logout and clear stored credentials</span>
@@ -258,6 +259,9 @@ public URLs of the apps. The status can be one of the following:</p>
 <ul>
 <li>Running: The app is running</li>
 <li>Stopped: The app is stopped</li>
+<li>Starting: The app is being started</li>
+<li>Creating: The app is being created</li>
+<li>Destroying: The app is being destroyed</li>
 <li>Unsupported: The app is not supported by the server</li>
 </ul>
 <h2 id="get-info-about-an-app" tabindex="-1"><a class="header-anchor" href="#get-info-about-an-app">
@@ -284,7 +288,10 @@ also contains the enabled notification services for that app.</p>
         <span aria-hidden="true">#</span>
       </a> Options</h3>
 <ul>
-<li><code>-f, --follow</code>: Follow log output in real-time (like <code>tail -f</code>)</li>
+<li><code>-f, --follow</code>: Follow log output in real-time (like <code>tail -f</code>). If the
+container has exited or is dead, live follow is not possible: scottyctl shows
+the historical logs instead and prints a notice ("Live follow is unavailable
+because the container has stopped; showing historical logs.")</li>
 <li><code>-n, --lines &lt;LINES&gt;</code>: Show only the last N lines</li>
 <li><code>--since &lt;SINCE&gt;</code>: Show logs since a timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")</li>
 <li><code>--until &lt;UNTIL&gt;</code>: Show logs until a timestamp (e.g., "1h", "2023-01-01T11:00:00Z")</li>
@@ -560,7 +567,8 @@ Traefik routing), run <code>app:rebuild</code> after adopting it.</p>
         <span aria-hidden="true">#</span>
       </a> Destroy an app</h2>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> app:destroy <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
-<p>This command will destroy only a supported app. It will stop the app, remove
+<p>This command only works on apps that have a <code>.scotty.yml</code> file (apps created
+with or adopted by Scotty) and requires the <code>destroy</code> permission. It will stop the app, remove
 all ephemeral and persistent data and remove the app from the Scotty server.
 It will also delete the used images if they are not used somewhere else.</p>
 <p>Caution: This command is irreversible! You might lose data if you run this command.</p>
@@ -599,7 +607,7 @@ scottyctl app:action my-app cache:clear</code></pre>
         <span aria-hidden="true">#</span>
       </a> List custom actions for an app</h3>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:list <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span></code></pre>
-<p>Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator.</p>
+<p>Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator. Requires the <code>action_manage</code> permission.</p>
 <p>Example:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl action:list my-app</code></pre>
 <h3 id="get-custom-action-details" tabindex="-1"><a class="header-anchor" href="#get-custom-action-details">
@@ -607,7 +615,7 @@ scottyctl app:action my-app cache:clear</code></pre>
         <span aria-hidden="true">#</span>
       </a> Get custom action details</h3>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> <span class="token operator">&lt;</span>SERVER<span class="token operator">&gt;</span> --access-token <span class="token operator">&lt;</span>TOKEN<span class="token operator">&gt;</span> action:get <span class="token operator">&lt;</span>APP<span class="token operator">&gt;</span> <span class="token operator">&lt;</span>ACTION<span class="token operator">&gt;</span></code></pre>
-<p>Displays detailed information about a specific custom action, including its commands, review status, and metadata.</p>
+<p>Displays detailed information about a specific custom action, including its commands, review status, and metadata. Requires the <code>action_manage</code> permission.</p>
 <p>Example:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl action:get my-app db:migrate</code></pre>
 <h3 id="create-a-custom-action" tabindex="-1"><a class="header-anchor" href="#create-a-custom-action">
@@ -899,7 +907,7 @@ scottyctl completion powershell <span class="token operator">&gt;</span> scottyc
 </ul>
 <p><strong>Data Considerations:</strong></p>
 <ul>
-<li>Log streaming is real-time only—historical logs depend on Docker's log retention</li>
+<li>Historical logs depend on Docker's log retention</li>
 <li>Logs are transmitted over WebSocket connections (encrypted if using HTTPS)</li>
 </ul>
 <h2 id="troubleshooting" tabindex="-1"><a class="header-anchor" href="#troubleshooting">

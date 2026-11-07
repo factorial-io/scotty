@@ -189,7 +189,7 @@
 <li><strong>OIDC provider redirects</strong> back to Scotty's <code>/api/oauth/callback</code> endpoint with authorization code</li>
 <li><strong>Scotty exchanges</strong> authorization code for access token using PKCE verifier</li>
 <li><strong>User information</strong> is extracted via OIDC <code>/oauth/userinfo</code> endpoint and session is created</li>
-<li><strong>Frontend exchanges</strong> session for tokens and stores OAuth tokens and user info in localStorage</li>
+<li><strong>Frontend exchanges</strong> session for tokens and stores OAuth tokens and user info in sessionStorage</li>
 </ol>
 <h3 id="route-protection" tabindex="-1"><a class="header-anchor" href="#route-protection">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -277,7 +277,11 @@
 <span class="token comment"># OAuth configuration</span>
 <span class="token assign-left variable">SCOTTY__API__OAUTH__OIDC_ISSUER_URL</span><span class="token operator">=</span>https://gitlab.com
 <span class="token assign-left variable">SCOTTY__API__OAUTH__REDIRECT_URL</span><span class="token operator">=</span>http://localhost:21342/api/oauth/callback
-<span class="token assign-left variable">SCOTTY__API__OAUTH__FRONTEND_BASE_URL</span><span class="token operator">=</span>http://localhost:21342</code></pre>
+
+<span class="token comment"># Public base URL of Scotty (post-login redirect)</span>
+<span class="token assign-left variable">SCOTTY__API__BASE_URL</span><span class="token operator">=</span>http://localhost:21342</code></pre>
+<p>The older <code>SCOTTY__API__OAUTH__FRONTEND_BASE_URL</code> still works as a deprecated
+fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
 <h3 id="understanding-oauth-urls" tabindex="-1"><a class="header-anchor" href="#understanding-oauth-urls">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -733,7 +737,7 @@ DEBUG OAuth authentication successful
         <span aria-hidden="true">#</span>
       </a> Device Flow (Recommended)</h3>
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Use OAuth device flow for CLI authentication</span>
-scottyctl login <span class="token parameter variable">--server</span> http://localhost:21342</code></pre>
+scottyctl <span class="token parameter variable">--server</span> http://localhost:21342 auth:login</code></pre>
 <h3 id="manual-token" tabindex="-1"><a class="header-anchor" href="#manual-token">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

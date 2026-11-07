@@ -168,13 +168,13 @@ accordingly):</p>
       </a> Install shell autocompletion</h3>
 <p>You can install shell autocompletion for various shell-types. The following command
 will install the autocompletion for bash:</p>
-<pre class="language-shell"><code class="language-shell">scottyctl completions <span class="token function">bash</span> <span class="token operator">&gt;</span> /etc/bash_completion.d/scottyctl</code></pre>
+<pre class="language-shell"><code class="language-shell">scottyctl completion <span class="token function">bash</span> <span class="token operator">&gt;</span> /etc/bash_completion.d/scottyctl</code></pre>
 <p>For zsh:</p>
-<pre class="language-shell"><code class="language-shell">scottyctl completions <span class="token function">zsh</span> <span class="token operator">&gt;</span> /usr/share/zsh/site-functions/_scottyctl</code></pre>
+<pre class="language-shell"><code class="language-shell">scottyctl completion <span class="token function">zsh</span> <span class="token operator">&gt;</span> /usr/share/zsh/site-functions/_scottyctl</code></pre>
 <p>For fish:</p>
-<pre class="language-shell"><code class="language-shell">scottyctl completions fish <span class="token operator">&gt;</span> ~/.config/fish/completions/scottyctl.fish
+<pre class="language-shell"><code class="language-shell">scottyctl completion fish <span class="token operator">&gt;</span> ~/.config/fish/completions/scottyctl.fish
 <span class="token comment"># or in you config script</span>
-<span class="token builtin class-name">eval</span> <span class="token string">"<span class="token variable"><span class="token variable">$(</span>scottyctl completions fish<span class="token variable">)</span></span>"</span></code></pre>
+<span class="token builtin class-name">eval</span> <span class="token string">"<span class="token variable"><span class="token variable">$(</span>scottyctl completion fish<span class="token variable">)</span></span>"</span></code></pre>
 <h2 id="installation-of-the-server" tabindex="-1"><a class="header-anchor" href="#installation-of-the-server">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -283,10 +283,14 @@ it on the same level as the executable.</p>
         <span aria-hidden="true">#</span>
       </a> Using docker only</h3>
 <p>Use the provided docker image for best results. Map the directory with
-all your docker-composed apps to <code>/app/apps</code>.</p>
+all your docker-composed apps into the container at the same path as on the
+host, and point <code>SCOTTY__APPS__ROOT_FOLDER</code> to it. Scotty runs docker compose
+against the host's docker daemon, so the paths inside and outside the container
+must match.</p>
 <pre class="language-shell"><code class="language-shell"><span class="token function">docker</span> run <span class="token punctuation">\</span>
   <span class="token parameter variable">-p</span> <span class="token number">21342</span>:21342 <span class="token punctuation">\</span>
-  <span class="token parameter variable">-v</span> <span class="token environment constant">$PWD</span>/apps:/app/apps <span class="token punctuation">\</span>
+  <span class="token parameter variable">-v</span> <span class="token environment constant">$PWD</span>/apps:<span class="token environment constant">$PWD</span>/apps <span class="token punctuation">\</span>
+  <span class="token parameter variable">-e</span> <span class="token assign-left variable">SCOTTY__APPS__ROOT_FOLDER</span><span class="token operator">=</span><span class="token environment constant">$PWD</span>/apps <span class="token punctuation">\</span>
   <span class="token parameter variable">-v</span> /var/run/docker.sock:/var/run/docker.sock <span class="token punctuation">\</span>
   ghcr.io/factorial-io/scotty:main</code></pre>
 <p>You might need to map your local config overrides into the container.</p>

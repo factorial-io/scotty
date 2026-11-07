@@ -133,12 +133,16 @@
       </a> Overview</h2>
 <p>Scotty provides a simple REST API to interact with your apps. For that, it
 traverses a directory structure on the server and reads the <code>compose.yml</code>
-files in each found directory. If the same directory contains a <code>.scotty</code> file,
-it reads the settings for that app from that file.</p>
+files in each found directory (up to <code>apps.max_depth</code> levels deep, default 3).
+If the same directory contains a <code>.scotty.yml</code> file, it reads the settings for
+that app from that file.</p>
 <p>Scotty uses the information from the <code>.scotty.yml</code> file to create a
 <code>compose.override.yml</code> file to instruct a load balancer on how to reach
 the exposed services of the app. Scotty does not touch any other files in the
 directory besides the <code>compose.override.yml</code> and <code>.scotty.yml</code> files.</p>
+<p>The name of the override file follows the name of the compose file:
+<code>compose.yml</code> gets a <code>compose.override.yml</code>, <code>docker-compose.yml</code> gets a
+<code>docker-compose.override.yml</code>.</p>
 <p>Scotty also tracks how long an app has been running and stops it after
 a given lifetime. It can add basic auth to the app and prevent
 robots from indexing the app if needed.</p>
@@ -227,7 +231,7 @@ per-app proxy network, and get the app fully working behind Traefik.</p>
       </a> Blueprints</h3>
 <p>Owned apps can adopt blueprints to provide additional functionality. Blueprints
 store common tasks to execute on certain liftime events like <code>app:create</code>,
-<code>app:run</code> or <code>app:destroy</code>.</p>
+<code>app:run</code> or <code>app:rebuild</code>.</p>
 <p>These scripts are stored in a YML-file in the <code>blueprints</code> directory of Scotty.
 The scripts are executed in the running service container of the app. Common
 tasks could be, for example, running the deploy command for Drupal applications,
@@ -258,6 +262,9 @@ what domain should be used to reach each public service of an app.</p>
 <p>Scotty will create the necessary labels for Traefik to route the traffic to the
 public services of each app. Depending on the settings, Scotty will also create
 configuration to enable basic auth or to prevent robots from indexing the app.</p>
+<p>Each app gets its own external proxy network named <code>&lt;traefik.network&gt;--&lt;app&gt;</code>
+(by default <code>proxy--&lt;app&gt;</code>). Scotty creates this network and connects Traefik
+to it; the app's public services join it next to their <code>default</code> network.</p>
 <p>An example <code>compose.override.yml</code> file for Traefik:</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">services</span><span class="token punctuation">:</span>
   <span class="token key atrule">nginx</span><span class="token punctuation">:</span>
@@ -265,17 +272,21 @@ configuration to enable basic auth or to prevent robots from indexing the app.</
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.middlewares</span><span class="token punctuation">:</span> nginx<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>again<span class="token punctuation">-</span><span class="token punctuation">-</span>robots
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.rule</span><span class="token punctuation">:</span> Host(`nginx.nginx<span class="token punctuation">-</span>again.example.com`)
       <span class="token key atrule">traefik.enable</span><span class="token punctuation">:</span> <span class="token string">'true'</span>
+      <span class="token key atrule">traefik.docker.network</span><span class="token punctuation">:</span> proxy<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>again
       <span class="token key atrule">traefik.http.services.nginx--nginx-again.loadbalancer.server.port</span><span class="token punctuation">:</span> <span class="token string">'80'</span>
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.tls</span><span class="token punctuation">:</span> <span class="token string">'true'</span>
       <span class="token key atrule">traefik.http.routers.nginx--nginx-again.tls.certresolver</span><span class="token punctuation">:</span> myresolver
       <span class="token key atrule">traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tag</span><span class="token punctuation">:</span> none<span class="token punctuation">,</span> noarchive<span class="token punctuation">,</span> nosnippet<span class="token punctuation">,</span> notranslate<span class="token punctuation">,</span> noimageindex
     <span class="token key atrule">environment</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
     <span class="token key atrule">networks</span><span class="token punctuation">:</span>
-    <span class="token punctuation">-</span> default
-    <span class="token punctuation">-</span> proxy
+      <span class="token key atrule">default</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+      <span class="token key atrule">proxy--nginx-again</span><span class="token punctuation">:</span>
+        <span class="token key atrule">aliases</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> nginx<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>again
 <span class="token key atrule">networks</span><span class="token punctuation">:</span>
-  <span class="token key atrule">proxy</span><span class="token punctuation">:</span>
-    <span class="token key atrule">external</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
+  <span class="token key atrule">proxy--nginx-again</span><span class="token punctuation">:</span>
+    <span class="token key atrule">external</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+    <span class="token key atrule">name</span><span class="token punctuation">:</span> proxy<span class="token punctuation">-</span><span class="token punctuation">-</span>nginx<span class="token punctuation">-</span>again</code></pre>
 <p>The traefik implementation also supports custom middlewares. Please declare them
 in the <code>config</code> directory. Then you can refer to the listed middlewares in the
 <code>app:create</code>-command and the <code>--middleware</code>-option.</p>

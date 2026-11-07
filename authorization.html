@@ -212,8 +212,8 @@
   <span class="token key atrule">"frontend-dev@example.com"</span><span class="token punctuation">:</span>
     <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
       <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"staging"</span><span class="token punctuation">]</span>
-  <span class="token key atrule">"bearer:dev-token"</span><span class="token punctuation">:</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span> 
+  <span class="token key atrule">"identifier:ci-bot"</span><span class="token punctuation">:</span>   <span class="token comment"># key "ci-bot" in api.bearer_tokens</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
       <span class="token key atrule">scopes</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"development"</span><span class="token punctuation">]</span></code></pre>
 <h2 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -307,7 +307,7 @@
 <ol>
 <li><strong>RBAC Only</strong>: Only tokens explicitly assigned in authorization configuration are accepted</li>
 <li><strong>No Legacy Fallback</strong>: The <code>api.access_token</code> configuration is no longer used</li>
-<li><strong>Token Format</strong>: Bearer tokens are identified as <code>bearer:&lt;token&gt;</code> in assignments</li>
+<li><strong>Assignment Key</strong>: Bearer tokens are assigned as <code>identifier:&lt;name&gt;</code>, where <code>&lt;name&gt;</code> is the token's key in <code>api.bearer_tokens</code> (never the token value itself)</li>
 </ol>
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Using a bearer token with authorization (token must be in assignments)</span>
 <span class="token function">curl</span> <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer admin"</span> <span class="token punctuation">\</span>
@@ -500,7 +500,6 @@
 <ol>
 <li><strong>Scope Structure</strong>: Keep scope hierarchies simple</li>
 <li><strong>Assignment Scope</strong>: Avoid overly broad assignments</li>
-<li><strong>Caching</strong>: Authorization checks are cached for performance</li>
 <li><strong>Regular Cleanup</strong>: Remove obsolete scopes and assignments</li>
 </ol>
 <h2 id="migration" tabindex="-1"><a class="header-anchor" href="#migration">
@@ -514,7 +513,7 @@
 <p>For existing Scotty installations:</p>
 <ol>
 <li><strong>Breaking Change</strong>: Bearer token authentication now requires RBAC assignments</li>
-<li><strong>Migration Required</strong>: Existing <code>api.access_token</code> must be added to assignments</li>
+<li><strong>Migration Required</strong>: Existing <code>api.access_token</code> must be replaced by a bearer token in <code>api.bearer_tokens</code> with a matching <code>identifier:&lt;name&gt;</code> assignment</li>
 <li><strong>App Discovery</strong>: Existing apps are assigned to <code>default</code> scope automatically</li>
 <li><strong>OAuth Compatibility</strong>: OAuth authentication continues to work unchanged</li>
 </ol>
@@ -523,7 +522,7 @@
         <span aria-hidden="true">#</span>
       </a> Enabling Authorization</h3>
 <ol>
-<li>Create <code>/config/casbin/model.conf</code> and <code>/config/casbin/policy.yaml</code></li>
+<li>Create <code>/config/casbin/policy.yaml</code> (<code>model.conf</code> ships with the repository and the Docker image; a missing <code>policy.yaml</code> is seeded from <code>policy.yaml.example</code>)</li>
 <li>Define initial scopes, roles, and assignments</li>
 <li><strong>Add existing bearer tokens to assignments</strong> (if using bearer authentication)</li>
 <li>Apps will automatically sync their scope memberships</li>
