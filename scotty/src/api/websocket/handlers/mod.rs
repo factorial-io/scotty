@@ -3,6 +3,9 @@ pub mod logs;
 pub mod shell;
 pub mod tasks;
 
+#[cfg(test)]
+mod session_ownership_tests;
+
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 

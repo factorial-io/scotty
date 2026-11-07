@@ -110,6 +110,22 @@ pub async fn handle_shell_session_data(
         return;
     }
 
+    if state
+        .messenger
+        .get_user_for_client(client_id)
+        .await
+        .is_none()
+    {
+        state
+            .messenger
+            .send_error(
+                client_id,
+                "Authentication required for shell session input".to_string(),
+            )
+            .await;
+        return;
+    }
+
     debug!(
         "Shell input received from client {} for session {}: {} bytes",
         client_id,
@@ -117,10 +133,11 @@ pub async fn handle_shell_session_data(
         data.data.len()
     );
 
-    // Send input to the shell session using shared shell service
+    // Send input to the shell session; the service rejects sessions owned by
+    // another client.
     if let Err(e) = state
         .shell_service
-        .send_input(data.session_id, data.data.clone())
+        .send_input(data.session_id, client_id, data.data.clone())
         .await
     {
         info!(
@@ -167,7 +184,7 @@ pub async fn handle_resize_shell_tty(
 
     match state
         .shell_service
-        .resize_tty(session_id, width, height)
+        .resize_tty(session_id, client_id, width, height)
         .await
     {
         Ok(()) => {
@@ -211,7 +228,11 @@ pub async fn handle_terminate_shell_session(
         }
     };
 
-    match state.shell_service.terminate_session(session_id).await {
+    match state
+        .shell_service
+        .terminate_session(session_id, client_id)
+        .await
+    {
         Ok(()) => {
             info!(
                 "Shell session {} terminated successfully by client {}",
