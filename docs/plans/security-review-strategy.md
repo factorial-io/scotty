@@ -205,6 +205,136 @@ beans.
 
 #### Phase 2: manual code review (3–5 days), guided by the attack trees
 
-_Not yet written. Remaining sections still to come: Phase 2 (manual code
-review), Phase 3 (dynamic testing on staging), reporting and regression
-tests._
+Review in this order. Each area lists the ASVS chapter, the files, and the
+questions the reviewer has to answer. Record answers as "verified / finding /
+not applicable" in the review log (see Phase 4).
+
+| # | Area | ASVS | Files | Questions to answer |
+|---|---|---|---|---|
+| 1 | Authentication core | V6, V7 | `api/auth_core.rs`, `api/basic_auth.rs`, `api/rest/handlers/login.rs` | Does every auth mode (dev, bearer, OAuth, hybrid) fail closed? Can `dev` mode be enabled by accident in a production config? Are token comparisons constant-time everywhere? |
+| 2 | OAuth / OIDC | V10 | `oauth/*` | Exact-match redirect URI allow-list, state and PKCE bound to the session, single-use codes, expiry of device codes, cleanup of stored sessions, secrets wrapped so they are not logged |
+| 3 | Authorization (REST) | V8 | `api/middleware/authorization.rs`, `services/authorization/*`, every handler that takes `{app}` | Is every route mapped to a permission? Is the scope taken from the stored app and never from the request? Do admin routes require `admin_*`? Is there a test per route that denies the wrong role? |
+| 4 | Authorization (WebSocket) | V8, V4 | `api/websocket/*`, `docker/services/*` | Does every message type check authentication *and* ownership of the referenced ID (`session_id`, `stream_id`, `task_id`)? Is authorization re-checked if a token expires or permissions change during a long-lived connection? |
+| 5 | App creation and file handling | V5, V12 | `api/rest/handlers/apps/create.rs`, `docker/steps/files.rs`, `api/rest/handlers/files.rs`, `scotty-core/src/apps/file_list.rs` | Size limits applied after decompression, file name normalisation, symlink handling, container path validation in `app:cp`, limits on file count |
+| 6 | Compose and host isolation | V13, CIS Docker | `docker/*`, blueprints, `app:adopt` | Which compose features are allowed? Is the `create` permission documented as host-level trust? Are per-app networks isolated from each other and from Scotty's own API? |
+| 7 | Custom and blueprint actions | V8, V11 | `api/rest/handlers/apps/custom_action*.rs`, `scotty-core/src/settings/custom_action.rs` | Approval cannot be bypassed or raced; approved command is immutable after approval; command parsing does not allow injection into another service or the host |
+| 8 | Secrets handling | V13, V14 | `onepassword/*`, `settings`, logging, telemetry | Secrets never appear in logs, traces, task output, API responses or error messages; `op://` resolution is scoped to the app's own vault items |
+| 9 | Load balancer config | V13 | `docker/loadbalancer/*`, `api/rest/handlers/landing.rs` | User-controlled values (domains, basic-auth, middlewares) escaped in generated Traefik/HAProxy config; landing page redirect targets restricted to known apps |
+| 10 | Rate limiting and resource exhaustion | V2 (business logic) | `api/rate_limiting/*`, WebSocket client handling | Limits apply to unauthenticated routes and WebSocket messages; limits are per instance (document this); bounded queues per connection |
+| 11 | Notifications | V12 | `notification/*` | Outbound URLs (webhooks) restricted to prevent SSRF to internal services (Docker API, metadata endpoints, 1Password Connect) |
+| 12 | Frontend | V3 | `frontend/src` | Output encoding of app names, logs and env vars; where the token is stored; Content-Security-Policy; no `{@html}` with untrusted data |
+| 13 | scottyctl | V12 | `scottyctl/src` | Token file permissions, TLS verification on by default, `.scottyignore` cannot be bypassed to upload secrets by accident |
+
+#### Phase 3: dynamic testing on staging (3–5 days)
+
+Only against the staging environment from Phase 0, within the agreed time
+window and with written authorization. Destructive host-level tests run only
+on the throwaway Docker host.
+
+**3a. Recon and configuration**
+- Port and service inventory of the host (`nmap`). Expected: only Traefik
+  (80/443) is reachable; Scotty's port, the Docker API and the OTEL collector
+  are not.
+- TLS configuration (`testssl.sh`), HTTP security headers, cookie flags.
+- What the unauthenticated routes disclose: `/api/v1/info`, OpenAPI docs,
+  error pages, the landing page.
+- Host and daemon hardening: `docker-bench-security` against the CIS Docker
+  Benchmark.
+
+**3b. Automated API testing**
+- Import `/api-docs/openapi.json` into OWASP ZAP or Burp Suite and run an
+  authenticated scan once per role.
+- Property-based API fuzzing from the OpenAPI schema with `schemathesis`
+  (crashes, 5xx responses, schema violations).
+- Content discovery for unlisted routes (`ffuf` with a small wordlist).
+
+**3c. Authorization matrix (the most important part)**
+- Build a table of *every route and WebSocket message* × *every test
+  identity* from Phase 0, with the expected outcome (allow / deny) taken from
+  `config/casbin/policy.yaml`.
+- Run it with a script (the Bruno collection in `bruno/` is a good starting
+  point) and compare actual against expected. Every mismatch is a finding.
+- Repeat with resources from another scope: dev-a acting on scope B's apps,
+  tasks, shell sessions and log streams.
+
+**3d. Workflow and business logic**
+- Custom action approval workflow: state transitions that should be
+  impossible (execute while pending, edit after approval, approve one's own
+  action if that is not intended).
+- Token lifecycle: logout, expiry, revoked OAuth sessions and removed bearer
+  tokens actually stop working, including on open WebSocket connections.
+- OAuth flows against the WSTG-ATHN and OAuth test cases (redirect handling,
+  state, code reuse).
+
+**3e. Host isolation**
+- On the throwaway host only: confirm which compose features the server
+  accepts, and whether a deployed app can reach Scotty's API, the Docker
+  daemon or sibling apps over the network.
+
+**3f. Resilience**
+- Low-volume checks only: oversized and compressed uploads, many WebSocket
+  connections from one client, slow requests. Confirm limits trigger and the
+  server recovers. No load or denial-of-service testing beyond that.
+
+#### Phase 4: reporting and triage (1 day, then ongoing)
+
+- One **review log** (`docs/security/review-<date>.md`, not public if it
+  holds unfixed findings) listing every Phase 2 area and Phase 3 test with its
+  outcome, so coverage is visible.
+- Each finding gets: title, affected component, CVSS 4.0 score, impact,
+  reproduction steps, recommended fix, and a bean under epic `scotty-uq4t`.
+- Fix deadlines by severity: critical within 7 days, high within 30, medium
+  within 90, low at discretion.
+- Confirmed vulnerabilities in released versions get a GitHub Security
+  Advisory and a `fix:` release. Add a `SECURITY.md` describing how to report
+  issues.
+
+#### Phase 5: regression and continuous checks
+
+- **Every fixed finding gets an integration test** in `scotty/tests/` that
+  fails before the fix and passes after it (use `axum-test`; for WebSocket
+  use the existing `test_shell_websocket_e2e.rs` pattern).
+- **The authorization matrix from 3c becomes a test**: a table-driven test
+  that loads a fixture policy and checks every route against every role.
+- **CI security job** (new workflow or job in `ci.yml`): `cargo audit`,
+  `cargo deny check`, `gitleaks`, `osv-scanner` for the frontend, `trivy` on
+  the built image, `zizmor` on workflows. High and critical results fail the
+  build; exceptions are listed with a reason and an expiry date.
+- **Scheduled run**: the same job weekly on `main`, so new advisories are
+  found without a code change.
+- **Repeat the full review** once a year and after major features that touch
+  auth, WebSockets or Docker handling.
+
+### 2.5 Effort estimate
+
+| Phase | Effort |
+|---|---|
+| 0 Preparation | 0.5 day |
+| 1 Automated baseline | 1 day |
+| 2 Manual review | 3–5 days |
+| 3 Dynamic testing | 3–5 days |
+| 4 Reporting | 1 day |
+| 5 Regression tests and CI | 2–3 days plus one per finding |
+
+An external pentest firm can take over Phase 3 for an independent view. Give
+them this document, the threat model and the test identities, so they spend
+their time on depth and not on discovery.
+
+### 2.6 Preliminary findings from the initial code survey
+
+To be confirmed in Phase 2/3:
+
+1. **Shell input over WebSocket is not authenticated or ownership-checked.**
+   `/ws` is a public route and `handle_shell_session_data`
+   (`scotty/src/api/websocket/handlers/shell.rs`) forwards input to any
+   `session_id`. Resize and terminate check authentication but not ownership
+   (bean `scotty-qaby`). Exploitation needs a valid session UUID, so check
+   whether session IDs show up in logs or traces.
+2. **No compose policy.** The `create` permission is effectively host-level
+   trust. Either document this clearly or add an allow/deny policy for
+   dangerous compose features.
+3. **CORS allows any origin** (`scotty/src/http.rs`). Low risk with bearer
+   headers and no cookies; revisit if cookie-based auth is added.
+4. **Sample credentials in `config/default.yaml`** (bearer tokens, registry
+   passwords). Consider refusing to start in bearer/OAuth mode when known
+   sample values are configured.
