@@ -2,6 +2,80 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0](https://github.com/factorial-io/scotty/compare/v0.3.4...v0.4.0) (2026-11-07)
+
+
+### Features
+
+* **frontend:** show next app-state update instead of last update ([e58ea36](https://github.com/factorial-io/scotty/commit/e58ea3695d1e103e9c6cf9436cda0c5aeedb40da))
+
+
+### Bug Fixes
+
+* check action permission before looking up custom actions ([11795f8](https://github.com/factorial-io/scotty/commit/11795f866c3aa01c61836c50db16ae3572372388))
+* **deps:** bump zip to 9.0.5 ([1b65cfd](https://github.com/factorial-io/scotty/commit/1b65cfd2ae58d554545845eba2792d66e0405114))
+* **deps:** bundle OpenTelemetry updates and group them in Renovate ([1b89550](https://github.com/factorial-io/scotty/commit/1b89550aa3b360fdd37fec77cda7034e2f7e6e81))
+* **deps:** update crates with security advisories ([0e2334a](https://github.com/factorial-io/scotty/commit/0e2334af9f572f727e5b13d79da8c1eb80fa11ff))
+* **deps:** update dependency @iconify-icons/ph to v2 ([923ec53](https://github.com/factorial-io/scotty/commit/923ec53add8d570f7770e0510474c4ff84c60736))
+* **deps:** upgrade frontend and docs dependencies with known advisories ([06bb78b](https://github.com/factorial-io/scotty/commit/06bb78b787c889231887a3c07f9ad0a261544bd5)), closes [#924](https://github.com/factorial-io/scotty/issues/924)
+* **docker:** bump docker compose to 5.7.0 ([43cf949](https://github.com/factorial-io/scotty/commit/43cf9490b738e376ad256de562918bb945766efc))
+* **docker:** install only the docker cli and buildx ([08ab498](https://github.com/factorial-io/scotty/commit/08ab4988dd81ef2d3497c385ae6a3508707a051e))
+* enforce authentication and ownership for WebSocket session messages ([700d003](https://github.com/factorial-io/scotty/commit/700d003604a549e7241fef9a442d6b895efea882))
+* **frontend:** gate app actions per scope and show refused actions ([d9260c8](https://github.com/factorial-io/scotty/commit/d9260c816f997060ade7362ad7db575fff299d76))
+* require manage permission to change app notifications ([4249578](https://github.com/factorial-io/scotty/commit/4249578ad0c272a00418a9f27cf809aa7ce18966))
+* require shell permission for WebSocket shell sessions ([63de164](https://github.com/factorial-io/scotty/commit/63de1640545a95e10d6174142fba15cd1c0c93eb))
+* resolve clippy result_large_err in authorization middleware ([c11a9f6](https://github.com/factorial-io/scotty/commit/c11a9f67d9483e49c22c8a20e2a9b9b64313d7b6))
+* restrict task visibility ([f8f0aa9](https://github.com/factorial-io/scotty/commit/f8f0aa9102df747fcc9b9c63a82c1b8f1760a24c))
+* tighten file download permission ([678cd8b](https://github.com/factorial-io/scotty/commit/678cd8b35957d2a3a59146b17455445ec9594706))
+* **traefik:** do not prune the proxy network of an app being created ([50cbcf1](https://github.com/factorial-io/scotty/commit/50cbcf13b3d6bf110bca49a3b36046189152a5fc)), closes [#893](https://github.com/factorial-io/scotty/issues/893)
+* **traefik:** do not report stopped apps as unroutable when traefik is missing ([33fe12d](https://github.com/factorial-io/scotty/commit/33fe12d334cc41c12c85483fef4e66213d5be986)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** patch connectivity per app instead of storing stale snapshots ([fe13282](https://github.com/factorial-io/scotty/commit/fe13282fb8ae3177bb60c23003f6a377b94573a3)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** prune orphaned proxy networks traefik was never attached to ([79a5616](https://github.com/factorial-io/scotty/commit/79a5616182ec075d82c6bca55a2a20e4215ee592))
+* **traefik:** reconcile proxy network membership instead of setting it once ([297ff88](https://github.com/factorial-io/scotty/commit/297ff88181d04663e881e956930490f17a9a06c1)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **traefik:** treat a stopped load balancer as unavailable, not attached ([e2c4a5d](https://github.com/factorial-io/scotty/commit/e2c4a5d67c66911f303523fd4ec3acd90d0e57ef))
+* **websocket:** send parse errors only to the sending client ([0126c5d](https://github.com/factorial-io/scotty/commit/0126c5daeda224fa77fd1307215a0980dc129125)), closes [#925](https://github.com/factorial-io/scotty/issues/925)
+
+
+### Refactor
+
+* **docker:** replace lifecycle state machines with linear operations ([76b7730](https://github.com/factorial-io/scotty/commit/76b77303b619794308d222755706ddc4722380f9))
+* **tasks:** own task state in a per-task actor ([174ad74](https://github.com/factorial-io/scotty/commit/174ad741bb400bf69c1f8956ec1969d81f9f3d63)), closes [#894](https://github.com/factorial-io/scotty/issues/894)
+* **tasks:** own task state in a per-task actor ([bf2b22d](https://github.com/factorial-io/scotty/commit/bf2b22def4686225b75c2b34c0df5a4703d60dac)), closes [#894](https://github.com/factorial-io/scotty/issues/894)
+
+
+### Documentation
+
+* add draft security review strategy ([e6c69c2](https://github.com/factorial-io/scotty/commit/e6c69c2568ba1d2812e9c83b1ef06c0488c3d023))
+* add security policy ([8a9c98c](https://github.com/factorial-io/scotty/commit/8a9c98c1afbe150b3fd0d95a9d68457bcce06150))
+* align docs with current behavior ([534a5f9](https://github.com/factorial-io/scotty/commit/534a5f9fc470baec8e388950052b905862904e12))
+* complete security review strategy and add openspec change ([db9aefb](https://github.com/factorial-io/scotty/commit/db9aefbae6c3501b6890a0ad7d8f94e3db3f5b9c))
+* describe task permissions ([0905f51](https://github.com/factorial-io/scotty/commit/0905f515001ac16423c24deadd087602a9441146))
+* **kenkeep:** correct VictoriaMetrics retention to 7d ([ae2df1d](https://github.com/factorial-io/scotty/commit/ae2df1df72d65c4fdf6d41e30aed1bd3ff1d1dae))
+* **kenkeep:** record app-create wire format and client/server compat rule ([b10b9d4](https://github.com/factorial-io/scotty/commit/b10b9d4c98f4e28eb2811c7ec7aa22dfc1cd5333))
+* **kenkeep:** record app-create wire format and client/server compat rule ([81270be](https://github.com/factorial-io/scotty/commit/81270befa369015a557f146ec5dbaea4015c7a7a))
+* **openspec:** add event-driven reconciliation and connectivity indicator ([87c9b3c](https://github.com/factorial-io/scotty/commit/87c9b3c8d93a77733352e07d59cda1a331533048)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **openspec:** align container-logs and app-action-feedback specs with current behavior ([dc9829b](https://github.com/factorial-io/scotty/commit/dc9829bd179a611721a7ed75dad8d97da3d008b5))
+* **openspec:** archive next-update-indicator and sync app-refresh-indicator spec ([4c71955](https://github.com/factorial-io/scotty/commit/4c71955c8d71792b00d0b32bce1e30cbb6693d16))
+* **openspec:** archive reconcile-traefik-proxy-networks and sync its spec ([2f16a69](https://github.com/factorial-io/scotty/commit/2f16a69e173b7cab30d5e5f9bf26b7b70edb4159))
+* **openspec:** cover stopped traefik in reconcile-traefik-proxy-networks ([133ce18](https://github.com/factorial-io/scotty/commit/133ce18168cea4c9a0f7b649cb2aa5258380056d))
+* **openspec:** propose frontend-app-permissions-and-errors and frontend-unit-tests ([a6f0dc5](https://github.com/factorial-io/scotty/commit/a6f0dc56465acfa0c3b67bfa8f9fd1d4a1403ecc))
+* **openspec:** propose linear-operations ([752836e](https://github.com/factorial-io/scotty/commit/752836ef3bdf2ceef0a57922aa1df69e4f27638d))
+* **openspec:** propose next-update indicator for app detail ([166b4e2](https://github.com/factorial-io/scotty/commit/166b4e208aa2b490fb5cc89f10b57ff782bceddb))
+* **openspec:** propose reconciling Traefik proxy network membership ([da3e8f2](https://github.com/factorial-io/scotty/commit/da3e8f2cf6f7147997cf889755cb57f00f676e9b)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+* **openspec:** propose task-actor ([bf2b22d](https://github.com/factorial-io/scotty/commit/bf2b22def4686225b75c2b34c0df5a4703d60dac))
+* **openspec:** scope out dashboard connectivity badge ([5dd2935](https://github.com/factorial-io/scotty/commit/5dd29353b9ab05b2c3c3d61bbbdd74c5f178452d)), closes [#880](https://github.com/factorial-io/scotty/issues/880)
+
+
+### Testing
+
+* add authorization matrix for REST and WebSocket operations ([34dde8a](https://github.com/factorial-io/scotty/commit/34dde8ab33fd80351178d360badf60072f729e9c))
+* **frontend:** add Vitest unit tests for stores and lib ([14f9f52](https://github.com/factorial-io/scotty/commit/14f9f521113bfdb307e1e1fa3a703a1f8b10dbff))
+
+
+### CI
+
+* add security checks workflow ([0a484dd](https://github.com/factorial-io/scotty/commit/0a484dd1740de61787118e7a3f44363620d926d6))
+
 ## [0.3.4](https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4) (2026-07-27)
 
 
