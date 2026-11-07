@@ -15,16 +15,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       # Only authenticate when we intend to publish (push events). On pull
       # requests we build without pushing, so no registry login is needed.
       - name: Login to GitHub Container Registry
         if: ${{ github.event_name == 'push' }}
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -34,12 +34,29 @@ jobs:
       # On pull_request: build only (push: false) to catch breakage before
       # merge -- e.g. a Cargo.lock that drifted out of sync with Cargo.toml.
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
+          # Also load the image into the local Docker daemon so it can be
+          # scanned below.
+          load: true
           platforms: linux/amd64
           tags: ghcr.io/${{ github.repository }}:${{ github.event_name == 'push' && github.ref_name || format('pr-{0}', github.event.number) }}
+
+      # Fail on fixable high/critical vulnerabilities in the built image.
+      # Accepted exceptions live in .trivyignore (with an expiry date).
+      - name: Scan image for vulnerabilities
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.event_name == 'push' && github.ref_name || format('pr-{0}', github.event.number) }}
+          TRIVY_IMAGE: aquasec/trivy:0.76.2
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/src" -w /src \
+            "$TRIVY_IMAGE" image \
+            --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 \
+            --ignorefile /src/.trivyignore "$IMAGE"
 
       - name: Log out of GitHub Container Registry
         if: ${{ github.event_name == 'push' }}

@@ -23,8 +23,8 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v7
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: stable
             - name: Check ${{ matrix.features.name }}
@@ -43,11 +43,10 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v7
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: stable
-            - uses: dtolnay/rust-toolchain@stable
             - name: Test ${{ matrix.features.name }}
               run: cargo test --all-targets ${{ matrix.features.flags }}
 
@@ -55,12 +54,11 @@ jobs:
         name: Rustfmt
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v7
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: stable
             - run: rustup component add rustfmt
-            - uses: dtolnay/rust-toolchain@stable
             - run: cargo fmt --all -- --check
 
     clippy:
@@ -76,12 +74,11 @@ jobs:
                     - name: "no telemetry"
                       flags: "--no-default-features"
         steps:
-            - uses: actions/checkout@v7
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: stable
             - run: rustup component add clippy
-            - uses: dtolnay/rust-toolchain@stable
             - name: Clippy ${{ matrix.features.name }}
               run: cargo clippy --all-targets ${{ matrix.features.flags }} -- -D warnings
 
@@ -89,10 +86,10 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
             # Setup Rust toolchain for TypeScript generation
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: stable
 
@@ -100,7 +97,7 @@ jobs:
             - name: Generate TypeScript types
               run: cargo run --package scotty-ts-generator
 
-            - uses: oven-sh/setup-bun@v2
+            - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
             # run any `bun` or `bunx` command
             - name: Install dependencies

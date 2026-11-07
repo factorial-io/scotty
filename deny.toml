@@ -1,0 +1,48 @@
+# cargo-deny configuration, run by .github/workflows/security.yml.
+#
+# Accepted exceptions go into the `ignore` lists, one entry per line, and must
+# carry a reason and an expiry date, e.g.
+#   { id = "RUSTSEC-2024-0001", reason = "not reachable: only used in tests. expires: 2026-12-31" },
+# .github/scripts/check-security-exceptions.py fails CI once the date passes.
+
+[graph]
+all-features = true
+
+[advisories]
+# Unmaintained crates are reported but only fail for direct dependencies.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = [
+]
+
+[licenses]
+confidence-threshold = 0.9
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "CC0-1.0",
+]
+
+[licenses.private]
+# Workspace crates are not published.
+ignore = true
+
+[bans]
+# Duplicate versions are common in the async ecosystem; report, don't fail.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

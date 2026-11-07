@@ -1,0 +1,139 @@
+# Security checks: dependency advisories, committed secrets, workflow
+# definitions and accepted-exception expiry. The container image is scanned
+# in docker-build-push.yml right after it is built; the weekly run here scans
+# the published `main` image so new advisories show up without a code change.
+#
+# Exceptions need a reason and an `expires: YYYY-MM-DD` marker, see deny.toml,
+# .trivyignore and docs/content/security.md.
+
+name: Security
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    schedule:
+        # Mondays 04:17 UTC
+        - cron: "17 4 * * 1"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    # Go tools are built with `go run module@version`; the Go checksum
+    # database verifies the module contents.
+    GITLEAKS: github.com/zricethezav/gitleaks/v8@v8.30.1
+    OSV_SCANNER: github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0
+    TRIVY_IMAGE: aquasec/trivy:0.76.2
+    ZIZMOR_VERSION: "1.32.0"
+
+jobs:
+    rust-deps:
+        name: Rust dependencies (cargo-deny)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+              with:
+                  command: check advisories bans licenses sources
+
+    frontend-deps:
+        name: Frontend dependencies (osv-scanner)
+        runs-on: ubuntu-latest
+        # Report-only until the frontend and docs dependency upgrades in bean
+        # scotty-k2vd land; remove this line afterwards.
+        continue-on-error: true
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - name: Scan bun lockfiles
+              run: |
+                  go run "$OSV_SCANNER" scan source --format json \
+                    --lockfile=frontend/bun.lock --lockfile=docs/bun.lock \
+                    > osv.json || true
+            - name: Fail on high or critical vulnerabilities
+              run: |
+                  python3 - <<'EOF'
+                  import json, sys
+                  data = json.load(open("osv.json"))
+                  found = []
+                  for result in data.get("results", []):
+                      for pkg in result.get("packages", []):
+                          name = pkg["package"]["name"]
+                          version = pkg["package"].get("version", "?")
+                          for group in pkg.get("groups", []):
+                              try:
+                                  score = float(group.get("max_severity") or 0)
+                              except ValueError:
+                                  score = 0
+                              if score >= 7.0:
+                                  found.append(f"{name}@{version}: {', '.join(group['ids'])} (CVSS {score})")
+                  for line in found:
+                      print(f"::error::{line}")
+                  print(f"{len(found)} high or critical findings")
+                  sys.exit(1 if found else 0)
+                  EOF
+
+    secrets:
+        name: Secrets (gitleaks)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Scan commits
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+              run: |
+                  if [ -n "$BASE_SHA" ]; then
+                    LOG_OPTS="--log-opts=${BASE_SHA}..${HEAD_SHA}"
+                  else
+                    LOG_OPTS=""
+                  fi
+                  go run "$GITLEAKS" git $LOG_OPTS --config .gitleaks.toml --redact --verbose --exit-code 1 .
+
+    workflows:
+        name: Workflow definitions (zizmor)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - name: Lint workflows
+              run: pipx run "zizmor==${ZIZMOR_VERSION}" --offline --min-severity high .github/workflows
+
+    exceptions:
+        name: Exception expiry
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - name: Check expiry dates of accepted exceptions
+              run: python3 .github/scripts/check-security-exceptions.py
+
+    published-image:
+        name: Published image (trivy)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - name: Scan ghcr.io/${{ github.repository }}:main
+              env:
+                  IMAGE: ghcr.io/${{ github.repository }}:main
+              run: |
+                  docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" image \
+                    --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 \
+                    --ignorefile /src/.trivyignore "$IMAGE"

@@ -1,0 +1,5 @@
+# Accepted container image findings, used by trivy in docker-build-push.yml
+# and security.yml. Put a comment with a reason and `expires: YYYY-MM-DD` on
+# the line directly above each ID, e.g.
+#   # not reachable: scotty does not use libfoo's network code. expires: 2026-12-31
+#   CVE-2026-12345
