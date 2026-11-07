@@ -33,7 +33,7 @@ Granular actions users can perform on applications and the system:
 - `view` - See app status and information
 - `manage` - Start, stop, restart applications
 - `logs` - View application logs
-- `shell` - Execute shell commands in containers
+- `shell` - Execute shell commands in containers and download files from them (`app:cp` from a container)
 - `create` - Create new apps in scope
 - `destroy` - Delete apps from scope
 
@@ -200,7 +200,7 @@ All API endpoints are protected by permission checks:
 - **Shell Access**: WebSocket shell sessions - Requires `shell` permission
 - **Notifications**: `/api/v1/authenticated/apps/notify/add` and `/remove` - Require `manage` permission on the app
 - **Custom Actions**: running an action requires `action_read` or `action_write` on the app, depending on the action
-- **File Download**: `/api/v1/apps/{app}/services/{service}/files` (GET) - Requires `view` permission
+- **File Download**: `/api/v1/apps/{app}/services/{service}/files` (GET) - Requires `shell` permission
 - **File Upload**: `/api/v1/apps/{app}/services/{service}/files` (PUT) - Requires `manage` permission
 - **App Destruction**: Delete operations - Requires `destroy` permission
 

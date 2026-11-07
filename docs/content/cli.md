@@ -182,7 +182,7 @@ Remote spec formats:
 * `<APP>:<SERVICE>:<PATH>` — fully qualified
 * `<APP>::<PATH>` or `<APP>:<PATH>` — service is resolved from the app's public services; fails if zero or more than one candidate exists
 
-**Note:** Downloads require the `view` permission; uploads require `manage`. Transfers are bounded by the server-side `SCOTTY__FILES__MAX_TRANSFER_SIZE` (default 1 GiB).
+**Note:** Downloads require the `shell` permission; uploads require `manage`. Transfers are bounded by the server-side `SCOTTY__FILES__MAX_TRANSFER_SIZE` (default 1 GiB).
 
 ### Examples
 

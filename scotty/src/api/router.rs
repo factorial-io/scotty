@@ -363,16 +363,16 @@ impl ApiRoutes {
                     )),
             )
             // File transfer endpoints (download + upload) for a service's
-            // container. GET requires `view`, PUT requires `manage`. The
-            // permission middleware is attached per method via `route_layer`
-            // and then merged, so that the `manage` check does NOT also wrap
-            // the GET handler (which would lock out view-only users).
+            // container. GET requires `shell` (reading container files is
+            // shell-level access), PUT requires `manage`. The permission
+            // middleware is attached per method via `route_layer` and then
+            // merged, so that one method's check does NOT also wrap the other.
             .route(
                 "/api/v1/apps/{app_id}/services/{service}/files",
                 get(download_files_handler)
                     .route_layer(middleware::from_fn_with_state(
                         state.clone(),
-                        require_permission(Permission::View),
+                        require_permission(Permission::Shell),
                     ))
                     .merge(
                         put(upload_files_handler)
