@@ -198,7 +198,16 @@ All API endpoints are protected by permission checks:
 - **App Management**: Start/stop/restart operations - Requires `manage` permission
 - **App Creation**: `/api/v1/authenticated/apps` (POST) - Requires `create` permission
 - **Shell Access**: WebSocket shell sessions - Requires `shell` permission
+- **Notifications**: `/api/v1/authenticated/apps/notify/add` and `/remove` - Require `manage` permission on the app
+- **Custom Actions**: running an action requires `action_read` or `action_write` on the app, depending on the action
+- **File Download**: `/api/v1/apps/{app}/services/{service}/files` (GET) - Requires `view` permission
+- **File Upload**: `/api/v1/apps/{app}/services/{service}/files` (PUT) - Requires `manage` permission
 - **App Destruction**: Delete operations - Requires `destroy` permission
+
+The complete list of operations and the permission each one requires is kept
+in `scotty/tests/fixtures/authorization_matrix.yaml`. A test calls every
+operation with every role and fails when the outcome differs, so that file
+stays accurate.
 
 **Admin API Endpoints** (require global permissions):
 - **Scopes**: `/api/v1/authenticated/admin/scopes`

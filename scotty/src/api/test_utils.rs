@@ -62,6 +62,23 @@ pub async fn create_test_app_state_with_settings(
     settings: crate::settings::config::Settings,
     oauth_state: Option<crate::oauth::handlers::OAuthState>,
 ) -> Arc<AppState> {
+    // Use a tracked, read-only fixture rather than the runtime config/casbin
+    // (which is gitignored and seeded at runtime), so tests have
+    // deterministic assignments and never race on seeding.
+    create_test_app_state_with_policy_dir(settings, oauth_state, "tests/fixtures/casbin").await
+}
+
+/// Create test AppState with provided settings and a Casbin policy directory
+///
+/// The directory must contain `model.conf` and `policy.yaml`. Calls that change
+/// the policy (for example `set_app_scopes`) write back to `policy.yaml`, so
+/// tests that modify assignments should pass a temporary copy.
+#[allow(dead_code)]
+pub async fn create_test_app_state_with_policy_dir(
+    settings: crate::settings::config::Settings,
+    oauth_state: Option<crate::oauth::handlers::OAuthState>,
+    policy_dir: &str,
+) -> Arc<AppState> {
     let docker = create_test_docker_client();
 
     Arc::new(AppState {
@@ -72,10 +89,7 @@ pub async fn create_test_app_state_with_settings(
         task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
         oauth_state,
         auth_service: Arc::new(
-            // Use a tracked, read-only fixture rather than the runtime
-            // config/casbin (which is gitignored and seeded at runtime), so
-            // tests have deterministic assignments and never race on seeding.
-            crate::services::AuthorizationService::new("tests/fixtures/casbin")
+            crate::services::AuthorizationService::new(policy_dir)
                 .await
                 .expect("Failed to load RBAC config for test"),
         ),

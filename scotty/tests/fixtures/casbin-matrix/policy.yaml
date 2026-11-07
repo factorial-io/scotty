@@ -1,0 +1,100 @@
+# Casbin policy fixture for the authorization matrix test ONLY
+# (scotty/tests/authorization_matrix_test.rs). The test copies this directory
+# to a temporary location before use, because assigning the fixture apps to
+# scopes writes back to policy.yaml.
+#
+# Every identity below has a bearer token in the test (identifier = token
+# name). All roles are granted in scope `matrix` only, except `outsider`,
+# which has full developer and action rights in scope `other`.
+scopes:
+  matrix:
+    description: Scope of the fixture app
+    created_at: 2024-01-01T00:00:00Z
+  other:
+    description: A scope the fixture app is not in
+    created_at: 2024-01-01T00:00:00Z
+roles:
+  admin:
+    permissions:
+      - '*'
+    description: Full access
+  viewer:
+    permissions:
+      - view
+    description: Read-only
+  developer:
+    permissions:
+      - view
+      - manage
+      - create
+      - shell
+      - logs
+    description: Developer without destroy
+  operator:
+    permissions:
+      - view
+      - manage
+      - destroy
+    description: Operator with destroy
+  action_user:
+    permissions:
+      - view
+      - action_read
+      - action_write
+      - action_manage
+    description: Runs and manages custom actions
+  approver:
+    permissions:
+      - view
+      - action_approve
+    description: Approves custom actions
+  admin_reader:
+    permissions:
+      - admin_read
+    description: Reads the authorization configuration
+  everything_but_admin:
+    permissions:
+      - view
+      - manage
+      - create
+      - destroy
+      - shell
+      - logs
+      - action_read
+      - action_write
+      - action_manage
+      - action_approve
+    description: Every app permission, no admin permissions
+assignments:
+  identifier:admin:
+    - role: admin
+      scopes:
+        - matrix
+  identifier:viewer:
+    - role: viewer
+      scopes:
+        - matrix
+  identifier:developer:
+    - role: developer
+      scopes:
+        - matrix
+  identifier:operator:
+    - role: operator
+      scopes:
+        - matrix
+  identifier:action-user:
+    - role: action_user
+      scopes:
+        - matrix
+  identifier:approver:
+    - role: approver
+      scopes:
+        - matrix
+  identifier:admin-reader:
+    - role: admin_reader
+      scopes:
+        - matrix
+  identifier:outsider:
+    - role: everything_but_admin
+      scopes:
+        - other

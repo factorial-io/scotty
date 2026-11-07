@@ -1,0 +1,91 @@
+# Expected authorization for every REST operation in the OpenAPI document and
+# for WebSocket messages that refer to an app. Used by
+# scotty/tests/authorization_matrix_test.rs.
+#
+# Values:
+#   public         no authentication required
+#   authenticated  any valid token with at least one role assignment
+#                  (tokens without an assignment are rejected with 401)
+#   <permission>   the permission the caller needs. Checked on the fixture
+#                  app's scope when the path names an app ({app_id} or
+#                  {app_name}), otherwise in any scope (admin_* is always
+#                  checked in any scope).
+#   [a, b]         any one of the listed permissions
+#
+# A new operation without an entry here fails the test. Change an entry only
+# together with the code, and explain behaviour changes in the commit.
+
+rest:
+  GET /api/v1/health: public
+  GET /api/v1/info: public
+  POST /api/v1/login: public
+
+  GET /api/v1/authenticated/apps/list: authenticated
+  GET /api/v1/authenticated/blueprints: authenticated
+  GET /api/v1/authenticated/scopes/list: authenticated
+  POST /api/v1/authenticated/validate-token: authenticated
+  # Known gap: task list and details are not filtered by app permission.
+  # Tracked in bean scotty-t7wb.
+  GET /api/v1/authenticated/tasks: authenticated
+  GET /api/v1/authenticated/task/{uuid}: authenticated
+
+  GET /api/v1/authenticated/apps/info/{app_id}: view
+  GET /api/v1/authenticated/apps/run/{app_id}: manage
+  GET /api/v1/authenticated/apps/stop/{app_id}: manage
+  GET /api/v1/authenticated/apps/purge/{app_id}: manage
+  GET /api/v1/authenticated/apps/rebuild/{app_id}: manage
+  GET /api/v1/authenticated/apps/destroy/{app_id}: destroy
+  GET /api/v1/authenticated/apps/adopt/{app_id}: create
+  # Checked against the requested scopes in the body (the fixture's scope).
+  POST /api/v1/authenticated/apps/create: create
+  # App name in the body, checked on that app.
+  POST /api/v1/authenticated/apps/notify/add: manage
+  POST /api/v1/authenticated/apps/notify/remove: manage
+
+  # Reading files out of a container only needs `view`; see bean scotty-f4cp.
+  GET /api/v1/apps/{app_id}/services/{service}/files: view
+  PUT /api/v1/apps/{app_id}/services/{service}/files: manage
+
+  POST /api/v1/authenticated/apps/{app_name}/actions: [action_read, action_write]
+  GET /api/v1/authenticated/apps/{app_name}/custom-actions: action_manage
+  POST /api/v1/authenticated/apps/{app_name}/custom-actions: action_manage
+  GET /api/v1/authenticated/apps/{app_name}/custom-actions/{action_name}: action_manage
+  DELETE /api/v1/authenticated/apps/{app_name}/custom-actions/{action_name}: action_manage
+
+  GET /api/v1/authenticated/admin/actions/pending: action_approve
+  GET /api/v1/authenticated/admin/actions/{app_name}/{action_name}: action_approve
+  POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/approve: action_approve
+  POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/reject: action_approve
+  POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/revoke: action_approve
+
+  GET /api/v1/authenticated/admin/scopes: admin_read
+  POST /api/v1/authenticated/admin/scopes: admin_write
+  GET /api/v1/authenticated/admin/roles: admin_read
+  POST /api/v1/authenticated/admin/roles: admin_write
+  GET /api/v1/authenticated/admin/assignments: admin_read
+  POST /api/v1/authenticated/admin/assignments: admin_write
+  DELETE /api/v1/authenticated/admin/assignments: admin_write
+  GET /api/v1/authenticated/admin/permissions: admin_read
+  POST /api/v1/authenticated/admin/permissions/test: admin_read
+  GET /api/v1/authenticated/admin/permissions/user/{user_id}: admin_read
+
+websocket:
+  StartLogStream: logs
+  CreateShellSession: shell
+
+# Operations that name the app (or its scopes) in the request body instead of
+# the path; their permission is checked in the fixture app's scope.
+app_scoped_by_body:
+  - POST /api/v1/authenticated/apps/create
+  - POST /api/v1/authenticated/apps/notify/add
+  - POST /api/v1/authenticated/apps/notify/remove
+
+# Routes registered in router.rs that are intentionally not in the OpenAPI
+# document. Any other undocumented route fails the test.
+undocumented_routes:
+  - /ws
+  - /oauth/device
+  - /oauth/device/token
+  - /oauth/authorize
+  - /api/oauth/callback
+  - /oauth/exchange
