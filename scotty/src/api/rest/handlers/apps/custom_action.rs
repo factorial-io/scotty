@@ -60,6 +60,32 @@ pub async fn run_custom_action_handler(
         payload.action_name, app_name
     );
 
+    // Callers need at least one action permission on the app before anything
+    // is looked up, so they cannot probe which apps and actions exist (and
+    // their approval status) in scopes they have no access to. The exact
+    // permission the action requires is checked below.
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    let mut may_run_actions = false;
+    for permission in [Permission::ActionRead, Permission::ActionWrite] {
+        if state
+            .auth_service
+            .check_permission(&user_id, &app_name, &permission)
+            .await
+        {
+            may_run_actions = true;
+            break;
+        }
+    }
+    if !may_run_actions {
+        warn!(
+            "Access denied: user {} has no action permission on app '{}'",
+            auth_context.user.email, app_name
+        );
+        return Err(AppError::ScopeAccessDenied(
+            "user lacks action_read or action_write permission".to_string(),
+        ));
+    }
+
     // Validate app exists and get the app
     let app = match state.apps.get_app(&app_name).await {
         Some(app) => app,
@@ -106,7 +132,6 @@ pub async fn run_custom_action_handler(
     };
 
     // Check if user has the required permission for this action
-    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     let has_permission = state
         .auth_service
         .check_permission(&user_id, &app_name, &required_permission)
