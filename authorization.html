@@ -177,7 +177,7 @@
 <li><code>view</code> - See app status and information</li>
 <li><code>manage</code> - Start, stop, restart applications</li>
 <li><code>logs</code> - View application logs</li>
-<li><code>shell</code> - Execute shell commands in containers</li>
+<li><code>shell</code> - Execute shell commands in containers and download files from them (<code>app:cp</code> from a container)</li>
 <li><code>create</code> - Create new apps in scope</li>
 <li><code>destroy</code> - Delete apps from scope</li>
 </ul>
@@ -345,7 +345,7 @@
 <li><strong>Shell Access</strong>: WebSocket shell sessions - Requires <code>shell</code> permission</li>
 <li><strong>Notifications</strong>: <code>/api/v1/authenticated/apps/notify/add</code> and <code>/remove</code> - Require <code>manage</code> permission on the app</li>
 <li><strong>Custom Actions</strong>: running an action requires <code>action_read</code> or <code>action_write</code> on the app, depending on the action</li>
-<li><strong>File Download</strong>: <code>/api/v1/apps/{app}/services/{service}/files</code> (GET) - Requires <code>view</code> permission</li>
+<li><strong>File Download</strong>: <code>/api/v1/apps/{app}/services/{service}/files</code> (GET) - Requires <code>shell</code> permission</li>
 <li><strong>File Upload</strong>: <code>/api/v1/apps/{app}/services/{service}/files</code> (PUT) - Requires <code>manage</code> permission</li>
 <li><strong>App Destruction</strong>: Delete operations - Requires <code>destroy</code> permission</li>
 </ul>
