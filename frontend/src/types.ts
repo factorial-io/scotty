@@ -45,11 +45,7 @@ export interface AppSettings {
 }
 
 export type LoadBalancerConnectivity =
-	| 'Unknown'
-	| 'NotApplicable'
-	| 'Connected'
-	| 'Disconnected'
-	| 'LoadBalancerUnavailable';
+	'Unknown' | 'NotApplicable' | 'Connected' | 'Disconnected' | 'LoadBalancerUnavailable';
 
 export interface App {
 	name: string;
