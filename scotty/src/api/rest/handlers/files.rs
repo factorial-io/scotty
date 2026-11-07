@@ -227,7 +227,7 @@ where
         (status = 200, description = "Tar archive of the requested container path. The stream is aborted mid-transfer if the configured maximum size is exceeded.", content_type = "application/x-tar"),
         (status = 400, description = "Invalid path query parameter", body = FileTransferError),
         (status = 401, description = "Access token is missing or invalid"),
-        (status = 403, description = "Caller lacks the `view` permission", body = FileTransferError),
+        (status = 403, description = "Caller lacks the `shell` permission", body = FileTransferError),
         (status = 404, description = "App, service, or path not found", body = FileTransferError),
         (status = 409, description = "Service container is not running", body = FileTransferError),
         (status = 500, description = "Docker daemon error", body = FileTransferError),

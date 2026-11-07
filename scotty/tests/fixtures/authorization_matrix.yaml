@@ -41,8 +41,8 @@ rest:
   POST /api/v1/authenticated/apps/notify/add: manage
   POST /api/v1/authenticated/apps/notify/remove: manage
 
-  # Under review, tracked privately.
-  GET /api/v1/apps/{app_id}/services/{service}/files: view
+  # Reading files from a container is shell-level access.
+  GET /api/v1/apps/{app_id}/services/{service}/files: shell
   PUT /api/v1/apps/{app_id}/services/{service}/files: manage
 
   POST /api/v1/authenticated/apps/{app_name}/actions: [action_read, action_write]
