@@ -6,6 +6,7 @@ description = "scotty is a small PaaS which helps you to administer a bunch of d
 authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
+publish.workspace = true
 
 [features]
 default = ["telemetry-grpc"]

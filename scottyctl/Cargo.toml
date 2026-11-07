@@ -6,6 +6,7 @@ description = "CLI tool for scotty PaaS"
 authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
