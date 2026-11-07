@@ -341,6 +341,7 @@
 <ul>
 <li><strong>App List</strong>: <code>/api/v1/authenticated/apps/list</code> - Requires <code>view</code> permission, shows only accessible apps</li>
 <li><strong>App Management</strong>: Start/stop/restart operations - Requires <code>manage</code> permission</li>
+<li><strong>Tasks</strong>: <code>/api/v1/authenticated/tasks</code>, <code>/api/v1/authenticated/task/{uuid}</code>, task output streams and task update messages - Show only tasks for apps you have <code>view</code> on, tasks without an app if you have <code>admin_read</code>, and tasks you started yourself (so you can follow an app you are creating before it is assigned to a scope). Other tasks answer like missing ones (404)</li>
 <li><strong>App Creation</strong>: <code>/api/v1/authenticated/apps</code> (POST) - Requires <code>create</code> permission</li>
 <li><strong>Shell Access</strong>: WebSocket shell sessions - Requires <code>shell</code> permission</li>
 <li><strong>Notifications</strong>: <code>/api/v1/authenticated/apps/notify/add</code> and <code>/remove</code> - Require <code>manage</code> permission on the app</li>
