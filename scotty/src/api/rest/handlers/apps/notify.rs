@@ -1,10 +1,47 @@
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, Extension, Json};
 use scotty_core::{
     apps::app_data::AppData,
+    authorization::Permission,
     notification_types::{AddNotificationRequest, NotificationReceiver, RemoveNotificationRequest},
 };
+use tracing::warn;
 
-use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::SharedAppState};
+use crate::{
+    api::{
+        error::AppError, middleware::authorization::AuthorizationContext,
+        secure_response::SecureJson,
+    },
+    app_state::SharedAppState,
+    services::AuthorizationService,
+};
+
+/// Changing an app's notifications requires `manage` on that app.
+///
+/// The app name comes from the request body, so the route-level permission
+/// middleware cannot check it. The check runs before the app lookup so callers
+/// cannot probe which apps exist in scopes they have no access to.
+async fn require_manage(
+    state: &SharedAppState,
+    auth_context: &AuthorizationContext,
+    app_name: &str,
+) -> Result<(), AppError> {
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    if state
+        .auth_service
+        .check_permission(&user_id, app_name, &Permission::Manage)
+        .await
+    {
+        Ok(())
+    } else {
+        warn!(
+            "Access denied: user {} lacks manage permission for notifications of app '{}'",
+            auth_context.user.email, app_name
+        );
+        Err(AppError::ScopeAccessDenied(
+            "user lacks manage permission".to_string(),
+        ))
+    }
+}
 
 #[utoipa::path(
     post,
@@ -13,6 +50,7 @@ use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::S
     responses(
     (status = 200, response = inline(AppData)),
     (status = 401, description = "Access token is missing or invalid"),
+    (status = 403, description = "Caller lacks manage permission for the app"),
     ),
     security(
         ("bearerAuth" = [])
@@ -20,10 +58,13 @@ use crate::{api::error::AppError, api::secure_response::SecureJson, app_state::S
 )]
 pub async fn add_notification_handler(
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
     Json(payload): Json<AddNotificationRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let app_name = payload.app_name.clone();
     let service_ids = payload.service_ids.clone();
+
+    require_manage(&state, &auth_context, &app_name).await?;
 
     let app = state
         .apps
@@ -70,6 +111,7 @@ pub async fn add_notification_handler(
     responses(
     (status = 200, response = inline(AppData)),
     (status = 401, description = "Access token is missing or invalid"),
+    (status = 403, description = "Caller lacks manage permission for the app"),
     ),
     security(
         ("bearerAuth" = [])
@@ -77,10 +119,13 @@ pub async fn add_notification_handler(
 )]
 pub async fn remove_notification_handler(
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
     Json(payload): Json<RemoveNotificationRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let app_name = payload.app_name.clone();
     let service_ids = payload.service_ids.clone();
+
+    require_manage(&state, &auth_context, &app_name).await?;
 
     let app = state
         .apps
