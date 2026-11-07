@@ -182,8 +182,8 @@ Attacker profiles:
   time window, out-of-scope systems (the OIDC provider itself, the shared
   registry), an emergency contact, and a data-handling rule for any secrets
   found.
-- Re-check the open security beans under epic `scotty-uq4t` to see which are
-  still valid.
+- Re-check open security issues and draft security advisories to see which
+  are still valid.
 
 #### Phase 1: automated baseline (1 day; afterwards it runs in CI)
 
@@ -282,7 +282,10 @@ on the throwaway Docker host.
   holds unfixed findings) listing every Phase 2 area and Phase 3 test with its
   outcome, so coverage is visible.
 - Each finding gets: title, affected component, CVSS 4.0 score, impact,
-  reproduction steps, recommended fix, and a bean under epic `scotty-uq4t`.
+  reproduction steps and recommended fix. Track it as a **private GitHub
+  Security Advisory** while it is unfixed (the repository is public, so a
+  public issue would disclose it), and as a normal GitHub issue once fixed or
+  if it has no security impact.
 - Fix deadlines by severity: critical within 7 days, high within 30, medium
   within 90, low at discretion.
 - Confirmed vulnerabilities in released versions get a GitHub Security
