@@ -126,7 +126,7 @@ mod tests {
         let service = LogStreamingService::new(docker);
 
         let random_id = Uuid::new_v4();
-        let result = service.stop_stream(random_id).await;
+        let result = service.stop_stream(random_id, Uuid::new_v4()).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -153,5 +153,51 @@ mod tests {
         assert_eq!(info.app_name, "test-app");
         assert_eq!(info.service_name, "web");
         assert!(info.follow);
+    }
+
+    mod ownership {
+        use super::*;
+
+        fn service() -> LogStreamingService {
+            LogStreamingService::new(crate::api::test_utils::create_test_docker_client())
+        }
+
+        #[tokio::test]
+        async fn owner_can_stop_stream() {
+            let service = service();
+            let owner = Uuid::new_v4();
+            let (stream_id, mut rx) = service.insert_test_stream("app", Some(owner)).await;
+
+            service
+                .stop_stream(stream_id, owner)
+                .await
+                .expect("owner stop should be accepted");
+            assert!(matches!(rx.try_recv(), Ok(LogStreamCommand::Stop)));
+        }
+
+        #[tokio::test]
+        async fn foreign_client_cannot_stop_stream() {
+            let service = service();
+            let owner = Uuid::new_v4();
+            let (stream_id, mut rx) = service.insert_test_stream("app", Some(owner)).await;
+
+            match service.stop_stream(stream_id, Uuid::new_v4()).await {
+                Err(LogStreamError::StreamNotFound { stream_id: id }) => assert_eq!(id, stream_id),
+                other => panic!("expected StreamNotFound, got {other:?}"),
+            }
+            assert!(rx.try_recv().is_err());
+        }
+
+        #[tokio::test]
+        async fn ownerless_stream_cannot_be_stopped_by_a_client() {
+            let service = service();
+            let (stream_id, mut rx) = service.insert_test_stream("app", None).await;
+
+            assert!(service
+                .stop_stream(stream_id, Uuid::new_v4())
+                .await
+                .is_err());
+            assert!(rx.try_recv().is_err());
+        }
     }
 }

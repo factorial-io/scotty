@@ -442,14 +442,41 @@ impl LogStreamingService {
         Ok(stream_id)
     }
 
-    /// Stop a log stream
-    pub async fn stop_stream(&self, stream_id: Uuid) -> LogStreamResult<()> {
+    /// Stop a log stream owned by `client_id`.
+    ///
+    /// Returns `StreamNotFound` both for unknown streams and for streams owned
+    /// by another WebSocket client, so callers cannot probe whether a foreign
+    /// stream exists.
+    pub async fn stop_stream(&self, stream_id: Uuid, client_id: Uuid) -> LogStreamResult<()> {
         let streams = self.active_streams.read().await;
-        if let Some(session) = streams.get(&stream_id) {
-            session.stop().await
-        } else {
-            Err(LogStreamError::StreamNotFound { stream_id })
+        match streams.get(&stream_id) {
+            Some(session) if session.client_id == Some(client_id) => session.stop().await,
+            _ => Err(LogStreamError::StreamNotFound { stream_id }),
         }
+    }
+
+    /// Register a stream without a Docker log follower, for tests.
+    ///
+    /// Returns the receiving end of the stream's command channel so tests can
+    /// observe whether a stop command reaches the stream.
+    #[cfg(test)]
+    pub(crate) async fn insert_test_stream(
+        &self,
+        app_name: &str,
+        client_id: Option<Uuid>,
+    ) -> (Uuid, mpsc::Receiver<LogStreamCommand>) {
+        let (sender, receiver) = mpsc::channel(16);
+        let stream_id = Uuid::new_v4();
+        let session = LogStreamSession {
+            stream_id,
+            app_name: app_name.to_string(),
+            service_name: "web".to_string(),
+            container_id: "test-container".to_string(),
+            sender,
+            client_id,
+        };
+        self.active_streams.write().await.insert(stream_id, session);
+        (stream_id, receiver)
     }
 
     /// Stop all streams for an app

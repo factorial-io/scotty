@@ -112,7 +112,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
     {
         info!("WebSocket client {} disconnected, cleaning up", client_id);
 
-        // Stop any active log streams for this client
+        // Stop log streams and terminate shell sessions owned by this client
         cleanup_client_streams(&state, client_id).await;
 
         // Remove client from the list
@@ -134,8 +134,11 @@ pub async fn ws_handler(
     ws.on_upgrade(move |ws| websocket_handler(ws, state, client_id))
 }
 
-/// Clean up all streams associated with a disconnected client
-async fn cleanup_client_streams(state: &SharedAppState, client_id: Uuid) {
+/// Clean up all log streams and shell sessions owned by a disconnected client.
+///
+/// Task output streams need no cleanup here: they end on their own once the
+/// client is removed from the messenger.
+pub(crate) async fn cleanup_client_streams(state: &SharedAppState, client_id: Uuid) {
     info!("Cleaning up streams for disconnected client {}", client_id);
 
     // Stop all streams associated with this client using the shared service
@@ -151,6 +154,18 @@ async fn cleanup_client_streams(state: &SharedAppState, client_id: Uuid) {
     } else {
         info!(
             "No active log streams found for disconnected client {}",
+            client_id
+        );
+    }
+
+    let terminated_session_ids = state
+        .shell_service
+        .terminate_client_sessions(client_id)
+        .await;
+    if !terminated_session_ids.is_empty() {
+        info!(
+            "Terminated {} shell sessions for disconnected client {}",
+            terminated_session_ids.len(),
             client_id
         );
     }

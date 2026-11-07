@@ -173,7 +173,7 @@ pub async fn handle_stop_log_stream(state: &SharedAppState, client_id: Uuid, str
         }
     };
 
-    match state.logs_service.stop_stream(stream_id).await {
+    match state.logs_service.stop_stream(stream_id, client_id).await {
         Ok(()) => {
             info!(
                 "Log stream {} stopped successfully by client {}",

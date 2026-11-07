@@ -616,41 +616,110 @@ impl ShellService {
         Ok(session_id)
     }
 
-    /// Send input to a shell session
-    pub async fn send_input(&self, session_id: Uuid, input: String) -> ShellServiceResult<()> {
-        let sessions = self.active_sessions.read().await;
-        if let Some(session) = sessions.get(&session_id) {
-            session.send_command(ShellCommand::Input(input)).await
-        } else {
-            Err(ShellServiceError::SessionNotFound { session_id })
-        }
+    /// Look up a session owned by `client_id`.
+    ///
+    /// Returns `SessionNotFound` both for unknown sessions and for sessions
+    /// owned by another WebSocket client, so callers cannot probe whether a
+    /// foreign session exists.
+    fn owned_session(
+        sessions: &HashMap<Uuid, ShellSession>,
+        session_id: Uuid,
+        client_id: Uuid,
+    ) -> ShellServiceResult<&ShellSession> {
+        sessions
+            .get(&session_id)
+            .filter(|session| session.client_id == client_id)
+            .ok_or(ShellServiceError::SessionNotFound { session_id })
     }
 
-    /// Resize a shell session TTY
+    /// Send input to a shell session owned by `client_id`
+    pub async fn send_input(
+        &self,
+        session_id: Uuid,
+        client_id: Uuid,
+        input: String,
+    ) -> ShellServiceResult<()> {
+        let sessions = self.active_sessions.read().await;
+        Self::owned_session(&sessions, session_id, client_id)?
+            .send_command(ShellCommand::Input(input))
+            .await
+    }
+
+    /// Resize the TTY of a shell session owned by `client_id`
     pub async fn resize_tty(
         &self,
         session_id: Uuid,
+        client_id: Uuid,
         width: u16,
         height: u16,
     ) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
-        if let Some(session) = sessions.get(&session_id) {
-            session
-                .send_command(ShellCommand::Resize { width, height })
-                .await
-        } else {
-            Err(ShellServiceError::SessionNotFound { session_id })
-        }
+        Self::owned_session(&sessions, session_id, client_id)?
+            .send_command(ShellCommand::Resize { width, height })
+            .await
     }
 
-    /// Terminate a shell session
-    pub async fn terminate_session(&self, session_id: Uuid) -> ShellServiceResult<()> {
+    /// Terminate a shell session owned by `client_id`
+    pub async fn terminate_session(
+        &self,
+        session_id: Uuid,
+        client_id: Uuid,
+    ) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
-        if let Some(session) = sessions.get(&session_id) {
-            session.send_command(ShellCommand::Terminate).await
-        } else {
-            Err(ShellServiceError::SessionNotFound { session_id })
+        Self::owned_session(&sessions, session_id, client_id)?
+            .send_command(ShellCommand::Terminate)
+            .await
+    }
+
+    /// Terminate all shell sessions owned by a WebSocket client.
+    ///
+    /// Called when the client disconnects. Returns the IDs of the sessions
+    /// that were asked to terminate.
+    pub async fn terminate_client_sessions(&self, client_id: Uuid) -> Vec<Uuid> {
+        let sessions = self.active_sessions.read().await;
+        let client_sessions: Vec<_> = sessions
+            .values()
+            .filter(|s| s.client_id == client_id)
+            .cloned()
+            .collect();
+        drop(sessions);
+
+        let mut terminated = Vec::new();
+        for session in client_sessions {
+            if session.sender.send(ShellCommand::Terminate).await.is_ok() {
+                terminated.push(session.session_id);
+            }
         }
+        terminated
+    }
+
+    /// Register a session without a Docker exec, for tests.
+    ///
+    /// Returns the receiving end of the session's command channel so tests
+    /// can observe which commands reach the session.
+    #[cfg(test)]
+    pub(crate) async fn insert_test_session(
+        &self,
+        app_name: &str,
+        client_id: Uuid,
+    ) -> (Uuid, mpsc::Receiver<ShellCommand>) {
+        let (sender, receiver) = mpsc::channel(16);
+        let session_id = Uuid::new_v4();
+        let session = ShellSession {
+            session_id,
+            app_name: app_name.to_string(),
+            service_name: "web".to_string(),
+            container_id: "test-container".to_string(),
+            exec_id: "test-exec".to_string(),
+            sender,
+            client_id,
+            created_at: chrono::Utc::now(),
+        };
+        self.active_sessions
+            .write()
+            .await
+            .insert(session_id, session);
+        (session_id, receiver)
     }
 
     /// Get active sessions

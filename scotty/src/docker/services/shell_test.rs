@@ -133,7 +133,7 @@ mod tests {
         let service = ShellService::new(docker, settings);
 
         let random_id = Uuid::new_v4();
-        let result = service.terminate_session(random_id).await;
+        let result = service.terminate_session(random_id, Uuid::new_v4()).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -156,7 +156,7 @@ mod tests {
 
         let random_id = Uuid::new_v4();
         let result = service
-            .send_input(random_id, "test input".to_string())
+            .send_input(random_id, Uuid::new_v4(), "test input".to_string())
             .await;
 
         assert!(result.is_err());
@@ -179,7 +179,7 @@ mod tests {
         let service = ShellService::new(docker, settings);
 
         let random_id = Uuid::new_v4();
-        let result = service.resize_tty(random_id, 80, 24).await;
+        let result = service.resize_tty(random_id, Uuid::new_v4(), 80, 24).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -420,6 +420,76 @@ mod tests {
         match rx.try_recv().unwrap() {
             ShellCommand::Terminate => (),
             _ => panic!("Wrong variant"),
+        }
+    }
+
+    mod ownership {
+        use super::*;
+
+        fn service() -> ShellService {
+            ShellService::new(
+                crate::api::test_utils::create_test_docker_client(),
+                create_test_shell_settings(),
+            )
+        }
+
+        #[tokio::test]
+        async fn owner_input_reaches_session() {
+            let service = service();
+            let owner = Uuid::new_v4();
+            let (session_id, mut rx) = service.insert_test_session("app", owner).await;
+
+            service
+                .send_input(session_id, owner, "ls\n".to_string())
+                .await
+                .expect("owner input should be accepted");
+
+            match rx.try_recv().expect("command should be queued") {
+                ShellCommand::Input(data) => assert_eq!(data, "ls\n"),
+                other => panic!("unexpected command {other:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn foreign_client_is_rejected_as_not_found() {
+            let service = service();
+            let owner = Uuid::new_v4();
+            let intruder = Uuid::new_v4();
+            let (session_id, mut rx) = service.insert_test_session("app", owner).await;
+
+            let input = service
+                .send_input(session_id, intruder, "id\n".to_string())
+                .await;
+            let resize = service.resize_tty(session_id, intruder, 80, 24).await;
+            let terminate = service.terminate_session(session_id, intruder).await;
+
+            for result in [input, resize, terminate] {
+                match result {
+                    Err(ShellServiceError::SessionNotFound { session_id: id }) => {
+                        assert_eq!(id, session_id)
+                    }
+                    other => panic!("expected SessionNotFound, got {other:?}"),
+                }
+            }
+            assert!(
+                rx.try_recv().is_err(),
+                "no command from a foreign client may reach the session"
+            );
+        }
+
+        #[tokio::test]
+        async fn terminate_client_sessions_only_affects_that_client() {
+            let service = service();
+            let client_a = Uuid::new_v4();
+            let client_b = Uuid::new_v4();
+            let (session_a, mut rx_a) = service.insert_test_session("app", client_a).await;
+            let (_session_b, mut rx_b) = service.insert_test_session("app", client_b).await;
+
+            let terminated = service.terminate_client_sessions(client_a).await;
+
+            assert_eq!(terminated, vec![session_a]);
+            assert!(matches!(rx_a.try_recv(), Ok(ShellCommand::Terminate)));
+            assert!(rx_b.try_recv().is_err());
         }
     }
 }
