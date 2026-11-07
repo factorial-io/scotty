@@ -90,16 +90,7 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
         match msg {
             Message::Text(text) => {
                 crate::metrics::websocket::record_message_received();
-                if let Ok(parsed_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
-                    handle_websocket_message(&state, client_id, &parsed_msg).await;
-                } else {
-                    state
-                        .messenger
-                        .broadcast_to_all(WebSocketMessage::Error(
-                            "Could not parse message".to_string(),
-                        ))
-                        .await;
-                }
+                handle_text_message(&state, client_id, &text).await;
             }
             Message::Binary(_bin) => {
                 // not handled.
@@ -120,6 +111,18 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
 
         crate::metrics::websocket::record_connection_closed();
         info!("WebSocket client {} cleanup completed", client_id);
+    }
+}
+
+async fn handle_text_message(state: &SharedAppState, client_id: Uuid, text: &str) {
+    match serde_json::from_str::<WebSocketMessage>(text) {
+        Ok(parsed_msg) => handle_websocket_message(state, client_id, &parsed_msg).await,
+        Err(_) => {
+            state
+                .messenger
+                .send_error(client_id, "Could not parse message".to_string())
+                .await
+        }
     }
 }
 
@@ -168,5 +171,42 @@ pub(crate) async fn cleanup_client_streams(state: &SharedAppState, client_id: Uu
             terminated_session_ids.len(),
             client_id
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app_state::WebSocketClient;
+
+    #[tokio::test]
+    async fn parse_errors_go_only_to_the_sender() {
+        let state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let (sender_id, other_id) = (Uuid::new_v4(), Uuid::new_v4());
+        let (sender_tx, mut sender_rx) = broadcast::channel(8);
+        let (other_tx, mut other_rx) = broadcast::channel(8);
+        state
+            .messenger
+            .add_client(sender_id, WebSocketClient::new(sender_tx))
+            .await;
+        state
+            .messenger
+            .add_client(other_id, WebSocketClient::new(other_tx))
+            .await;
+
+        handle_text_message(&state, sender_id, "not json").await;
+
+        let Message::Text(text) = sender_rx.try_recv().unwrap() else {
+            panic!("expected a text message");
+        };
+        assert!(matches!(
+            serde_json::from_str(&text).unwrap(),
+            WebSocketMessage::Error(e) if e == "Could not parse message"
+        ));
+        assert!(other_rx.try_recv().is_err());
     }
 }
