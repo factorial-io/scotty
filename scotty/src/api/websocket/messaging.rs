@@ -144,6 +144,16 @@ impl WebSocketMessenger {
         }
     }
 
+    /// Authenticated clients and their users, for sending a message only to
+    /// the recipients allowed to see it. Unauthenticated clients are omitted.
+    pub async fn authenticated_clients(&self) -> Vec<(Uuid, CurrentUser)> {
+        let clients = self.clients.lock().await;
+        clients
+            .iter()
+            .filter_map(|(id, client)| client.user.clone().map(|user| (*id, user)))
+            .collect()
+    }
+
     /// Get user for a specific client
     pub async fn get_user_for_client(&self, client_id: Uuid) -> Option<CurrentUser> {
         let clients = self.clients.lock().await;

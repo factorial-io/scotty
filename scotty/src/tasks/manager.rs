@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::api::websocket::WebSocketMessenger;
 use crate::metrics;
+use crate::services::AuthorizationService;
 use crate::tasks::actor::{self, Snapshot, TaskHandle, TaskWriter};
 use crate::tasks::timed_buffer::TimedBuffer;
 
@@ -26,13 +27,15 @@ use crate::tasks::timed_buffer::TimedBuffer;
 pub struct TaskManager {
     tasks: Arc<RwLock<HashMap<Uuid, watch::Receiver<Snapshot>>>>,
     messenger: WebSocketMessenger,
+    auth: Arc<AuthorizationService>,
 }
 
 impl TaskManager {
-    pub fn new(messenger: WebSocketMessenger) -> Self {
+    pub fn new(messenger: WebSocketMessenger, auth: Arc<AuthorizationService>) -> Self {
         Self {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             messenger,
+            auth,
         }
     }
 
@@ -43,7 +46,7 @@ impl TaskManager {
         details: TaskDetails,
     ) -> (TaskHandle, watch::Receiver<Snapshot>) {
         let id = details.id;
-        let (handle, rx) = actor::spawn(details, self.messenger.clone());
+        let (handle, rx) = actor::spawn(details, self.messenger.clone(), self.auth.clone());
         let mut tasks = self.tasks.write().await;
         tasks.insert(id, rx.clone());
         metrics::metrics().record_task_added(tasks.len());
@@ -214,6 +217,10 @@ mod tests {
     use crate::tasks::actor::Outcome;
     use std::time::Duration;
 
+    async fn test_auth() -> Arc<AuthorizationService> {
+        Arc::new(AuthorizationService::create_fallback_service(None).await)
+    }
+
     async fn wait_for(
         rx: &mut watch::Receiver<Snapshot>,
         pred: impl Fn(&TaskDetails) -> bool,
@@ -232,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn subprocess_exit_does_not_finish_task() {
-        let manager = TaskManager::new(create_test_websocket_messenger());
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
         let (handle, mut rx) = manager.create_task(TaskDetails::default()).await;
 
         let code = manager
@@ -278,7 +285,7 @@ mod tests {
 
     #[tokio::test]
     async fn missing_binary_is_reported_not_panicked() {
-        let manager = TaskManager::new(create_test_websocket_messenger());
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
         let (handle, mut rx) = manager.create_task(TaskDetails::default()).await;
         let result = manager
             .start_process(
@@ -303,7 +310,7 @@ mod tests {
 
     #[tokio::test]
     async fn cleanup_removes_only_expired_terminal_tasks() {
-        let manager = TaskManager::new(create_test_websocket_messenger());
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
         let (running, _) = manager.create_task(TaskDetails::default()).await;
         let (done, mut rx) = manager.create_task(TaskDetails::default()).await;
         done.terminate(Outcome::finished("done")).await;

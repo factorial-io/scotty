@@ -1,10 +1,9 @@
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::app_state::SharedAppState;
-use crate::services::authorization::Permission;
-
-use super::{check_websocket_authorization, handle_websocket_auth_failure, WebSocketAuthResult};
+use crate::services::AuthorizationService;
+use crate::tasks::output_streaming::TaskOutputStreamError;
 
 /// Handle starting a task output stream via WebSocket
 pub async fn handle_start_task_output_stream(
@@ -33,27 +32,29 @@ pub async fn handle_start_task_output_stream(
         }
     };
 
-    // Check if task has an app_name for authorization
-    let task_details = state.task_manager.get_task_details(&task_id).await;
-    if let Some(details) = task_details {
-        if let Some(app_name) = &details.app_name {
-            // Check authorization for the app
-            let auth_result = check_websocket_authorization(
-                state,
+    // A task the caller may not see answers like a missing one, so its
+    // existence is not revealed.
+    let user_id = AuthorizationService::get_user_id_for_authorization(&user);
+    let visible = match state.task_manager.get_task_details(&task_id).await {
+        Some(task) => state.auth_service.can_view_task(&user_id, &task).await,
+        None => false,
+    };
+    if !visible {
+        warn!(
+            "Client {} ({}) requested output of task {} it may not see",
+            client_id, user_id, task_id
+        );
+        state
+            .messenger
+            .send_error(
                 client_id,
-                &Some(user),
-                app_name,
-                Permission::View,
-                "task output stream",
+                format!(
+                    "Failed to start task output stream: {}",
+                    TaskOutputStreamError::TaskNotFound { task_id }
+                ),
             )
             .await;
-
-            if !matches!(auth_result, WebSocketAuthResult::Authorized(_)) {
-                handle_websocket_auth_failure(state, client_id, auth_result, "task output stream")
-                    .await;
-                return;
-            }
-        }
+        return;
     }
 
     // Start the self-contained streaming service

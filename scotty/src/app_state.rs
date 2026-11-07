@@ -147,7 +147,7 @@ impl AppState {
             stop_flag: stop_flag.clone(),
             apps: SharedAppList::new(),
             docker,
-            task_manager: manager::TaskManager::new(messenger.clone()),
+            task_manager: manager::TaskManager::new(messenger.clone(), auth_service.clone()),
             oauth_state,
             auth_service,
             logs_service,
@@ -166,15 +166,16 @@ impl AppState {
 
         let clients = Arc::new(Mutex::new(HashMap::new()));
         let messenger = WebSocketMessenger::new(clients.clone());
+        let auth_service = Arc::new(AuthorizationService::create_fallback_service(None).await);
 
         Ok(Arc::new(AppState {
             settings: settings.clone(),
             stop_flag: stop_flag::StopFlag::new(),
             apps: SharedAppList::new(),
             docker: docker.clone(),
-            task_manager: manager::TaskManager::new(messenger.clone()),
+            task_manager: manager::TaskManager::new(messenger.clone(), auth_service.clone()),
             oauth_state: None,
-            auth_service: Arc::new(AuthorizationService::create_fallback_service(None).await),
+            auth_service,
             logs_service: LogStreamingService::new(docker.clone()),
             shell_service: ShellService::new(docker, settings.shell.clone()),
             task_output_service: TaskOutputStreamingService::new(),

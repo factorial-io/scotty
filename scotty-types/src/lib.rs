@@ -249,6 +249,12 @@ pub struct TaskDetails {
     #[serde(skip)]
     #[ts(skip)]
     pub output: TaskOutput,
+    /// Authorization id of the user who started the task. Lets that user
+    /// follow the task before its app is assigned to a scope (app creation).
+    /// Server-side only, never sent to clients.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub requested_by: Option<String>,
 }
 
 impl Default for TaskDetails {
@@ -263,6 +269,7 @@ impl Default for TaskDetails {
             app_name: None,
             output_collection_active: true,
             output: TaskOutput::default(),
+            requested_by: None,
         }
     }
 }
@@ -280,6 +287,7 @@ impl TaskDetails {
             app_name,
             output_collection_active: true,
             output: TaskOutput::default(),
+            requested_by: None,
         }
     }
 
@@ -301,6 +309,7 @@ impl TaskDetails {
             app_name,
             output_collection_active: true,
             output: TaskOutput::new_with_limits(max_lines, max_line_length),
+            requested_by: None,
         }
     }
 }

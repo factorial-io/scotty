@@ -80,19 +80,23 @@ pub async fn create_test_app_state_with_policy_dir(
     policy_dir: &str,
 ) -> Arc<AppState> {
     let docker = create_test_docker_client();
+    let auth_service = Arc::new(
+        crate::services::AuthorizationService::new(policy_dir)
+            .await
+            .expect("Failed to load RBAC config for test"),
+    );
 
     Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         messenger: create_test_websocket_messenger(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
-        oauth_state,
-        auth_service: Arc::new(
-            crate::services::AuthorizationService::new(policy_dir)
-                .await
-                .expect("Failed to load RBAC config for test"),
+        task_manager: crate::tasks::manager::TaskManager::new(
+            create_test_websocket_messenger(),
+            auth_service.clone(),
         ),
+        oauth_state,
+        auth_service,
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
         shell_service: crate::docker::services::shell::ShellService::new(
             docker,
