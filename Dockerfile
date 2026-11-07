@@ -57,7 +57,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl -fsSL https://get.docker.com | bash
 
 # Set the Docker Compose version to install
-ENV DOCKER_COMPOSE_VERSION=2.29.0
+ENV DOCKER_COMPOSE_VERSION=5.7.0
 # Download and install Docker Compose
 RUN curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
     chmod +x /usr/local/bin/docker-compose
