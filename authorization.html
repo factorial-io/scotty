@@ -114,6 +114,9 @@
         <span class="Nav-listItemLinkLabel"> Migration</span>
       </a></li>
           </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/security.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Security</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
             <a href="/changelog.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Changelog</span>
       </a></li>  </ul>
@@ -340,8 +343,16 @@
 <li><strong>App Management</strong>: Start/stop/restart operations - Requires <code>manage</code> permission</li>
 <li><strong>App Creation</strong>: <code>/api/v1/authenticated/apps</code> (POST) - Requires <code>create</code> permission</li>
 <li><strong>Shell Access</strong>: WebSocket shell sessions - Requires <code>shell</code> permission</li>
+<li><strong>Notifications</strong>: <code>/api/v1/authenticated/apps/notify/add</code> and <code>/remove</code> - Require <code>manage</code> permission on the app</li>
+<li><strong>Custom Actions</strong>: running an action requires <code>action_read</code> or <code>action_write</code> on the app, depending on the action</li>
+<li><strong>File Download</strong>: <code>/api/v1/apps/{app}/services/{service}/files</code> (GET) - Requires <code>view</code> permission</li>
+<li><strong>File Upload</strong>: <code>/api/v1/apps/{app}/services/{service}/files</code> (PUT) - Requires <code>manage</code> permission</li>
 <li><strong>App Destruction</strong>: Delete operations - Requires <code>destroy</code> permission</li>
 </ul>
+<p>The complete list of operations and the permission each one requires is kept
+in <code>scotty/tests/fixtures/authorization_matrix.yaml</code>. A test calls every
+operation with every role and fails when the outcome differs, so that file
+stays accurate.</p>
 <p><strong>Admin API Endpoints</strong> (require global permissions):</p>
 <ul>
 <li><strong>Scopes</strong>: <code>/api/v1/authenticated/admin/scopes</code>
@@ -556,7 +567,7 @@
       <a class="Pagination-link" rel="prev" href="/oauth-authentication.html"> OAuth Authentication with OIDC</a>
     </div>
         <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
-      <a class="Pagination-link" rel="next" href="/changelog.html"> Changelog</a>
+      <a class="Pagination-link" rel="next" href="/security.html"> Security</a>
     </div>
   </nav>
       </div>
