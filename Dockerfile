@@ -52,9 +52,15 @@ RUN apt-get update \
     && apt-get --no-install-recommends install -y curl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# install docker
+# install the docker cli and buildx only; scotty talks to the host daemon
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN curl -fsSL https://get.docker.com | bash
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+       > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get --no-install-recommends install -y docker-ce-cli docker-buildx-plugin \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the Docker Compose version to install
 ENV DOCKER_COMPOSE_VERSION=5.7.0
