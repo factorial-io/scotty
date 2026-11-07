@@ -253,6 +253,7 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
         app_name: Some("test-app".to_string()),
         output_collection_active: false,
         output: Default::default(),
+        requested_by: None,
     };
 
     // Create RunningAppContext

@@ -39,19 +39,23 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         _ => None,
     };
 
+    let auth_service = Arc::new(
+        crate::services::authorization::fallback::FallbackService::create_fallback_service(Some(
+            "test-oauth-token".to_string(),
+        ))
+        .await,
+    );
     let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
-        oauth_state,
-        auth_service: Arc::new(
-            crate::services::authorization::fallback::FallbackService::create_fallback_service(
-                Some("test-oauth-token".to_string()),
-            )
-            .await,
+        task_manager: crate::tasks::manager::TaskManager::new(
+            create_test_websocket_messenger(),
+            auth_service.clone(),
         ),
+        oauth_state,
+        auth_service: auth_service.clone(),
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
         shell_service: crate::docker::services::shell::ShellService::new(
             docker,
@@ -533,19 +537,23 @@ async fn test_complete_oauth_web_flow_with_appstate_session_management() {
         _ => None,
     };
 
+    let auth_service = Arc::new(
+        crate::services::authorization::fallback::FallbackService::create_fallback_service(Some(
+            "test-oauth-token".to_string(),
+        ))
+        .await,
+    );
     let docker = crate::api::test_utils::create_test_docker_client();
     let app_state = Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
         docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
-        oauth_state: oauth_state.clone(),
-        auth_service: Arc::new(
-            crate::services::authorization::fallback::FallbackService::create_fallback_service(
-                Some("test-oauth-token".to_string()),
-            )
-            .await,
+        task_manager: crate::tasks::manager::TaskManager::new(
+            create_test_websocket_messenger(),
+            auth_service.clone(),
         ),
+        oauth_state: oauth_state.clone(),
+        auth_service: auth_service.clone(),
         logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
         shell_service: crate::docker::services::shell::ShellService::new(
             docker,

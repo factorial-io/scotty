@@ -32,7 +32,23 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let ctx = Context::create(app_state, app).await;
+    run_operation_requested_by(app_state, app, None, notification, op).await
+}
+
+/// Like [`run_operation`], but records who started the task, so that user can
+/// follow it before the app is assigned to a scope (app creation).
+pub async fn run_operation_requested_by<F, Fut>(
+    app_state: SharedAppState,
+    app: &AppData,
+    requested_by: Option<String>,
+    notification: Option<Message>,
+    op: F,
+) -> anyhow::Result<RunningAppContext>
+where
+    F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
+    Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
+{
+    let ctx = Context::create(app_state, app, requested_by).await;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))

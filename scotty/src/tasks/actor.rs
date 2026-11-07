@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use crate::api::websocket::WebSocketMessenger;
 use crate::metrics;
+use crate::services::AuthorizationService;
 
 /// Immutable view of a task, published after every applied event.
 pub type Snapshot = Arc<TaskDetails>;
@@ -89,6 +90,7 @@ pub enum TaskEvent {
 pub fn spawn(
     details: TaskDetails,
     messenger: WebSocketMessenger,
+    auth: Arc<AuthorizationService>,
 ) -> (TaskHandle, watch::Receiver<Snapshot>) {
     let id = details.id;
     let (tx, mailbox) = mpsc::channel(MAILBOX_CAPACITY);
@@ -98,6 +100,7 @@ pub fn spawn(
         snapshot,
         mailbox,
         messenger,
+        auth,
     };
     tokio::spawn(actor.run());
     let handle = TaskHandle {
@@ -112,6 +115,7 @@ struct TaskActor {
     snapshot: watch::Sender<Snapshot>,
     mailbox: mpsc::Receiver<TaskEvent>,
     messenger: WebSocketMessenger,
+    auth: Arc<AuthorizationService>,
 }
 
 impl TaskActor {
@@ -193,9 +197,17 @@ impl TaskActor {
         let snapshot = Arc::new(self.details.clone());
         self.snapshot.send_replace(snapshot.clone());
         if broadcast {
-            self.messenger
-                .broadcast_to_all(WebSocketMessage::TaskInfoUpdated((*snapshot).clone()))
-                .await;
+            // Only clients allowed to see this task get the update.
+            let message = WebSocketMessage::TaskInfoUpdated((*snapshot).clone());
+            for (client_id, user) in self.messenger.authenticated_clients().await {
+                let user_id = AuthorizationService::get_user_id_for_authorization(&user);
+                if self.auth.can_view_task(&user_id, &snapshot).await {
+                    let _ = self
+                        .messenger
+                        .send_to_client(client_id, message.clone())
+                        .await;
+                }
+            }
         }
     }
 }
@@ -302,8 +314,16 @@ impl Drop for TaskHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::basic_auth::CurrentUser;
     use crate::api::test_utils::create_test_websocket_messenger;
+    use crate::app_state::WebSocketClient;
+    use axum::extract::ws::Message;
     use std::time::Duration;
+    use tokio::sync::broadcast;
+
+    async fn test_auth() -> Arc<AuthorizationService> {
+        Arc::new(AuthorizationService::create_fallback_service(None).await)
+    }
 
     async fn settled(
         rx: &mut watch::Receiver<Snapshot>,
@@ -337,7 +357,11 @@ mod tests {
 
     #[tokio::test]
     async fn terminal_state_and_status_line_arrive_together() {
-        let (handle, mut rx) = spawn(TaskDetails::default(), create_test_websocket_messenger());
+        let (handle, mut rx) = spawn(
+            TaskDetails::default(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
         handle.writer().status("step one").await;
         handle.terminate(Outcome::finished("done")).await;
 
@@ -350,7 +374,11 @@ mod tests {
 
     #[tokio::test]
     async fn second_terminate_is_ignored() {
-        let (handle, mut rx) = spawn(TaskDetails::default(), create_test_websocket_messenger());
+        let (handle, mut rx) = spawn(
+            TaskDetails::default(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
         assert!(
             handle
                 .terminate(Outcome::failed(FailureKind::StepFailed, "first"))
@@ -369,7 +397,11 @@ mod tests {
 
     #[tokio::test]
     async fn dropping_handle_without_terminate_fails_task() {
-        let (handle, mut rx) = spawn(TaskDetails::default(), create_test_websocket_messenger());
+        let (handle, mut rx) = spawn(
+            TaskDetails::default(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
         drop(handle);
         let task = settled(&mut rx, |t| t.state != State::Running).await;
         assert_eq!(task.state, State::Failed);
@@ -378,7 +410,11 @@ mod tests {
 
     #[tokio::test]
     async fn output_order_is_preserved_and_subprocess_exit_keeps_running() {
-        let (handle, mut rx) = spawn(TaskDetails::default(), create_test_websocket_messenger());
+        let (handle, mut rx) = spawn(
+            TaskDetails::default(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
         let w = handle.writer().clone();
         for i in 0..50 {
             w.output(OutputStreamType::Stdout, format!("line {i}"))
@@ -398,5 +434,73 @@ mod tests {
             (0..50).map(|i| format!("line {i}")).collect::<Vec<_>>()
         );
         handle.terminate(Outcome::finished("ok")).await;
+    }
+
+    /// Connect a client, authenticated as `user` if given.
+    async fn connect(
+        messenger: &WebSocketMessenger,
+        user: Option<&str>,
+    ) -> broadcast::Receiver<Message> {
+        let (tx, rx) = broadcast::channel(100);
+        let id = Uuid::new_v4();
+        messenger.add_client(id, WebSocketClient::new(tx)).await;
+        if let Some(user) = user {
+            let user = CurrentUser {
+                email: user.to_string(),
+                name: user.to_string(),
+                picture: None,
+                access_token: None,
+            };
+            messenger.authenticate_client(id, user).await.unwrap();
+        }
+        rx
+    }
+
+    fn task_updates(rx: &mut broadcast::Receiver<Message>) -> usize {
+        std::iter::from_fn(|| rx.try_recv().ok())
+            .filter(|m| matches!(m, Message::Text(t) if t.contains("TaskInfoUpdated")))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn task_updates_reach_only_clients_allowed_to_see_the_task() {
+        let dir = tempfile::tempdir().unwrap();
+        for file in ["model.conf", "policy.yaml"] {
+            std::fs::copy(
+                std::path::Path::new("tests/fixtures/casbin").join(file),
+                dir.path().join(file),
+            )
+            .unwrap();
+        }
+        let auth = Arc::new(
+            AuthorizationService::new(dir.path().to_str().unwrap())
+                .await
+                .unwrap(),
+        );
+        auth.set_app_scopes("app-a", vec!["client-a".to_string()])
+            .await
+            .unwrap();
+
+        let messenger = create_test_websocket_messenger();
+        let mut anonymous = connect(&messenger, None).await;
+        let mut allowed = connect(&messenger, Some("identifier:client-a")).await;
+        let mut other = connect(&messenger, Some("identifier:someone-else")).await;
+
+        let details = TaskDetails {
+            app_name: Some("app-a".to_string()),
+            ..TaskDetails::default()
+        };
+        let (handle, mut rx) = spawn(details, messenger, auth);
+        handle.terminate(Outcome::finished("done")).await;
+        settled(&mut rx, |t| t.state != State::Running).await;
+
+        // The snapshot is published before the WebSocket send, so wait for it.
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !matches!(allowed.recv().await.unwrap(), Message::Text(t) if t.contains("TaskInfoUpdated")) {}
+        })
+        .await
+        .expect("allowed client got no task update");
+        assert_eq!(task_updates(&mut anonymous), 0);
+        assert_eq!(task_updates(&mut other), 0);
     }
 }
