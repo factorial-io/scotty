@@ -10,6 +10,8 @@ description = "scotty is a Micro-PaaS which helps you to administer a bunch of d
 authors = ["Stephan Maximilian Huber <stephan@factorial.io>"]
 repository = "https://github.com/factorial-io/scotty"
 license-file = "LICENSE"
+# Distributed as binaries and a Docker image, not through crates.io.
+publish = false
 
 [workspace.dependencies]
 anyhow = "1.0.89"

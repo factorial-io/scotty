@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
+publish.workspace = true
 description = "Minimal types-only crate for TypeScript generation"
 
 # Note: This crate is part of the parent workspace

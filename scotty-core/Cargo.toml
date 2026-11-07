@@ -6,6 +6,7 @@ description = "Shared functionality for scotty server and CLI"
 authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
+publish.workspace = true
 
 [lib]
 name = "scotty_core"
