@@ -33,6 +33,7 @@ export default function (defaultConfig) {
             "cli",
             "oauth-authentication",
             "authorization",
+            "security",
             "changelog",
         ],
     });

@@ -1,0 +1,31 @@
+# gitleaks configuration, run by .github/workflows/security.yml.
+#
+# Extends the default rules. The allow-list covers sample values that are
+# committed on purpose (development defaults, test fixtures, examples). Real
+# deployments override them through SCOTTY__ environment variables.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Committed sample credentials for development and tests"
+paths = [
+    '''^config/default\.yaml$''',
+    '''^config/local\.yaml$''',
+    '''^config/casbin/''',
+    '''^scotty/tests/''',
+    '''^scotty/src/.*_tests?\.rs$''',
+    '''^examples/''',
+    '''^apps/''',
+    '''^bruno/''',
+    '''^\.beans/''',
+]
+# Placeholders used in documentation examples.
+regexes = [
+    '''^(?i)your[-_]token$''',
+    '''^dev-token$''',
+    '''^traefik\.enable=true$''',
+]
+# 1Password item and vault IDs (identifiers, not credentials) in the removed
+# .fabfile.yaml.
+commits = ["2597ae02cbc13988f78831a8a0d5a1445dbca949"]
