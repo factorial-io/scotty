@@ -177,7 +177,15 @@ pub async fn create_app_handler(
         }
     }
 
-    match create_app(state, &payload.app_name, &settings, &file_list).await {
+    match create_app(
+        state,
+        &payload.app_name,
+        &settings,
+        &file_list,
+        Some(user_id.clone()),
+    )
+    .await
+    {
         Ok(app_data) => Ok(SecureJson(app_data)),
         Err(e) => {
             error!("App create failed with: {:?}", e);

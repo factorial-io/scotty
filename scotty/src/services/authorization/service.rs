@@ -303,6 +303,28 @@ impl AuthorizationService {
         false
     }
 
+    /// Whether `user` may see `task` (its details, updates and output).
+    ///
+    /// The user who started the task always may, which covers app creation
+    /// before the new app is assigned to a scope. Otherwise a task of an app
+    /// needs `view` on that app, and a task without an app needs `admin_read`.
+    pub async fn can_view_task(
+        &self,
+        user: &str,
+        task: &scotty_core::tasks::task_details::TaskDetails,
+    ) -> bool {
+        if task.requested_by.as_deref() == Some(user) {
+            return true;
+        }
+        match &task.app_name {
+            Some(app) => self.check_permission(user, app, &Permission::View).await,
+            None => {
+                self.check_global_permission(user, &Permission::AdminRead)
+                    .await
+            }
+        }
+    }
+
     /// Format user identifier for authorization checks
     pub fn format_user_id(email: &str, token: Option<&str>) -> String {
         if let Some(token) = token {

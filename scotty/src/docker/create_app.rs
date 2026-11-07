@@ -11,7 +11,7 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_operation;
+use super::helper::run_operation_requested_by;
 use super::rebuild_app::rebuild_steps;
 use super::steps::compose::update_app_data;
 use super::steps::context::Context;
@@ -139,6 +139,7 @@ pub async fn create_app(
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
+    requested_by: Option<String>,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
     let candidate = validate_app(app_state.clone(), settings, files).await?;
@@ -164,9 +165,10 @@ pub async fn create_app(
     let notification = Message::new(MessageType::AppCreated, &app_data);
     let settings = settings.clone();
     let files = files.clone();
-    run_operation(
+    run_operation_requested_by(
         app_state,
         &app_data,
+        requested_by,
         Some(notification),
         move |ctx| async move { create_steps(&ctx, &settings, &files).await },
     )

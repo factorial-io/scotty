@@ -2,12 +2,16 @@ use axum::{
     debug_handler,
     extract::{Path, State},
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::{
+    api::{error::AppError, middleware::authorization::AuthorizationContext},
+    app_state::SharedAppState,
+    services::AuthorizationService,
+};
 use scotty_core::tasks::task_details::TaskDetails;
 
 #[utoipa::path(
@@ -24,13 +28,15 @@ use scotty_core::tasks::task_details::TaskDetails;
 pub async fn task_detail_handler(
     Path(uuid): Path<Uuid>,
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
 ) -> impl IntoResponse {
-    let task_detail = state.task_manager.get_task_details(&uuid).await;
-    if task_detail.is_none() {
-        return Err(AppError::TaskNotFound(uuid));
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    // A task the caller may not see answers like a missing one, so its
+    // existence is not revealed.
+    match state.task_manager.get_task_details(&uuid).await {
+        Some(task) if state.auth_service.can_view_task(&user_id, &task).await => Ok(Json(task)),
+        _ => Err(AppError::TaskNotFound(uuid)),
     }
-    let task_detail = task_detail.unwrap();
-    Ok(Json(task_detail))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToResponse, utoipa::ToSchema)]
@@ -52,10 +58,14 @@ pub struct TaskList {
 #[debug_handler]
 pub async fn task_list_handler(
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
 ) -> Result<Json<TaskList>, AppError> {
-    let task_list = TaskList {
-        tasks: state.task_manager.get_task_list().await,
-    };
-    let json = Json(task_list);
-    Ok(json)
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    let mut tasks = Vec::new();
+    for task in state.task_manager.get_task_list().await {
+        if state.auth_service.can_view_task(&user_id, &task).await {
+            tasks.push(task);
+        }
+    }
+    Ok(Json(TaskList { tasks }))
 }

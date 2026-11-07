@@ -22,11 +22,16 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn create(app_state: SharedAppState, app_data: &AppData) -> Arc<Self> {
+    pub async fn create(
+        app_state: SharedAppState,
+        app_data: &AppData,
+        requested_by: Option<String>,
+    ) -> Arc<Self> {
         let (task, task_snapshot) = app_state
             .task_manager
             .create_task(TaskDetails {
                 app_name: Some(app_data.name.clone()),
+                requested_by,
                 ..TaskDetails::default()
             })
             .await;

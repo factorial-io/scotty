@@ -263,7 +263,10 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             messenger: create_test_websocket_messenger(),
             apps: shared_app_list,
             docker: docker.clone(),
-            task_manager: crate::tasks::manager::TaskManager::new(create_test_websocket_messenger()),
+            task_manager: crate::tasks::manager::TaskManager::new(
+                create_test_websocket_messenger(),
+                auth_service.clone(),
+            ),
             oauth_state: None,
             auth_service,
             logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),

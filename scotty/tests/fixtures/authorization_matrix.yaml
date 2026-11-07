@@ -24,7 +24,9 @@ rest:
   GET /api/v1/authenticated/blueprints: authenticated
   GET /api/v1/authenticated/scopes/list: authenticated
   POST /api/v1/authenticated/validate-token: authenticated
-  # Known gap, tracked privately; tighten to `view` once fixed.
+  # Reachable by any authenticated caller; results are filtered per task (view
+  # on the task's app, admin_read for tasks without an app, or the user who
+  # started it). Covered by the task visibility tests, not this matrix.
   GET /api/v1/authenticated/tasks: authenticated
   GET /api/v1/authenticated/task/{uuid}: authenticated
 
