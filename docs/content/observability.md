@@ -17,7 +17,7 @@ OpenTelemetry Collector (port 4317)
 ### Components
 
 - **OpenTelemetry Collector**: Receives telemetry data from Scotty via OTLP protocol and routes it to appropriate backends
-- **VictoriaMetrics**: High-performance time-series database for metrics storage (30-day retention)
+- **VictoriaMetrics**: High-performance time-series database for metrics storage (7-day retention)
 - **Jaeger**: Distributed tracing backend for request traces and spans
 - **Grafana**: Visualization platform with pre-configured dashboards
 
@@ -26,7 +26,7 @@ OpenTelemetry Collector (port 4317)
 The observability stack requires approximately:
 - **Memory**: 180-250 MB total
 - **CPU**: Minimal (< 5% on modern systems)
-- **Disk**: ~1-2 GB for 30 days of metrics retention
+- **Disk**: depends on metrics volume and the retention period (7 days by default)
 
 ## Prometheus Compatibility & Flexibility
 
@@ -249,6 +249,19 @@ Scotty exports comprehensive metrics covering all major subsystems. All metrics 
 - Track application health check timeliness
 - Analyze service distribution
 
+### Traefik Network Reconciliation Metrics
+
+| Metric Name | Type | Description |
+|-------------|------|-------------|
+| `scotty_traefik_network_drift_apps` | Gauge | Apps whose proxy network the load balancer was missing, per reconciliation pass |
+| `scotty_traefik_network_unroutable_apps` | Gauge | Apps with public services still unreachable by the load balancer after a reconciliation pass |
+
+Both gauges are updated after every reconciliation pass.
+
+**Use Cases:**
+- Detect apps that lost their connection to Traefik
+- Alert on apps that stay unroutable after reconciliation
+
 ### Tokio Runtime Metrics
 
 | Metric Name | Type | Description |
@@ -384,7 +397,7 @@ If VictoriaMetrics uses too much memory, adjust retention:
 services:
   victoriametrics:
     command:
-      - '-retentionPeriod=14d'  # Reduce from 30d
+      - '-retentionPeriod=3d'  # Reduce from 7d
 ```
 
 ### Connection Refused Errors
@@ -416,7 +429,7 @@ Key settings:
 ### VictoriaMetrics
 
 Configuration via docker-compose environment:
-- **Retention**: 30 days (`-retentionPeriod=30d`)
+- **Retention**: 7 days (`-retentionPeriod=7d`)
 - **Storage path**: `/victoria-metrics-data`
 - **HTTP port**: 8428
 

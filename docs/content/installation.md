@@ -66,21 +66,21 @@ You can install shell autocompletion for various shell-types. The following comm
 will install the autocompletion for bash:
 
 ```shell
-scottyctl completions bash > /etc/bash_completion.d/scottyctl
+scottyctl completion bash > /etc/bash_completion.d/scottyctl
 ```
 
 For zsh:
 
 ```shell
-scottyctl completions zsh > /usr/share/zsh/site-functions/_scottyctl
+scottyctl completion zsh > /usr/share/zsh/site-functions/_scottyctl
 ```
 
 For fish:
 
 ```shell
-scottyctl completions fish > ~/.config/fish/completions/scottyctl.fish
+scottyctl completion fish > ~/.config/fish/completions/scottyctl.fish
 # or in you config script
-eval "$(scottyctl completions fish)"
+eval "$(scottyctl completion fish)"
 ```
 
 ## Installation of the server
@@ -203,12 +203,16 @@ it on the same level as the executable.
 ### Using docker only
 
 Use the provided docker image for best results. Map the directory with
-all your docker-composed apps to `/app/apps`.
+all your docker-composed apps into the container at the same path as on the
+host, and point `SCOTTY__APPS__ROOT_FOLDER` to it. Scotty runs docker compose
+against the host's docker daemon, so the paths inside and outside the container
+must match.
 
 ```shell
 docker run \
   -p 21342:21342 \
-  -v $PWD/apps:/app/apps \
+  -v $PWD/apps:$PWD/apps \
+  -e SCOTTY__APPS__ROOT_FOLDER=$PWD/apps \
   -v /var/run/docker.sock:/var/run/docker.sock \
   ghcr.io/factorial-io/scotty:main
 ```

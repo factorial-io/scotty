@@ -67,8 +67,8 @@ assignments:
   "frontend-dev@example.com":
     - role: "developer"
       scopes: ["frontend", "staging"]
-  "bearer:dev-token":
-    - role: "developer" 
+  "identifier:ci-bot":   # key "ci-bot" in api.bearer_tokens
+    - role: "developer"
       scopes: ["development"]
 ```
 
@@ -163,7 +163,7 @@ The authorization system requires explicit bearer token assignments:
 
 1. **RBAC Only**: Only tokens explicitly assigned in authorization configuration are accepted
 2. **No Legacy Fallback**: The `api.access_token` configuration is no longer used
-3. **Token Format**: Bearer tokens are identified as `bearer:<token>` in assignments
+3. **Assignment Key**: Bearer tokens are assigned as `identifier:<name>`, where `<name>` is the token's key in `api.bearer_tokens` (never the token value itself)
 
 ```bash
 # Using a bearer token with authorization (token must be in assignments)
@@ -335,8 +335,7 @@ export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
 
 1. **Scope Structure**: Keep scope hierarchies simple
 2. **Assignment Scope**: Avoid overly broad assignments
-3. **Caching**: Authorization checks are cached for performance
-4. **Regular Cleanup**: Remove obsolete scopes and assignments
+3. **Regular Cleanup**: Remove obsolete scopes and assignments
 
 ## Migration
 
@@ -345,13 +344,13 @@ export SCOTTY__API__BEARER_TOKENS__ADMIN="$(openssl rand -base64 32)"
 For existing Scotty installations:
 
 1. **Breaking Change**: Bearer token authentication now requires RBAC assignments
-2. **Migration Required**: Existing `api.access_token` must be added to assignments
+2. **Migration Required**: Existing `api.access_token` must be replaced by a bearer token in `api.bearer_tokens` with a matching `identifier:<name>` assignment
 3. **App Discovery**: Existing apps are assigned to `default` scope automatically
 4. **OAuth Compatibility**: OAuth authentication continues to work unchanged
 
 ### Enabling Authorization
 
-1. Create `/config/casbin/model.conf` and `/config/casbin/policy.yaml`
+1. Create `/config/casbin/policy.yaml` (`model.conf` ships with the repository and the Docker image; a missing `policy.yaml` is seeded from `policy.yaml.example`)
 2. Define initial scopes, roles, and assignments
 3. **Add existing bearer tokens to assignments** (if using bearer authentication)
 4. Apps will automatically sync their scope memberships

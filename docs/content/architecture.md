@@ -4,13 +4,18 @@
 
 Scotty provides a simple REST API to interact with your apps. For that, it
 traverses a directory structure on the server and reads the `compose.yml`
-files in each found directory. If the same directory contains a `.scotty` file,
-it reads the settings for that app from that file.
+files in each found directory (up to `apps.max_depth` levels deep, default 3).
+If the same directory contains a `.scotty.yml` file, it reads the settings for
+that app from that file.
 
 Scotty uses the information from the `.scotty.yml` file to create a
 `compose.override.yml` file to instruct a load balancer on how to reach
 the exposed services of the app. Scotty does not touch any other files in the
 directory besides the `compose.override.yml` and `.scotty.yml` files.
+
+The name of the override file follows the name of the compose file:
+`compose.yml` gets a `compose.override.yml`, `docker-compose.yml` gets a
+`docker-compose.override.yml`.
 
 Scotty also tracks how long an app has been running and stops it after
 a given lifetime. It can add basic auth to the app and prevent
@@ -98,7 +103,7 @@ per-app proxy network, and get the app fully working behind Traefik.
 
 Owned apps can adopt blueprints to provide additional functionality. Blueprints
 store common tasks to execute on certain liftime events like `app:create`,
-`app:run` or `app:destroy`.
+`app:run` or `app:rebuild`.
 
 These scripts are stored in a YML-file in the `blueprints` directory of Scotty.
 The scripts are executed in the running service container of the app. Common
@@ -131,6 +136,10 @@ Scotty will create the necessary labels for Traefik to route the traffic to the
 public services of each app. Depending on the settings, Scotty will also create
 configuration to enable basic auth or to prevent robots from indexing the app.
 
+Each app gets its own external proxy network named `<traefik.network>--<app>`
+(by default `proxy--<app>`). Scotty creates this network and connects Traefik
+to it; the app's public services join it next to their `default` network.
+
 An example `compose.override.yml` file for Traefik:
 
 ```yaml
@@ -140,17 +149,21 @@ services:
       traefik.http.routers.nginx--nginx-again.middlewares: nginx--nginx-again--robots
       traefik.http.routers.nginx--nginx-again.rule: Host(`nginx.nginx-again.example.com`)
       traefik.enable: 'true'
+      traefik.docker.network: proxy--nginx-again
       traefik.http.services.nginx--nginx-again.loadbalancer.server.port: '80'
       traefik.http.routers.nginx--nginx-again.tls: 'true'
       traefik.http.routers.nginx--nginx-again.tls.certresolver: myresolver
       traefik.http.middlewares.nginx--nginx-again--robots.headers.customresponseheaders.X-Robots-Tag: none, noarchive, nosnippet, notranslate, noimageindex
     environment: {}
     networks:
-    - default
-    - proxy
+      default: {}
+      proxy--nginx-again:
+        aliases:
+        - nginx--nginx-again
 networks:
-  proxy:
+  proxy--nginx-again:
     external: true
+    name: proxy--nginx-again
 ```
 
 The traefik implementation also supports custom middlewares. Please declare them

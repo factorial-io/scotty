@@ -24,7 +24,7 @@ api:
         # client_secret: "CHANGE-ME"  # Use env: SCOTTY__API__OAUTH__CLIENT_SECRET
 
 scheduler:
-    running_app_check: "15m"
+    running_app_check: "1m"
     ttl_check: "10m"
     task_cleanup: "3m"
 

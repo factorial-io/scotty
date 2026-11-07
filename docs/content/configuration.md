@@ -1,7 +1,7 @@
 # Configuration
 
-Configuration on the server side is done using some toml files inside the
-config folder, see below.
+Configuration on the server side is done using some YAML or TOML files inside
+the config folder, see below. Blueprints are the exception: they must be YAML.
 
 The cli does not have any configuration. All it needs to know is the URL of the
 server and the api token to authenticate against the server.
@@ -38,17 +38,16 @@ We'll describe in this file all sections of the server configuration:o
 ```yaml
 debug: false
 telemetry: None
-frontend_directory: ./frontend/build
 ```
 * `debug`: If set to true, the server will log more information. The default is
   false.
-* `telemetry`: The telemetry backend to use. The default is `None`. Possible values
-  are `None`, `traces` and `metrics`. Please set also the Opentelemetry endpoint
-  via the env-var OTEL_where to deliver the traces or metrics. (Use this setting only for debugging)
-* frontend_directory: The directory where the frontend is located. The default is
-  `./frontend/build`. If you want to use a different frontend, you can set the
-  directory here. All files in the directory are served by scotty as static files
-  from `/`.
+* `telemetry`: Which telemetry signals to export. The default is `None`. The value
+  is a comma-separated list (case-insensitive, no spaces) of `traces` and
+  `metrics`, e.g. `traces`, `metrics` or `traces,metrics`. Any other value enables
+  nothing. Please set also the Opentelemetry endpoint via the env-var OTEL_where
+  to deliver the traces or metrics.
+
+The web frontend is embedded in the scotty binary and needs no configuration.
 
 ### API settings
 
@@ -73,10 +72,12 @@ api:
 
 * `bind_address`: The address and port the server listens on.
 * `bearer_tokens`: **Required for bearer authentication**. Map of logical token identifiers to secure bearer tokens. **Security Note**: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).
-* `create_app_max_size`: The maximum size of the uploaded files. The default
-  is 50M. As the payload gets base64-encoded, the actual possible size is a
-  bit smaller (by ~ 2/3)
-* `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used for post-login OAuth redirects and by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. **Set this in any production deployment** — when it is missing, Scotty falls back to `http://localhost:21342` and logs a warning at startup.
+* `create_app_max_size`: The maximum size of the uploaded files. The shipped
+  `config/default.yaml` sets 50M (the built-in default is 10M). The limit applies
+  to the whole request body: as the files are gzip-compressed and then
+  base64-encoded, about 3/4 of the limit is usable as compressed payload. The
+  same limit also caps the decompressed size of each individual file.
+* `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used for post-login OAuth redirects and by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. **Set this in any production deployment** — when it is missing, OAuth redirects fall back to `http://localhost:21342`, the landing-page redirect for stopped apps is disabled (Scotty serves its frontend instead), and a warning is logged at startup.
 * `auth_mode`: Authentication mode. Options are:
   * `"dev"`: Development mode with no authentication (uses fixed dev user)
   * `"oauth"`: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)
@@ -259,18 +260,18 @@ server {
 
 ### Authorization settings
 
-Scotty includes an optional scope-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
+Scotty includes a scope-based authorization system for controlling access to applications and operations. See the [Authorization System](authorization.html) documentation for complete details.
 
-**Authorization is entirely optional** - if no configuration is provided, Scotty operates with the existing all-or-nothing access model.
+**Authorization is always active.** If `config/casbin/policy.yaml` is missing, Scotty seeds it from `config/casbin/policy.yaml.example`; if that is missing too, it uses built-in default roles without any assignments. Bearer tokens need an assignment in `policy.yaml` even to authenticate.
 
 #### Configuration Files
 
-Authorization requires two configuration files in the `config/casbin/` directory:
+Authorization uses two configuration files in the `config/casbin/` directory:
 
 ```
 config/
 ├── casbin/
-│   ├── model.conf       # Casbin RBAC model (auto-generated)
+│   ├── model.conf       # Casbin RBAC model (shipped with Scotty, do not edit)
 │   └── policy.yaml      # Groups, roles, and assignments
 └── default.yaml         # Main configuration
 ```
@@ -385,7 +386,7 @@ export SCOTTY_ACCESS_TOKEN="secure-admin-token-abc123"
 scottyctl app:list  # Shows only apps user has 'view' permission for
 ```
 
-**Important**: The `api.access_token` configuration is **no longer supported**. Use `api.bearer_tokens` instead.
+**Important**: The `api.access_token` configuration is **no longer supported**. It is still parsed, but has no effect and cannot authenticate anyone. Use `api.bearer_tokens` instead.
 
 #### Bearer Token Security Best Practices
 
@@ -469,13 +470,13 @@ fine tune when certain tasks are executed:
 
 ```yaml
 scheduler:
-  running_app_check: "15s"
+  running_app_check: "1m"
   ttl_check: "10m"
   task_cleanup: "3m"
 ```
 
 * `running_app_check` how often should the app-folder be traversed and the
-  running apps be checked. The default is 15s.
+  running apps be checked. The default is 1m.
 * `ttl_check` how often should the ttl of the apps be checked. The default is
   10m. This setting describes the frequency of the ttl-check. The actual ttl is
   configured on a per app basis.
@@ -491,6 +492,7 @@ scheduler:
 apps:
   domain_suffix: "ddev.site"
   root_folder: "./apps" # Path to the folder where the apps are stored
+  max_depth: 3
 ```
 
 * `domain_suffix` The suffix for auto-generated domains. Set this to the domain
@@ -501,6 +503,8 @@ apps:
   container, make sure that both paths are the same. Otherwise docker-compose
   can't run the apps, as there is a mismatch between the local path and the
   path on the host, where the docker daemon is running.
+* `max_depth` How many directory levels below `root_folder` scotty searches for
+  apps. The default is 3.
 
 ### Docker settings
 
@@ -625,7 +629,7 @@ afterwards — a sustained non-zero value is an outage).
 ### Blueprints
 
 Blueprints are a way to run certain tasks after specific events happened, like
-`app:create`, `app:run` or `app:destroy`. They are stored in `config/blueprints`
+`app:create`, `app:run` or `app:rebuild`. They are stored in `config/blueprints`
 and can be adopted by apps. They are stored as separate files in the
 `config/blueprints`-folder. Scotty is using the key of the blueprint to associate
 the blueprint with an app.
@@ -646,14 +650,26 @@ apps:
         nginx: 8080
       actions:
         post_create:
-          cli:
-            - drush deploy
+          description: "Run drush deploy after the application is created"
+          commands:
+            cli:
+              - drush deploy
         post_rebuild:
-          cli:
-            - drush deploy
+          description: "Run drush deploy after the application is rebuilt"
+          commands:
+            cli:
+              - drush deploy
         post_run:
-          cli:
-            - drush uli
+          description: "Generate a one-time login link after the app started"
+          commands:
+            cli:
+              - drush uli
+        drush:uli:
+          description: "Generate a one-time login link"
+          permission: action_read
+          commands:
+            cli:
+              - drush uli
 ```
 
 * `name` The name of the blueprint
@@ -663,14 +679,18 @@ apps:
   app tries to adopt the blueprint.
 * `public_services` A list of services that should be exposed to the public. The
   key is the service name, the value is the port to expose.
-* `actions` A list of action-hooks and their corresponding commands. The
-  following hooks are available:
+* `actions` A list of actions and their corresponding commands. The
+  following hooks are run automatically:
   * `post_create` Run after the app was created
   * `post_rebuild` Run after the app was rebuilt
   * `post_run` Run after the app was started
-  * `post_destroy` Run after the app was destroyed
-  The key is the service name, the value is a list of commands to run on that
-  service.
+  Any other key defines a custom action that users can run on demand. Each
+  action has:
+  * `description` A short description of the action
+  * `commands` The key is the service name, the value is a list of commands to
+    run on that service.
+  * `permission` The permission needed to run the action on demand, e.g.
+    `action_read` or `action_write`. The default is `action_write`.
 
 #### Environment Variables in Blueprint Actions
 

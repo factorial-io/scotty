@@ -24,6 +24,7 @@ this setup.
     ```shell
     mkdir scotty-server && cd scotty-server
     mkdir apps
+    mkdir -p config/casbin
     ```
 
 2. Create a `compose.yml` with the following content:
@@ -56,11 +57,12 @@ services:
     volumes:
       - ./apps:$PWD/apps
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/casbin/policy.yaml:/app/config/casbin/policy.yaml
     environment:
       RUST_LOG: info
       SCOTTY__APPS__ROOT_FOLDER: $PWD/apps
       SCOTTY__APPS__DOMAIN_SUFFIX: localhost
-      SCOTTY__API__ACCESS_TOKEN: my-secret-token
+      SCOTTY__API__BEARER_TOKENS__ADMIN: my-secret-token
       SCOTTY__TRAEFIK__USE_TLS: false
     networks:
       - default
@@ -76,7 +78,31 @@ networks:
     external: true
 ```
 
-3. Create the required network and start the services:
+3. Create `config/casbin/policy.yaml` to give the `admin` token full access.
+   Every bearer token needs an assignment here, keyed by `identifier:<id>`,
+   where `<id>` is the token name from `SCOTTY__API__BEARER_TOKENS__<id>`
+   (lowercase):
+
+```yaml
+scopes:
+  default:
+    description: Default scope for unassigned apps
+    created_at: 2024-01-01T00:00:00Z
+
+roles:
+  admin:
+    permissions:
+    - '*'
+    description: Full system access including destroy operations
+
+assignments:
+  identifier:admin:
+  - role: admin
+    scopes:
+    - '*'
+```
+
+4. Create the required network and start the services:
 
 ```shell
 docker network create proxy
@@ -85,7 +111,7 @@ docker compose up -d
 
 The server should now be running and accessible at `http://scotty.localhost`. The password is
 `my-secret-token` and can be changed in the above `compose.yml`-file by changing
-the env-var `SCOTTY__API__ACCESS_TOKEN`.
+the env-var `SCOTTY__API__BEARER_TOKENS__ADMIN`.
 
 
 ## Installing the Client
