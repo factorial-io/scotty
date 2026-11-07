@@ -39,7 +39,7 @@ pub async fn handle_create_shell_session(
         client_id,
         &Some(user.clone()),
         &request.app_name,
-        Permission::Manage,
+        Permission::Shell,
         "shell session",
     )
     .await;
