@@ -33,7 +33,7 @@ User → Frontend SPA → Scotty OAuth Endpoints → OIDC Provider
 5. **OIDC provider redirects** back to Scotty's `/api/oauth/callback` endpoint with authorization code
 6. **Scotty exchanges** authorization code for access token using PKCE verifier
 7. **User information** is extracted via OIDC `/oauth/userinfo` endpoint and session is created
-8. **Frontend exchanges** session for tokens and stores OAuth tokens and user info in localStorage
+8. **Frontend exchanges** session for tokens and stores OAuth tokens and user info in sessionStorage
 
 ### Route Protection
 
@@ -110,8 +110,13 @@ SCOTTY__API__OAUTH__CLIENT_SECRET=your_oidc_application_secret
 # OAuth configuration
 SCOTTY__API__OAUTH__OIDC_ISSUER_URL=https://gitlab.com
 SCOTTY__API__OAUTH__REDIRECT_URL=http://localhost:21342/api/oauth/callback
-SCOTTY__API__OAUTH__FRONTEND_BASE_URL=http://localhost:21342
+
+# Public base URL of Scotty (post-login redirect)
+SCOTTY__API__BASE_URL=http://localhost:21342
 ```
+
+The older `SCOTTY__API__OAUTH__FRONTEND_BASE_URL` still works as a deprecated
+fallback when `SCOTTY__API__BASE_URL` is unset (see below).
 
 ### Understanding OAuth URLs
 
@@ -545,7 +550,7 @@ For CLI usage with OAuth-enabled Scotty, you have two options:
 ### Device Flow (Recommended)
 ```bash
 # Use OAuth device flow for CLI authentication
-scottyctl login --server http://localhost:21342
+scottyctl --server http://localhost:21342 auth:login
 ```
 
 ### Manual Token

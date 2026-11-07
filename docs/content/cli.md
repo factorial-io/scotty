@@ -21,7 +21,9 @@ scottyctl --server https://scotty.example.com auth:login
 This command will:
 1. Open your browser to authenticate with the OIDC provider
 2. Store the OAuth token securely for future commands
-3. Automatically refresh tokens when they expire
+
+scottyctl does not refresh tokens. When your token expires, run `auth:login`
+again.
 
 **Managing OAuth sessions:**
 
@@ -29,7 +31,7 @@ This command will:
 # Check authentication status
 scottyctl auth:status
 
-# Refresh the token
+# Check whether the stored token is still valid
 scottyctl auth:refresh
 
 # Logout and clear stored credentials
@@ -66,6 +68,9 @@ public URLs of the apps. The status can be one of the following:
 
 * Running: The app is running
 * Stopped: The app is stopped
+* Starting: The app is being started
+* Creating: The app is being created
+* Destroying: The app is being destroyed
 * Unsupported: The app is not supported by the server
 
 ## Get info about an app
@@ -90,7 +95,10 @@ This command displays logs from a specific service within an app. By default, it
 
 ### Options
 
-* `-f, --follow`: Follow log output in real-time (like `tail -f`)
+* `-f, --follow`: Follow log output in real-time (like `tail -f`). If the
+  container has exited or is dead, live follow is not possible: scottyctl shows
+  the historical logs instead and prints a notice ("Live follow is unavailable
+  because the container has stopped; showing historical logs.")
 * `-n, --lines <LINES>`: Show only the last N lines
 * `--since <SINCE>`: Show logs since a timestamp (e.g., "2h", "30m", "2023-01-01T10:00:00Z")
 * `--until <UNTIL>`: Show logs until a timestamp (e.g., "1h", "2023-01-01T11:00:00Z")
@@ -419,7 +427,8 @@ remove any unnecessary information from it and double-check the configuration.
 scottyctl --server <SERVER> --access-token <TOKEN> app:destroy <APP>
 ```
 
-This command will destroy only a supported app. It will stop the app, remove
+This command only works on apps that have a `.scotty.yml` file (apps created
+with or adopted by Scotty) and requires the `destroy` permission. It will stop the app, remove
 all ephemeral and persistent data and remove the app from the Scotty server.
 It will also delete the used images if they are not used somewhere else.
 
@@ -470,7 +479,7 @@ scottyctl app:action my-app cache:clear
 scottyctl --server <SERVER> --access-token <TOKEN> action:list <APP>
 ```
 
-Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator.
+Lists all custom actions defined for an app, showing their name, description, status, permission level, and creator. Requires the `action_manage` permission.
 
 Example:
 ```shell
@@ -483,7 +492,7 @@ scottyctl action:list my-app
 scottyctl --server <SERVER> --access-token <TOKEN> action:get <APP> <ACTION>
 ```
 
-Displays detailed information about a specific custom action, including its commands, review status, and metadata.
+Displays detailed information about a specific custom action, including its commands, review status, and metadata. Requires the `action_manage` permission.
 
 Example:
 ```shell
@@ -853,7 +862,7 @@ The `app:shell` command provides direct access to running containers. Consider t
 * Consider the sensitivity of log content when granting access
 
 **Data Considerations:**
-* Log streaming is real-time only—historical logs depend on Docker's log retention
+* Historical logs depend on Docker's log retention
 * Logs are transmitted over WebSocket connections (encrypted if using HTTPS)
 
 ## Troubleshooting

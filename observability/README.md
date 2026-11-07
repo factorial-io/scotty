@@ -95,7 +95,7 @@ OpenTelemetry Collector
 
 ## Data Retention
 
-- **VictoriaMetrics**: 30 days (configurable via `-retentionPeriod` in docker-compose.yml)
+- **VictoriaMetrics**: 7 days (configurable via `-retentionPeriod` in docker-compose.yml)
 - **Jaeger**: In-memory only (data lost on restart)
 
 To adjust retention:

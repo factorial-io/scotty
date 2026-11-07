@@ -54,7 +54,7 @@ cd apps/traefik && docker compose up -d
 - `api/auth_core.rs`: Core authentication logic
 - `api/middleware/`: Casbin RBAC authorization
 - `api/rate_limiting/`: Per-tier rate limiting
-- `docker/state_machine_handlers/`: App lifecycle steps (create dir, save files, docker login, compose up, load balancer config, post actions, wait for containers, etc.)
+- `docker/steps/`: App lifecycle steps, run linearly via `run_operation` (no state machine) (create dir, save files, docker login, compose up, load balancer config, post actions, wait for containers, etc.)
 - `docker/services/`: Long-running log streaming and shell sessions
 - `docker/loadbalancer/`: Traefik/HAProxy config generation
 - `onepassword/`: 1Password secrets — resolves `op://` URIs in app env vars (two-pass: 1Password lookup, then env var substitution)
@@ -145,7 +145,7 @@ Actions go through an approval workflow:
 │ Rejected │                │ Revoked │
 └──────────┘                └─────────┘
 
-Actions can also expire if a TTL is configured → Expired
+Actions carry an optional `expires_at` → Expired (no TTL setting exists; nothing sets it today)
 ```
 
 Only **Approved** actions can be executed.
