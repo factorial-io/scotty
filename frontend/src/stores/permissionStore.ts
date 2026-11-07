@@ -5,14 +5,7 @@ import type { App } from '../types';
 import { authenticatedApiCall } from '$lib';
 
 export type Permission =
-	| 'view'
-	| 'manage'
-	| 'shell'
-	| 'logs'
-	| 'create'
-	| 'destroy'
-	| 'admin_read'
-	| 'admin_write';
+	'view' | 'manage' | 'shell' | 'logs' | 'create' | 'destroy' | 'admin_read' | 'admin_write';
 
 interface ScopeInfo {
 	name: string;

@@ -16,11 +16,7 @@ import type { WebSocketMessage } from '../types';
 // Removed unused import: isTaskInfoUpdated
 
 export type WebSocketConnectionState =
-	| 'disconnected'
-	| 'connecting'
-	| 'connected'
-	| 'authenticated'
-	| 'error';
+	'disconnected' | 'connecting' | 'connected' | 'authenticated' | 'error';
 
 export interface WebSocketState {
 	connectionState: WebSocketConnectionState;
