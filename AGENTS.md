@@ -287,16 +287,11 @@ Config lives in `release-please-config.json` and `.release-please-manifest.json`
 
 ## Project Management
 
-Uses **beans**, an agentic-first issue tracker. Issues ("beans") are managed via the `beans` CLI. The `.beans/` directory is committed to the repository. Agents should use beans instead of todo lists to track work, create/update issues, and manage task dependencies.
+- **Bugs** are GitHub issues (`gh issue create`).
+- **New or changed app behavior** needs an **openspec** change: proposal, design and tasks in `openspec/changes/<change>/`, archived when done (`/opsx:archive`), which merges it into `openspec/specs/`. The specs in `openspec/specs/` must describe the app's behavior completely; a behavior change without a spec change is incomplete.
 
 ## Git Rules
 
 - Never delete `frontend/build/.gitkeep` from git
 - No emojis in commit messages
 - Use conventional commits
-
-<!-- >>> kenkeep:kk-index >>> -->
-You are required to load [.ai/kenkeep/ENTRY.md](.ai/kenkeep/ENTRY.md), the small curated entry catalog for this repo. Enter there and descend using progressive disclosure principles.
-
-
-<!-- <<< kenkeep:kk-index <<< -->
