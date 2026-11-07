@@ -15,7 +15,6 @@ use super::{check_websocket_authorization, handle_websocket_auth_failure};
 /// downgraded to a one-shot historical fetch. The downgrade is not returned
 /// here: clients detect it by comparing their requested follow against the
 /// `follow` flag echoed on `LogsStreamStarted`.
-/// See openspec/specs/container-logs/spec.md.
 fn resolve_follow_mode(requested_follow: bool, can_follow_live: bool) -> bool {
     requested_follow && can_follow_live
 }

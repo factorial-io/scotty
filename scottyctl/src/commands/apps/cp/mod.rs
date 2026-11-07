@@ -1,6 +1,5 @@
 //! `app:cp` — docker-cp-style file transfer.
 //!
-//! See `openspec/changes/app-file-transfer/` for the design.
 
 use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};

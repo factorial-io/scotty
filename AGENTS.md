@@ -288,7 +288,7 @@ Config lives in `release-please-config.json` and `.release-please-manifest.json`
 ## Project Management
 
 - **Bugs** are GitHub issues (`gh issue create`).
-- **New or changed app behavior** needs an **openspec** change: proposal, design and tasks in `openspec/changes/<change>/`, archived when done (`/opsx:archive`), which merges it into `openspec/specs/`. The specs in `openspec/specs/` must describe the app's behavior completely; a behavior change without a spec change is incomplete.
+- **New or changed app behavior** needs an **openspec** change. The specs are maintained in the maintainers' private project workspace, not in this repo; they must describe the app's behavior completely, so a behavior change without a spec change is incomplete.
 
 ## Git Rules
 
