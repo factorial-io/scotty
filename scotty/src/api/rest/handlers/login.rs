@@ -128,11 +128,8 @@ pub async fn logout_handler(
         .and_then(|h| h.to_str().ok())
         .map(|h| h.strip_prefix("Bearer ").unwrap_or(h))
         .unwrap_or_default();
-    if let (Some(server), Some(grant)) = (
-        state.session_server.as_ref(),
-        crate::api::auth_core::active_session_grant(&state, token).await,
-    ) {
-        server.revoke(&grant, "logout", None).await.map_err(|e| {
+    if let Some(server) = state.session_server.as_ref() {
+        server.revoke_token(token, "logout", None).await.map_err(|e| {
             crate::api::error::AppError::InternalServerError(format!("Logout failed: {}", e))
         })?;
     }

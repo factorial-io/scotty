@@ -193,10 +193,19 @@ pub async fn device_token(
                 .poll_device(device_code, CLI_CLIENT_ID, ip.as_deref())
                 .await
         }
-        Some("refresh_token") => server
-            .refresh(&params, Some(CLI_CLIENT_ID), ip.as_deref())
-            .await
-            .map_err(PollError::Token),
+        Some("refresh_token") => {
+            let Some(refresh_token) = params.get("refresh_token") else {
+                return oauth_error(
+                    StatusCode::BAD_REQUEST,
+                    "invalid_request",
+                    "refresh_token is required.",
+                );
+            };
+            server
+                .refresh(refresh_token, CLI_CLIENT_ID, ip.as_deref())
+                .await
+                .map_err(PollError::Token)
+        }
         _ => {
             return oauth_error(
                 StatusCode::BAD_REQUEST,
@@ -207,13 +216,8 @@ pub async fn device_token(
     };
 
     match result {
-        Ok(tokens) => {
-            // The subject is the token's own `sub` claim (CasbinSubjects).
-            let email = server
-                .verify(&tokens.access_token)
-                .ok()
-                .and_then(|claims| claims.get("sub")?.as_str().map(str::to_string))
-                .unwrap_or_default();
+        Ok((grant, tokens)) => {
+            let email = grant.subject;
             (
                 [(header::CACHE_CONTROL, "no-store")],
                 Json(TokenResponse {
@@ -232,11 +236,7 @@ pub async fn device_token(
         Err(e) => match e.code() {
             Some(code) => {
                 debug!("Device token request refused: {}", code);
-                let description = match &e {
-                    PollError::Token(t) => t.description().to_string(),
-                    other => other.to_string(),
-                };
-                oauth_error(StatusCode::BAD_REQUEST, code, &description)
+                oauth_error(StatusCode::BAD_REQUEST, code, e.description())
             }
             None => {
                 error!("Device token request failed: {}", e);

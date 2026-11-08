@@ -153,25 +153,14 @@ pub async fn active_session_grant(
     token: &str,
 ) -> Option<grantry::store::Grant<String>> {
     let server = state.session_server.as_ref()?;
-    let claims = match server.verify(token) {
-        Ok(claims) => claims,
-        Err(e) => {
-            debug!("Session token rejected: {}", e);
-            return None;
-        }
-    };
-    let grant_id = claims
-        .get("grant_id")
-        .and_then(|v| v.as_str())
-        .and_then(|id| uuid::Uuid::parse_str(id).ok())?;
-    match server.store().find_grant(grant_id).await {
-        Ok(Some(grant)) if grant.is_active(chrono::Utc::now()) => Some(grant),
-        Ok(_) => {
-            debug!("Session token's grant {} is not active", grant_id);
+    match server.verify_active(token).await {
+        Ok((grant, _claims)) => Some(grant),
+        Err(grantry::ActiveError::Backend(e)) => {
+            warn!("Failed to load the session token's grant: {}", e);
             None
         }
         Err(e) => {
-            warn!("Failed to load grant {}: {}", grant_id, e);
+            debug!("Session token rejected: {}", e);
             None
         }
     }
