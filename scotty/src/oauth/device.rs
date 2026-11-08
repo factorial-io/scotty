@@ -53,7 +53,9 @@ fn oauth_error(status: StatusCode, code: &str, description: &str) -> Response {
         .into_response()
 }
 
-/// The caller's address as the proxy in front reports it; audit only.
+/// The caller's address as the proxy in front reports it. The first
+/// `X-Forwarded-For` entry is client-controlled unless a trusted proxy
+/// overwrites it, so this is for audit logs only, never a security decision.
 pub(crate) fn client_ip(headers: &HeaderMap) -> Option<String> {
     headers
         .get("x-forwarded-for")
@@ -109,15 +111,18 @@ pub async fn start_device_flow(State(state): State<SharedAppState>) -> Response 
     .into_response()
 }
 
-/// The request parameters of the token endpoint: the query string, overlaid
-/// with a form or JSON body. scottyctl up to 0.x sends `device_code` in the
-/// query and an empty JSON body.
+/// The request parameters of the token endpoint: a form or JSON body. Only
+/// `device_code` is also read from the query string, for scottyctl up to 0.x
+/// (query plus an empty JSON body); a refresh token in a URL would end up in
+/// proxy access logs, so it is never read from there.
+// ponytail: drop the query fallback once pre-grantry scottyctl is gone.
 fn token_params(
-    query: HashMap<String, String>,
+    mut query: HashMap<String, String>,
     headers: &HeaderMap,
     body: &[u8],
 ) -> HashMap<String, String> {
-    let mut params = query;
+    let mut params: HashMap<String, String> =
+        query.remove_entry("device_code").into_iter().collect();
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
@@ -207,6 +212,8 @@ pub async fn device_token(
 
     match result {
         Ok((grant, tokens)) => {
+            // The grant knows only the email (no ID token on this path), so
+            // it fills the id and name too; the CLI shows no picture.
             let email = grant.subject;
             (
                 [(header::CACHE_CONTROL, "no-store")],

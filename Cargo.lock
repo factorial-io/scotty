@@ -3935,6 +3935,7 @@ dependencies = [
  "readonly",
  "regex",
  "reqwest 0.13.4",
+ "rsa",
  "scotty-core",
  "scotty-types",
  "secrecy",

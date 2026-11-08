@@ -20,7 +20,7 @@ api:
     # tokens. Keep it on a persistent volume.
     database_path: "data/scotty.sqlite"
     # Secret signing Scotty's access tokens; required in oauth mode, at least
-    # 32 bytes. Rotating it logs everyone out.
+    # 64 bytes. Rotating it logs everyone out.
     # jwt_secret: "CHANGE-ME"  # Use env: SCOTTY__API__JWT_SECRET
 
     # OAuth configuration (when auth_mode: oauth)

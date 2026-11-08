@@ -102,7 +102,6 @@ mod tests {
                     pkce_verifier: MaskedSecret::new("expired_verifier".to_string()),
                     nonce: MaskedSecret::new("nonce".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
-                    frontend_callback_url: None,
                     expires_at: SystemTime::now() - Duration::from_secs(60),
                 },
             );
@@ -118,7 +117,6 @@ mod tests {
                     pkce_verifier: MaskedSecret::new("valid_verifier".to_string()),
                     nonce: MaskedSecret::new("nonce".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
-                    frontend_callback_url: None,
                     expires_at: SystemTime::now() + Duration::from_secs(600),
                 },
             );

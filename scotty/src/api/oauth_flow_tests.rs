@@ -63,11 +63,7 @@ async fn test_oauth_web_flow_authorization_url() {
     let server = TestServer::new(router);
 
     // Test authorization URL generation
-    let response = server
-        .get("/oauth/authorize")
-        .add_query_param("redirect_uri", "http://localhost:21342/api/oauth/callback")
-        .add_query_param("frontend_callback", "http://localhost:3000/auth/callback")
-        .await;
+    let response = server.get("/oauth/authorize").await;
 
     // Should redirect to OAuth provider authorization URL
     assert!(
@@ -131,10 +127,7 @@ async fn test_oauth_callback_with_mock_token_exchange() {
     let server = TestServer::new(router);
 
     // First, start authorization flow to get a valid state
-    let auth_response = server
-        .get("/oauth/authorize")
-        .add_query_param("redirect_uri", "http://localhost:21342/api/oauth/callback")
-        .await;
+    let auth_response = server.get("/oauth/authorize").await;
 
     // Extract state from redirect URL if available
     let mut test_state = "test_csrf_state";
@@ -171,14 +164,24 @@ async fn test_oauth_callback_with_mock_token_exchange() {
 
 const CLIENT_ID: &str = "test_oauth_client_id";
 const PROVIDER_ACCESS_TOKEN: &str = "provider_access_token_must_not_leak";
-const FRONTEND_CALLBACK: &str = "http://localhost:3000/oauth/callback";
+const OAUTH_CALLBACK: &str = "http://localhost:21342/api/oauth/callback";
+const FRONTEND_CALLBACK: &str = "http://localhost:21342/oauth/callback?";
+const FOREIGN_REDIRECT: &str = "https://attacker.example/steal";
 
+/// The mock provider's RSA key, generated once per test run so no private
+/// key lives in the repository.
 fn signing_key() -> CoreRsaPrivateSigningKey {
-    CoreRsaPrivateSigningKey::from_pem(
-        include_str!("../../tests/fixtures/oidc_test_key.pem"),
-        Some(JsonWebKeyId::new("test-key".to_string())),
-    )
-    .unwrap()
+    use rsa::pkcs1::{EncodeRsaPrivateKey, LineEnding};
+    static PEM: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    let pem = PEM.get_or_init(|| {
+        rsa::RsaPrivateKey::new(&mut rsa::rand_core::OsRng, 2048)
+            .unwrap()
+            .to_pkcs1_pem(LineEnding::LF)
+            .unwrap()
+            .to_string()
+    });
+    CoreRsaPrivateSigningKey::from_pem(pem, Some(JsonWebKeyId::new("test-key".to_string())))
+        .unwrap()
 }
 
 /// Serve discovery and JWKS; the token endpoint is mounted per test.
@@ -262,13 +265,16 @@ fn query_param(url: &str, name: &str) -> String {
 }
 
 /// Start a web login; returns the `state` and `nonce` sent to the provider.
+/// A caller-chosen `redirect_uri` is ignored: the provider gets the
+/// configured callback, and the browser later goes to the frontend.
 async fn begin_login(server: &TestServer) -> (String, String) {
     let response = server
         .get("/oauth/authorize")
-        .add_query_param("redirect_uri", FRONTEND_CALLBACK)
+        .add_query_param("redirect_uri", FOREIGN_REDIRECT)
         .await;
     assert_eq!(response.status_code(), 307, "{}", response.text());
     let location = response.headers()["location"].to_str().unwrap().to_string();
+    assert_eq!(query_param(&location, "redirect_uri"), OAUTH_CALLBACK);
     (
         query_param(&location, "state"),
         query_param(&location, "nonce"),
@@ -392,6 +398,19 @@ async fn test_web_login_with_wrong_nonce_fails() {
     .await;
 
     let response = callback(&server, &state).await;
+    assert_eq!(response.status_code(), 400, "{}", response.text());
+    assert!(response.headers().get("location").is_none());
+}
+
+#[tokio::test]
+async fn test_web_login_with_wrong_csrf_fails() {
+    let mock_server = MockServer::start().await;
+    mount_discovery(&mock_server).await;
+    let server = TestServer::new(create_scotty_app_with_mock_oauth(&mock_server.uri()).await);
+
+    let (state, _nonce) = begin_login(&server).await;
+    let (session_id, _csrf) = state.split_once(':').unwrap();
+    let response = callback(&server, &format!("{session_id}:not-the-csrf")).await;
     assert_eq!(response.status_code(), 400, "{}", response.text());
     assert!(response.headers().get("location").is_none());
 }
@@ -657,6 +676,20 @@ async fn test_device_login_old_scottyctl_poll_shape_works() {
         .json(&serde_json::json!({}))
         .await;
     assert_eq!(response.status_code(), 200, "{}", response.text());
+}
+
+#[tokio::test]
+async fn test_device_refresh_token_in_query_is_ignored() {
+    // A refresh token in the URL would land in access logs; only the body counts.
+    let (server, state) = session_app().await;
+    let tokens = device_login(&server, &state).await;
+    let response = server
+        .post("/oauth/device/token")
+        .add_query_param("refresh_token", tokens["refresh_token"].as_str().unwrap())
+        .form(&[("grant_type", "refresh_token")])
+        .await;
+    assert_eq!(response.status_code(), 400);
+    assert_eq!(oauth_error_code(&response), "invalid_request");
 }
 
 #[tokio::test]

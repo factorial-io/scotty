@@ -86,9 +86,9 @@ pub struct ApiServer {
     pub jwt_secret: Option<SecretString>,
 }
 
-/// The shortest `api.jwt_secret` accepted, in bytes (HS512 wants 64; 32 is
-/// the floor).
-pub const MIN_JWT_SECRET_LEN: usize = 32;
+/// The shortest `api.jwt_secret` accepted, in bytes: HS512 needs a key at
+/// least as long as its 64-byte hash output (RFC 7518 §3.2).
+pub const MIN_JWT_SECRET_LEN: usize = 64;
 
 fn default_database_path() -> String {
     "data/scotty.sqlite".to_string()
@@ -282,6 +282,8 @@ mod tests {
         };
         assert!(api.validate_oauth().unwrap_err().contains("required"));
         api.jwt_secret = Some(SecretString::from("too-short"));
+        assert!(api.validate_oauth().unwrap_err().contains("at least"));
+        api.jwt_secret = Some(SecretString::from("x".repeat(MIN_JWT_SECRET_LEN - 1)));
         assert!(api.validate_oauth().unwrap_err().contains("at least"));
         api.jwt_secret = Some(SecretString::from("x".repeat(MIN_JWT_SECRET_LEN)));
         assert!(api.validate_oauth().is_ok());

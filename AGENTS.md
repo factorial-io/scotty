@@ -23,7 +23,9 @@ RUST_LOG=debug cargo test test_name -p scotty -- --nocapture  # With debug loggi
 
 # Server (use .env file for SCOTTY__API__AUTH_MODE=dev etc.)
 SCOTTY__API__AUTH_MODE=dev cargo run --bin scotty        # Dev mode (no auth)
-RUST_LOG=info cargo run --bin scotty                     # With logging
+RUST_LOG=info cargo run --bin scotty                     # With logging (oauth mode needs
+                                                         # SCOTTY__API__JWT_SECRET in .env.local:
+                                                         # openssl rand -base64 48)
 cargo run --bin scotty -- config                         # View configuration
 
 # scottyctl
