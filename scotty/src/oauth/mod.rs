@@ -52,11 +52,10 @@ impl std::fmt::Debug for OAuthClient {
 // Web flow session for PKCE storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebFlowSession {
-    pub csrf_token: MaskedSecret,              // Protected CSRF token
-    pub pkce_verifier: MaskedSecret,           // Protected PKCE verifier
-    pub nonce: MaskedSecret,                   // OIDC nonce the ID token must carry
-    pub redirect_url: String,                  // OAuth redirect URL for GitLab token exchange
-    pub frontend_callback_url: Option<String>, // Frontend callback URL for final redirect
+    pub csrf_token: MaskedSecret,    // Protected CSRF token
+    pub pkce_verifier: MaskedSecret, // Protected PKCE verifier
+    pub nonce: MaskedSecret,         // OIDC nonce the ID token must carry
+    pub redirect_url: String,        // OAuth redirect URL for GitLab token exchange
     pub expires_at: SystemTime,
 }
 
@@ -217,7 +216,10 @@ type OidcClient = CoreClient<
     EndpointMaybeSet,
 >;
 
-/// An email, unless the provider says it is unverified.
+/// An email, unless the provider says it is unverified. An absent
+/// `email_verified` counts as verified: GitLab sends it, while some providers
+/// (e.g. Entra ID) omit it entirely. Authorization is keyed on the email, so
+/// only use a provider that does not hand out unverified addresses.
 fn verified_email(email: Option<String>, verified: Option<bool>) -> Option<String> {
     email.filter(|_| verified != Some(false))
 }
@@ -251,7 +253,7 @@ pub(crate) fn frontend_base(state: &crate::app_state::SharedAppState) -> String 
 pub(crate) fn require_person(
     user: &crate::api::basic_auth::CurrentUser,
 ) -> Result<(), axum::http::StatusCode> {
-    if user.email.starts_with("identifier:") {
+    if user.is_service_account() {
         return Err(axum::http::StatusCode::FORBIDDEN);
     }
     Ok(())
@@ -279,7 +281,6 @@ mod tests {
             pkce_verifier: MaskedSecret::new("pkce-verifier-abcdefghijk".to_string()),
             nonce: MaskedSecret::new("nonce-value-xyz".to_string()),
             redirect_url: "https://example.com/oauth/callback".to_string(),
-            frontend_callback_url: Some("https://app.example.com/callback".to_string()),
             expires_at: SystemTime::now() + std::time::Duration::from_secs(600),
         };
 

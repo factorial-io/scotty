@@ -87,7 +87,7 @@ api:
   * `"bearer"`: Traditional token-based authentication (default)
 * `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
 * `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
-* `jwt_secret`: Secret that signs the tokens Scotty issues (HS512). **Required when `auth_mode` is `"oauth"`**, at least 32 bytes; Scotty does not start without it. Set it through `SCOTTY__API__JWT_SECRET`, never in a config file. Changing it logs out every browser, CLI and MCP session, which is the emergency step if it leaks.
+* `jwt_secret`: Secret that signs the tokens Scotty issues (HS512). **Required when `auth_mode` is `"oauth"`**, at least 64 bytes (generate it, e.g. `openssl rand -base64 48`); Scotty does not start without it. Set it through `SCOTTY__API__JWT_SECRET`, never in a config file. Changing it logs out every browser, CLI and MCP session, which is the emergency step if it leaks.
 * `database_path`: SQLite database of the OAuth server (grants, registered clients, codes, refresh tokens). Default `data/scotty.sqlite`, relative to the working directory (`/app` in the Docker image). Scotty creates it at startup and uses WAL mode. **Put it on a persistent, writable volume**; if it is lost, every CLI and MCP session is lost and users must log in again. Only used in `oauth` mode. See [Persistent database](oauth-authentication.html#persistent-database).
 * `oauth`: OAuth configuration section (used when `auth_mode` is "oauth")
   * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
@@ -883,6 +883,8 @@ SCOTTY__API__BEARER_TOKENS__ADMIN=my-secure-admin-token
 # Override for local development only
 SCOTTY__API__AUTH_MODE=oauth
 SCOTTY__API__OAUTH__CLIENT_ID=my-local-client-id
+# Required in oauth mode, at least 64 bytes: openssl rand -base64 48
+SCOTTY__API__JWT_SECRET=<generated secret>
 ```
 
 **Best practices:**

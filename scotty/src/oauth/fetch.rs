@@ -90,6 +90,7 @@ async fn vetted_address(host: &str, port: u16) -> Result<SocketAddr, FetchError>
         Some(_) if addrs.iter().any(|a| !is_public(a.ip())) => {
             Err(FetchError("host resolves to a non-public address".into()))
         }
+        // Every address was vetted above, so pinning the first is enough.
         Some(first) => Ok(*first),
     }
 }
@@ -113,6 +114,7 @@ fn is_public_v4(ip: Ipv4Addr) -> bool {
         || (a == 192 && b == 168) // RFC 1918
         || (a == 192 && b == 0 && c == 0) // IETF protocol assignments
         || (a == 192 && b == 0 && c == 2) // TEST-NET-1
+        || (a == 192 && b == 88 && c == 99) // 6to4 relay anycast (RFC 7526)
         || (a == 198 && (b == 18 || b == 19)) // benchmarking
         || (a == 198 && b == 51 && c == 100) // TEST-NET-2
         || (a == 203 && b == 0 && c == 113) // TEST-NET-3
@@ -166,6 +168,7 @@ mod tests {
             "203.0.113.1",
             "198.18.0.1",
             "192.0.0.8",
+            "192.88.99.1",
             "::1",
             "::",
             "fc00::1",

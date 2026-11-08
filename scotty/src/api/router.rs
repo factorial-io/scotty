@@ -68,7 +68,7 @@ use crate::oauth::device::{
 use crate::oauth::handlers::{
     exchange_session_for_token, handle_oauth_callback, start_authorization_flow,
 };
-use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, TokenResponse};
+use crate::oauth::handlers::{CallbackQuery, DeviceFlowResponse, TokenResponse};
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
@@ -221,7 +221,7 @@ use scotty_core::admin::{
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
-            OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
+            OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, CallbackQuery,
             DeviceInfo, DeviceDecision,
             ConsentInfo, ConsentApproval, ConsentRedirect, Connection,
             ScopeInfo, UserScopesResponse,

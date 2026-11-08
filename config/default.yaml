@@ -12,7 +12,7 @@ api:
         test-service: "test-bearer-123-token"
     # OAuth server state (auth_mode: oauth); keep it on a volume.
     database_path: "data/scotty.sqlite"
-    # jwt_secret: required in oauth mode, >= 32 bytes. Use env: SCOTTY__API__JWT_SECRET
+    # jwt_secret: required in oauth mode, >= 64 bytes. Use env: SCOTTY__API__JWT_SECRET
     oauth:
         oidc_issuer_url: "https://source.factorial.io"
 scheduler:

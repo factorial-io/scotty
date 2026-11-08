@@ -4,6 +4,10 @@ use tracing::{debug, warn};
 use crate::app_state::SharedAppState;
 use scotty_core::settings::api_server::{AuthMode, DEFAULT_DEV_USER_EMAIL};
 
+/// Prefix of the `CurrentUser::email` of a bearer-token (service account)
+/// user: `identifier:<name>`.
+const SERVICE_ACCOUNT_PREFIX: &str = "identifier:";
+
 #[derive(Clone, Debug)]
 pub struct CurrentUser {
     pub email: String,
@@ -12,6 +16,13 @@ pub struct CurrentUser {
     pub picture: Option<String>,
     #[allow(dead_code)] // Used for OAuth token forwarding in future implementations
     pub access_token: Option<String>,
+}
+
+impl CurrentUser {
+    /// Whether this is a bearer-token service account rather than a person.
+    pub fn is_service_account(&self) -> bool {
+        self.email.starts_with(SERVICE_ACCOUNT_PREFIX)
+    }
 }
 
 /// Authenticate a user from a token based on the configured auth mode
@@ -95,13 +106,9 @@ pub async fn authorize_bearer_user(
         Some(id) => id,
         None => {
             if log_failures_as_warnings {
-                warn!("Bearer token authentication failed - token not found in bearer_tokens configuration (token starts with: {}...)",
-                      token.chars().take(8).collect::<String>());
+                warn!("Bearer token authentication failed - token not found in bearer_tokens configuration");
             } else {
-                debug!(
-                    "Token not found in bearer_tokens configuration (token starts with: {}...)",
-                    token.chars().take(8).collect::<String>()
-                );
+                debug!("Token not found in bearer_tokens configuration");
             }
             return None;
         }
@@ -110,12 +117,12 @@ pub async fn authorize_bearer_user(
 
     // Look up the user by identifier in authorization service
     let auth_service = &shared_app_state.auth_service;
-    let user_id = format!("identifier:{}", identifier);
+    let user_id = format!("{SERVICE_ACCOUNT_PREFIX}{identifier}");
 
     if let Some(_user_info) = auth_service.get_user_by_identifier(&user_id).await {
         debug!("Found user assignments for identifier: {}", identifier);
         return Some(CurrentUser {
-            email: format!("identifier:{}", identifier), // Use identifier format for user.email
+            email: user_id.clone(), // service accounts: SERVICE_ACCOUNT_PREFIX + identifier
             name: format!("Token User ({})", identifier),
             picture: None,
             access_token: Some(token.to_string()),

@@ -230,6 +230,6 @@ connections, registered clients) in `api.database_path`, by default
 example `-v $PWD/scotty-data:/app/data`. Without it, every CLI and MCP session
 is lost when the container is recreated, and users must log in again.
 
-OAuth mode also needs `SCOTTY__API__JWT_SECRET` (at least 32 bytes), and Scotty
+OAuth mode also needs `SCOTTY__API__JWT_SECRET` (at least 64 bytes), and Scotty
 should run behind a proxy that sets `X-Forwarded-For`, such as the Traefik
 setup above. See [OAuth Authentication](oauth-authentication.html).

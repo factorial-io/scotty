@@ -100,5 +100,7 @@ sqlx.workspace = true
 [dev-dependencies]
 axum-test = "21.0.0"
 tokio-test = "0.4.4"
+# Test-only OIDC signing key, generated at test time (no key in the repo).
+rsa = { version = "0.9", features = ["getrandom"] }
 wiremock = "0.6"
 tokio-tungstenite.workspace = true

@@ -12,6 +12,7 @@ use openidconnect::Nonce;
 use scotty_core::utils::secret::MaskedSecret;
 use serde::Deserialize;
 use std::time::{Duration, SystemTime};
+use subtle::ConstantTimeEq;
 use tracing::{debug, error};
 use uuid::Uuid;
 
@@ -25,12 +26,6 @@ pub struct OAuthState {
 // Re-export the shared OAuth types
 pub use scotty_core::auth::{DeviceFlowResponse, ErrorResponse, OAuthError, TokenResponse};
 
-#[derive(Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
-pub struct AuthorizeQuery {
-    #[serde(default)]
-    pub redirect_uri: Option<String>,
-}
-
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct SessionExchangeRequest {
     pub session_id: String,
@@ -40,7 +35,6 @@ pub struct SessionExchangeRequest {
 #[utoipa::path(
     get,
     path = "/oauth/authorize",
-    params(AuthorizeQuery),
     responses(
         (status = 302, description = "Redirect to GitLab OAuth"),
         (status = 500, description = "Internal server error", body = ErrorResponse)
@@ -49,7 +43,6 @@ pub struct SessionExchangeRequest {
 )]
 pub async fn start_authorization_flow(
     State(app_state): State<SharedAppState>,
-    Query(params): Query<AuthorizeQuery>,
 ) -> impl IntoResponse {
     super::metrics::record_web_flow_start();
     debug!("Starting OAuth authorization flow");
@@ -64,13 +57,9 @@ pub async fn start_authorization_flow(
     let csrf_token_raw = CsrfToken::new_random();
     let csrf_token = CsrfToken::new(format!("{}:{}", session_id, csrf_token_raw.secret()));
 
-    // Store frontend callback URL separately before consuming params.redirect_uri
-    let frontend_callback_url = params.redirect_uri.clone();
-
-    // Determine redirect URL - use configured URL from settings
-    let redirect_url = params
-        .redirect_uri
-        .unwrap_or_else(|| app_state.settings.api.oauth.redirect_url.clone());
+    // Only the configured redirect URL: a caller-chosen one would also pick
+    // where the `session_id` (redeemable for a token) is sent afterwards.
+    let redirect_url = app_state.settings.api.oauth.redirect_url.clone();
 
     debug!("Using redirect URL for authorization: {}", redirect_url);
 
@@ -87,7 +76,6 @@ pub async fn start_authorization_flow(
                 pkce_verifier: MaskedSecret::new(pkce_verifier.secret().to_string()), // Store PKCE verifier (protected)
                 nonce: MaskedSecret::new(nonce.secret().to_string()),
                 redirect_url: redirect_url.clone(), // OAuth redirect URL for token exchange
-                frontend_callback_url,              // Frontend callback URL
                 expires_at: SystemTime::now() + Duration::from_secs(600), // 10 minutes
             };
 
@@ -257,7 +245,8 @@ pub async fn handle_oauth_callback(
                 .into_response();
         };
 
-        if csrf_part != session.csrf_token.expose_secret() {
+        let expected = session.csrf_token.expose_secret().as_bytes();
+        if !bool::from(csrf_part.as_bytes().ct_eq(expected)) {
             error!("CSRF token mismatch");
             return (
                 StatusCode::BAD_REQUEST,
@@ -303,8 +292,13 @@ pub async fn handle_oauth_callback(
             return (StatusCode::from(e.clone()), Json(ErrorResponse::from(e))).into_response();
         }
     };
-    // login_identity guarantees an email.
-    let email = identity.email.clone().unwrap_or_default();
+    // login_identity refuses a login without an email; never issue a grant
+    // for an empty subject should that change.
+    let Some(email) = identity.email.clone().filter(|e| !e.is_empty()) else {
+        error!("OAuth login without an email address");
+        let e = OAuthError::AccessDenied;
+        return (StatusCode::from(e.clone()), Json(ErrorResponse::from(e))).into_response();
+    };
 
     // Issue the Scotty session: a grant for the email, no refresh token.
     let tokens = match session_server
@@ -345,17 +339,12 @@ pub async fn handle_oauth_callback(
         sessions.insert(oauth_session_id.clone(), oauth_session);
     }
 
-    // Redirect to frontend with session ID
-    let frontend_url = if let Some(frontend_callback) = &session.frontend_callback_url {
-        format!("{}?session_id={}", frontend_callback, oauth_session_id)
-    } else {
-        // Fallback to the public base URL (api.base_url)
-        format!(
-            "{}/oauth/callback?session_id={}",
-            app_state.settings.api.public_base_url(),
-            oauth_session_id
-        )
-    };
+    // Redirect to the frontend (never a caller-chosen URL) with the session ID
+    let frontend_url = format!(
+        "{}/oauth/callback?session_id={}",
+        app_state.settings.api.public_base_url(),
+        oauth_session_id
+    );
 
     debug!("Redirecting to frontend: {}", frontend_url);
     Redirect::temporary(&frontend_url).into_response()

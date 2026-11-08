@@ -45,7 +45,11 @@ That has changed:
 - **Everyone logs in again once.** Existing browser sessions and `scottyctl`
   logins stop working after the upgrade. Log in again in the web UI and run
   `scottyctl auth:login`.
-- **Set `api.jwt_secret`.** Scotty does not start in `oauth` mode without it.
+- **Set `api.jwt_secret`.** Scotty does not start in `oauth` mode without it,
+  or with fewer than 64 bytes.
+- **`/oauth/authorize` ignores `redirect_uri`.** The provider always gets
+  `api.oauth.redirect_url`, and the browser always returns to the frontend's
+  `/oauth/callback`.
 - **Keep the database on a volume.** See [Persistent database](#persistent-database).
 - **The provider application needs less.** It only needs the scopes
   `openid profile email`. It no longer needs the device authorization grant,
@@ -66,7 +70,9 @@ must log in again after 12 h.
 4. Scotty exchanges the code and verifies the ID token (signature via JWKS,
    issuer, audience, nonce, expiry). It reads the email from the ID token and
    asks the userinfo endpoint only when the ID token has no email. Without an
-   email the login fails.
+   email, or with `email_verified: false`, the login fails. A missing
+   `email_verified` counts as verified, so use a provider that only hands out
+   addresses it has verified (GitLab does): roles are assigned by email.
 5. Scotty drops the provider's tokens and creates a grant for client
    `scotty-web`.
 6. The frontend picks up the session token once through `/oauth/exchange` and
@@ -92,6 +98,9 @@ When the access token expires, `scottyctl` refreshes it on the next 401 and
 retries the request once. Each refresh rotates the refresh token. Reusing an
 old refresh token revokes the whole session. After 30 days the session ends
 and you log in again.
+
+The CLI session has the scope `api offline_access` (it gets a refresh token);
+the browser session has `api` only and no refresh token.
 
 Turn the device login off with `api.oauth.device_flow_enabled: false`. Then
 `/oauth/device` answers 404 and `scottyctl auth:login` points users to the web
@@ -176,7 +185,7 @@ Alternatively, you can use environment variables:
 # Set authentication mode
 SCOTTY__API__AUTH_MODE=oauth
 
-# Signing secret for Scotty's tokens (required, at least 32 bytes)
+# Signing secret for Scotty's tokens (required, at least 64 bytes)
 SCOTTY__API__JWT_SECRET=$(openssl rand -base64 48)
 
 # OIDC OAuth Application credentials
@@ -197,7 +206,7 @@ fallback when `SCOTTY__API__BASE_URL` is unset (see below).
 ### 4. Signing secret
 
 `api.jwt_secret` signs every token Scotty issues (HS512). It is required in
-`oauth` mode and must be at least 32 bytes; Scotty refuses to start otherwise.
+`oauth` mode and must be at least 64 bytes (RFC 7518 §3.2 for HS512); Scotty refuses to start otherwise.
 Set it through `SCOTTY__API__JWT_SECRET` and keep it with your other secrets.
 
 If the secret leaks, anyone can forge tokens. Rotate it: set a new value and
@@ -225,6 +234,11 @@ services:
 
 WAL mode writes `-wal` and `-shm` files next to the database, so mount the
 directory, not only the file.
+
+Run a single Scotty instance. Logins in progress (the browser flow's PKCE state
+and the one-time `/oauth/exchange` session) live in memory: a restart drops
+them, and a second replica would not see them. Expired entries are swept
+periodically.
 
 ### Understanding OAuth URLs
 
@@ -768,7 +782,7 @@ accounts use a bearer token in `SCOTTY_ACCESS_TOKEN`.
 ```
 api.jwt_secret is required in oauth mode (set SCOTTY__API__JWT_SECRET)
 ```
-- Set `SCOTTY__API__JWT_SECRET` to at least 32 bytes.
+- Set `SCOTTY__API__JWT_SECRET` to at least 64 bytes, e.g. `openssl rand -base64 48`.
 
 **Redirect URI Mismatch**
 ```
