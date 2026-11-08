@@ -1,5 +1,5 @@
 use super::rate_limiting::RateLimitingConfig;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
@@ -77,6 +77,21 @@ pub struct ApiServer {
     /// back to Scotty's domain.
     #[serde(default)]
     pub base_url: Option<String>,
+    /// SQLite database of the OAuth server (grants, codes, refresh tokens).
+    #[serde(default = "default_database_path")]
+    pub database_path: String,
+    /// HS512 secret signing Scotty's own access tokens. Required in oauth
+    /// mode, at least [`MIN_JWT_SECRET_LEN`] bytes.
+    #[serde(default, skip_serializing)]
+    pub jwt_secret: Option<SecretString>,
+}
+
+/// The shortest `api.jwt_secret` accepted, in bytes (HS512 wants 64; 32 is
+/// the floor).
+pub const MIN_JWT_SECRET_LEN: usize = 32;
+
+fn default_database_path() -> String {
+    "data/scotty.sqlite".to_string()
 }
 
 fn default_oauth_redirect_url() -> String {
@@ -92,6 +107,23 @@ fn default_device_flow_enabled() -> bool {
 pub const DEFAULT_BASE_URL: &str = "http://localhost:21342";
 
 impl ApiServer {
+    /// Startup checks of the oauth mode: `api.jwt_secret` must be set and
+    /// long enough.
+    pub fn validate_oauth(&self) -> Result<(), String> {
+        if self.auth_mode != AuthMode::OAuth {
+            return Ok(());
+        }
+        match &self.jwt_secret {
+            None => Err("api.jwt_secret is required in oauth mode \
+                 (set SCOTTY__API__JWT_SECRET)"
+                .to_string()),
+            Some(secret) if secret.expose_secret().len() < MIN_JWT_SECRET_LEN => Err(format!(
+                "api.jwt_secret must be at least {MIN_JWT_SECRET_LEN} bytes"
+            )),
+            Some(_) => Ok(()),
+        }
+    }
+
     /// Resolve the public base URL of this Scotty installation.
     ///
     /// Every feature that needs Scotty's public URL (OAuth post-login
@@ -201,6 +233,8 @@ impl Default for ApiServer {
             bearer_tokens: HashMap::new(),
             rate_limiting: RateLimitingConfig::default(),
             base_url: None,
+            database_path: default_database_path(),
+            jwt_secret: None,
         }
     }
 }
@@ -238,6 +272,22 @@ mod tests {
             ..Default::default()
         };
         api
+    }
+
+    #[test]
+    fn test_oauth_mode_requires_a_long_jwt_secret() {
+        let mut api = ApiServer {
+            auth_mode: AuthMode::OAuth,
+            ..Default::default()
+        };
+        assert!(api.validate_oauth().unwrap_err().contains("required"));
+        api.jwt_secret = Some(SecretString::from("too-short"));
+        assert!(api.validate_oauth().unwrap_err().contains("at least"));
+        api.jwt_secret = Some(SecretString::from("x".repeat(MIN_JWT_SECRET_LEN)));
+        assert!(api.validate_oauth().is_ok());
+        api.jwt_secret = None;
+        api.auth_mode = AuthMode::Bearer;
+        assert!(api.validate_oauth().is_ok(), "only oauth mode needs it");
     }
 
     #[test]

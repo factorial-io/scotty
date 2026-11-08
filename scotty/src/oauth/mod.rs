@@ -3,6 +3,7 @@ pub mod client;
 pub mod device_flow;
 pub mod handlers;
 pub mod metrics;
+pub mod store;
 
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
