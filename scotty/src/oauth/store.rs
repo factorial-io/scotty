@@ -761,7 +761,6 @@ mod tests {
     use std::sync::Arc;
 
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-    use grantry::client::DocumentPolicy;
     use grantry::server::{PollError, TokenError};
     use grantry::{
         Algorithm, Config, NoEvents, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects,
@@ -1217,17 +1216,12 @@ mod tests {
     }
 
     fn server(pool: SqlitePool) -> Server<String> {
-        let config = Config {
-            resource: RESOURCE.into(),
-            token_kind: "mcp".into(),
-            scopes: ScopeSpec::new(&["read", "offline_access"], &["read"], "offline_access"),
-            signer: Signer::hmac(Algorithm::HS512, b"0123456789abcdef0123456789abcdef"),
-            access_token_secs: 900,
-            code_ttl: Duration::seconds(60),
-            pending_ttl: Duration::seconds(600),
-            grant_lifetime: Duration::days(30),
-            documents: DocumentPolicy::default(),
-        };
+        let config = Config::new(
+            RESOURCE,
+            "mcp",
+            ScopeSpec::new(&["read", "offline_access"], &["read"], "offline_access"),
+            Signer::hmac(Algorithm::HS512, b"0123456789abcdef0123456789abcdef"),
+        );
         Server::new(
             config,
             Arc::new(SqliteStore::new(pool, REALM_MCP)),
@@ -1317,14 +1311,10 @@ mod tests {
             .unwrap();
         let first = tokens.refresh_token.unwrap();
         let refresh = |token: &str| {
-            let (server, form, client_id) = (
-                server.clone(),
-                form(&[("refresh_token", token)]),
-                client_id.clone(),
-            );
-            async move { server.refresh(&form, Some(&client_id), None).await }
+            let (server, token, client_id) = (server.clone(), token.to_owned(), client_id.clone());
+            async move { server.refresh(&token, &client_id, None).await }
         };
-        let next = refresh(&first).await.unwrap().refresh_token.unwrap();
+        let next = refresh(&first).await.unwrap().1.refresh_token.unwrap();
         assert!(
             matches!(refresh(&first).await, Err(TokenError::InvalidGrant)),
             "reuse"
@@ -1361,10 +1351,11 @@ mod tests {
             .await
             .unwrap()
             .is_some());
-        let tokens = server
+        let (grant, tokens) = server
             .poll_device(&started.device_code, "scottyctl", None)
             .await
             .unwrap();
+        assert_eq!(grant.subject, alice());
         assert!(tokens.refresh_token.is_some());
         assert!(matches!(
             server

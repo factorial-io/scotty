@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Duration;
-use grantry::client::DocumentPolicy;
 use grantry::store::{BackendError, Events, Grant};
 use grantry::{Algorithm, Config, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects};
 use sqlx::SqlitePool;
@@ -20,24 +19,8 @@ pub const CLI_CLIENT_ID: &str = "scottyctl";
 const ACCESS_TOKEN_SECS: u64 = 12 * 3600;
 const GRANT_LIFETIME_DAYS: i64 = 30;
 
-/// The session server; a newtype only so `AppState` can stay `Debug`.
-#[derive(Clone)]
-pub struct SessionServer(pub Server<String>);
-
-impl std::ops::Deref for SessionServer {
-    type Target = Server<String>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::fmt::Debug for SessionServer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SessionServer")
-            .field("config", &self.0.config)
-            .finish_non_exhaustive()
-    }
-}
+/// The session server.
+pub type SessionServer = Server<String>;
 
 /// Build the session server over the `session` realm of `pool`.
 pub fn session_server(
@@ -45,25 +28,21 @@ pub fn session_server(
     jwt_secret: &[u8],
     auth_service: Arc<AuthorizationService>,
 ) -> SessionServer {
-    let config = Config {
-        resource: SESSION_RESOURCE.into(),
-        token_kind: SESSION_KIND.into(),
-        scopes: ScopeSpec::new(&["api", "offline_access"], &["api"], "offline_access"),
-        signer: Signer::hmac(Algorithm::HS512, jwt_secret),
-        access_token_secs: ACCESS_TOKEN_SECS,
-        // No authorization code flow on this server; grantry still wants these.
-        code_ttl: Duration::seconds(60),
-        pending_ttl: Duration::minutes(10),
-        grant_lifetime: Duration::days(GRANT_LIFETIME_DAYS),
-        documents: DocumentPolicy::default(),
-    };
-    SessionServer(Server::new(
+    let mut config = Config::new(
+        SESSION_RESOURCE,
+        SESSION_KIND,
+        ScopeSpec::new(&["api", "offline_access"], &["api"], "offline_access"),
+        Signer::hmac(Algorithm::HS512, jwt_secret),
+    );
+    config.access_token_secs = ACCESS_TOKEN_SECS;
+    config.grant_lifetime = Duration::days(GRANT_LIFETIME_DAYS);
+    Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_SESSION)),
         Arc::new(CasbinSubjects(auth_service)),
         Arc::new(TracingEvents),
         Arc::new(NoFetch),
-    ))
+    )
 }
 
 /// A user keeps a session while Casbin gives them any permission in any scope.

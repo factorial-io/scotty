@@ -308,7 +308,7 @@ pub async fn handle_oauth_callback(
 
     // Issue the Scotty session: a grant for the email, no refresh token.
     let tokens = match session_server
-        .issue_grant(&email, WEB_CLIENT_ID, "Scotty web", "api")
+        .issue_grant(email.clone(), WEB_CLIENT_ID, "Scotty web", "api")
         .await
     {
         Ok((_grant, tokens)) => tokens,
