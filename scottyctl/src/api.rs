@@ -5,6 +5,7 @@ use tracing::info;
 
 use crate::auth::cache::CachedTokenManager;
 use crate::auth::config::get_server_info;
+use crate::auth::device_flow::refresh_session;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
@@ -73,10 +74,10 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
         Err(_) => false, // If we can't check, assume OAuth is not supported
     };
 
-    // 3. Try stored OAuth token only if server supports OAuth
+    // 3. Try stored OAuth token only if server supports OAuth. An expired
+    // one is refreshed on the 401 it gets (`send_with_refresh`).
     if server_supports_oauth {
         if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(&server.server) {
-            // TODO: Check if token is expired and refresh if needed
             return Ok(stored_token.access_token);
         }
     }
@@ -84,6 +85,83 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
     Err(anyhow::anyhow!(
         "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
     ))
+}
+
+/// Send `call` with `token`. On a 401, ask `refresh` once for a new token
+/// and send again; without one, the 401 stands.
+async fn send_with_refresh<T, C, CF, R, RF>(token: String, call: C, refresh: R) -> Result<T, RetryError>
+where
+    C: Fn(String) -> CF,
+    CF: std::future::Future<Output = Result<T, RetryError>>,
+    R: FnOnce() -> RF,
+    RF: std::future::Future<Output = Option<String>>,
+{
+    match call(token).await {
+        Err(e) if e.status_code() == Some(401) => match refresh().await {
+            Some(token) => call(token).await,
+            None => Err(e),
+        },
+        result => result,
+    }
+}
+
+/// Refresh the stored OAuth session of `server` and persist the new pair;
+/// the new access token, or `None` (explicit tokens are never refreshed).
+async fn refresh_stored_session(server: &ServerSettings) -> Option<String> {
+    if server.access_token.is_some() {
+        return None;
+    }
+    let manager = get_cached_token_manager();
+    let stored = manager.load_for_server(&server.server).ok()??;
+    match refresh_session(&server.server, &stored).await {
+        Ok(token) => {
+            let access_token = token.access_token.clone();
+            if let Err(e) = manager.save(token) {
+                tracing::warn!("Failed to save the refreshed session: {}", e);
+            }
+            Some(access_token)
+        }
+        Err(e) => {
+            tracing::debug!("Session refresh failed: {}", e);
+            None
+        }
+    }
+}
+
+async fn send_request(
+    token: &str,
+    url: &str,
+    method: &str,
+    body: Option<&Value>,
+) -> Result<Value, RetryError> {
+    // HttpClient already has retry logic built-in, no need to wrap it
+    let client = create_authenticated_client(token)
+        .map_err(|e| RetryError::NonRetriable(HttpError::ParseError(e.to_string())))?;
+
+    match method.to_lowercase().as_str() {
+        "post" => {
+            let empty = serde_json::json!({});
+            client
+                .post_json::<Value, Value>(url, body.unwrap_or(&empty))
+                .await
+        }
+        "delete" => {
+            // DELETE requests with JSON bodies need manual handling since there's no delete_json method
+            let response = match body {
+                Some(body) => {
+                    client
+                        .request_with_body(reqwest::Method::DELETE, url, body)
+                        .await?
+                }
+                None => client.request(reqwest::Method::DELETE, url).await?,
+            };
+            response
+                .json::<Value>()
+                .await
+                .map_err(|e| RetryError::NonRetriable(HttpError::ParseError(e.to_string())))
+        }
+        _ => client.get_json::<Value>(url).await,
+    }
 }
 
 pub async fn get_or_post(
@@ -96,37 +174,24 @@ pub async fn get_or_post(
     let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", action));
     info!("Calling scotty API at {}", &url);
 
-    // HttpClient already has retry logic built-in, no need to wrap it
-    let client = create_authenticated_client(&token)?;
-
-    let result = match method.to_lowercase().as_str() {
-        "post" => {
-            let body = body.unwrap_or_else(|| serde_json::json!({}));
-            client.post_json::<Value, Value>(&url, &body).await
-        }
-        "delete" => {
-            // DELETE requests with JSON bodies need manual handling since there's no delete_json method
-            if let Some(body) = body {
-                let response = client
-                    .request_with_body(reqwest::Method::DELETE, &url, &body)
-                    .await?;
-                response
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| RetryError::NonRetriable(HttpError::ParseError(e.to_string())))
-            } else {
-                let response = client.request(reqwest::Method::DELETE, &url).await?;
-                response
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| RetryError::NonRetriable(HttpError::ParseError(e.to_string())))
-            }
-        }
-        _ => client.get_json::<Value>(&url).await,
-    };
+    let result = send_with_refresh(
+        token,
+        |token| {
+            let (url, body) = (&url, body.as_ref());
+            async move { send_request(&token, url, method, body).await }
+        },
+        || refresh_stored_session(server),
+    )
+    .await;
 
     match result {
         Ok(value) => Ok(value),
+        Err(RetryError::NonRetriable(err)) if err.status_code() == Some(401) => {
+            Err(anyhow::anyhow!(
+                "Not authenticated or session expired. Run 'scottyctl --server {} auth:login' or set SCOTTY_ACCESS_TOKEN",
+                server.server
+            ))
+        }
         Err(RetryError::NonRetriable(err)) => {
             // HttpError now preserves the status code
             if err.is_client_error() {
@@ -178,11 +243,17 @@ pub async fn get_with_error(server: &ServerSettings, method: &str) -> Result<Val
     let url = normalize_url(&server.server, &format!("api/v1/authenticated/{}", method));
     info!("Calling scotty API at {}", &url);
 
-    let client = create_authenticated_client(&token)
-        .map_err(|e| HttpError::ParseError(format!("Failed to create HTTP client: {}", e)))?;
+    let result = send_with_refresh(
+        token,
+        |token| {
+            let url = &url;
+            async move { send_request(&token, url, "get", None).await }
+        },
+        || refresh_stored_session(server),
+    )
+    .await;
 
-    // Make the request and handle the RetryError
-    match client.get_json::<Value>(&url).await {
+    match result {
         Ok(value) => Ok(value),
         Err(RetryError::NonRetriable(http_err)) => Err(http_err),
         Err(RetryError::ExhaustedRetries { error, .. }) => Err(error),
@@ -403,6 +474,71 @@ fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn unauthorized() -> RetryError {
+        RetryError::NonRetriable(HttpError::http(401, "Unauthorized"))
+    }
+
+    /// A server that accepts only `good`.
+    async fn call(calls: &AtomicUsize, token: String) -> Result<String, RetryError> {
+        calls.fetch_add(1, Ordering::SeqCst);
+        if token == "good" {
+            Ok(token)
+        } else {
+            Err(unauthorized())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_401_refreshes_once_and_retries_once() {
+        let calls = AtomicUsize::new(0);
+        let refreshes = AtomicUsize::new(0);
+        let result = send_with_refresh(
+            "expired".to_string(),
+            |t| call(&calls, t),
+            || async {
+                refreshes.fetch_add(1, Ordering::SeqCst);
+                Some("good".to_string())
+            },
+        )
+        .await;
+        assert_eq!(result.unwrap(), "good");
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert_eq!(refreshes.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_failed_refresh_keeps_the_401_and_does_not_retry() {
+        let calls = AtomicUsize::new(0);
+        let result = send_with_refresh("expired".to_string(), |t| call(&calls, t), || async {
+            None
+        })
+        .await;
+        assert_eq!(result.unwrap_err().status_code(), Some(401));
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_still_rejected_retry_is_not_retried_again() {
+        let calls = AtomicUsize::new(0);
+        let result = send_with_refresh("expired".to_string(), |t| call(&calls, t), || async {
+            Some("also-bad".to_string())
+        })
+        .await;
+        assert_eq!(result.unwrap_err().status_code(), Some(401));
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn success_or_other_errors_skip_the_refresh() {
+        let calls = AtomicUsize::new(0);
+        let result = send_with_refresh("good".to_string(), |t| call(&calls, t), || async {
+            panic!("no refresh without a 401")
+        })
+        .await;
+        assert!(result.is_ok());
+    }
 
     #[test]
     fn test_url_normalization_with_trailing_slash() {

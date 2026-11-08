@@ -175,12 +175,6 @@ pub struct ErrorResponse {
     pub error_description: Option<String>,
 }
 
-/// Query parameters for device token polling
-#[derive(Debug, Clone, Deserialize, utoipa::IntoParams)]
-pub struct DeviceTokenQuery {
-    pub device_code: String,
-}
-
 impl DeviceFlowResponse {
     /// Get the polling interval, defaulting to 5 seconds if not specified
     pub fn polling_interval(&self) -> u64 {

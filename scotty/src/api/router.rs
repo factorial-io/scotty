@@ -51,9 +51,13 @@ use crate::api::rest::handlers::info::__path_info_handler;
 use crate::api::rest::handlers::login::__path_login_handler;
 use crate::api::rest::handlers::login::__path_logout_handler;
 use crate::api::rest::handlers::login::__path_validate_token_handler;
+use crate::oauth::device::{
+    __path_approve_device_handler, __path_deny_device_handler, __path_get_device_handler,
+    approve_device_handler, deny_device_handler, device_token, get_device_handler,
+    start_device_flow, DeviceDecision, DeviceInfo,
+};
 use crate::oauth::handlers::{
-    exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow,
-    start_device_flow,
+    exchange_session_for_token, handle_oauth_callback, start_authorization_flow,
 };
 use crate::oauth::handlers::{AuthorizeQuery, CallbackQuery, DeviceFlowResponse, TokenResponse};
 use scotty_core::api::{OAuthConfig, ServerInfo};
@@ -161,6 +165,9 @@ use scotty_core::admin::{
         destroy_app_handler,
         validate_token_handler,
         logout_handler,
+        get_device_handler,
+        approve_device_handler,
+        deny_device_handler,
         login_handler,
         info_handler,
         blueprints_handler,
@@ -201,6 +208,7 @@ use scotty_core::admin::{
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
+            DeviceInfo, DeviceDecision,
             ScopeInfo, UserScopesResponse,
             // Admin API schemas
             AdminScopeInfo, ScopesListResponse, CreateScopeRequest, CreateScopeResponse,
@@ -316,6 +324,18 @@ impl ApiRoutes {
                 post(validate_token_handler),
             )
             .route("/api/v1/authenticated/logout", post(logout_handler))
+            .route(
+                "/api/v1/authenticated/oauth/device/approve",
+                post(approve_device_handler),
+            )
+            .route(
+                "/api/v1/authenticated/oauth/device/deny",
+                post(deny_device_handler),
+            )
+            .route(
+                "/api/v1/authenticated/oauth/device/{user_code}",
+                get(get_device_handler),
+            )
             .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
             .route(
                 "/api/v1/authenticated/scopes/list",
@@ -541,7 +561,7 @@ impl ApiRoutes {
         // Build OAuth router
         let mut oauth_router = Router::new()
             .route("/oauth/device", post(start_device_flow))
-            .route("/oauth/device/token", post(poll_device_token))
+            .route("/oauth/device/token", post(device_token))
             .route("/oauth/authorize", get(start_authorization_flow))
             .route("/api/oauth/callback", get(handle_oauth_callback))
             .route("/oauth/exchange", post(exchange_session_for_token))

@@ -1,25 +1,20 @@
 pub mod cleanup;
 pub mod client;
-pub mod device_flow;
+pub mod device;
 pub mod handlers;
 pub mod metrics;
 pub mod server;
 pub mod store;
 
 use oauth2::{
-    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    DeviceAuthorizationUrl, EndpointMaybeSet, EndpointNotSet, EndpointSet, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenUrl,
+    AuthorizationCode, ClientId, ClientSecret, CsrfToken, EndpointMaybeSet, EndpointNotSet,
+    EndpointSet, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope,
 };
 use openidconnect::core::{
     CoreAuthenticationFlow, CoreClient, CoreProviderMetadata, CoreUserInfoClaims,
 };
 use openidconnect::{IssuerUrl, Nonce, OAuth2TokenResponse, TokenResponse as _};
 
-/// Concrete `BasicClient` typestate for our configuration: auth URL, device
-/// authorization URL and token URL are set; introspection and revocation are not.
-type ConfiguredOAuthClient =
-    BasicClient<EndpointSet, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
 use scotty_core::utils::secret::MaskedSecret;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -29,15 +24,12 @@ use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct OAuthClient {
-    pub client: ConfiguredOAuthClient,
     pub oidc_issuer_url: String,
     pub client_id: String,
     pub client_secret: SecretString,
-    pub http_client: scotty_core::http::HttpClient,
-    // Dedicated reqwest client from oauth2's bundled reqwest version, used for
-    // oauth2 `request_async` calls. The workspace reqwest may differ in major
-    // version from the one oauth2 implements `AsyncHttpClient` for, so we cannot
-    // reuse `http_client`'s inner client here.
+    // reqwest client from oauth2's bundled reqwest version, used for oauth2
+    // `request_async` calls. The workspace reqwest may differ in major version
+    // from the one oauth2 implements `AsyncHttpClient` for.
     oauth_http_client: oauth2::reqwest::Client,
 }
 
@@ -45,31 +37,13 @@ pub struct OAuthClient {
 impl std::fmt::Debug for OAuthClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OAuthClient")
-            .field("client", &self.client)
             .field("oidc_issuer_url", &self.oidc_issuer_url)
             .field("client_id", &self.client_id)
             .field("client_secret", &"[REDACTED]")
-            .field("http_client", &self.http_client)
             .field("oauth_http_client", &self.oauth_http_client)
             .finish()
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceFlowSession {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub expires_at: SystemTime,
-    pub oidc_access_token: Option<String>,
-    pub completed: bool,
-    // Store the interval from device auth response for proper polling
-    pub interval: u64,
-}
-
-// In-memory storage for device flow sessions
-// In production, this should use Redis or database
-pub type DeviceFlowStore = Arc<Mutex<HashMap<String, DeviceFlowSession>>>;
 
 // Web flow session for PKCE storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,20 +76,6 @@ impl OAuthClient {
         client_secret: SecretString,
         oidc_issuer_url: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let auth_url = format!("{}/oauth/authorize", oidc_issuer_url);
-        let token_url = format!("{}/oauth/token", oidc_issuer_url);
-        let device_auth_url = format!("{}/oauth/authorize_device", oidc_issuer_url);
-
-        let client = BasicClient::new(ClientId::new(client_id.clone()))
-            .set_client_secret(ClientSecret::new(client_secret.expose_secret().to_string()))
-            .set_auth_uri(AuthUrl::new(auth_url)?)
-            .set_token_uri(TokenUrl::new(token_url)?)
-            .set_device_authorization_url(DeviceAuthorizationUrl::new(device_auth_url)?);
-
-        let http_client =
-            scotty_core::http::HttpClient::with_timeout(std::time::Duration::from_secs(30))
-                .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
         // Disable redirects to prevent auth credentials from being forwarded on
         // redirect, matching the policy used by the shared HttpClient.
         let oauth_http_client = oauth2::reqwest::Client::builder()
@@ -124,11 +84,9 @@ impl OAuthClient {
             .map_err(|e| format!("Failed to create OAuth HTTP client: {}", e))?;
 
         Ok(Self {
-            client,
-            oidc_issuer_url: oidc_issuer_url.clone(),
+            oidc_issuer_url,
             client_id,
             client_secret,
-            http_client,
             oauth_http_client,
         })
     }
@@ -267,10 +225,6 @@ pub struct LoginIdentity {
     pub name: Option<String>,
     pub email: Option<String>,
     pub picture: Option<String>,
-}
-
-pub fn create_device_flow_store() -> DeviceFlowStore {
-    Arc::new(Mutex::new(HashMap::new()))
 }
 
 pub fn create_web_flow_store() -> WebFlowStore {

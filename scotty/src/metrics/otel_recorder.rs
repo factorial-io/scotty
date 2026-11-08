@@ -354,12 +354,6 @@ impl MetricsRecorder for OtelRecorder {
     }
 
     // OAuth session metrics
-    fn record_oauth_device_sessions(&self, count: u64) {
-        self.instruments
-            .oauth_device_flow_sessions_active
-            .record(count as i64, &[]);
-    }
-
     fn record_oauth_web_sessions(&self, count: u64) {
         self.instruments
             .oauth_web_flow_sessions_active

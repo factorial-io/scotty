@@ -10,6 +10,8 @@
 #                  app's scope when the path names an app ({app_id} or
 #                  {app_name}), otherwise in any scope (admin_* is always
 #                  checked in any scope).
+#   session        a logged-in person (Scotty session token); bearer tokens,
+#                  which this matrix uses, are refused with 403
 #   [a, b]         any one of the listed permissions
 #
 # A new operation without an entry here fails the test. Change an entry only
@@ -25,6 +27,10 @@ rest:
   GET /api/v1/authenticated/scopes/list: authenticated
   POST /api/v1/authenticated/validate-token: authenticated
   POST /api/v1/authenticated/logout: authenticated
+  # Device login approval (scottyctl auth:login): people only.
+  GET /api/v1/authenticated/oauth/device/{user_code}: session
+  POST /api/v1/authenticated/oauth/device/approve: session
+  POST /api/v1/authenticated/oauth/device/deny: session
   # Reachable by any authenticated caller; results are filtered per task (view
   # on the task's app, admin_read for tasks without an app, or the user who
   # started it). Covered by the task visibility tests, not this matrix.

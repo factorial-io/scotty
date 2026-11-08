@@ -13,7 +13,7 @@ use openidconnect::{
 };
 use std::sync::Arc;
 use wiremock::{
-    matchers::{body_string_contains, method, path},
+    matchers::{method, path},
     Mock, MockServer, ResponseTemplate,
 };
 
@@ -39,7 +39,6 @@ async fn create_mock_oauth_state(mock_server_url: &str) -> Arc<AppState> {
     let oauth_state = match crate::oauth::client::create_oauth_client(&settings.api.oauth) {
         Ok(Some(client)) => Some(crate::oauth::handlers::OAuthState {
             client,
-            device_flow_store: crate::oauth::create_device_flow_store(),
             web_flow_store: crate::oauth::create_web_flow_store(),
             session_store: crate::oauth::create_oauth_session_store(),
         }),
@@ -52,209 +51,6 @@ async fn create_mock_oauth_state(mock_server_url: &str) -> Arc<AppState> {
 /// Create Scotty app with OAuth and mock OIDC provider
 async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Router {
     ApiRoutes::create(create_mock_oauth_state(mock_server_url).await)
-}
-
-#[tokio::test]
-async fn test_oauth_device_flow_complete() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock device authorization endpoint with proper OAuth2 response
-    Mock::given(method("POST"))
-        .and(path("/oauth/authorize_device"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "device_code": "mock_device_code_12345",
-            "user_code": "ABCD-1234",
-            "verification_uri": format!("{}/device", mock_url),
-            "verification_uri_complete": format!("{}/device?user_code=ABCD-1234", mock_url),
-            "expires_in": 1800,
-            "interval": 5
-        })))
-        .mount(&mock_server)
-        .await;
-
-    let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router);
-
-    // Test device flow initiation - should work perfectly
-    let response = server.post("/oauth/device").await;
-
-    assert_eq!(
-        response.status_code(),
-        200,
-        "Device flow should start successfully"
-    );
-    let body: serde_json::Value = response.json();
-
-    // Verify response contains all required fields
-    assert_eq!(
-        body["device_code"].as_str().unwrap(),
-        "mock_device_code_12345"
-    );
-    assert_eq!(body["user_code"].as_str().unwrap(), "ABCD-1234");
-    assert!(body["verification_uri"]
-        .as_str()
-        .unwrap()
-        .contains(&mock_url));
-    assert!(
-        body["expires_in"].as_u64().unwrap() >= 1799,
-        "Should have reasonable expiry time"
-    );
-    assert_eq!(body["interval"].as_u64().unwrap(), 5);
-}
-
-#[tokio::test]
-async fn test_oauth_device_flow_authorization_pending() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock device authorization endpoint
-    Mock::given(method("POST"))
-        .and(path("/oauth/authorize_device"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "device_code": "test_device_pending",
-            "user_code": "EFGH-5678",
-            "verification_uri": format!("{}/device", mock_url),
-            "expires_in": 1800,
-            "interval": 5
-        })))
-        .mount(&mock_server)
-        .await;
-
-    // Mock token endpoint with exact format Scotty expects
-    // Based on device_flow.rs: uses form data with grant_type and device_code
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .and(body_string_contains(
-            "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
-        ))
-        .and(body_string_contains("device_code=test_device_pending"))
-        // Basic auth header will be present but we don't need to match it exactly
-        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
-            "error": "authorization_pending",
-            "error_description": "The authorization request is still pending"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router);
-
-    // Start device flow
-    let device_response = server.post("/oauth/device").await;
-    assert_eq!(device_response.status_code(), 200);
-
-    let body: serde_json::Value = device_response.json();
-    let device_code = body["device_code"].as_str().unwrap();
-    assert_eq!(device_code, "test_device_pending");
-
-    // Poll for token using Scotty's device token endpoint
-    let poll_response = server
-        .post("/oauth/device/token")
-        .add_query_param("device_code", device_code)
-        .await;
-
-    // Should return 400 with proper authorization_pending error
-    assert_eq!(
-        poll_response.status_code(),
-        400,
-        "Should return authorization_pending error"
-    );
-
-    let error_body: serde_json::Value = poll_response.json();
-    assert_eq!(
-        error_body["error"].as_str().unwrap(),
-        "authorization_pending",
-        "Should return proper OAuth authorization_pending error"
-    );
-}
-
-#[tokio::test]
-async fn test_oauth_device_flow_complete_success() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock device authorization endpoint
-    Mock::given(method("POST"))
-        .and(path("/oauth/authorize_device"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "device_code": "success_device_code",
-            "user_code": "SUCCESS-789",
-            "verification_uri": format!("{}/device", mock_url),
-            "expires_in": 1800,
-            "interval": 5
-        })))
-        .mount(&mock_server)
-        .await;
-
-    // Mock token endpoint - successful response
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "access_token": "oauth_success_token_xyz789",
-            "token_type": "Bearer",
-            "expires_in": 3600,
-            "scope": "read_user read_api openid profile email"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    // Mock user info endpoint - this is what was missing!
-    Mock::given(method("GET"))
-        .and(path("/oauth/userinfo"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "sub": "oauth_user_123",
-            "name": "OAuth Test User",
-            "email": "oauth.test@example.com",
-            "preferred_username": "oauthuser"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router);
-
-    // Start device flow
-    let device_response = server.post("/oauth/device").await;
-    assert_eq!(
-        device_response.status_code(),
-        200,
-        "Device flow should start"
-    );
-
-    let device_body: serde_json::Value = device_response.json();
-    let device_code = device_body["device_code"].as_str().unwrap();
-    assert_eq!(device_code, "success_device_code");
-
-    // Poll for token - should now succeed completely!
-    let poll_response = server
-        .post("/oauth/device/token")
-        .add_query_param("device_code", device_code)
-        .await;
-
-    // Should return 200 with successful OAuth completion
-    assert_eq!(
-        poll_response.status_code(),
-        200,
-        "OAuth device flow should complete successfully"
-    );
-
-    let token_body: serde_json::Value = poll_response.json();
-
-    // Verify we get the actual OAuth response
-    assert_eq!(
-        token_body["access_token"].as_str().unwrap(),
-        "oauth_success_token_xyz789",
-        "Should return OAuth access token"
-    );
-
-    // Verify complete OAuth response with user information
-    assert_eq!(token_body["user_name"].as_str().unwrap(), "OAuth Test User");
-    assert_eq!(
-        token_body["user_email"].as_str().unwrap(),
-        "oauth.test@example.com"
-    );
-    assert_eq!(token_body["user_id"].as_str().unwrap(), "oauthuser");
 }
 
 #[tokio::test]
@@ -371,136 +167,6 @@ async fn test_oauth_callback_with_mock_token_exchange() {
     );
 }
 
-#[tokio::test]
-async fn test_complete_oauth_flow_with_protected_endpoint_access() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock complete OAuth flow
-    Mock::given(method("POST"))
-        .and(path("/oauth/authorize_device"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "device_code": "complete_flow_device",
-            "user_code": "COMPLETE-123",
-            "verification_uri": format!("{}/device", mock_url),
-            "expires_in": 1800,
-            "interval": 5
-        })))
-        .mount(&mock_server)
-        .await;
-
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "access_token": "complete_oauth_token_789",
-            "token_type": "Bearer",
-            "expires_in": 3600,
-            "scope": "read_user read_api openid profile email"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    Mock::given(method("GET"))
-        .and(path("/oauth/userinfo"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "sub": "complete_user_456",
-            "name": "Complete Flow User",
-            "email": "complete@example.com",
-            "preferred_username": "completeuser"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router);
-
-    // STEP 1: Verify protected endpoint requires auth
-    let unauth_response = server.get("/api/v1/authenticated/blueprints").await;
-    assert_eq!(
-        unauth_response.status_code(),
-        401,
-        "Should require authentication"
-    );
-
-    // STEP 2: Complete OAuth device flow
-    let device_response = server.post("/oauth/device").await;
-    assert_eq!(
-        device_response.status_code(),
-        200,
-        "Device flow should start"
-    );
-
-    let device_body: serde_json::Value = device_response.json();
-    let device_code = device_body["device_code"].as_str().unwrap();
-
-    // STEP 3: Poll for token and complete authentication
-    let token_response = server
-        .post("/oauth/device/token")
-        .add_query_param("device_code", device_code)
-        .await;
-
-    assert_eq!(
-        token_response.status_code(),
-        200,
-        "OAuth flow should complete"
-    );
-    let token_body: serde_json::Value = token_response.json();
-    let access_token = token_body["access_token"].as_str().unwrap();
-
-    // STEP 4: The provider token from the (old) device flow is no API
-    // credential any more; task 3.1 replaces this flow with grantry's.
-    let protected_response = server
-        .get("/api/v1/authenticated/blueprints")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str(&format!("Bearer {}", access_token)).unwrap(),
-        )
-        .await;
-    assert_eq!(
-        protected_response.status_code(),
-        401,
-        "A provider token must not authenticate API requests"
-    );
-    assert_eq!(access_token, "complete_oauth_token_789");
-}
-
-#[tokio::test]
-async fn test_oauth_provider_error_handling() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock OAuth provider returns server error
-    Mock::given(method("POST"))
-        .and(path("/oauth/authorize_device"))
-        .respond_with(ResponseTemplate::new(500).set_body_json(serde_json::json!({
-            "error": "server_error",
-            "error_description": "OAuth provider internal server error"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    let router = create_scotty_app_with_mock_oauth(&mock_url).await;
-    let server = TestServer::new(router);
-
-    // Test that Scotty handles OAuth provider errors gracefully
-    let response = server.post("/oauth/device").await;
-
-    // Should return 500 because OAuth provider is returning 500
-    // This is correct behavior - propagate OAuth provider errors
-    assert_eq!(
-        response.status_code(),
-        500,
-        "Should propagate OAuth provider errors"
-    );
-
-    let body: serde_json::Value = response.json();
-    assert!(
-        body.get("error").is_some(),
-        "Error response should contain error field: {}",
-        serde_json::to_string_pretty(&body).unwrap_or_default()
-    );
-}
-
 // --- Mock OIDC provider ------------------------------------------------------
 
 const CLIENT_ID: &str = "test_oauth_client_id";
@@ -603,7 +269,10 @@ async fn begin_login(server: &TestServer) -> (String, String) {
         .await;
     assert_eq!(response.status_code(), 307, "{}", response.text());
     let location = response.headers()["location"].to_str().unwrap().to_string();
-    (query_param(&location, "state"), query_param(&location, "nonce"))
+    (
+        query_param(&location, "state"),
+        query_param(&location, "nonce"),
+    )
 }
 
 async fn callback(server: &TestServer, state: &str) -> axum_test::TestResponse {
@@ -714,7 +383,11 @@ async fn test_web_login_with_wrong_nonce_fails() {
     let (state, _nonce) = begin_login(&server).await;
     mount_token_endpoint(
         &mock_server,
-        id_token(&mock_server.uri(), "not-the-nonce", Some("alice@example.com")),
+        id_token(
+            &mock_server.uri(),
+            "not-the-nonce",
+            Some("alice@example.com"),
+        ),
     )
     .await;
 
@@ -737,7 +410,12 @@ async fn issue_session(state: &AppState) -> (grantry::Grant<String>, String) {
         .session_server
         .as_ref()
         .unwrap()
-        .issue_grant(&"alice@example.com".to_string(), "scotty-web", "Scotty web", "api")
+        .issue_grant(
+            &"alice@example.com".to_string(),
+            "scotty-web",
+            "Scotty web",
+            "api",
+        )
         .await
         .unwrap();
     (grant, tokens.access_token)
@@ -826,7 +504,10 @@ async fn test_provider_token_rejected_without_provider_call() {
     assert_eq!(status_with(&server, "a.b.c").await, 401);
     let response = server
         .get("/api/v1/authenticated/apps/list")
-        .add_header(axum::http::header::AUTHORIZATION, bearer("glpat-provider-token"))
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            bearer("glpat-provider-token"),
+        )
         .await;
     assert_eq!(response.status_code(), 401);
     mock_server.verify().await;
@@ -838,8 +519,238 @@ async fn test_bearer_token_still_works_in_oauth_mode_and_logout_is_noop() {
     assert_eq!(status_with(&server, "test-bearer-token-123").await, 200);
     let logout = server
         .post("/api/v1/authenticated/logout")
-        .add_header(axum::http::header::AUTHORIZATION, bearer("test-bearer-token-123"))
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            bearer("test-bearer-token-123"),
+        )
         .await;
     assert_eq!(logout.status_code(), 204);
     assert_eq!(status_with(&server, "test-bearer-token-123").await, 200);
+}
+
+// --- CLI device login (grantry device grant) ----------------------------------
+
+const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
+
+async fn session_for(state: &AppState, email: &str) -> String {
+    state
+        .session_server
+        .as_ref()
+        .unwrap()
+        .issue_grant(&email.to_string(), "scotty-web", "Scotty web", "api")
+        .await
+        .unwrap()
+        .1
+        .access_token
+}
+
+/// Start a device login; returns the device code and the user code.
+async fn start_device(server: &TestServer) -> (String, String) {
+    let response = server
+        .post("/oauth/device")
+        .json(&serde_json::json!({}))
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let body: serde_json::Value = response.json();
+    let user_code = body["user_code"].as_str().unwrap().to_string();
+    assert_eq!(body["verification_uri"], "http://localhost:21342/device");
+    assert_eq!(
+        body["verification_uri_complete"],
+        format!("http://localhost:21342/device?code={user_code}")
+    );
+    assert!(body["expires_in"].as_u64().unwrap() > 0);
+    assert!(body["interval"].as_u64().unwrap() > 0);
+    (body["device_code"].as_str().unwrap().to_string(), user_code)
+}
+
+async fn poll(server: &TestServer, device_code: &str) -> axum_test::TestResponse {
+    server
+        .post("/oauth/device/token")
+        .form(&[("grant_type", DEVICE_GRANT), ("device_code", device_code)])
+        .await
+}
+
+async fn refresh(server: &TestServer, refresh_token: &str) -> axum_test::TestResponse {
+    server
+        .post("/oauth/device/token")
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("client_id", "scottyctl"),
+        ])
+        .await
+}
+
+fn oauth_error_code(response: &axum_test::TestResponse) -> String {
+    let body: serde_json::Value = response.json();
+    body["error"].as_str().unwrap_or_default().to_string()
+}
+
+async fn decide(server: &TestServer, token: &str, action: &str, user_code: &str) -> u16 {
+    server
+        .post(&format!("/api/v1/authenticated/oauth/device/{action}"))
+        .add_header(axum::http::header::AUTHORIZATION, bearer(token))
+        .json(&serde_json::json!({ "user_code": user_code }))
+        .await
+        .status_code()
+        .as_u16()
+}
+
+/// Start, approve as alice, poll: returns the token response.
+async fn device_login(server: &TestServer, state: &AppState) -> serde_json::Value {
+    let (device_code, user_code) = start_device(server).await;
+    let alice = session_for(state, "alice@example.com").await;
+    assert_eq!(decide(server, &alice, "approve", &user_code).await, 204);
+    let response = poll(server, &device_code).await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    response.json()
+}
+
+#[tokio::test]
+async fn test_device_login_approve_then_poll_returns_a_working_pair() {
+    let (server, state) = session_app().await;
+    let (device_code, user_code) = start_device(&server).await;
+
+    // Before the decision, then too fast.
+    let pending = poll(&server, &device_code).await;
+    assert_eq!(pending.status_code(), 400);
+    assert_eq!(oauth_error_code(&pending), "authorization_pending");
+    let fast = poll(&server, &device_code).await;
+    assert_eq!(fast.status_code(), 400);
+    assert_eq!(oauth_error_code(&fast), "slow_down");
+
+    let alice = session_for(&state, "alice@example.com").await;
+    assert_eq!(decide(&server, &alice, "approve", &user_code).await, 204);
+    // Decided codes cannot be decided again.
+    assert_eq!(decide(&server, &alice, "deny", &user_code).await, 404);
+
+    let response = poll(&server, &device_code).await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let body: serde_json::Value = response.json();
+    assert_eq!(body["user_email"], "alice@example.com");
+    assert_eq!(body["expires_in"], 12 * 3600);
+    assert!(body["refresh_token"].as_str().is_some());
+    let access_token = body["access_token"].as_str().unwrap();
+
+    let apps = server
+        .get("/api/v1/authenticated/apps/list")
+        .add_header(axum::http::header::AUTHORIZATION, bearer(access_token))
+        .await;
+    assert_eq!(apps.status_code(), 200, "{}", apps.text());
+
+    // Redeemed once.
+    let again = poll(&server, &device_code).await;
+    assert_eq!(again.status_code(), 400);
+    assert_eq!(oauth_error_code(&again), "invalid_grant");
+}
+
+#[tokio::test]
+async fn test_device_login_old_scottyctl_poll_shape_works() {
+    // scottyctl <= this release: device_code in the query, empty JSON body.
+    let (server, state) = session_app().await;
+    let (device_code, user_code) = start_device(&server).await;
+    let alice = session_for(&state, "alice@example.com").await;
+    assert_eq!(decide(&server, &alice, "approve", &user_code).await, 204);
+    let response = server
+        .post("/oauth/device/token")
+        .add_query_param("device_code", &device_code)
+        .json(&serde_json::json!({}))
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+}
+
+#[tokio::test]
+async fn test_device_login_deny_gives_access_denied() {
+    let (server, state) = session_app().await;
+    let (device_code, user_code) = start_device(&server).await;
+    let alice = session_for(&state, "alice@example.com").await;
+    assert_eq!(decide(&server, &alice, "deny", &user_code).await, 204);
+    let response = poll(&server, &device_code).await;
+    assert_eq!(response.status_code(), 400);
+    assert_eq!(oauth_error_code(&response), "access_denied");
+}
+
+#[tokio::test]
+async fn test_device_lookup_by_any_user_but_not_service_accounts() {
+    let (server, state) = session_app().await;
+    let (_device_code, user_code) = start_device(&server).await;
+    let bob = session_for(&state, "bob@example.com").await;
+
+    let response = server
+        .get(&format!("/api/v1/authenticated/oauth/device/{user_code}"))
+        .add_header(axum::http::header::AUTHORIZATION, bearer(&bob))
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let body: serde_json::Value = response.json();
+    assert_eq!(body["user_code"], user_code.as_str());
+    assert_eq!(body["client_name"], "scottyctl");
+    assert_eq!(body["scope"], "api offline_access");
+
+    let unknown = server
+        .get("/api/v1/authenticated/oauth/device/BBBB-CCCC")
+        .add_header(axum::http::header::AUTHORIZATION, bearer(&bob))
+        .await;
+    assert_eq!(unknown.status_code(), 404);
+
+    let service = "test-bearer-token-123";
+    let response = server
+        .get(&format!("/api/v1/authenticated/oauth/device/{user_code}"))
+        .add_header(axum::http::header::AUTHORIZATION, bearer(service))
+        .await;
+    assert_eq!(response.status_code(), 403);
+    assert_eq!(decide(&server, service, "approve", &user_code).await, 403);
+    assert_eq!(decide(&server, service, "deny", &user_code).await, 403);
+}
+
+#[tokio::test]
+async fn test_device_refresh_rotates_and_replay_revokes() {
+    let (server, state) = session_app().await;
+    let first = device_login(&server, &state).await;
+    let first_refresh = first["refresh_token"].as_str().unwrap();
+
+    let rotated = refresh(&server, first_refresh).await;
+    assert_eq!(rotated.status_code(), 200, "{}", rotated.text());
+    let rotated: serde_json::Value = rotated.json();
+    let second_access = rotated["access_token"].as_str().unwrap();
+    let second_refresh = rotated["refresh_token"].as_str().unwrap();
+    assert_ne!(second_refresh, first_refresh);
+    assert_eq!(rotated["user_email"], "alice@example.com");
+    assert_eq!(status_with(&server, second_access).await, 200);
+
+    // Replaying the used refresh token revokes the whole session.
+    let replay = refresh(&server, first_refresh).await;
+    assert_eq!(replay.status_code(), 400);
+    assert_eq!(oauth_error_code(&replay), "invalid_grant");
+    assert_eq!(status_with(&server, second_access).await, 401);
+    let after = refresh(&server, second_refresh).await;
+    assert_eq!(oauth_error_code(&after), "invalid_grant");
+}
+
+#[tokio::test]
+async fn test_device_refresh_after_absolute_lifetime_fails() {
+    let (server, state) = session_app().await;
+    let tokens = device_login(&server, &state).await;
+
+    // The grant reached its 30-day end.
+    let past = (chrono::Utc::now() - chrono::Duration::days(1)).timestamp_millis();
+    sqlx::query("UPDATE oauth_grants SET expires_at = ?")
+        .bind(past)
+        .execute(state.oauth_db.as_ref().unwrap())
+        .await
+        .unwrap();
+
+    let response = refresh(&server, tokens["refresh_token"].as_str().unwrap()).await;
+    assert_eq!(response.status_code(), 400);
+    assert_eq!(oauth_error_code(&response), "invalid_grant");
+}
+
+#[tokio::test]
+async fn test_device_token_rejects_unknown_grant_type() {
+    let (server, _state) = session_app().await;
+    let response = server
+        .post("/oauth/device/token")
+        .form(&[("grant_type", "password")])
+        .await;
+    assert_eq!(response.status_code(), 400);
+    assert_eq!(oauth_error_code(&response), "unsupported_grant_type");
 }

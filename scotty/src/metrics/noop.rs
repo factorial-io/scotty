@@ -178,9 +178,6 @@ impl MetricsRecorder for NoOpRecorder {
 
     // OAuth session metrics
     #[inline(always)]
-    fn record_oauth_device_sessions(&self, _count: u64) {}
-
-    #[inline(always)]
     fn record_oauth_web_sessions(&self, _count: u64) {}
 
     #[inline(always)]

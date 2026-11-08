@@ -155,11 +155,6 @@ pub trait MetricsRecorder: Send + Sync {
         not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
         allow(dead_code)
     )]
-    fn record_oauth_device_sessions(&self, count: u64);
-    #[cfg_attr(
-        not(any(feature = "telemetry-grpc", feature = "telemetry-http")),
-        allow(dead_code)
-    )]
     fn record_oauth_web_sessions(&self, count: u64);
     #[cfg_attr(
         not(any(feature = "telemetry-grpc", feature = "telemetry-http")),

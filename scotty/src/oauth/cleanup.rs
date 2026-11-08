@@ -1,4 +1,4 @@
-use super::{DeviceFlowStore, OAuthSessionStore, WebFlowStore};
+use super::{OAuthSessionStore, WebFlowStore};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -10,12 +10,6 @@ use scotty_core::utils::secret::MaskedSecret;
 /// Trait for sessions that can expire
 pub trait ExpirableSession {
     fn expires_at(&self) -> SystemTime;
-}
-
-impl ExpirableSession for super::DeviceFlowSession {
-    fn expires_at(&self) -> SystemTime {
-        self.expires_at
-    }
 }
 
 impl ExpirableSession for super::WebFlowSession {
@@ -64,11 +58,6 @@ fn cleanup_sessions<S: ExpirableSession>(
     removed_count
 }
 
-/// Clean up expired sessions from the device flow store
-pub fn cleanup_device_flow_sessions(store: DeviceFlowStore) -> usize {
-    cleanup_sessions(store, "device flow")
-}
-
 /// Clean up expired sessions from the web flow store
 pub fn cleanup_web_flow_sessions(store: WebFlowStore) -> usize {
     cleanup_sessions(store, "web flow")
@@ -80,71 +69,24 @@ pub fn cleanup_oauth_sessions(store: OAuthSessionStore) -> usize {
 }
 
 /// Sample OAuth session counts for metrics
+/// (device logins live in SQLite now and are not counted here.)
 pub fn sample_oauth_session_metrics(
-    device_flow_store: DeviceFlowStore,
     web_flow_store: WebFlowStore,
     session_store: OAuthSessionStore,
 ) {
-    let device_count = device_flow_store.lock().unwrap().len();
     let web_count = web_flow_store.lock().unwrap().len();
     let session_count = session_store.lock().unwrap().len();
 
-    crate::metrics::record_oauth_session_counts(device_count, web_count, session_count);
+    crate::metrics::record_oauth_session_counts(web_count, session_count);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::oauth::{DeviceFlowSession, OAuthSession, WebFlowSession};
+    use crate::oauth::{OAuthSession, WebFlowSession};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
-
-    #[test]
-    fn test_cleanup_device_flow_sessions() {
-        let store = Arc::new(Mutex::new(HashMap::new()));
-
-        // Add expired session
-        {
-            let mut sessions = store.lock().unwrap();
-            sessions.insert(
-                "expired_device_code".to_string(),
-                DeviceFlowSession {
-                    device_code: "expired_device_code".to_string(),
-                    user_code: "EXPIRED".to_string(),
-                    verification_uri: "https://example.com/device".to_string(),
-                    expires_at: SystemTime::now() - Duration::from_secs(60),
-                    oidc_access_token: None,
-                    completed: false,
-                    interval: 5,
-                },
-            );
-        }
-
-        // Add valid session
-        {
-            let mut sessions = store.lock().unwrap();
-            sessions.insert(
-                "valid_device_code".to_string(),
-                DeviceFlowSession {
-                    device_code: "valid_device_code".to_string(),
-                    user_code: "VALID".to_string(),
-                    verification_uri: "https://example.com/device".to_string(),
-                    expires_at: SystemTime::now() + Duration::from_secs(600),
-                    oidc_access_token: None,
-                    completed: false,
-                    interval: 5,
-                },
-            );
-        }
-
-        let removed = cleanup_device_flow_sessions(store.clone());
-        assert_eq!(removed, 1);
-
-        let sessions = store.lock().unwrap();
-        assert_eq!(sessions.len(), 1);
-        assert!(sessions.contains_key("valid_device_code"));
-    }
 
     #[test]
     fn test_cleanup_web_flow_sessions() {

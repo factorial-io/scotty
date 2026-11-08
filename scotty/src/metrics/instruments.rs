@@ -67,7 +67,6 @@ pub struct ScottyMetrics {
     pub traefik_network_unroutable_apps: Gauge<u64>,
 
     // OAuth session metrics
-    pub oauth_device_flow_sessions_active: Gauge<i64>,
     pub oauth_web_flow_sessions_active: Gauge<i64>,
     pub oauth_sessions_active: Gauge<i64>,
     pub oauth_sessions_expired_cleaned: Counter<u64>,
@@ -320,11 +319,6 @@ impl ScottyMetrics {
                 .build(),
 
             // OAuth sessions
-            oauth_device_flow_sessions_active: meter
-                .i64_gauge("scotty.oauth.device_flow_sessions.active")
-                .with_description("Active OAuth device flow sessions")
-                .build(),
-
             oauth_web_flow_sessions_active: meter
                 .i64_gauge("scotty.oauth.web_flow_sessions.active")
                 .with_description("Active OAuth web flow sessions")
