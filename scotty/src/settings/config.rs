@@ -150,6 +150,11 @@ impl Settings {
             .validate()
             .map_err(|e| ConfigError::Message(e.to_string()))?;
 
+        settings
+            .api
+            .validate_oauth()
+            .map_err(ConfigError::Message)?;
+
         // The per-app proxy network is named `<traefik.network>--<app>`, so a
         // base network containing `--` makes the derived name non-unique across
         // apps (base `a--b` + app `c` collides with base `a` + app `b--c`).
@@ -290,6 +295,11 @@ mod tests {
             Some("https://source.factorial.io".to_string())
         );
         assert!(oauth_config.device_flow_enabled);
+
+        // No `api.jwt_secret` in that file: oauth mode refuses to start.
+        assert!(settings.api.validate_oauth().is_err());
+        assert_eq!(settings.api.database_path, "data/scotty.sqlite");
+        assert!(settings.api.jwt_secret.is_none());
     }
 
     #[test]

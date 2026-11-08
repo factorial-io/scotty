@@ -93,6 +93,9 @@ num_cpus.workspace = true
 http-body-util = { version = "0.1.3", default-features = false }
 oauth2 = { version = "5.0", default-features = false, features = ["reqwest", "rustls-tls"] }
 url.workspace = true
+grantry.workspace = true
+jsonwebtoken.workspace = true
+sqlx.workspace = true
 
 [dev-dependencies]
 axum-test = "21.0.0"

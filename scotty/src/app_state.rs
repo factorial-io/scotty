@@ -8,6 +8,7 @@ use std::{
 
 use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
+use scotty_core::settings::api_server::AuthMode;
 use scotty_core::settings::docker::DockerConnectOptions;
 use tokio::sync::{broadcast, Mutex};
 use tracing::{info, warn};
@@ -65,6 +66,8 @@ pub struct AppState {
     /// every app, so there is no per-app next-check time. Written by the sweep, read
     /// via [`AppState::next_app_check_at`].
     pub next_app_check: Arc<AtomicI64>,
+    /// The OAuth server's database (`api.database_path`), open in oauth mode.
+    pub oauth_db: Option<sqlx::SqlitePool>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -123,6 +126,11 @@ impl AppState {
             }
         };
 
+        let oauth_db = match settings.api.auth_mode {
+            AuthMode::OAuth => Some(oauth::store::open(&settings.api.database_path).await?),
+            _ => None,
+        };
+
         // Initialize authorization service (always available with fallback)
         let auth_service = Arc::new(match AuthorizationService::new("config/casbin").await {
             Ok(service) => {
@@ -155,6 +163,7 @@ impl AppState {
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
+            oauth_db,
         });
 
         Ok(state)
@@ -181,6 +190,7 @@ impl AppState {
             task_output_service: TaskOutputStreamingService::new(),
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
+            oauth_db: None,
         }))
     }
 }

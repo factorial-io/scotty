@@ -155,6 +155,23 @@ pub async fn setup_docker_integration(
                 }
             });
     }
+    if let Some(pool) = app_state.oauth_db.clone() {
+        // Sweep expired OAuth rows (D7). The sweep ignores the realm, so one
+        // store covers both servers.
+        let store = crate::oauth::store::SqliteStore::new(pool, crate::oauth::store::REALM_SESSION);
+        scheduler
+            .every(clokwerk::Interval::Minutes(10))
+            .run(move || {
+                let store = store.clone();
+                async move {
+                    use grantry::OAuthStore;
+                    match store.sweep().await {
+                        Ok(removed) => tracing::debug!("OAuth sweep removed {removed} rows"),
+                        Err(e) => tracing::error!("OAuth sweep failed: {e}"),
+                    }
+                }
+            });
+    }
     // Handle the scheduler in a separate task.
     let handle = crate::metrics::spawn_instrumented({
         let stop_flag = stop_flag.clone();
