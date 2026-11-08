@@ -105,10 +105,8 @@ pub fn record_oauth_sessions_expired_cleaned(count: usize) {
     metrics().record_oauth_sessions_expired_cleaned(count);
 }
 
-pub fn record_oauth_session_counts(device_count: usize, web_count: usize, _session_count: usize) {
-    let m = metrics();
-    m.record_oauth_device_sessions(device_count as u64);
-    m.record_oauth_web_sessions(web_count as u64);
+pub fn record_oauth_session_counts(web_count: usize, _session_count: usize) {
+    metrics().record_oauth_web_sessions(web_count as u64);
 }
 
 // Module-style wrappers for existing call sites (both telemetry and no-telemetry)

@@ -124,9 +124,6 @@ pub async fn setup_docker_integration(
                 let app_state = app_state.clone();
                 async move {
                     if let Some(oauth_state) = &app_state.oauth_state {
-                        crate::oauth::cleanup::cleanup_device_flow_sessions(
-                            oauth_state.device_flow_store.clone(),
-                        );
                         crate::oauth::cleanup::cleanup_web_flow_sessions(
                             oauth_state.web_flow_store.clone(),
                         );
@@ -147,7 +144,6 @@ pub async fn setup_docker_integration(
                 async move {
                     if let Some(oauth_state) = &app_state.oauth_state {
                         crate::oauth::cleanup::sample_oauth_session_metrics(
-                            oauth_state.device_flow_store.clone(),
                             oauth_state.web_flow_store.clone(),
                             oauth_state.session_store.clone(),
                         );

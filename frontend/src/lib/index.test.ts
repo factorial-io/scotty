@@ -8,7 +8,7 @@ vi.mock('../stores/sessionStore', () => ({
 		clearInvalidSession: vi.fn(async () => {})
 	}
 }));
-vi.mock('./authService', () => ({ authService: { logout: vi.fn(async () => {}) } }));
+vi.mock('./authService', () => ({ authService: { redirectToLogin: vi.fn(async () => {}) } }));
 
 import { sessionStore } from '../stores/sessionStore';
 import { authService } from './authService';
@@ -66,11 +66,19 @@ describe('authenticatedApiCall', () => {
 		);
 	});
 
-	it('clears the session and redirects to login on 401', async () => {
+	it('clears the session and starts a new login on 401', async () => {
 		fetchMock.mockResolvedValue(jsonResponse(401, {}));
 
 		await expect(authenticatedApiCall('apps/list')).rejects.toThrow('Unauthorized');
 		expect(sessionStore.clearInvalidSession).toHaveBeenCalledOnce();
-		expect(authService.logout).toHaveBeenCalledWith('/login');
+		expect(authService.redirectToLogin).toHaveBeenCalledOnce();
+	});
+
+	it('carries the HTTP status on errors and returns null on 204', async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(404, {}, 'Not Found'));
+		await expect(authenticatedApiCall('x')).rejects.toMatchObject({ status: 404 });
+
+		fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+		await expect(authenticatedApiCall('x', { method: 'POST' })).resolves.toBeNull();
 	});
 });

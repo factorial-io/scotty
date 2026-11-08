@@ -10,6 +10,7 @@ import { sessionStore } from '../stores/sessionStore';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import type { UserInfo } from '../types';
+import { storeReturnPath } from './landingResume';
 
 export interface LoginResult {
 	success: boolean;
@@ -132,12 +133,38 @@ export class AuthService {
 	}
 
 	/**
-	 * Logout user and redirect
+	 * Logout user and redirect. Revokes the session at the server first so the
+	 * token stops working immediately; failures there are ignored because the
+	 * local session is cleared either way.
 	 */
 	async logout(redirectTo: string = '/login'): Promise<void> {
+		const authHeader = sessionStore.getAuthHeader();
+		if (authHeader.Authorization) {
+			try {
+				await fetch('/api/v1/authenticated/logout', {
+					method: 'POST',
+					headers: authHeader,
+					credentials: 'include'
+				});
+			} catch (error) {
+				console.warn('Logout request failed:', error);
+			}
+		}
 		sessionStore.logout();
 		// @ts-expect-error - Type-safe routing doesn't support dynamic redirect paths
 		await goto(resolve(redirectTo));
+	}
+
+	/**
+	 * Send the user to login and bring them back to the current page
+	 * afterwards. Used when the session is missing, expired or revoked; it does
+	 * not call the logout endpoint since the token is already unusable.
+	 */
+	async redirectToLogin(): Promise<void> {
+		if (typeof window !== 'undefined') {
+			storeReturnPath(window.location.pathname + window.location.search);
+		}
+		await goto(resolve('/login'));
 	}
 
 	/**
@@ -160,16 +187,9 @@ export class AuthService {
 			return true;
 		}
 
-		// Check if user is authenticated
-		if (!sessionStore.isAuthenticated()) {
-			await this.logout('/login');
-			return false;
-		}
-
-		// Validate current token
-		const isValid = await sessionStore.validateCurrentToken();
-		if (!isValid) {
-			await this.logout('/login');
+		// Check if user is authenticated and the token is still accepted
+		if (!sessionStore.isAuthenticated() || !(await sessionStore.validateCurrentToken())) {
+			await this.redirectToLogin();
 			return false;
 		}
 

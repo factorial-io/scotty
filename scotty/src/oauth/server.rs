@@ -17,6 +17,7 @@ use crate::services::AuthorizationService;
 pub const SESSION_RESOURCE: &str = "scotty-api";
 pub const SESSION_KIND: &str = "session";
 pub const WEB_CLIENT_ID: &str = "scotty-web";
+pub const CLI_CLIENT_ID: &str = "scottyctl";
 const ACCESS_TOKEN_SECS: u64 = 12 * 3600;
 const GRANT_LIFETIME_DAYS: i64 = 30;
 

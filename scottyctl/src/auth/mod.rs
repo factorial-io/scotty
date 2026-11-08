@@ -55,6 +55,14 @@ pub enum AuthError {
     ConfigDirNotFound,
     #[error("Authorization pending")]
     AuthorizationPending,
+    #[error("Polling too fast")]
+    SlowDown,
+    #[error("The login was denied")]
+    AccessDenied,
+    #[error("Invalid or revoked grant")]
+    InvalidGrant,
+    #[error("Session expired. Run 'scottyctl auth:login' to log in again")]
+    SessionExpired,
     #[error("Device flow timed out")]
     Timeout,
     #[error("Server error")]
@@ -74,13 +82,13 @@ impl From<OAuthError> for AuthError {
         match error {
             OAuthError::OauthNotConfigured => AuthError::OAuthNotConfigured,
             OAuthError::AuthorizationPending => AuthError::AuthorizationPending,
-            OAuthError::AccessDenied => AuthError::ServerError,
+            OAuthError::AccessDenied => AuthError::AccessDenied,
             OAuthError::ServerError(_) => AuthError::ServerError,
             OAuthError::InvalidRequest(_) => AuthError::InvalidResponse,
             OAuthError::ExpiredToken => AuthError::Timeout,
             OAuthError::ExpiredSession => AuthError::TokenValidationFailed,
             OAuthError::SessionNotFound => AuthError::TokenValidationFailed,
-            OAuthError::SlowDown => AuthError::AuthorizationPending, // Treat as continue polling
+            OAuthError::SlowDown => AuthError::SlowDown,
             OAuthError::InvalidState => AuthError::InvalidResponse,
             OAuthError::OAuth2(_) => AuthError::ServerError,
             OAuthError::Http(_) => AuthError::ServerError,

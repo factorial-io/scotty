@@ -12,6 +12,16 @@ import type { ServerInfo } from '../types';
 
 export type AuthMode = 'dev' | 'oauth' | 'bearer';
 
+/** Error from an API call that carries the HTTP status. */
+export class ApiError extends Error {
+	constructor(
+		message: string,
+		public status: number
+	) {
+		super(message);
+	}
+}
+
 /**
  * Make authenticated API calls using SessionStore
  */
@@ -44,7 +54,11 @@ export async function authenticatedApiCall(
 		}
 
 		if (!response.ok) {
-			throw new Error(await errorMessage(response));
+			throw new ApiError(await errorMessage(response), response.status);
+		}
+
+		if (response.status === 204) {
+			return null;
 		}
 
 		return await response.json();
@@ -95,7 +109,8 @@ export async function apiCall(url: string, options: RequestInit = {}): Promise<u
 }
 
 /**
- * Handle unauthorized responses by clearing session and redirecting
+ * Handle unauthorized responses (expired or revoked session) by clearing the
+ * session and starting a new login that returns to the current page.
  */
 async function handleUnauthorized(): Promise<void> {
 	console.warn('Unauthorized response received, clearing session and redirecting to login');
@@ -114,8 +129,8 @@ async function handleUnauthorized(): Promise<void> {
 			return;
 		}
 
-		// Redirect to login
-		await authService.logout('/login');
+		// Start a new login and return to this page afterwards
+		await authService.redirectToLogin();
 	}
 }
 

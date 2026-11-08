@@ -19,9 +19,7 @@ use crate::api::websocket::WebSocketMessenger;
 use crate::docker::services::logs::LogStreamingService;
 use crate::docker::services::shell::ShellService;
 use crate::oauth::handlers::OAuthState;
-use crate::oauth::{
-    self, create_device_flow_store, create_oauth_session_store, create_web_flow_store,
-};
+use crate::oauth::{self, create_oauth_session_store, create_web_flow_store};
 use crate::services::{authorization::fallback::FallbackService, AuthorizationService};
 use crate::settings::config::Settings;
 use crate::stop_flag;
@@ -114,7 +112,6 @@ impl AppState {
                 tracing::info!("OAuth client initialized");
                 Some(OAuthState {
                     client,
-                    device_flow_store: create_device_flow_store(),
                     web_flow_store: create_web_flow_store(),
                     session_store: create_oauth_session_store(),
                 })

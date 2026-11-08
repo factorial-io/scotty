@@ -269,7 +269,6 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
     let oauth_state = match crate::oauth::client::create_oauth_client(&settings.api.oauth) {
         Ok(Some(client)) => Some(crate::oauth::handlers::OAuthState {
             client,
-            device_flow_store: crate::oauth::create_device_flow_store(),
             web_flow_store: crate::oauth::create_web_flow_store(),
             session_store: crate::oauth::create_oauth_session_store(),
         }),
@@ -282,13 +281,20 @@ async fn create_scotty_app_with_oauth_flow() -> axum::Router {
 
 #[tokio::test]
 async fn test_oauth_device_flow_not_configured() {
-    // Use app without OAuth state to test error handling
-    let router = create_scotty_app_with_oauth().await;
-    let server = TestServer::new(router);
+    // The device login is switched off by `api.oauth.device_flow_enabled`.
+    let settings: crate::settings::config::Settings = Config::builder()
+        .add_source(config::File::with_name("tests/test_oauth_auth"))
+        .set_override("api.oauth.device_flow_enabled", false)
+        .unwrap()
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
+    let state = crate::api::test_utils::create_test_app_state_with_settings(settings, None).await;
+    let server = TestServer::new(ApiRoutes::create(state));
 
     let response = server.post("/oauth/device").await;
 
-    // Should return 404 when OAuth client is not configured
     assert_eq!(response.status_code(), 404);
     let body = response.text();
     assert!(
@@ -385,12 +391,10 @@ async fn test_oauth_flow_components_integration() {
     }
 
     // Test OAuth stores can be created
-    let device_store = crate::oauth::create_device_flow_store();
     let web_store = crate::oauth::create_web_flow_store();
     let session_store = crate::oauth::create_oauth_session_store();
 
     // Verify stores are empty initially
-    assert_eq!(device_store.lock().unwrap().len(), 0);
     assert_eq!(web_store.lock().unwrap().len(), 0);
     assert_eq!(session_store.lock().unwrap().len(), 0);
 }

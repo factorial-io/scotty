@@ -1,7 +1,5 @@
 use super::server::WEB_CLIENT_ID;
-use super::{
-    DeviceFlowStore, OAuthClient, OAuthSession, OAuthSessionStore, WebFlowSession, WebFlowStore,
-};
+use super::{OAuthClient, OAuthSession, OAuthSessionStore, WebFlowSession, WebFlowStore};
 use crate::api::error::AppError;
 use crate::app_state::SharedAppState;
 use axum::{
@@ -20,133 +18,12 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct OAuthState {
     pub client: OAuthClient,
-    pub device_flow_store: DeviceFlowStore,
     pub web_flow_store: WebFlowStore,
     pub session_store: OAuthSessionStore,
 }
 
 // Re-export the shared OAuth types
-pub use scotty_core::auth::{
-    DeviceFlowResponse, DeviceTokenQuery, ErrorResponse, OAuthError, TokenResponse,
-};
-
-/// Start OAuth device flow
-#[utoipa::path(
-    post,
-    path = "/oauth/device",
-    responses(
-        (status = 200, description = "Device flow started", body = DeviceFlowResponse),
-        (status = 500, description = "Internal server error", body = ErrorResponse)
-    ),
-    tag = "OAuth"
-)]
-pub async fn start_device_flow(
-    State(app_state): State<SharedAppState>,
-) -> Result<Json<DeviceFlowResponse>, AppError> {
-    debug!("Starting device flow");
-
-    let oauth_state = match &app_state.oauth_state {
-        Some(state) => state,
-        None => return Err(OAuthError::OauthNotConfigured.into()),
-    };
-
-    match oauth_state
-        .client
-        .start_device_flow(oauth_state.device_flow_store.clone())
-        .await
-    {
-        Ok(session) => {
-            let expires_in = session
-                .expires_at
-                .duration_since(std::time::SystemTime::now())
-                .unwrap_or_default()
-                .as_secs();
-
-            Ok(Json(DeviceFlowResponse {
-                device_code: session.device_code,
-                user_code: session.user_code,
-                verification_uri: session.verification_uri,
-                verification_uri_complete: None,
-                expires_in,
-                interval: Some(5), // Poll every 5 seconds
-            }))
-        }
-        Err(e) => {
-            error!("Failed to start device flow: {}", e);
-            Err(AppError::InternalServerError(format!(
-                "Failed to start device flow: {}",
-                e
-            )))
-        }
-    }
-}
-
-/// Poll for device flow token
-#[utoipa::path(
-    post,
-    path = "/oauth/device/token",
-    params(DeviceTokenQuery),
-    responses(
-        (status = 200, description = "Token obtained", body = TokenResponse),
-        (status = 400, description = "Authorization pending or denied", body = AppError),
-        (status = 404, description = "Session not found", body = AppError),
-        (status = 500, description = "Internal server error", body = ErrorResponse)
-    ),
-    tag = "OAuth"
-)]
-pub async fn poll_device_token(
-    State(app_state): State<SharedAppState>,
-    Query(params): Query<DeviceTokenQuery>,
-) -> Result<Json<TokenResponse>, AppError> {
-    debug!("Polling device token for: {}", params.device_code);
-
-    let oauth_state = match &app_state.oauth_state {
-        Some(state) => state,
-        None => return Err(OAuthError::OauthNotConfigured.into()),
-    };
-
-    match oauth_state
-        .client
-        .poll_device_token(&params.device_code, oauth_state.device_flow_store.clone())
-        .await
-    {
-        Ok(oidc_token) => {
-            // Validate the OIDC token and get user info
-            match oauth_state.client.validate_oidc_token(&oidc_token).await {
-                Ok(user) => {
-                    // Replaced by grantry's device grant in task 3.1.
-                    let Some(user_email) = user.email else {
-                        error!("Device login refused: the provider confirmed no email address");
-                        return Err(OAuthError::AccessDenied.into());
-                    };
-                    Ok(Json(TokenResponse {
-                        access_token: oidc_token,
-                        token_type: "Bearer".to_string(),
-                        user_id: user.username.clone().unwrap_or(user.id.clone()),
-                        user_name: user.name.unwrap_or("Unknown".to_string()),
-                        user_email,
-                        user_picture: user.picture,
-                        refresh_token: None,
-                        expires_in: None,
-                    }))
-                }
-                Err(e) => {
-                    error!("Failed to validate OIDC token: {}", e);
-                    Err(OAuthError::ServerError("Failed to validate token".to_string()).into())
-                }
-            }
-        }
-        Err(OAuthError::AuthorizationPending) => Err(OAuthError::AuthorizationPending.into()),
-        Err(OAuthError::SlowDown) => Err(OAuthError::SlowDown.into()),
-        Err(OAuthError::AccessDenied) => Err(OAuthError::AccessDenied.into()),
-        Err(OAuthError::SessionNotFound) => Err(OAuthError::SessionNotFound.into()),
-        Err(OAuthError::ExpiredSession) => Err(OAuthError::ExpiredToken.into()),
-        Err(e) => {
-            error!("Device flow error: {}", e);
-            Err(OAuthError::ServerError(format!("OAuth error: {}", e)).into())
-        }
-    }
-}
+pub use scotty_core::auth::{DeviceFlowResponse, ErrorResponse, OAuthError, TokenResponse};
 
 #[derive(Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
 pub struct AuthorizeQuery {

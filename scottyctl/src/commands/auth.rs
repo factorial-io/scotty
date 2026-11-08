@@ -2,7 +2,7 @@ use crate::api::{get, get_with_error};
 use crate::auth::{
     cache::CachedTokenManager,
     config::{get_server_info, server_info_to_oauth_config},
-    device_flow::DeviceFlowClient,
+    device_flow::{refresh_session, DeviceFlowClient},
     AuthError, AuthMethod,
 };
 use crate::cli::AuthLoginCommand;
@@ -75,33 +75,29 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
         Ok(response) => response,
         Err(e) => {
             app_context.ui().failed("Failed to start device flow");
-            app_context.ui().println("   This might be because:");
-            app_context
-                .ui()
-                .println("   - OIDC provider OAuth application is not configured for device flow");
-            app_context
-                .ui()
-                .println("   - The client_id 'scottyctl' is not registered in your OIDC provider");
-            app_context.ui().println("   - Network connectivity issues");
             return Err(e.into());
         }
     };
 
     // 3. Show user instructions
+    let verification_url = device_response
+        .verification_uri_complete
+        .clone()
+        .unwrap_or_else(|| device_response.verification_uri.clone());
     app_context
         .ui()
         .println("\nPlease complete authentication:");
     app_context.ui().println(format!(
         "   1. Visit: {}",
-        device_response.verification_uri.bright_blue()
+        verification_url.bright_blue()
     ));
     app_context.ui().println(format!(
-        "   2. Enter code: {}",
+        "   2. Check that it shows the code {} and approve",
         device_response.user_code.bright_yellow()
     ));
 
     if !cmd.no_browser {
-        match open::that(&device_response.verification_uri) {
+        match open::that(&verification_url) {
             Ok(_) => app_context
                 .ui()
                 .println("   (Opened browser automatically)"),
@@ -117,7 +113,11 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
 
     // 4. Poll for token
     let stored_token = client
-        .poll_for_token(&device_response.device_code, cmd.timeout)
+        .poll_for_token(
+            &device_response.device_code,
+            device_response.polling_interval(),
+            cmd.timeout,
+        )
         .await?;
 
     // 5. Save token
@@ -321,15 +321,15 @@ pub async fn auth_refresh(app_context: &AppContext) -> Result<()> {
         app_context.server().server.bright_blue()
     ));
 
-    // For now, we'll just check if the current token is still valid
     match get_current_auth_method(app_context).await? {
         AuthMethod::OAuth(token) => {
-            // TODO: Implement actual token refresh logic
-            app_context.ui().success("Token appears to be valid");
+            let refreshed = refresh_session(&app_context.server().server, &token).await?;
+            get_cached_token_manager().save(refreshed.clone())?;
+            app_context.ui().success("Session refreshed");
             app_context.ui().println(format!(
                 "   User: {} <{}>",
-                token.user_name.bright_green(),
-                token.user_email.bright_cyan()
+                refreshed.user_name.bright_green(),
+                refreshed.user_email.bright_cyan()
             ));
         }
         AuthMethod::Bearer(_) => {

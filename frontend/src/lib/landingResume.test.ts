@@ -6,8 +6,10 @@ vi.mock('$app/paths', () => ({ resolve: (p: string) => p }));
 import { goto } from '$app/navigation';
 import {
 	consumePendingLandingRedirect,
+	consumeReturnPath,
 	redirectAfterLogin,
-	storePendingLandingStart
+	storePendingLandingStart,
+	storeReturnPath
 } from '$lib/landingResume';
 
 const KEY = 'scotty_landing_pending_start';
@@ -52,5 +54,27 @@ describe('landing resume state', () => {
 		storePendingLandingStart({ appName: 'demo', returnUrl: null });
 		await redirectAfterLogin();
 		expect(goto).toHaveBeenLastCalledWith('/landing/demo?autostart=true');
+	});
+
+	it('returns to the stored path after login, once', async () => {
+		storeReturnPath('/device?code=ABCD-EFGH');
+		await redirectAfterLogin();
+		expect(goto).toHaveBeenLastCalledWith('/device?code=ABCD-EFGH');
+
+		await redirectAfterLogin();
+		expect(goto).toHaveBeenLastCalledWith('/dashboard');
+	});
+
+	it('refuses off-site and login-loop return paths', () => {
+		for (const path of [
+			'https://evil.test',
+			'//evil.test',
+			'/\\evil.test',
+			'/login',
+			'/oauth/callback?x'
+		]) {
+			storeReturnPath(path);
+			expect(consumeReturnPath()).toBeNull();
+		}
 	});
 });
