@@ -11,7 +11,7 @@ vi.mock('../stores/sessionStore', () => ({
 
 import { goto } from '$app/navigation';
 import { sessionStore } from '../stores/sessionStore';
-import { authService } from './authService';
+import { authService, isPublicPath } from './authService';
 import { consumeReturnPath } from './landingResume';
 
 describe('authService', () => {
@@ -59,5 +59,17 @@ describe('authService', () => {
 
 		expect(goto).toHaveBeenCalledWith('/login');
 		expect(consumeReturnPath()).toBe('/device?code=ABCD-EFGH');
+	});
+
+	it('requires login on the OAuth consent page but not the login callback', async () => {
+		expect(isPublicPath('/oauth/consent/abc')).toBe(false);
+		expect(isPublicPath('/oauth/callback')).toBe(true);
+		expect(isPublicPath('/login')).toBe(true);
+		expect(isPublicPath('/landing/app')).toBe(true);
+		expect(isPublicPath('/connections')).toBe(false);
+
+		window.history.replaceState(null, '', '/oauth/consent/abc');
+		await authService.redirectToLogin();
+		expect(consumeReturnPath()).toBe('/oauth/consent/abc');
 	});
 });

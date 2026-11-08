@@ -7,7 +7,7 @@
  */
 
 import { sessionStore } from '../stores/sessionStore';
-import { authService } from './authService';
+import { authService, isPublicPath } from './authService';
 import type { ServerInfo } from '../types';
 
 export type AuthMode = 'dev' | 'oauth' | 'bearer';
@@ -118,14 +118,10 @@ async function handleUnauthorized(): Promise<void> {
 	// Clear invalid session
 	await sessionStore.clearInvalidSession();
 
-	// Don't redirect if already on login, OAuth, or landing pages
+	// Don't redirect on pages that work without a session
 	if (typeof window !== 'undefined') {
 		const currentPath = window.location.pathname;
-		if (
-			currentPath === '/login' ||
-			currentPath.startsWith('/oauth/') ||
-			currentPath.startsWith('/landing/')
-		) {
+		if (isPublicPath(currentPath)) {
 			return;
 		}
 

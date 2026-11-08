@@ -87,10 +87,9 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
     app_context
         .ui()
         .println("\nPlease complete authentication:");
-    app_context.ui().println(format!(
-        "   1. Visit: {}",
-        verification_url.bright_blue()
-    ));
+    app_context
+        .ui()
+        .println(format!("   1. Visit: {}", verification_url.bright_blue()));
     app_context.ui().println(format!(
         "   2. Check that it shows the code {} and approve",
         device_response.user_code.bright_yellow()

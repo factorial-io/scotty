@@ -31,6 +31,14 @@ rest:
   GET /api/v1/authenticated/oauth/device/{user_code}: session
   POST /api/v1/authenticated/oauth/device/approve: session
   POST /api/v1/authenticated/oauth/device/deny: session
+  # MCP consent (frontend /oauth/consent/{id}): people only.
+  GET /api/v1/authenticated/oauth/consent/{id}: session
+  POST /api/v1/authenticated/oauth/consent/{id}/approve: session
+  POST /api/v1/authenticated/oauth/consent/{id}/deny: session
+  # The caller's CLI and MCP connections; `?all=true` and revoking another
+  # user's connection additionally need admin_write (checked in the handler).
+  GET /api/v1/authenticated/connections: session
+  DELETE /api/v1/authenticated/connections/{id}: session
   # Reachable by any authenticated caller; results are filtered per task (view
   # on the task's app, admin_read for tasks without an app, or the user who
   # started it). Covered by the task visibility tests, not this matrix.

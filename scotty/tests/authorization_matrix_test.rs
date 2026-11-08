@@ -190,6 +190,7 @@ fn concrete_path(template: &str) -> String {
         .replace("{action_name}", "matrix-action")
         .replace("{service}", "web")
         .replace("{uuid}", &Uuid::new_v4().to_string())
+        .replace("{id}", &Uuid::new_v4().to_string())
         .replace("{user_id}", "someone@example.com")
         .replace("{user_code}", "BBBB-CCCC")
 }
@@ -202,6 +203,9 @@ fn body_for(method: &str, path: &str) -> Option<serde_json::Value> {
         ("POST", "/api/v1/authenticated/oauth/device/approve")
         | ("POST", "/api/v1/authenticated/oauth/device/deny") => {
             Some(serde_json::json!({ "user_code": "BBBB-CCCC" }))
+        }
+        ("POST", "/api/v1/authenticated/oauth/consent/{id}/approve") => {
+            Some(serde_json::json!({ "scopes": ["read"] }))
         }
         ("POST", "/api/v1/authenticated/apps/create") => Some(serde_json::json!({
             "app_name": APP,

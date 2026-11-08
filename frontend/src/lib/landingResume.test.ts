@@ -77,4 +77,9 @@ describe('landing resume state', () => {
 			expect(consumeReturnPath()).toBeNull();
 		}
 	});
+
+	it('accepts the OAuth consent page as a return path', () => {
+		storeReturnPath('/oauth/consent/abc');
+		expect(consumeReturnPath()).toBe('/oauth/consent/abc');
+	});
 });

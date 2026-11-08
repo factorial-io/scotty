@@ -279,6 +279,7 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
             next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
             oauth_db: None,
             session_server: None,
+            mcp_server: None,
         });
 
         (app_state, temp_dir)

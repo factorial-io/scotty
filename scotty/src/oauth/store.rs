@@ -27,7 +27,6 @@ use uuid::Uuid;
 /// The realm of first-party sessions (`scotty-web`, `scottyctl`).
 pub const REALM_SESSION: &str = "session";
 /// The realm of MCP clients.
-#[allow(dead_code)] // used by the mcp server (task 4.1)
 pub const REALM_MCP: &str = "mcp";
 
 /// Open (creating it if missing) the database at `path` in WAL mode with
@@ -47,6 +46,34 @@ pub async fn open(path: impl AsRef<Path>) -> anyhow::Result<SqlitePool> {
     Ok(pool)
 }
 
+/// The active grants of both realms with their realm, newest first: of
+/// `subject` (all subjects for `None`), and only grant `id` when given. For
+/// the connections list; grantry's own lookups stay realm-bound.
+pub async fn active_grants(
+    pool: &SqlitePool,
+    subject: Option<&str>,
+    id: Option<Uuid>,
+) -> Result<Vec<(String, Grant<String>)>, BackendError> {
+    let id = id.map(|id| id.to_string());
+    let rows = sqlx::query(
+        "SELECT * FROM oauth_grants
+         WHERE revoked_at IS NULL AND expires_at > ?
+           AND (? IS NULL OR subject = ?)
+           AND (? IS NULL OR id = ?)
+         ORDER BY created_at DESC",
+    )
+    .bind(ms(now()))
+    .bind(subject)
+    .bind(subject)
+    .bind(&id)
+    .bind(&id)
+    .fetch_all(pool)
+    .await?;
+    rows.iter()
+        .map(|row| Ok((row.try_get("realm")?, grant_from(row)?)))
+        .collect()
+}
+
 /// See the module docs. The subject is the user's email.
 #[derive(Debug, Clone)]
 pub struct SqliteStore {
@@ -57,27 +84,6 @@ pub struct SqliteStore {
 impl SqliteStore {
     pub fn new(pool: SqlitePool, realm: &'static str) -> Self {
         Self { pool, realm }
-    }
-
-    #[allow(dead_code)] // used by the connections API (task 4.4)
-    /// The active grants of this realm, newest first; all subjects for `None`.
-    pub async fn list_grants(
-        &self,
-        subject: Option<&str>,
-    ) -> Result<Vec<Grant<String>>, BackendError> {
-        let rows = sqlx::query(
-            "SELECT * FROM oauth_grants
-             WHERE realm = ? AND revoked_at IS NULL AND expires_at > ?
-               AND (? IS NULL OR subject = ?)
-             ORDER BY created_at DESC",
-        )
-        .bind(self.realm)
-        .bind(ms(now()))
-        .bind(subject)
-        .bind(subject)
-        .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(grant_from).collect()
     }
 
     async fn insert_grant(
@@ -929,7 +935,10 @@ mod tests {
 
         assert!(store.revoke_grant(grant.id, "logout").await.unwrap());
         assert!(!store.revoke_grant(grant.id, "logout").await.unwrap());
-        assert!(store.list_grants(None).await.unwrap().is_empty());
+        assert!(active_grants(&store.pool, None, None)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]
@@ -996,11 +1005,19 @@ mod tests {
             DeviceStatus::Redeemed
         );
         assert_eq!(
-            store.list_grants(Some(&alice())).await.unwrap(),
-            vec![grant]
+            active_grants(&store.pool, Some(&alice()), None)
+                .await
+                .unwrap(),
+            vec![(REALM_SESSION.to_string(), grant.clone())]
         );
-        assert!(store
-            .list_grants(Some("bob@example.com"))
+        assert_eq!(
+            active_grants(&store.pool, None, Some(grant.id))
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(active_grants(&store.pool, Some("bob@example.com"), None)
             .await
             .unwrap()
             .is_empty());
@@ -1058,7 +1075,6 @@ mod tests {
         assert!(!mcp.revoke_grant(grant.id, "x").await.unwrap());
         assert!(mcp.find_code("code-h").await.unwrap().is_none());
         assert!(mcp.find_refresh_token("rt").await.unwrap().is_none());
-        assert!(mcp.list_grants(None).await.unwrap().is_empty());
         assert!(mcp.find_device("d").await.unwrap().is_none());
         assert!(mcp
             .device_by_user_code("BCDF-GHJK", &alice())

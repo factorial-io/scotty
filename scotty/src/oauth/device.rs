@@ -54,7 +54,7 @@ fn oauth_error(status: StatusCode, code: &str, description: &str) -> Response {
 }
 
 /// The caller's address as the proxy in front reports it; audit only.
-fn client_ip(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn client_ip(headers: &HeaderMap) -> Option<String> {
     headers
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
@@ -64,17 +64,7 @@ fn client_ip(headers: &HeaderMap) -> Option<String> {
 
 /// Where users approve device logins.
 fn verification_uri(state: &SharedAppState) -> String {
-    let base = state
-        .settings
-        .api
-        .oauth
-        .frontend_base_url
-        .as_deref()
-        .map(|u| u.trim().trim_end_matches('/'))
-        .filter(|u| !u.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| state.settings.api.public_base_url());
-    format!("{base}/device")
+    format!("{}/device", super::frontend_base(state))
 }
 
 /// Start a device login (RFC 8628 §3.1)
@@ -269,9 +259,7 @@ fn decider<'a>(
     state: &'a SharedAppState,
     user: &CurrentUser,
 ) -> Result<&'a SessionServer, StatusCode> {
-    if user.email.starts_with("identifier:") {
-        return Err(StatusCode::FORBIDDEN);
-    }
+    super::require_person(user)?;
     device_server(state).ok_or(StatusCode::NOT_FOUND)
 }
 

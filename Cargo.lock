@@ -1630,6 +1630,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "593c306918e05b347b175f728ca66aa813d449f343dd5924f107cde90162fa56"
 dependencies = [
  "async-trait",
+ "axum",
  "base64 0.22.1",
  "bytes",
  "chrono",

@@ -19,3 +19,6 @@ mod bearer_auth_tests;
 
 #[cfg(test)]
 mod oauth_flow_tests;
+
+#[cfg(test)]
+mod mcp_oauth_tests;

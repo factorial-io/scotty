@@ -1,5 +1,7 @@
-//! The grantry session server (design D2): first-party sessions of
-//! `scotty-web` and `scottyctl`, audience `scotty-api`, kind `session`.
+//! The grantry servers (design D2): the session server for first-party
+//! sessions of `scotty-web` and `scottyctl` (audience `scotty-api`, kind
+//! `session`), and the mcp server for MCP clients (audience `{base}/mcp`, kind
+//! `mcp`). Both share one database (separate realms) and one signer.
 
 use std::sync::Arc;
 
@@ -9,7 +11,8 @@ use grantry::store::{BackendError, Events, Grant};
 use grantry::{Algorithm, Config, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects};
 use sqlx::SqlitePool;
 
-use super::store::{SqliteStore, REALM_SESSION};
+use super::fetch::EgressFetcher;
+use super::store::{SqliteStore, REALM_MCP, REALM_SESSION};
 use crate::services::AuthorizationService;
 
 pub const SESSION_RESOURCE: &str = "scotty-api";
@@ -19,8 +22,19 @@ pub const CLI_CLIENT_ID: &str = "scottyctl";
 const ACCESS_TOKEN_SECS: u64 = 12 * 3600;
 const GRANT_LIFETIME_DAYS: i64 = 30;
 
+pub const MCP_KIND: &str = "mcp";
+/// The MCP scopes (spec: Scopes narrow the user's permissions).
+pub const MCP_SCOPES: [&str; 4] = ["read", "create", "destroy", "offline_access"];
+
 /// The session server.
 pub type SessionServer = Server<String>;
+/// The MCP authorization server.
+pub type McpServer = Server<String>;
+
+/// The protected resource of the mcp server: `{base}/mcp`.
+pub fn mcp_resource(base: &str) -> String {
+    format!("{base}/mcp")
+}
 
 /// Build the session server over the `session` realm of `pool`.
 pub fn session_server(
@@ -40,8 +54,33 @@ pub fn session_server(
         config,
         Arc::new(SqliteStore::new(pool, REALM_SESSION)),
         Arc::new(CasbinSubjects(auth_service)),
-        Arc::new(TracingEvents),
+        Arc::new(TracingEvents(REALM_SESSION)),
         Arc::new(NoFetch),
+    )
+}
+
+/// Build the mcp server over the `mcp` realm of `pool`, for the public base
+/// URL `base`: 15-minute access tokens, 60-second codes (grantry defaults),
+/// 30-day grants, metadata documents fetched under [`EgressFetcher`].
+pub fn mcp_server(
+    pool: SqlitePool,
+    jwt_secret: &[u8],
+    auth_service: Arc<AuthorizationService>,
+    base: &str,
+) -> McpServer {
+    let mut config = Config::new(
+        mcp_resource(base),
+        MCP_KIND,
+        ScopeSpec::new(&MCP_SCOPES, &["read", "create"], "offline_access"),
+        Signer::hmac(Algorithm::HS512, jwt_secret),
+    );
+    config.grant_lifetime = Duration::days(GRANT_LIFETIME_DAYS);
+    Server::new(
+        config,
+        Arc::new(SqliteStore::new(pool, REALM_MCP)),
+        Arc::new(CasbinSubjects(auth_service)),
+        Arc::new(TracingEvents(REALM_MCP)),
+        Arc::new(EgressFetcher),
     )
 }
 
@@ -61,7 +100,8 @@ impl Subjects<String> for CasbinSubjects {
     }
 }
 
-struct TracingEvents;
+/// Audit log of grant events, tagged with the realm.
+struct TracingEvents(&'static str);
 
 #[async_trait]
 impl Events<String> for TracingEvents {
@@ -70,7 +110,8 @@ impl Events<String> for TracingEvents {
             grant_id = %grant.id,
             subject = %grant.subject,
             client_id = %grant.client_id,
-            "session grant created"
+            realm = self.0,
+            "grant created"
         );
     }
 
@@ -81,7 +122,8 @@ impl Events<String> for TracingEvents {
             client_id = %grant.client_id,
             reason,
             client_ip,
-            "session grant revoked"
+            realm = self.0,
+            "grant revoked"
         );
     }
 }
