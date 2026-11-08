@@ -8,7 +8,8 @@ CREATE TABLE oauth_clients (
     name          TEXT NOT NULL,
     redirect_uris TEXT NOT NULL, -- JSON array
     created_at    INTEGER NOT NULL,
-    last_used_at  INTEGER
+    last_used_at  INTEGER,
+    had_grant     INTEGER NOT NULL DEFAULT 0 -- set when a grant is created; such clients are never swept
 );
 
 CREATE TABLE oauth_documents (

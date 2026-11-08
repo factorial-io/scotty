@@ -17,7 +17,7 @@ use chrono::{DateTime, Duration, SubsecRound, Utc};
 use grantry::device::{Device, DeviceStatus};
 use grantry::store::{
     BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending, RefreshToken,
-    RegisteredClient,
+    RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
 };
 use serde_json::Value;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
@@ -29,13 +29,6 @@ pub const REALM_SESSION: &str = "session";
 /// The realm of MCP clients.
 #[allow(dead_code)] // used by the mcp server (task 4.1)
 pub const REALM_MCP: &str = "mcp";
-
-/// How long a registered client may go without a grant before `sweep`
-/// removes it (as grantry's `MemoryStore`).
-const UNUSED_CLIENT_DAYS: i64 = 7;
-/// How long an expired or revoked grant is kept (for the connections list)
-/// before `sweep` removes it with its codes and refresh tokens.
-const DEAD_GRANT_DAYS: i64 = 30;
 
 /// Open (creating it if missing) the database at `path` in WAL mode with
 /// foreign keys on, and run the embedded migrations.
@@ -106,8 +99,14 @@ impl SqliteStore {
         .bind(&grant.scope)
         .bind(ms(grant.created_at))
         .bind(ms(grant.expires_at))
-        .execute(conn)
+        .execute(&mut *conn)
         .await?;
+        // A client that ever had a grant is never swept (grantry's sweep
+        // contract); first-party clients have no row, which is fine.
+        sqlx::query("UPDATE oauth_clients SET had_grant = 1 WHERE id = ?")
+            .bind(&grant.client_id)
+            .execute(conn)
+            .await?;
         Ok(())
     }
 }
@@ -715,30 +714,43 @@ impl OAuthStore for SqliteStore {
     async fn sweep(&self) -> Result<u64, BackendError> {
         let now = now();
         let now_ms = ms(now);
-        let dead = ms(now - Duration::days(DEAD_GRANT_DAYS));
+        let dead = ms(now - Duration::days(GRANT_RETENTION_DAYS));
         let unused = ms(now - Duration::days(UNUSED_CLIENT_DAYS));
+        const DEAD: &str = "SELECT id FROM oauth_grants WHERE expires_at < ?1 OR revoked_at < ?1";
+        let dead_codes = format!("DELETE FROM oauth_codes WHERE grant_id IN ({DEAD})");
+        let dead_tokens = format!("DELETE FROM oauth_refresh_tokens WHERE grant_id IN ({DEAD})");
+        let mut tx = self.pool.begin().await?;
         let mut removed = 0;
+        // A dead grant's codes and refresh tokens are deleted explicitly, not
+        // by cascade, so they are counted (grantry's sweep contract).
         for (sql, cutoff) in [
-            ("DELETE FROM oauth_pending WHERE expires_at <= ?", now_ms),
-            ("DELETE FROM oauth_devices WHERE expires_at <= ?", now_ms),
-            ("DELETE FROM oauth_codes WHERE expires_at <= ?", now_ms),
-            ("DELETE FROM oauth_documents WHERE expires_at <= ?", now_ms),
+            ("DELETE FROM oauth_pending WHERE expires_at <= ?1", now_ms),
+            ("DELETE FROM oauth_devices WHERE expires_at <= ?1", now_ms),
+            ("DELETE FROM oauth_codes WHERE expires_at <= ?1", now_ms),
+            ("DELETE FROM oauth_documents WHERE expires_at <= ?1", now_ms),
+            (dead_codes.as_str(), dead),
+            (dead_tokens.as_str(), dead),
             (
                 "DELETE FROM oauth_grants WHERE expires_at < ?1 OR revoked_at < ?1",
                 dead,
             ),
+            // Unexpired pending and device rows were kept above, so these
+            // checks only see live flows.
             (
-                "DELETE FROM oauth_clients WHERE created_at < ?
-                 AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.client_id = oauth_clients.id)",
+                "DELETE FROM oauth_clients
+                 WHERE had_grant = 0 AND MAX(created_at, COALESCE(last_used_at, 0)) < ?1
+                   AND NOT EXISTS (SELECT 1 FROM oauth_pending p WHERE p.client_id = oauth_clients.id)
+                   AND NOT EXISTS (SELECT 1 FROM oauth_devices d WHERE d.client_id = oauth_clients.id)",
                 unused,
             ),
         ] {
             removed += sqlx::query(sql)
                 .bind(cutoff)
-                .execute(&self.pool)
+                .execute(&mut *tx)
                 .await?
                 .rows_affected();
         }
+        tx.commit().await?;
         Ok(removed)
     }
 }
@@ -749,10 +761,11 @@ mod tests {
     use std::sync::Arc;
 
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-    use grantry::client::{DocumentPolicy, FetchError, Fetched, MetadataFetcher};
+    use grantry::client::DocumentPolicy;
     use grantry::server::{PollError, TokenError};
-    use grantry::store::NoEvents;
-    use grantry::{Config, Recheck, ScopeSpec, Server, Signer, Subjects};
+    use grantry::{
+        Algorithm, Config, NoEvents, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects,
+    };
     use serde_json::{json, Map};
     use sha2::{Digest, Sha256};
     use url::Url;
@@ -1092,6 +1105,11 @@ mod tests {
             .insert_client("live".into(), "L".into(), &[])
             .await
             .unwrap();
+        // Registered before its grants exist, so creating one flags it.
+        store
+            .insert_client("scottyctl".into(), "used".into(), &[])
+            .await
+            .unwrap();
         let live = store.create_grant(new_grant_for(alice())).await.unwrap();
         store
             .insert_refresh_token(&live, "live-rt".into())
@@ -1133,7 +1151,7 @@ mod tests {
             .await
             .unwrap();
         store
-            .insert_client("scottyctl".into(), "used".into(), &[])
+            .insert_client("recent".into(), "R".into(), &[])
             .await
             .unwrap();
 
@@ -1160,15 +1178,19 @@ mod tests {
             .await
             .unwrap();
 
-        // 2 pending + 1 code + 1 device + 1 document + 2 grants + 2 clients
-        // ("live", "unused"; "scottyctl" has grants).
-        assert_eq!(store.sweep().await.unwrap(), 9);
+        // Registered 8 days ago but used just now: kept.
+        store.use_client("recent").await.unwrap().unwrap();
+
+        // 2 pending + 1 code + 1 device + 1 document + 1 refresh token of a
+        // dead grant + 2 grants + 2 clients ("live", "unused"; "scottyctl"
+        // had grants, "recent" was used).
+        assert_eq!(store.sweep().await.unwrap(), 10);
         assert!(store.find_grant(live.id).await.unwrap().is_some());
         assert!(store.find_refresh_token("live-rt").await.unwrap().is_some());
         assert!(store.find_grant(old.id).await.unwrap().is_none());
         assert!(
             store.find_refresh_token("old-rt").await.unwrap().is_none(),
-            "cascaded"
+            "deleted with its grant"
         );
         assert!(store
             .claim_pending(live_pending.id, &alice())
@@ -1179,7 +1201,7 @@ mod tests {
         assert_eq!(count("oauth_devices").await, 0);
         assert_eq!(count("oauth_codes").await, 0);
         assert_eq!(count("oauth_documents").await, 0);
-        assert_eq!(count("oauth_clients").await, 1);
+        assert_eq!(count("oauth_clients").await, 2);
         assert_eq!(count("oauth_grants").await, 1);
     }
 
@@ -1194,24 +1216,12 @@ mod tests {
         }
     }
 
-    struct NoFetch;
-
-    #[async_trait]
-    impl MetadataFetcher for NoFetch {
-        async fn fetch(&self, _url: &Url, _limit: usize) -> Result<Fetched, FetchError> {
-            Err(FetchError("no fetching in tests".into()))
-        }
-    }
-
     fn server(pool: SqlitePool) -> Server<String> {
         let config = Config {
             resource: RESOURCE.into(),
             token_kind: "mcp".into(),
             scopes: ScopeSpec::new(&["read", "offline_access"], &["read"], "offline_access"),
-            signer: Signer::hmac(
-                jsonwebtoken::Algorithm::HS512,
-                b"0123456789abcdef0123456789abcdef",
-            ),
+            signer: Signer::hmac(Algorithm::HS512, b"0123456789abcdef0123456789abcdef"),
             access_token_secs: 900,
             code_ttl: Duration::seconds(60),
             pending_ttl: Duration::seconds(600),
