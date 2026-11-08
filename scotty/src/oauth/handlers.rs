@@ -1,3 +1,4 @@
+use super::server::WEB_CLIENT_ID;
 use super::{
     DeviceFlowStore, OAuthClient, OAuthSession, OAuthSessionStore, WebFlowSession, WebFlowStore,
 };
@@ -9,6 +10,7 @@ use axum::{
     response::{IntoResponse, Json, Redirect},
 };
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeVerifier};
+use openidconnect::Nonce;
 use scotty_core::utils::secret::MaskedSecret;
 use serde::Deserialize;
 use std::time::{Duration, SystemTime};
@@ -112,14 +114,17 @@ pub async fn poll_device_token(
             // Validate the OIDC token and get user info
             match oauth_state.client.validate_oidc_token(&oidc_token).await {
                 Ok(user) => {
-                    // For now, we'll return the OIDC token as the access token
-                    // In a full implementation, you might want to create a Scotty session token
+                    // Replaced by grantry's device grant in task 3.1.
+                    let Some(user_email) = user.email else {
+                        error!("Device login refused: the provider confirmed no email address");
+                        return Err(OAuthError::AccessDenied.into());
+                    };
                     Ok(Json(TokenResponse {
                         access_token: oidc_token,
                         token_type: "Bearer".to_string(),
                         user_id: user.username.clone().unwrap_or(user.id.clone()),
                         user_name: user.name.unwrap_or("Unknown".to_string()),
-                        user_email: user.email.unwrap_or("unknown@example.com".to_string()),
+                        user_email,
                         user_picture: user.picture,
                         refresh_token: None,
                         expires_in: None,
@@ -196,12 +201,14 @@ pub async fn start_authorization_flow(
     match oauth_state
         .client
         .get_authorization_url(redirect_url.clone(), csrf_token.clone())
+        .await
     {
-        Ok((auth_url, pkce_verifier)) => {
+        Ok((auth_url, pkce_verifier, nonce)) => {
             // Store session for later verification
             let session = WebFlowSession {
                 csrf_token: MaskedSecret::new(csrf_token_raw.secret().clone()), // Store only the raw CSRF token part (protected)
                 pkce_verifier: MaskedSecret::new(pkce_verifier.secret().to_string()), // Store PKCE verifier (protected)
+                nonce: MaskedSecret::new(nonce.secret().to_string()),
                 redirect_url: redirect_url.clone(), // OAuth redirect URL for token exchange
                 frontend_callback_url,              // Frontend callback URL
                 expires_at: SystemTime::now() + Duration::from_secs(600), // 10 minutes
@@ -383,87 +390,98 @@ pub async fn handle_oauth_callback(
         }
     }
 
-    // Exchange code for token
-    let pkce_verifier = PkceCodeVerifier::new(session.pkce_verifier.expose_secret().to_string());
+    // Session is single-use from here on.
+    {
+        let mut sessions = oauth_state.web_flow_store.lock().unwrap();
+        sessions.remove(&session_id);
+    }
 
+    let session_server = match &app_state.session_server {
+        Some(server) => server,
+        None => {
+            error!("OAuth login without a session server (no oauth database or jwt_secret)");
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::from(OAuthError::OauthNotConfigured)),
+            )
+                .into_response();
+        }
+    };
+
+    // Exchange the code and read the identity from the verified ID token.
+    let pkce_verifier = PkceCodeVerifier::new(session.pkce_verifier.expose_secret().to_string());
+    let nonce = Nonce::new(session.nonce.expose_secret().to_string());
     debug!(
         "Using redirect URL for token exchange: {}",
         session.redirect_url
     );
-    match oauth_state
+    let identity = match oauth_state
         .client
-        .exchange_code_for_token(code, session.redirect_url.clone(), pkce_verifier)
+        .login_identity(code, session.redirect_url.clone(), pkce_verifier, nonce)
         .await
     {
-        Ok(access_token) => {
-            // Validate token and get user info
-            match oauth_state.client.validate_oidc_token(&access_token).await {
-                Ok(user) => {
-                    // Clean up session
-                    {
-                        let mut sessions = oauth_state.web_flow_store.lock().unwrap();
-                        sessions.remove(&session_id);
-                    }
+        Ok(identity) => identity,
+        Err(e) => {
+            error!("OAuth login failed: {}", e);
+            return (StatusCode::from(e.clone()), Json(ErrorResponse::from(e))).into_response();
+        }
+    };
+    // login_identity guarantees an email.
+    let email = identity.email.clone().unwrap_or_default();
 
-                    debug!(
-                        "OAuth web flow completed successfully for user: {}",
-                        user.username.as_deref().unwrap_or(&user.id)
-                    );
-
-                    // Create OAuth session for token exchange
-                    let oauth_session_id = Uuid::new_v4().to_string();
-                    let oauth_session = OAuthSession {
-                        oidc_token: access_token,
-                        user: user.clone(),
-                        expires_at: SystemTime::now() + Duration::from_secs(300), // 5 minutes
-                    };
-
-                    // Store the session
-                    {
-                        let mut sessions = oauth_state.session_store.lock().unwrap();
-                        sessions.insert(oauth_session_id.clone(), oauth_session);
-                    }
-
-                    // Redirect to frontend with session ID
-                    let frontend_url =
-                        if let Some(frontend_callback) = &session.frontend_callback_url {
-                            format!("{}?session_id={}", frontend_callback, oauth_session_id)
-                        } else {
-                            // Fallback to the public base URL (api.base_url)
-                            format!(
-                                "{}/oauth/callback?session_id={}",
-                                app_state.settings.api.public_base_url(),
-                                oauth_session_id
-                            )
-                        };
-
-                    debug!("Redirecting to frontend: {}", frontend_url);
-                    Redirect::temporary(&frontend_url).into_response()
-                }
-                Err(e) => {
-                    error!("Failed to validate OIDC token: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ErrorResponse::from(OAuthError::ServerError(
-                            "Failed to validate token".to_string(),
-                        ))),
-                    )
-                        .into_response()
-                }
-            }
+    // Issue the Scotty session: a grant for the email, no refresh token.
+    let tokens = match session_server
+        .issue_grant(&email, WEB_CLIENT_ID, "Scotty web", "api")
+        .await
+    {
+        Ok((_grant, tokens)) => tokens,
+        Err(grantry::server::TokenError::InvalidGrant) => {
+            error!("OAuth login refused for {}: no role", email);
+            let e = OAuthError::AccessDenied;
+            return (StatusCode::from(e.clone()), Json(ErrorResponse::from(e))).into_response();
         }
         Err(e) => {
-            error!("Failed to exchange code for token: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::from(OAuthError::ServerError(format!(
-                    "Token exchange failed: {}",
-                    e
-                )))),
-            )
-                .into_response()
+            error!("Failed to issue session for {}: {}", email, e);
+            let e = OAuthError::ServerError("Failed to issue session".to_string());
+            return (StatusCode::from(e.clone()), Json(ErrorResponse::from(e))).into_response();
         }
+    };
+
+    debug!("OAuth web flow completed for {}", email);
+
+    let oauth_session_id = Uuid::new_v4().to_string();
+    let oauth_session = OAuthSession {
+        token: TokenResponse {
+            access_token: tokens.access_token,
+            token_type: tokens.token_type.to_string(),
+            user_id: identity.user_id,
+            user_name: identity.name.unwrap_or_else(|| email.clone()),
+            user_email: email,
+            user_picture: identity.picture,
+            refresh_token: None,
+            expires_in: Some(tokens.expires_in),
+        },
+        expires_at: SystemTime::now() + Duration::from_secs(300), // 5 minutes
+    };
+    {
+        let mut sessions = oauth_state.session_store.lock().unwrap();
+        sessions.insert(oauth_session_id.clone(), oauth_session);
     }
+
+    // Redirect to frontend with session ID
+    let frontend_url = if let Some(frontend_callback) = &session.frontend_callback_url {
+        format!("{}?session_id={}", frontend_callback, oauth_session_id)
+    } else {
+        // Fallback to the public base URL (api.base_url)
+        format!(
+            "{}/oauth/callback?session_id={}",
+            app_state.settings.api.public_base_url(),
+            oauth_session_id
+        )
+    };
+
+    debug!("Redirecting to frontend: {}", frontend_url);
+    Redirect::temporary(&frontend_url).into_response()
 }
 
 /// Exchange OAuth session for bearer token
@@ -510,40 +528,10 @@ pub async fn exchange_session_for_token(
         }
     };
 
-    // Create meaningful fallback values based on available OIDC data
-    let display_name = session
-        .user
-        .name
-        .clone()
-        .or_else(|| session.user.username.clone())
-        .unwrap_or_else(|| format!("User {}", &session.user.id[..8.min(session.user.id.len())]));
-
-    let display_email = session.user.email.clone().unwrap_or_else(|| {
-        format!(
-            "{}@oidc-provider.local",
-            session.user.username.as_deref().unwrap_or("user")
-        )
-    });
-
     debug!(
         "Session exchange successful for user: {} <{}>",
-        display_name, display_email
+        session.token.user_name, session.token.user_email
     );
 
-    // For now, return the OIDC token directly
-    // TODO: Generate a Scotty JWT token instead
-    Ok(axum::response::Json(TokenResponse {
-        access_token: session.oidc_token,
-        token_type: "Bearer".to_string(),
-        user_id: session
-            .user
-            .username
-            .clone()
-            .unwrap_or(session.user.id.clone()),
-        user_name: display_name,
-        user_email: display_email,
-        user_picture: session.user.picture,
-        refresh_token: None,
-        expires_in: None,
-    }))
+    Ok(axum::response::Json(session.token))
 }

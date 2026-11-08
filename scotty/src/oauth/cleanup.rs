@@ -158,6 +158,7 @@ mod tests {
                 WebFlowSession {
                     csrf_token: MaskedSecret::new("expired_csrf".to_string()),
                     pkce_verifier: MaskedSecret::new("expired_verifier".to_string()),
+                    nonce: MaskedSecret::new("nonce".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
                     frontend_callback_url: None,
                     expires_at: SystemTime::now() - Duration::from_secs(60),
@@ -173,6 +174,7 @@ mod tests {
                 WebFlowSession {
                     csrf_token: MaskedSecret::new("valid_csrf".to_string()),
                     pkce_verifier: MaskedSecret::new("valid_verifier".to_string()),
+                    nonce: MaskedSecret::new("nonce".to_string()),
                     redirect_url: "https://example.com/redirect".to_string(),
                     frontend_callback_url: None,
                     expires_at: SystemTime::now() + Duration::from_secs(600),
@@ -188,6 +190,19 @@ mod tests {
         assert!(sessions.contains_key("valid_session_id"));
     }
 
+    fn test_token(access_token: &str) -> crate::oauth::TokenResponse {
+        crate::oauth::TokenResponse {
+            access_token: access_token.to_string(),
+            token_type: "Bearer".to_string(),
+            user_id: "testuser".to_string(),
+            user_name: "Test User".to_string(),
+            user_email: "test@example.com".to_string(),
+            user_picture: None,
+            refresh_token: None,
+            expires_in: Some(43200),
+        }
+    }
+
     #[test]
     fn test_cleanup_oauth_sessions() {
         let store = Arc::new(Mutex::new(HashMap::new()));
@@ -198,23 +213,7 @@ mod tests {
             sessions.insert(
                 "expired_oauth_session".to_string(),
                 OAuthSession {
-                    oidc_token: "expired_token".to_string(),
-                    user: crate::oauth::device_flow::OidcUser {
-                        id: "user123".to_string(),
-                        username: Some("testuser".to_string()),
-                        name: Some("Test User".to_string()),
-                        given_name: None,
-                        family_name: None,
-                        nickname: None,
-                        picture: None,
-                        website: None,
-                        locale: None,
-                        zoneinfo: None,
-                        updated_at: None,
-                        email: Some("test@example.com".to_string()),
-                        email_verified: Some(true),
-                        custom_claims: HashMap::new(),
-                    },
+                    token: test_token("expired_token"),
                     expires_at: SystemTime::now() - Duration::from_secs(60),
                 },
             );
@@ -226,23 +225,7 @@ mod tests {
             sessions.insert(
                 "valid_oauth_session".to_string(),
                 OAuthSession {
-                    oidc_token: "valid_token".to_string(),
-                    user: crate::oauth::device_flow::OidcUser {
-                        id: "user456".to_string(),
-                        username: Some("validuser".to_string()),
-                        name: Some("Valid User".to_string()),
-                        given_name: None,
-                        family_name: None,
-                        nickname: None,
-                        picture: None,
-                        website: None,
-                        locale: None,
-                        zoneinfo: None,
-                        updated_at: None,
-                        email: Some("valid@example.com".to_string()),
-                        email_verified: Some(true),
-                        custom_claims: HashMap::new(),
-                    },
+                    token: test_token("valid_token"),
                     expires_at: SystemTime::now() + Duration::from_secs(600),
                 },
             );

@@ -49,6 +49,7 @@ use crate::api::rest::handlers::apps::run::__path_stop_app_handler;
 use crate::api::rest::handlers::health::__path_health_checker_handler;
 use crate::api::rest::handlers::info::__path_info_handler;
 use crate::api::rest::handlers::login::__path_login_handler;
+use crate::api::rest::handlers::login::__path_logout_handler;
 use crate::api::rest::handlers::login::__path_validate_token_handler;
 use crate::oauth::handlers::{
     exchange_session_for_token, handle_oauth_callback, poll_device_token, start_authorization_flow,
@@ -127,6 +128,7 @@ use super::rest::handlers::apps::run::stop_app_handler;
 use super::rest::handlers::blueprints::blueprints_handler;
 use super::rest::handlers::info::info_handler;
 use super::rest::handlers::login::login_handler;
+use super::rest::handlers::login::logout_handler;
 use super::rest::handlers::login::validate_token_handler;
 use super::rest::handlers::scopes::list::{
     list_user_scopes_handler, ScopeInfo, UserScopesResponse,
@@ -158,6 +160,7 @@ use scotty_core::admin::{
         task_list_handler,
         destroy_app_handler,
         validate_token_handler,
+        logout_handler,
         login_handler,
         info_handler,
         blueprints_handler,
@@ -312,6 +315,7 @@ impl ApiRoutes {
                 "/api/v1/authenticated/validate-token",
                 post(validate_token_handler),
             )
+            .route("/api/v1/authenticated/logout", post(logout_handler))
             .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
             .route(
                 "/api/v1/authenticated/scopes/list",

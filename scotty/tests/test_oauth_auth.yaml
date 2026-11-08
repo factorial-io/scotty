@@ -3,6 +3,7 @@ api:
     bind_address: "0.0.0.0:21342"
     create_app_max_size: "50M"
     auth_mode: "oauth"
+    jwt_secret: "test-jwt-secret-0123456789abcdef0123456789abcdef0123456789abcdef"
     oauth:
         client_id: "test_oauth_client_id"
         client_secret: "test_oauth_client_secret"

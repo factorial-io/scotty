@@ -86,6 +86,25 @@ pub async fn create_test_app_state_with_policy_dir(
             .expect("Failed to load RBAC config for test"),
     );
 
+    // In oauth mode, a session server over a fresh SQLite file.
+    let (oauth_db, session_server) = match (&settings.api.auth_mode, &settings.api.jwt_secret) {
+        (scotty_core::settings::api_server::AuthMode::OAuth, Some(secret)) => {
+            use secrecy::ExposeSecret;
+            // ponytail: the temp dir is leaked for the test process's lifetime.
+            let dir = tempfile::tempdir().unwrap().keep();
+            let pool = crate::oauth::store::open(dir.join("scotty.sqlite"))
+                .await
+                .unwrap();
+            let server = crate::oauth::server::session_server(
+                pool.clone(),
+                secret.expose_secret().as_bytes(),
+                auth_service.clone(),
+            );
+            (Some(pool), Some(server))
+        }
+        _ => (None, None),
+    };
+
     Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
         messenger: create_test_websocket_messenger(),
@@ -105,6 +124,7 @@ pub async fn create_test_app_state_with_policy_dir(
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         settings,
         next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-        oauth_db: None,
+        oauth_db,
+        session_server,
     })
 }
