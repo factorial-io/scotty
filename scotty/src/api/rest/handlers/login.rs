@@ -129,9 +129,12 @@ pub async fn logout_handler(
         .map(|h| h.strip_prefix("Bearer ").unwrap_or(h))
         .unwrap_or_default();
     if let Some(server) = state.session_server.as_ref() {
-        server.revoke_token(token, "logout", None).await.map_err(|e| {
-            crate::api::error::AppError::InternalServerError(format!("Logout failed: {}", e))
-        })?;
+        server
+            .revoke_token(token, "logout", None)
+            .await
+            .map_err(|e| {
+                crate::api::error::AppError::InternalServerError(format!("Logout failed: {}", e))
+            })?;
     }
     Ok(axum::http::StatusCode::NO_CONTENT)
 }

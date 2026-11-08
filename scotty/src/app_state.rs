@@ -69,6 +69,8 @@ pub struct AppState {
     pub oauth_db: Option<sqlx::SqlitePool>,
     /// The grantry session server (D2), built over `oauth_db` in oauth mode.
     pub session_server: Option<oauth::server::SessionServer>,
+    /// The grantry mcp server (D2), over the same database and secret.
+    pub mcp_server: Option<oauth::server::McpServer>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -146,13 +148,21 @@ impl AppState {
             }
         });
 
-        let session_server = match (&oauth_db, &settings.api.jwt_secret) {
-            (Some(pool), Some(secret)) => Some(oauth::server::session_server(
-                pool.clone(),
-                secret.expose_secret().as_bytes(),
-                auth_service.clone(),
-            )),
-            _ => None,
+        let (session_server, mcp_server) = match (&oauth_db, &settings.api.jwt_secret) {
+            (Some(pool), Some(secret)) => (
+                Some(oauth::server::session_server(
+                    pool.clone(),
+                    secret.expose_secret().as_bytes(),
+                    auth_service.clone(),
+                )),
+                Some(oauth::server::mcp_server(
+                    pool.clone(),
+                    secret.expose_secret().as_bytes(),
+                    auth_service.clone(),
+                    &settings.api.public_base_url(),
+                )),
+            ),
+            _ => (None, None),
         };
 
         // Create WebSocket clients and messenger
@@ -174,6 +184,7 @@ impl AppState {
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db,
             session_server,
+            mcp_server,
         });
 
         Ok(state)
@@ -202,6 +213,7 @@ impl AppState {
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db: None,
             session_server: None,
+            mcp_server: None,
         }))
     }
 }

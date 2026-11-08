@@ -89,7 +89,11 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
 
 /// Send `call` with `token`. On a 401, ask `refresh` once for a new token
 /// and send again; without one, the 401 stands.
-async fn send_with_refresh<T, C, CF, R, RF>(token: String, call: C, refresh: R) -> Result<T, RetryError>
+async fn send_with_refresh<T, C, CF, R, RF>(
+    token: String,
+    call: C,
+    refresh: R,
+) -> Result<T, RetryError>
 where
     C: Fn(String) -> CF,
     CF: std::future::Future<Output = Result<T, RetryError>>,
@@ -511,9 +515,11 @@ mod tests {
     #[tokio::test]
     async fn a_failed_refresh_keeps_the_401_and_does_not_retry() {
         let calls = AtomicUsize::new(0);
-        let result = send_with_refresh("expired".to_string(), |t| call(&calls, t), || async {
-            None
-        })
+        let result = send_with_refresh(
+            "expired".to_string(),
+            |t| call(&calls, t),
+            || async { None },
+        )
         .await;
         assert_eq!(result.unwrap_err().status_code(), Some(401));
         assert_eq!(calls.load(Ordering::SeqCst), 1);
@@ -522,9 +528,11 @@ mod tests {
     #[tokio::test]
     async fn a_still_rejected_retry_is_not_retried_again() {
         let calls = AtomicUsize::new(0);
-        let result = send_with_refresh("expired".to_string(), |t| call(&calls, t), || async {
-            Some("also-bad".to_string())
-        })
+        let result = send_with_refresh(
+            "expired".to_string(),
+            |t| call(&calls, t),
+            || async { Some("also-bad".to_string()) },
+        )
         .await;
         assert_eq!(result.unwrap_err().status_code(), Some(401));
         assert_eq!(calls.load(Ordering::SeqCst), 2);
@@ -533,9 +541,11 @@ mod tests {
     #[tokio::test]
     async fn success_or_other_errors_skip_the_refresh() {
         let calls = AtomicUsize::new(0);
-        let result = send_with_refresh("good".to_string(), |t| call(&calls, t), || async {
-            panic!("no refresh without a 401")
-        })
+        let result = send_with_refresh(
+            "good".to_string(),
+            |t| call(&calls, t),
+            || async { panic!("no refresh without a 401") },
+        )
         .await;
         assert!(result.is_ok());
     }

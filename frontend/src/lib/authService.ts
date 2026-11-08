@@ -32,6 +32,19 @@ export interface OAuthErrorResponse {
 }
 
 /**
+ * Pages that work without a session: login, the OAuth login callback and
+ * landing pages. The OAuth consent page (`/oauth/consent/{id}`) is not one of
+ * them: granting access to a client needs a signed-in user.
+ */
+export function isPublicPath(path: string): boolean {
+	return (
+		path === '/login' ||
+		(path.startsWith('/oauth/') && !path.startsWith('/oauth/consent/')) ||
+		path.startsWith('/landing/')
+	);
+}
+
+/**
  * AuthService provides centralized authentication operations
  */
 export class AuthService {
@@ -178,12 +191,7 @@ export class AuthService {
 			return true;
 		}
 
-		// Skip auth check on login, OAuth, and landing pages
-		if (
-			currentPath === '/login' ||
-			currentPath.startsWith('/oauth/') ||
-			currentPath.startsWith('/landing/')
-		) {
+		if (isPublicPath(currentPath)) {
 			return true;
 		}
 

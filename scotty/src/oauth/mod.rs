@@ -1,7 +1,11 @@
 pub mod cleanup;
 pub mod client;
+pub mod connections;
+pub mod consent;
 pub mod device;
+pub mod fetch;
 pub mod handlers;
+pub mod mcp;
 pub mod metrics;
 pub mod server;
 pub mod store;
@@ -225,6 +229,32 @@ pub struct LoginIdentity {
     pub name: Option<String>,
     pub email: Option<String>,
     pub picture: Option<String>,
+}
+
+/// Where the frontend is served: `api.oauth.frontend_base_url`, else the
+/// public base URL. Never derived from the request.
+pub(crate) fn frontend_base(state: &crate::app_state::SharedAppState) -> String {
+    state
+        .settings
+        .api
+        .oauth
+        .frontend_base_url
+        .as_deref()
+        .map(|u| u.trim().trim_end_matches('/'))
+        .filter(|u| !u.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| state.settings.api.public_base_url())
+}
+
+/// Consent, device and connection decisions are for people (session users);
+/// service accounts (bearer tokens) get 403.
+pub(crate) fn require_person(
+    user: &crate::api::basic_auth::CurrentUser,
+) -> Result<(), axum::http::StatusCode> {
+    if user.email.starts_with("identifier:") {
+        return Err(axum::http::StatusCode::FORBIDDEN);
+    }
+    Ok(())
 }
 
 pub fn create_web_flow_store() -> WebFlowStore {

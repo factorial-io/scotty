@@ -15,7 +15,7 @@ pub mod middleware;
 mod tests;
 
 pub use config::TierConfig;
-use extractors::BearerTokenExtractor;
+use extractors::{BearerTokenExtractor, ClientAddressExtractor};
 
 use governor::middleware::NoOpMiddleware;
 use std::sync::Arc;
@@ -60,6 +60,33 @@ pub fn create_authenticated_limiter(
             .expect("Invalid rate limit config"),
     );
 
+    GovernorLayer::new(governor_config)
+}
+
+/// Registrations per minute and burst when no oauth tier is configured.
+const DEFAULT_REGISTER_TIER: TierConfig = TierConfig {
+    requests_per_minute: 10,
+    burst_size: 5,
+};
+
+/// Create the rate limiter for MCP client registration (RFC 7591), always on
+/// in oauth mode: the oauth tier's numbers when that tier is enabled, else
+/// [`DEFAULT_REGISTER_TIER`]. Keyed by [`ClientAddressExtractor`].
+pub fn create_register_limiter(
+    oauth_tier: Option<&TierConfig>,
+) -> GovernorLayer<ClientAddressExtractor, NoOpMiddleware, axum::body::Body> {
+    let config = oauth_tier
+        .filter(|t| t.is_enabled())
+        .unwrap_or(&DEFAULT_REGISTER_TIER);
+    let nanos_per_request = (60_000_000_000u64) / config.requests_per_minute;
+    let governor_config = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_nanosecond(nanos_per_request)
+            .burst_size(config.burst_size)
+            .key_extractor(ClientAddressExtractor)
+            .finish()
+            .expect("Invalid rate limit config"),
+    );
     GovernorLayer::new(governor_config)
 }
 

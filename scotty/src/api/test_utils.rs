@@ -87,23 +87,30 @@ pub async fn create_test_app_state_with_policy_dir(
     );
 
     // In oauth mode, a session server over a fresh SQLite file.
-    let (oauth_db, session_server) = match (&settings.api.auth_mode, &settings.api.jwt_secret) {
-        (scotty_core::settings::api_server::AuthMode::OAuth, Some(secret)) => {
-            use secrecy::ExposeSecret;
-            // ponytail: the temp dir is leaked for the test process's lifetime.
-            let dir = tempfile::tempdir().unwrap().keep();
-            let pool = crate::oauth::store::open(dir.join("scotty.sqlite"))
-                .await
-                .unwrap();
-            let server = crate::oauth::server::session_server(
-                pool.clone(),
-                secret.expose_secret().as_bytes(),
-                auth_service.clone(),
-            );
-            (Some(pool), Some(server))
-        }
-        _ => (None, None),
-    };
+    let (oauth_db, session_server, mcp_server) =
+        match (&settings.api.auth_mode, &settings.api.jwt_secret) {
+            (scotty_core::settings::api_server::AuthMode::OAuth, Some(secret)) => {
+                use secrecy::ExposeSecret;
+                // ponytail: the temp dir is leaked for the test process's lifetime.
+                let dir = tempfile::tempdir().unwrap().keep();
+                let pool = crate::oauth::store::open(dir.join("scotty.sqlite"))
+                    .await
+                    .unwrap();
+                let server = crate::oauth::server::session_server(
+                    pool.clone(),
+                    secret.expose_secret().as_bytes(),
+                    auth_service.clone(),
+                );
+                let mcp = crate::oauth::server::mcp_server(
+                    pool.clone(),
+                    secret.expose_secret().as_bytes(),
+                    auth_service.clone(),
+                    &settings.api.public_base_url(),
+                );
+                (Some(pool), Some(server), Some(mcp))
+            }
+            _ => (None, None, None),
+        };
 
     Arc::new(AppState {
         stop_flag: crate::stop_flag::StopFlag::new(),
@@ -126,5 +133,6 @@ pub async fn create_test_app_state_with_policy_dir(
         next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
         oauth_db,
         session_server,
+        mcp_server,
     })
 }

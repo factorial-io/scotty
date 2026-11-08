@@ -40,10 +40,63 @@ impl KeyExtractor for BearerTokenExtractor {
     }
 }
 
+/// Rate limit key of the client address for MCP client registration: the
+/// first `X-Forwarded-For` entry, else `X-Real-IP`, else the peer address,
+/// else one shared key. Never fails, so a request without any address still
+/// counts against a (shared) budget instead of erroring.
+#[derive(Clone, Copy, Debug)]
+pub struct ClientAddressExtractor;
+
+impl KeyExtractor for ClientAddressExtractor {
+    type Key = String;
+
+    fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, GovernorError> {
+        let header = |name: &str| {
+            req.headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.split(',').next())
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_owned)
+        };
+        Ok(header("x-forwarded-for")
+            .or_else(|| header("x-real-ip"))
+            .or_else(|| {
+                req.extensions()
+                    .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                    .map(|info| info.0.ip().to_string())
+            })
+            .unwrap_or_else(|| "unknown".to_owned()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use axum::body::Body;
+
+    #[test]
+    fn test_client_address_extractor_fallbacks() {
+        let key = |headers: &[(&str, &str)]| {
+            let mut req = Request::builder();
+            for (k, v) in headers {
+                req = req.header(*k, *v);
+            }
+            ClientAddressExtractor
+                .extract(&req.body(Body::empty()).unwrap())
+                .unwrap()
+        };
+        assert_eq!(
+            key(&[
+                ("x-forwarded-for", "203.0.113.5, 10.0.0.1"),
+                ("x-real-ip", "1.1.1.1")
+            ]),
+            "203.0.113.5"
+        );
+        assert_eq!(key(&[("x-real-ip", "1.1.1.1")]), "1.1.1.1");
+        assert_eq!(key(&[]), "unknown");
+    }
 
     #[test]
     fn test_bearer_token_extractor_success() {

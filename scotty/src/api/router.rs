@@ -1,6 +1,6 @@
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::{get, post, put};
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::apps::app_data::AppSettings;
@@ -51,6 +51,15 @@ use crate::api::rest::handlers::info::__path_info_handler;
 use crate::api::rest::handlers::login::__path_login_handler;
 use crate::api::rest::handlers::login::__path_logout_handler;
 use crate::api::rest::handlers::login::__path_validate_token_handler;
+use crate::oauth::connections::{
+    __path_list_connections_handler, __path_revoke_connection_handler, list_connections_handler,
+    revoke_connection_handler, Connection,
+};
+use crate::oauth::consent::{
+    __path_approve_consent_handler, __path_deny_consent_handler, __path_get_consent_handler,
+    approve_consent_handler, deny_consent_handler, get_consent_handler, ConsentApproval,
+    ConsentInfo, ConsentRedirect,
+};
 use crate::oauth::device::{
     __path_approve_device_handler, __path_deny_device_handler, __path_get_device_handler,
     approve_device_handler, deny_device_handler, device_token, get_device_handler,
@@ -168,6 +177,11 @@ use scotty_core::admin::{
         get_device_handler,
         approve_device_handler,
         deny_device_handler,
+        get_consent_handler,
+        approve_consent_handler,
+        deny_consent_handler,
+        list_connections_handler,
+        revoke_connection_handler,
         login_handler,
         info_handler,
         blueprints_handler,
@@ -209,6 +223,7 @@ use scotty_core::admin::{
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, AuthorizeQuery, CallbackQuery,
             DeviceInfo, DeviceDecision,
+            ConsentInfo, ConsentApproval, ConsentRedirect, Connection,
             ScopeInfo, UserScopesResponse,
             // Admin API schemas
             AdminScopeInfo, ScopesListResponse, CreateScopeRequest, CreateScopeResponse,
@@ -335,6 +350,26 @@ impl ApiRoutes {
             .route(
                 "/api/v1/authenticated/oauth/device/{user_code}",
                 get(get_device_handler),
+            )
+            .route(
+                "/api/v1/authenticated/oauth/consent/{id}",
+                get(get_consent_handler),
+            )
+            .route(
+                "/api/v1/authenticated/oauth/consent/{id}/approve",
+                post(approve_consent_handler),
+            )
+            .route(
+                "/api/v1/authenticated/oauth/consent/{id}/deny",
+                post(deny_consent_handler),
+            )
+            .route(
+                "/api/v1/authenticated/connections",
+                get(list_connections_handler),
+            )
+            .route(
+                "/api/v1/authenticated/connections/{id}",
+                delete(revoke_connection_handler),
             )
             .route("/api/v1/authenticated/blueprints", get(blueprints_handler))
             .route(
@@ -591,12 +626,19 @@ impl ApiRoutes {
 
         // Serve embedded frontend files, or redirect to landing page for stopped apps
         tracing::info!("Serving embedded frontend files with landing page support");
-        Router::new()
+        let router = Router::new()
             .merge(authenticated_router)
             .merge(login_router)
             .merge(oauth_router)
             .merge(public_router)
             .fallback(landing_or_frontend_handler)
-            .with_state(state.clone())
+            .with_state(state.clone());
+
+        // The MCP authorization server (metadata, /oauth/mcp/*, /mcp), in
+        // oauth mode only.
+        match crate::oauth::mcp::router(&state) {
+            Some(mcp) => router.merge(mcp),
+            None => router,
+        }
     }
 }

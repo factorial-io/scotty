@@ -8,7 +8,12 @@ vi.mock('../stores/sessionStore', () => ({
 		clearInvalidSession: vi.fn(async () => {})
 	}
 }));
-vi.mock('./authService', () => ({ authService: { redirectToLogin: vi.fn(async () => {}) } }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('$app/paths', () => ({ resolve: (p: string) => p }));
+vi.mock('./authService', async (importOriginal) => ({
+	...(await importOriginal<typeof import('./authService')>()),
+	authService: { redirectToLogin: vi.fn(async () => {}) }
+}));
 
 import { sessionStore } from '../stores/sessionStore';
 import { authService } from './authService';
@@ -72,6 +77,20 @@ describe('authenticatedApiCall', () => {
 		await expect(authenticatedApiCall('apps/list')).rejects.toThrow('Unauthorized');
 		expect(sessionStore.clearInvalidSession).toHaveBeenCalledOnce();
 		expect(authService.redirectToLogin).toHaveBeenCalledOnce();
+	});
+
+	it('sends a 401 on the consent page to login, but not on the login callback', async () => {
+		fetchMock.mockImplementation(async () => jsonResponse(401, {}));
+		vi.mocked(authService.redirectToLogin).mockClear();
+
+		window.history.replaceState(null, '', '/oauth/consent/abc');
+		await expect(authenticatedApiCall('oauth/consent/abc')).rejects.toThrow('Unauthorized');
+		expect(authService.redirectToLogin).toHaveBeenCalledOnce();
+
+		window.history.replaceState(null, '', '/oauth/callback');
+		await expect(authenticatedApiCall('apps/list')).rejects.toThrow('Unauthorized');
+		expect(authService.redirectToLogin).toHaveBeenCalledOnce();
+		window.history.replaceState(null, '', '/');
 	});
 
 	it('carries the HTTP status on errors and returns null on 204', async () => {
