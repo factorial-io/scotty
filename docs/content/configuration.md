@@ -63,11 +63,14 @@ api:
   base_url: "https://scotty.example.com"  # public-facing URL of Scotty itself
   dev_user_email: "dev:system:internal"
   dev_user_name: "Dev User"
+  database_path: "data/scotty.sqlite"
+  # jwt_secret: set via SCOTTY__API__JWT_SECRET (required in oauth mode)
   oauth:
     oidc_issuer_url: "https://gitlab.com"
     client_id: "your_client_id"
     client_secret: "your_client_secret"
     redirect_url: "http://localhost:21342/api/oauth/callback"
+    device_flow_enabled: true
 ```
 
 * `bind_address`: The address and port the server listens on.
@@ -84,19 +87,22 @@ api:
   * `"bearer"`: Traditional token-based authentication (default)
 * `dev_user_email`: Email address for the development user (used when `auth_mode` is "dev")
 * `dev_user_name`: Display name for the development user (used when `auth_mode` is "dev")
+* `jwt_secret`: Secret that signs the tokens Scotty issues (HS512). **Required when `auth_mode` is `"oauth"`**, at least 32 bytes; Scotty does not start without it. Set it through `SCOTTY__API__JWT_SECRET`, never in a config file. Changing it logs out every browser, CLI and MCP session, which is the emergency step if it leaks.
+* `database_path`: SQLite database of the OAuth server (grants, registered clients, codes, refresh tokens). Default `data/scotty.sqlite`, relative to the working directory (`/app` in the Docker image). Scotty creates it at startup and uses WAL mode. **Put it on a persistent, writable volume**; if it is lost, every CLI and MCP session is lost and users must log in again. Only used in `oauth` mode. See [Persistent database](oauth-authentication.html#persistent-database).
 * `oauth`: OAuth configuration section (used when `auth_mode` is "oauth")
   * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
   * `client_id`: OAuth application client ID from your OIDC provider
   * `client_secret`: OAuth application client secret from your OIDC provider
   * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
+  * `device_flow_enabled`: Whether `scottyctl auth:login` works (default `true`). Scotty runs the device login itself and users approve it on Scotty's `/device` page; the provider's device grant is not used. When `false`, `/oauth/device` returns 404.
   * `frontend_base_url`: **Deprecated** — use `api.base_url` instead. Post-authentication redirects now use `api.base_url`. If this setting is still present it is used as a fallback when `api.base_url` is unset, and a deprecation warning is logged at startup; if both are set, `api.base_url` wins.
 
 **Hybrid Authentication:** When `auth_mode` is `oauth`, you can optionally configure `bearer_tokens` to enable service account access alongside OAuth for human users. This allows:
-- **Human users** authenticate via OAuth (web UI, CLI device flow)
+- **Human users** authenticate via OAuth (web UI, CLI device login) and use Scotty-issued session tokens
 - **Service accounts** (CI/CD, monitoring, automation) authenticate via bearer tokens
-- **Zero OAuth latency** for service accounts (bearer tokens checked first)
+- **Provider tokens** (e.g. GitLab access tokens) are not accepted by the API
 
-See [OAuth Authentication - Hybrid Mode](oauth-authentication.html#hybrid-authentication-oauth-bearer-tokens) for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.
+See [OAuth Authentication - Hybrid Mode](oauth-authentication.html#hybrid-authentication-with-bearer-tokens) for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.
 
 ### Rate Limiting
 
@@ -129,7 +135,7 @@ api:
 * `public_auth`: Rate limits for login endpoints
   * `requests_per_minute`: Maximum requests allowed per minute
   * `burst_size`: Number of requests allowed in a short burst
-* `oauth`: Rate limits for OAuth flow endpoints
+* `oauth`: Rate limits for OAuth flow endpoints, and the numbers for MCP client registration (see below)
   * `requests_per_minute`: Maximum requests allowed per minute
   * `burst_size`: Number of requests allowed in a short burst
 * `authenticated`: Rate limits for authenticated API endpoints
@@ -147,13 +153,26 @@ Scotty implements three independent rate limiting tiers:
 
 2. **OAuth** (`oauth`) - Prevents OAuth flow abuse and session exhaustion
    * Rate limited by client IP address
-   * Applies to: `/oauth/device`, `/oauth/authorize`, `/oauth/device/token`, etc.
+   * Applies to: `/oauth/device`, `/oauth/device/token`, `/oauth/authorize`, `/api/oauth/callback`, `/oauth/exchange`
    * Recommended: 120 requests/minute with burst of 20
 
 3. **Authenticated** (`authenticated`) - Ensures fair resource usage per user
    * Rate limited by bearer token (per-user limits)
    * Applies to: All `/api/v1/authenticated/*` endpoints
    * Recommended: 300 requests/minute with burst of 50
+
+#### MCP client registration
+
+In `oauth` mode, `POST /oauth/mcp/register` is **always** rate limited, even
+when `enabled` is `false`. The default is 10 requests per minute with a burst
+of 5. If the `oauth` tier has `requests_per_minute` above 0, its
+`requests_per_minute` and `burst_size` are used instead.
+
+This limit keys on the client address: the first entry of `X-Forwarded-For`,
+then `X-Real-IP`, then the connection's peer address. Scotty must therefore sit
+behind a proxy that sets `X-Forwarded-For` and replaces any value the client
+sent (Traefik does this by default). If clients can reach Scotty directly,
+they can choose their own key. The rate-limit metrics do not count this limit.
 
 #### Monitoring
 

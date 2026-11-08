@@ -262,6 +262,22 @@ Both gauges are updated after every reconciliation pass.
 - Detect apps that lost their connection to Traefik
 - Alert on apps that stay unroutable after reconciliation
 
+### OAuth Metrics
+
+| Metric Name | Type | Description |
+|-------------|------|-------------|
+| `scotty_oauth_web_flows_total` | Counter | Browser logins started |
+| `scotty_oauth_device_flows_total` | Counter | `scottyctl` device logins started |
+| `scotty_oauth_web_flow_sessions_active` | Gauge | Browser logins in progress (waiting for the provider callback) |
+| `scotty_oauth_sessions_expired_cleaned_total` | Counter | Expired login sessions removed by the cleanup task |
+
+`scotty_oauth_device_flow_sessions_active` was removed. Device logins are now
+stored in Scotty's OAuth database instead of in memory, so there is no
+in-memory count to report. Remove it from your own dashboards and alerts.
+
+Grant creation and revocation (for browser, CLI and MCP sessions) are not
+metrics; they are logged at info level as `grant created` and `grant revoked`.
+
 ### Tokio Runtime Metrics
 
 | Metric Name | Type | Description |

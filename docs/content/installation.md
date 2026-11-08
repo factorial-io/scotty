@@ -160,6 +160,8 @@ services:
       # folder mapping wont match for docker compose files of runing apps
       - $PWD/apps:$PWD/apps
       - /var/run/docker.sock:/var/run/docker.sock
+      # OAuth database (auth_mode: oauth); must persist across restarts
+      - ./scotty-data:/app/data
     environment:
       RUST_LOG: info
       SCOTTY__APPS__ROOT_FOLDER: $PWD/apps
@@ -218,3 +220,16 @@ docker run \
 ```
 
 You might need to map your local config overrides into the container.
+
+### Persistent data for OAuth mode
+
+With `auth_mode: oauth`, Scotty keeps its OAuth database (CLI sessions, MCP
+connections, registered clients) in `api.database_path`, by default
+`data/scotty.sqlite` below the working directory. In the Docker image that is
+`/app/data/scotty.sqlite`. Mount a persistent, writable volume there, for
+example `-v $PWD/scotty-data:/app/data`. Without it, every CLI and MCP session
+is lost when the container is recreated, and users must log in again.
+
+OAuth mode also needs `SCOTTY__API__JWT_SECRET` (at least 32 bytes), and Scotty
+should run behind a proxy that sets `X-Forwarded-For`, such as the Traefik
+setup above. See [OAuth Authentication](oauth-authentication.html).

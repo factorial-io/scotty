@@ -12,18 +12,21 @@ Scotty supports two authentication methods:
 
 ### OAuth Authentication (Recommended)
 
-Use the device flow to authenticate interactively:
+Log in interactively with the device login:
 
 ```shell
 scottyctl --server https://scotty.example.com auth:login
 ```
 
 This command will:
-1. Open your browser to authenticate with the OIDC provider
-2. Store the OAuth token securely for future commands
+1. Print a URL and a code, and open Scotty's `/device` page in your browser
+2. Ask you to approve the login there (log in to the web UI first if needed)
+3. Store a Scotty session token and a refresh token for future commands
 
-scottyctl does not refresh tokens. When your token expires, run `auth:login`
-again.
+Scotty runs the device login itself; the OIDC provider's device flow is not
+used. The access token lasts 12 hours. When it expires, scottyctl refreshes it
+on the next request and retries once, so you do not notice. After 30 days, or
+when the session is revoked, run `auth:login` again.
 
 **Managing OAuth sessions:**
 
@@ -31,12 +34,19 @@ again.
 # Check authentication status
 scottyctl auth:status
 
-# Check whether the stored token is still valid
+# Refresh the stored session now
 scottyctl auth:refresh
 
-# Logout and clear stored credentials
+# Delete the stored credentials on this machine
 scottyctl auth:logout
 ```
+
+`auth:logout` only deletes the local credentials. To end the session on the
+server, revoke it on the **Connections** page (`/connections`) of the web UI.
+
+**Upgrading:** logins from older Scotty releases stored the provider's
+(GitLab) token. The server no longer accepts it, so run `auth:login` once
+after the upgrade.
 
 ### Bearer Token Authentication
 
