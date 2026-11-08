@@ -221,6 +221,47 @@ pub async fn get_or_post(
     }
 }
 
+/// Revoke the stored OAuth session of `server` on the server
+/// (`POST /api/v1/authenticated/logout`), refreshing once on a 401.
+/// `Ok(false)` when there is no stored session; an explicit access token is
+/// never revoked.
+pub async fn revoke_stored_session(server: &ServerSettings) -> anyhow::Result<bool> {
+    if server.access_token.is_some() {
+        return Ok(false);
+    }
+    let Some(stored) = get_cached_token_manager().load_for_server(&server.server)? else {
+        return Ok(false);
+    };
+    let url = normalize_url(&server.server, "api/v1/authenticated/logout");
+    send_with_refresh(
+        stored.access_token,
+        |token| post_logout(&url, token),
+        || refresh_stored_session(server),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to revoke the session at {}: {}", server.server, e))?;
+    Ok(true)
+}
+
+/// `POST url` with `token`; any 2xx (the server answers 204) is success.
+async fn post_logout(url: &str, token: String) -> Result<(), RetryError> {
+    let response = reqwest::Client::new()
+        .post(url)
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| RetryError::NonRetriable(HttpError::Network(e)))?;
+    let status = response.status();
+    if status.is_success() {
+        Ok(())
+    } else {
+        Err(RetryError::NonRetriable(HttpError::http(
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("error"),
+        )))
+    }
+}
+
 pub async fn get(server: &ServerSettings, method: &str) -> anyhow::Result<Value> {
     get_or_post(server, method, "GET", None).await
 }
@@ -595,5 +636,36 @@ mod tests {
             normalize_url("https://scottyurl/", "/api/v1/apps/list"),
             "https://scottyurl//api/v1/apps/list"
         );
+    }
+
+    #[tokio::test]
+    async fn logout_posts_the_token_and_accepts_204() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/authenticated/logout"))
+            .and(header("authorization", "Bearer good"))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let url = format!("{}/api/v1/authenticated/logout", server.uri());
+        assert!(post_logout(&url, "good".into()).await.is_ok());
+        let err = post_logout(&url, "stale".into()).await.unwrap_err();
+        assert_eq!(err.status_code(), Some(404), "unmatched token is refused");
+    }
+
+    #[tokio::test]
+    async fn logout_refreshes_once_on_401() {
+        let calls = AtomicUsize::new(0);
+        let result = send_with_refresh(
+            "expired".to_string(),
+            |token| call(&calls, token),
+            || async { Some("good".to_string()) },
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 }

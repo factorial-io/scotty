@@ -41,8 +41,9 @@ scottyctl auth:refresh
 scottyctl auth:logout
 ```
 
-`auth:logout` only deletes the local credentials. To end the session on the
-server, revoke it on the **Connections** page (`/connections`) of the web UI.
+`auth:logout` revokes the session on the server, then deletes the local
+credentials. If the server cannot be reached, it still deletes them and asks
+you to revoke the session on the **Connections** page (`/connections`).
 
 **Upgrading:** logins from older Scotty releases stored the provider's
 (GitLab) token. The server no longer accepts it, so run `auth:login` once
