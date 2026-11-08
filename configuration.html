@@ -169,11 +169,14 @@ to deliver the traces or metrics.</li>
   <span class="token key atrule">base_url</span><span class="token punctuation">:</span> <span class="token string">"https://scotty.example.com"</span>  <span class="token comment"># public-facing URL of Scotty itself</span>
   <span class="token key atrule">dev_user_email</span><span class="token punctuation">:</span> <span class="token string">"dev:system:internal"</span>
   <span class="token key atrule">dev_user_name</span><span class="token punctuation">:</span> <span class="token string">"Dev User"</span>
+  <span class="token key atrule">database_path</span><span class="token punctuation">:</span> <span class="token string">"data/scotty.sqlite"</span>
+  <span class="token comment"># jwt_secret: set via SCOTTY__API__JWT_SECRET (required in oauth mode)</span>
   <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_client_id"</span>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_client_secret"</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span></code></pre>
+    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
+    <span class="token key atrule">device_flow_enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
 <ul>
 <li><code>bind_address</code>: The address and port the server listens on.</li>
 <li><code>bearer_tokens</code>: <strong>Required for bearer authentication</strong>. Map of logical token identifiers to secure bearer tokens. <strong>Security Note</strong>: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).</li>
@@ -192,23 +195,26 @@ same limit also caps the decompressed size of each individual file.</li>
 </li>
 <li><code>dev_user_email</code>: Email address for the development user (used when <code>auth_mode</code> is "dev")</li>
 <li><code>dev_user_name</code>: Display name for the development user (used when <code>auth_mode</code> is "dev")</li>
+<li><code>jwt_secret</code>: Secret that signs the tokens Scotty issues (HS512). <strong>Required when <code>auth_mode</code> is <code>"oauth"</code></strong>, at least 64 bytes (generate it, e.g. <code>openssl rand -base64 48</code>); Scotty does not start without it. Set it through <code>SCOTTY__API__JWT_SECRET</code>, never in a config file. Changing it logs out every browser, CLI and MCP session, which is the emergency step if it leaks.</li>
+<li><code>database_path</code>: SQLite database of the OAuth server (grants, registered clients, codes, refresh tokens). Default <code>data/scotty.sqlite</code>, relative to the working directory (<code>/app</code> in the Docker image). Scotty creates it at startup and uses WAL mode. <strong>Put it on a persistent, writable volume</strong>; if it is lost, every CLI and MCP session is lost and users must log in again. Only used in <code>oauth</code> mode. See <a href="oauth-authentication.html#persistent-database">Persistent database</a>.</li>
 <li><code>oauth</code>: OAuth configuration section (used when <code>auth_mode</code> is "oauth")
 <ul>
 <li><code>oidc_issuer_url</code>: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)</li>
 <li><code>client_id</code>: OAuth application client ID from your OIDC provider</li>
 <li><code>client_secret</code>: OAuth application client secret from your OIDC provider</li>
 <li><code>redirect_url</code>: OAuth callback URL - must match your provider's configuration (backend endpoint)</li>
+<li><code>device_flow_enabled</code>: Whether <code>scottyctl auth:login</code> works (default <code>true</code>). Scotty runs the device login itself and users approve it on Scotty's <code>/device</code> page; the provider's device grant is not used. When <code>false</code>, <code>/oauth/device</code> returns 404.</li>
 <li><code>frontend_base_url</code>: <strong>Deprecated</strong> — use <code>api.base_url</code> instead. Post-authentication redirects now use <code>api.base_url</code>. If this setting is still present it is used as a fallback when <code>api.base_url</code> is unset, and a deprecation warning is logged at startup; if both are set, <code>api.base_url</code> wins.</li>
 </ul>
 </li>
 </ul>
 <p><strong>Hybrid Authentication:</strong> When <code>auth_mode</code> is <code>oauth</code>, you can optionally configure <code>bearer_tokens</code> to enable service account access alongside OAuth for human users. This allows:</p>
 <ul>
-<li><strong>Human users</strong> authenticate via OAuth (web UI, CLI device flow)</li>
+<li><strong>Human users</strong> authenticate via OAuth (web UI, CLI device login) and use Scotty-issued session tokens</li>
 <li><strong>Service accounts</strong> (CI/CD, monitoring, automation) authenticate via bearer tokens</li>
-<li><strong>Zero OAuth latency</strong> for service accounts (bearer tokens checked first)</li>
+<li><strong>Provider tokens</strong> (e.g. GitLab access tokens) are not accepted by the API</li>
 </ul>
-<p>See <a href="oauth-authentication.html#hybrid-authentication-oauth-bearer-tokens">OAuth Authentication - Hybrid Mode</a> for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.</p>
+<p>See <a href="oauth-authentication.html#hybrid-authentication-with-bearer-tokens">OAuth Authentication - Hybrid Mode</a> for complete documentation on hybrid authentication setup, RBAC configuration, and migration guide.</p>
 <h3 id="rate-limiting" tabindex="-1"><a class="header-anchor" href="#rate-limiting">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -244,7 +250,7 @@ same limit also caps the decompressed size of each individual file.</li>
 <li><code>burst_size</code>: Number of requests allowed in a short burst</li>
 </ul>
 </li>
-<li><code>oauth</code>: Rate limits for OAuth flow endpoints
+<li><code>oauth</code>: Rate limits for OAuth flow endpoints, and the numbers for MCP client registration (see below)
 <ul>
 <li><code>requests_per_minute</code>: Maximum requests allowed per minute</li>
 <li><code>burst_size</code>: Number of requests allowed in a short burst</li>
@@ -275,7 +281,7 @@ same limit also caps the decompressed size of each individual file.</li>
 <p><strong>OAuth</strong> (<code>oauth</code>) - Prevents OAuth flow abuse and session exhaustion</p>
 <ul>
 <li>Rate limited by client IP address</li>
-<li>Applies to: <code>/oauth/device</code>, <code>/oauth/authorize</code>, <code>/oauth/device/token</code>, etc.</li>
+<li>Applies to: <code>/oauth/device</code>, <code>/oauth/device/token</code>, <code>/oauth/authorize</code>, <code>/api/oauth/callback</code>, <code>/oauth/exchange</code></li>
 <li>Recommended: 120 requests/minute with burst of 20</li>
 </ul>
 </li>
@@ -288,6 +294,19 @@ same limit also caps the decompressed size of each individual file.</li>
 </ul>
 </li>
 </ol>
+<h4 id="mcp-client-registration" tabindex="-1"><a class="header-anchor" href="#mcp-client-registration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> MCP client registration</h4>
+<p>In <code>oauth</code> mode, <code>POST /oauth/mcp/register</code> is <strong>always</strong> rate limited, even
+when <code>enabled</code> is <code>false</code>. The default is 10 requests per minute with a burst
+of 5. If the <code>oauth</code> tier has <code>requests_per_minute</code> above 0, its
+<code>requests_per_minute</code> and <code>burst_size</code> are used instead.</p>
+<p>This limit keys on the client address: the first entry of <code>X-Forwarded-For</code>,
+then <code>X-Real-IP</code>, then the connection's peer address. Scotty must therefore sit
+behind a proxy that sets <code>X-Forwarded-For</code> and replaces any value the client
+sent (Traefik does this by default). If clients can reach Scotty directly,
+they can choose their own key. The rate-limit metrics do not count this limit.</p>
 <h4 id="monitoring" tabindex="-1"><a class="header-anchor" href="#monitoring">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -993,7 +1012,9 @@ underscores and prefix the key with <code>SCOTTY__</code>.</p>
 <p><strong>Example <code>.env.local</code> file (overrides .env):</strong></p>
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Override for local development only</span>
 <span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
-<span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>my-local-client-id</code></pre>
+<span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>my-local-client-id
+<span class="token comment"># Required in oauth mode, at least 64 bytes: openssl rand -base64 48</span>
+<span class="token assign-left variable">SCOTTY__API__JWT_SECRET</span><span class="token operator">=</span><span class="token operator">&lt;</span>generated secret<span class="token operator">&gt;</span></code></pre>
 <p><strong>Best practices:</strong></p>
 <ul>
 <li>✅ Use <code>.env</code> for shared development defaults (can be committed)</li>

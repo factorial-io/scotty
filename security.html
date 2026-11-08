@@ -145,6 +145,24 @@ the connection that started a session can send input to it, resize it or end
 it. Sessions end when the connection closes.</li>
 <li><strong>Rate limits apply per instance.</strong> When running several Scotty instances
 behind a load balancer, each one counts separately.</li>
+<li><strong>Scotty accepts only its own user tokens.</strong> In <code>oauth</code> mode the API
+accepts Scotty-issued session tokens and configured bearer tokens; <code>/mcp</code>
+accepts only MCP tokens. Provider (GitLab) tokens are never accepted, so a
+token issued to another application at the same provider cannot be replayed
+against Scotty. Every token is checked against its grant on each request, so
+logout and revocation are immediate. See
+<a href="oauth-authentication.html">OAuth Authentication</a>.</li>
+<li><strong><code>api.jwt_secret</code> can forge any user token.</strong> Keep it in the environment or
+a secret manager. If it leaks, change it and restart: all sessions end and
+everyone logs in again.</li>
+<li><strong>MCP connections never exceed the user.</strong> A connected client gets only the
+scopes the user approved (<code>read</code>, <code>create</code>, <code>destroy</code>, <code>offline_access</code>),
+and each call is also checked against the user's Casbin permissions. Users
+can revoke connections on the <code>/connections</code> page.</li>
+<li><strong>The registration limit trusts <code>X-Forwarded-For</code>.</strong> MCP client
+registration is rate limited per client address taken from
+<code>X-Forwarded-For</code>. Run Scotty behind a proxy that sets that header and do
+not expose it directly.</li>
 <li><strong>Override all sample credentials.</strong> <code>config/default.yaml</code> ships sample
 bearer tokens and registry passwords for local development. Set real values
 through <code>SCOTTY__</code> environment variables in every deployment.</li>

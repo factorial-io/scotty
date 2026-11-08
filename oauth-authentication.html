@@ -83,6 +83,10 @@
         <span class="Nav-listItemLinkLabel"> Overview</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
+            <a href="/oauth-authentication.html#upgrading-from-provider-tokens" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Upgrading from provider tokens</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
             <a href="/oauth-authentication.html#how-oauth-mode-works" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> How OAuth Mode Works</span>
       </a></li>
@@ -95,16 +99,16 @@
         <span class="Nav-listItemLinkLabel"> OAuth Endpoints</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
-            <a href="/oauth-authentication.html#user-information" class="Nav-listItemLink">
-        <span class="Nav-listItemLinkLabel"> User Information</span>
+            <a href="/oauth-authentication.html#mcp-connections" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> MCP connections</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
             <a href="/oauth-authentication.html#development-vs-production" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Development vs Production</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
-            <a href="/oauth-authentication.html#hybrid-authentication%3A-oauth-%2B-bearer-tokens" class="Nav-listItemLink">
-        <span class="Nav-listItemLinkLabel"> Hybrid Authentication: OAuth + Bearer Tokens</span>
+            <a href="/oauth-authentication.html#hybrid-authentication-with-bearer-tokens" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Hybrid Authentication with Bearer Tokens</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
             <a href="/oauth-authentication.html#frontend-integration" class="Nav-listItemLink">
@@ -154,7 +158,9 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> OAuth Authentication with OIDC</h1>
-<p>Scotty provides built-in OAuth authentication with OIDC (OpenID Connect) integration. This setup offers secure authentication that protects your Scotty API endpoints while providing a seamless user experience through the web interface.</p>
+<p>Scotty logs users in through an OIDC provider (GitLab, Auth0, Keycloak, ...)
+and then issues its own tokens. The provider's tokens are used once, at login,
+to read the user's identity. Scotty never accepts them as API credentials.</p>
 <h2 id="overview" tabindex="-1"><a class="header-anchor" href="#overview">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -162,45 +168,142 @@
 <p>Scotty supports three authentication modes configured via <code>auth_mode</code>:</p>
 <ul>
 <li><strong><code>dev</code></strong>: Development mode with no authentication (uses fixed dev user)</li>
-<li><strong><code>oauth</code></strong>: Native OAuth authentication with OIDC provider integration</li>
+<li><strong><code>oauth</code></strong>: OIDC login, with Scotty-issued tokens for the web UI, <code>scottyctl</code> and MCP clients</li>
 <li><strong><code>bearer</code></strong>: Traditional token-based authentication</li>
 </ul>
-<p>In OAuth mode, Scotty handles the complete OAuth 2.0 Authorization Code flow with PKCE (Proof Key for Code Exchange) for enhanced security.</p>
+<p>In <code>oauth</code> mode Scotty is also an OAuth 2.1 authorization server. It issues
+three kinds of credentials:</p>
+<table>
+<thead>
+<tr>
+<th>Who</th>
+<th>How they log in</th>
+<th>Token</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web UI</td>
+<td>OIDC login in the browser</td>
+<td>session token (audience <code>scotty-api</code>)</td>
+<td>12 h, no refresh</td>
+</tr>
+<tr>
+<td><code>scottyctl</code></td>
+<td>device login, approved on Scotty's <code>/device</code> page</td>
+<td>session token plus refresh token</td>
+<td>12 h access token, refreshed silently, 30-day limit</td>
+</tr>
+<tr>
+<td>MCP clients (claude.ai, Claude Code)</td>
+<td>authorization code with PKCE, approved on Scotty's consent page</td>
+<td>MCP token (audience <code>{base_url}/mcp</code>) plus refresh token</td>
+<td>15 min access token, rotating refresh, 30-day limit</td>
+</tr>
+</tbody>
+</table>
+<p>Every token belongs to a <em>grant</em>. Scotty checks on every request that the
+grant is still active, so logout and revocation take effect at once. Configured
+bearer tokens keep working next to these (see
+<a href="#hybrid-authentication-with-bearer-tokens">Hybrid Authentication</a>).</p>
+<p>The REST API accepts session tokens and bearer tokens. <code>/mcp</code> accepts only
+MCP tokens. Neither accepts provider (GitLab) tokens, and neither accepts the
+other's user tokens.</p>
+<p>Grants, clients, codes and refresh tokens live in a SQLite database
+(<code>api.database_path</code>). Tokens are signed with <code>api.jwt_secret</code>.</p>
+<h2 id="upgrading-from-provider-tokens" tabindex="-1"><a class="header-anchor" href="#upgrading-from-provider-tokens">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Upgrading from provider tokens</h2>
+<p>Older releases handed the provider's access token to the browser and to
+<code>scottyctl</code>, and accepted any token the provider's userinfo endpoint accepted.
+That has changed:</p>
+<ul>
+<li><strong>The API no longer accepts provider (GitLab) tokens.</strong> Scripts that sent a
+GitLab token to Scotty must use a <a href="#hybrid-authentication-with-bearer-tokens">bearer token</a>
+instead.</li>
+<li><strong>Everyone logs in again once.</strong> Existing browser sessions and <code>scottyctl</code>
+logins stop working after the upgrade. Log in again in the web UI and run
+<code>scottyctl auth:login</code>.</li>
+<li><strong>Set <code>api.jwt_secret</code>.</strong> Scotty does not start in <code>oauth</code> mode without it,
+or with fewer than 64 bytes.</li>
+<li><strong><code>/oauth/authorize</code> ignores <code>redirect_uri</code>.</strong> The provider always gets
+<code>api.oauth.redirect_url</code>, and the browser always returns to the frontend's
+<code>/oauth/callback</code>.</li>
+<li><strong>Keep the database on a volume.</strong> See <a href="#persistent-database">Persistent database</a>.</li>
+<li><strong>The provider application needs less.</strong> It only needs the scopes
+<code>openid profile email</code>. It no longer needs the device authorization grant,
+and the <code>read_user</code> scope is no longer used.</li>
+<li><strong>Logout revokes the session.</strong> The token stops working on the server, not
+only in the browser.</li>
+</ul>
+<p>Older <code>scottyctl</code> versions can still log in. They ignore the refresh token and
+must log in again after 12 h.</p>
 <h2 id="how-oauth-mode-works" tabindex="-1"><a class="header-anchor" href="#how-oauth-mode-works">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> How OAuth Mode Works</h2>
-<h3 id="architecture" tabindex="-1"><a class="header-anchor" href="#architecture">
+<h3 id="browser-login" tabindex="-1"><a class="header-anchor" href="#browser-login">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> Architecture</h3>
-<pre><code>User → Frontend SPA → Scotty OAuth Endpoints → OIDC Provider
-                              ↓
-                        Session Management
-                              ↓  
-                         User Authentication
-</code></pre>
-<h3 id="authentication-flow" tabindex="-1"><a class="header-anchor" href="#authentication-flow">
-        <span class="u-hiddenVisually">Jump to heading</span>
-        <span aria-hidden="true">#</span>
-      </a> Authentication Flow</h3>
+      </a> Browser login</h3>
 <ol>
-<li><strong>User initiates login</strong> via the Scotty frontend</li>
-<li><strong>Frontend redirects</strong> to Scotty's <code>/oauth/authorize</code> endpoint</li>
-<li><strong>Scotty generates</strong> authorization URL with PKCE challenge and redirects to OIDC provider</li>
-<li><strong>User authenticates</strong> with OIDC provider</li>
-<li><strong>OIDC provider redirects</strong> back to Scotty's <code>/api/oauth/callback</code> endpoint with authorization code</li>
-<li><strong>Scotty exchanges</strong> authorization code for access token using PKCE verifier</li>
-<li><strong>User information</strong> is extracted via OIDC <code>/oauth/userinfo</code> endpoint and session is created</li>
-<li><strong>Frontend exchanges</strong> session for tokens and stores OAuth tokens and user info in sessionStorage</li>
+<li>The frontend sends the user to Scotty's <code>/oauth/authorize</code>.</li>
+<li>Scotty redirects to the OIDC provider with PKCE and a nonce.</li>
+<li>The provider redirects back to <code>/api/oauth/callback</code> with a code.</li>
+<li>Scotty exchanges the code and verifies the ID token (signature via JWKS,
+issuer, audience, nonce, expiry). It reads the email from the ID token and
+asks the userinfo endpoint only when the ID token has no email. Without an
+email, or with <code>email_verified: false</code>, the login fails. A missing
+<code>email_verified</code> counts as verified, so use a provider that only hands out
+addresses it has verified (GitLab does): roles are assigned by email.</li>
+<li>Scotty drops the provider's tokens and creates a grant for client
+<code>scotty-web</code>.</li>
+<li>The frontend picks up the session token once through <code>/oauth/exchange</code> and
+keeps it in <code>sessionStorage</code>.</li>
 </ol>
+<p>The session token is valid for 12 hours. When it expires or is revoked, the
+frontend sends the user to log in again (silently, if the provider session is
+still alive). Logout calls <code>POST /api/v1/authenticated/logout</code>, which revokes
+the grant.</p>
+<h3 id="cli-device-login" tabindex="-1"><a class="header-anchor" href="#cli-device-login">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CLI device login</h3>
+<p><code>scottyctl auth:login</code> uses the OAuth device authorization grant (RFC 8628),
+run by Scotty itself. The OIDC provider is not involved.</p>
+<ol>
+<li><code>scottyctl</code> calls <code>POST /oauth/device</code> and prints a URL and a user code.</li>
+<li>You open Scotty's <code>/device</code> page (logged in to the web UI), check the code
+and the client name, and approve or deny.</li>
+<li><code>scottyctl</code> polls <code>POST /oauth/device/token</code> and receives a session token
+and a refresh token.</li>
+</ol>
+<p>When the access token expires, <code>scottyctl</code> refreshes it on the next 401 and
+retries the request once. Each refresh rotates the refresh token. Reusing an
+old refresh token revokes the whole session. After 30 days the session ends
+and you log in again.</p>
+<p>The CLI session has the scope <code>api offline_access</code> (it gets a refresh token);
+the browser session has <code>api</code> only and no refresh token.</p>
+<p>Turn the device login off with <code>api.oauth.device_flow_enabled: false</code>. Then
+<code>/oauth/device</code> answers 404 and <code>scottyctl auth:login</code> points users to the web
+interface.</p>
+<h3 id="role-check" tabindex="-1"><a class="header-anchor" href="#role-check">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Role check</h3>
+<p>Scotty checks Casbin every time it issues or refreshes a token. A user who no
+longer has any role loses the session at the next refresh, and the grant is
+revoked.</p>
 <h3 id="route-protection" tabindex="-1"><a class="header-anchor" href="#route-protection">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Route Protection</h3>
 <ul>
-<li><strong>Public</strong>: <code>/</code>, <code>/api/v1/health</code>, <code>/api/v1/info</code>, <code>/api/v1/login</code>, <code>/oauth/*</code>, static assets, SPA routes</li>
-<li><strong>Protected</strong>: <code>/api/v1/authenticated/*</code> - all API operations that modify state</li>
+<li><strong>Public</strong>: <code>/</code>, <code>/api/v1/health</code>, <code>/api/v1/info</code>, <code>/api/v1/login</code>, <code>/oauth/*</code>, <code>/.well-known/*</code>, static assets, SPA routes</li>
+<li><strong>Session or bearer token</strong>: <code>/api/v1/authenticated/*</code></li>
+<li><strong>MCP token</strong>: <code>/mcp</code></li>
 </ul>
 <h2 id="setup-instructions" tabindex="-1"><a class="header-anchor" href="#setup-instructions">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -221,11 +324,12 @@
 <ul>
 <li><strong>Name</strong>: Scotty</li>
 <li><strong>Redirect URI</strong>: <code>http://localhost:21342/api/oauth/callback</code></li>
-<li><strong>Scopes</strong>: <code>openid</code>, <code>profile</code>, <code>email</code>, <code>read_user</code></li>
+<li><strong>Scopes</strong>: <code>openid</code>, <code>profile</code>, <code>email</code></li>
 </ul>
 </li>
 <li>Save the <strong>Application ID</strong> and <strong>Secret</strong></li>
 </ol>
+<p>The application does not need the device authorization grant.</p>
 <h4 id="other-oidc-providers%3A" tabindex="-1"><a class="header-anchor" href="#other-oidc-providers%3A">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -243,7 +347,9 @@
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
   <span class="token key atrule">bind_address</span><span class="token punctuation">:</span> <span class="token string">"0.0.0.0:21342"</span>
   <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> <span class="token string">"oauth"</span>
-  <span class="token key atrule">base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span>  <span class="token comment"># Public URL of Scotty, used for post-login redirects</span>
+  <span class="token key atrule">base_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342"</span>  <span class="token comment"># Public URL of Scotty</span>
+  <span class="token key atrule">database_path</span><span class="token punctuation">:</span> <span class="token string">"data/scotty.sqlite"</span>  <span class="token comment"># on a persistent volume</span>
+  <span class="token comment"># jwt_secret: set via SCOTTY__API__JWT_SECRET</span>
   <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>  <span class="token comment"># or your OIDC provider URL</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_id"</span>
@@ -254,7 +360,7 @@
 <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
   <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
 
-<span class="token comment"># Auth0  </span>
+<span class="token comment"># Auth0</span>
 <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
   <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://your-domain.auth0.com"</span>
 
@@ -273,7 +379,10 @@
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Set authentication mode</span>
 <span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
 
-<span class="token comment"># OIDC OAuth Application credentials  </span>
+<span class="token comment"># Signing secret for Scotty's tokens (required, at least 64 bytes)</span>
+<span class="token assign-left variable">SCOTTY__API__JWT_SECRET</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">48</span><span class="token variable">)</span></span>
+
+<span class="token comment"># OIDC OAuth Application credentials</span>
 <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_oidc_application_id
 <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_oidc_application_secret
 
@@ -281,10 +390,42 @@
 <span class="token assign-left variable">SCOTTY__API__OAUTH__OIDC_ISSUER_URL</span><span class="token operator">=</span>https://gitlab.com
 <span class="token assign-left variable">SCOTTY__API__OAUTH__REDIRECT_URL</span><span class="token operator">=</span>http://localhost:21342/api/oauth/callback
 
-<span class="token comment"># Public base URL of Scotty (post-login redirect)</span>
+<span class="token comment"># Public base URL of Scotty</span>
 <span class="token assign-left variable">SCOTTY__API__BASE_URL</span><span class="token operator">=</span>http://localhost:21342</code></pre>
 <p>The older <code>SCOTTY__API__OAUTH__FRONTEND_BASE_URL</code> still works as a deprecated
 fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
+<h3 id="4.-signing-secret" tabindex="-1"><a class="header-anchor" href="#4.-signing-secret">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> 4. Signing secret</h3>
+<p><code>api.jwt_secret</code> signs every token Scotty issues (HS512). It is required in
+<code>oauth</code> mode and must be at least 64 bytes (RFC 7518 §3.2 for HS512); Scotty refuses to start otherwise.
+Set it through <code>SCOTTY__API__JWT_SECRET</code> and keep it with your other secrets.</p>
+<p>If the secret leaks, anyone can forge tokens. Rotate it: set a new value and
+restart Scotty. All existing tokens stop working, so every browser, CLI and
+MCP session must log in again. That is the emergency step.</p>
+<h3 id="persistent-database" tabindex="-1"><a class="header-anchor" href="#persistent-database">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Persistent database</h3>
+<p><code>api.database_path</code> (default <code>data/scotty.sqlite</code>, relative to Scotty's
+working directory) holds the grants, registered clients, codes and refresh
+tokens. Scotty creates the file and its directory at startup and runs SQLite in
+WAL mode.</p>
+<p>Put this path on a persistent, writable volume. If the file is lost, for
+example because the container is recreated without a volume, every CLI and MCP
+session is gone and all users must log in and connect again. App data is not
+affected. In the Docker image the working directory is <code>/app</code>:</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">services</span><span class="token punctuation">:</span>
+  <span class="token key atrule">scotty</span><span class="token punctuation">:</span>
+    <span class="token key atrule">volumes</span><span class="token punctuation">:</span>
+      <span class="token punctuation">-</span> ./scotty<span class="token punctuation">-</span>data<span class="token punctuation">:</span>/app/data</code></pre>
+<p>WAL mode writes <code>-wal</code> and <code>-shm</code> files next to the database, so mount the
+directory, not only the file.</p>
+<p>Run a single Scotty instance. Logins in progress (the browser flow's PKCE state
+and the one-time <code>/oauth/exchange</code> session) live in memory: a restart drops
+them, and a second replica would not see them. Expired entries are swept
+periodically.</p>
 <h3 id="understanding-oauth-urls" tabindex="-1"><a class="header-anchor" href="#understanding-oauth-urls">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -307,7 +448,7 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
       </a> <code>api.base_url</code> - Public Base URL of Scotty</h4>
 <ul>
 <li><strong>Purpose</strong>: The public base URL of Scotty, where users are redirected after OAuth completes</li>
-<li><strong>Used by</strong>: Scotty backend to redirect users back to the web interface with a session ID (and by the <a href="default-backend.html">default backend / landing page</a> feature)</li>
+<li><strong>Used by</strong>: Scotty backend to redirect users back to the web interface with a session ID, the device and consent pages, the MCP resource URL <code>{base_url}/mcp</code> (and by the <a href="default-backend.html">default backend / landing page</a> feature)</li>
 <li><strong>Must match</strong>: The actual URL where your users access Scotty's web interface</li>
 <li><strong>Example</strong>: <code>http://localhost:21342</code> (development) or <code>https://scotty.example.com</code> (production)</li>
 <li><strong>Format</strong>: Base URL only (no path) - Scotty appends <code>/oauth/callback?session_id=xyz</code></li>
@@ -325,48 +466,169 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> OAuth Endpoints</h2>
-<p>Scotty provides the following OAuth endpoints:</p>
-<h3 id="get-%2Foauth%2Fauthorize" tabindex="-1"><a class="header-anchor" href="#get-%2Foauth%2Fauthorize">
+<h3 id="browser-login-1" tabindex="-1"><a class="header-anchor" href="#browser-login-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> <code>GET /oauth/authorize</code></h3>
-<p>Initiates the OAuth authorization flow. Redirects to OIDC provider with proper PKCE parameters.</p>
-<p><strong>Query Parameters:</strong></p>
+      </a> Browser login</h3>
 <ul>
-<li><code>redirect_uri</code> (optional): Where to redirect after successful authentication</li>
+<li><code>GET /oauth/authorize</code>: starts the OIDC login. Optional <code>redirect_uri</code> query parameter for the page to return to.</li>
+<li><code>GET /api/oauth/callback</code>: the provider's callback. Verifies the ID token and creates the session.</li>
+<li><code>POST /oauth/exchange</code>: returns the session token once for a <code>session_id</code>. The response contains no provider token.</li>
+<li><code>POST /api/v1/authenticated/logout</code>: revokes the session.</li>
 </ul>
-<h3 id="get-%2Fapi%2Foauth%2Fcallback" tabindex="-1"><a class="header-anchor" href="#get-%2Fapi%2Foauth%2Fcallback">
+<h3 id="cli-device-login-1" tabindex="-1"><a class="header-anchor" href="#cli-device-login-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> <code>GET /api/oauth/callback</code></h3>
-<p>Handles the OAuth callback from OIDC provider. Exchanges authorization code for access token and creates temporary session.</p>
-<p><strong>Query Parameters:</strong></p>
+      </a> CLI device login</h3>
 <ul>
-<li><code>code</code>: Authorization code from OIDC provider</li>
-<li><code>state</code>: CSRF protection token with embedded session ID</li>
+<li><code>POST /oauth/device</code>: starts a device login.</li>
+<li><code>POST /oauth/device/token</code>: polls (<code>grant_type=urn:ietf:params:oauth:grant-type:device_code</code>) and refreshes (<code>grant_type=refresh_token</code>).</li>
+<li><code>GET /api/v1/authenticated/oauth/device/{user_code}</code>, <code>POST .../oauth/device/approve</code>, <code>POST .../oauth/device/deny</code>: used by the <code>/device</code> page.</li>
 </ul>
-<h3 id="post-%2Foauth%2Fexchange" tabindex="-1"><a class="header-anchor" href="#post-%2Foauth%2Fexchange">
+<h3 id="mcp-authorization-server" tabindex="-1"><a class="header-anchor" href="#mcp-authorization-server">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> <code>POST /oauth/exchange</code></h3>
-<p>Exchanges temporary session for OAuth tokens (used by frontend).</p>
-<p><strong>Request Body:</strong></p>
+      </a> MCP authorization server</h3>
 <ul>
-<li><code>session_id</code>: Temporary session identifier</li>
+<li><code>GET /.well-known/oauth-authorization-server</code>: authorization server metadata (RFC 8414).</li>
+<li><code>GET /.well-known/oauth-protected-resource/mcp</code>: protected resource metadata (RFC 9728).</li>
+<li><code>GET /oauth/mcp/authorize</code>: authorization code request (PKCE required).</li>
+<li><code>POST /oauth/mcp/token</code>: code exchange and refresh.</li>
+<li><code>POST /oauth/mcp/register</code>: dynamic client registration (RFC 7591), rate limited.</li>
+<li><code>/mcp</code>: the MCP endpoint.</li>
+<li><code>GET /api/v1/authenticated/oauth/consent/{id}</code>, <code>POST .../approve</code>, <code>POST .../deny</code>: used by the consent page.</li>
+<li><code>GET /api/v1/authenticated/connections</code>, <code>DELETE /api/v1/authenticated/connections/{id}</code>: used by the connections page.</li>
 </ul>
-<h2 id="user-information" tabindex="-1"><a class="header-anchor" href="#user-information">
+<h2 id="mcp-connections" tabindex="-1"><a class="header-anchor" href="#mcp-connections">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> User Information</h2>
-<p>After successful OAuth authentication, Scotty provides OIDC-standard user information:</p>
+      </a> MCP connections</h2>
+<p>MCP clients such as claude.ai and Claude Code connect to <code>{base_url}/mcp</code>.</p>
+<p><strong><code>/mcp</code> does not serve tools yet.</strong> This release ships the authorization
+server only. An authorized request to <code>/mcp</code> returns <code>501 Not Implemented</code>
+until the MCP server lands in a later release. You can already connect a
+client and test the login and consent; the tools arrive with that release.</p>
+<h3 id="how-a-client-connects" tabindex="-1"><a class="header-anchor" href="#how-a-client-connects">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> How a client connects</h3>
+<ol>
+<li>The client calls <code>/mcp</code>, gets a 401 that points to the protected resource
+metadata, and discovers Scotty's authorization server.</li>
+<li>The client identifies itself with a Client ID Metadata Document (an <code>https</code>
+URL as <code>client_id</code>) or registers at <code>/oauth/mcp/register</code>.</li>
+<li>Your browser opens Scotty's consent page (<code>/oauth/consent/{id}</code>). If you are
+not logged in, you log in first.</li>
+<li>The page shows the host the client redirects to, the name it gives itself,
+and the scopes it asks for. Untick scopes you do not want to grant, then
+approve or deny.</li>
+<li>The client receives a 15-minute access token and a rotating refresh token.
+The connection lasts at most 30 days.</li>
+</ol>
+<h3 id="scopes" tabindex="-1"><a class="header-anchor" href="#scopes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Scopes</h3>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Allows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read</code></td>
+<td>view apps, blueprints and tasks; read logs</td>
+</tr>
+<tr>
+<td><code>create</code></td>
+<td>create apps</td>
+</tr>
+<tr>
+<td><code>destroy</code></td>
+<td>destroy apps</td>
+</tr>
+<tr>
+<td><code>offline_access</code></td>
+<td>a refresh token, so the connection survives the 15-minute token</td>
+</tr>
+</tbody>
+</table>
+<p>A tool runs only if the token has the scope <strong>and</strong> Casbin gives you the
+permission for that app. A connection never gets more than you have.</p>
+<h3 id="connections-page" tabindex="-1"><a class="header-anchor" href="#connections-page">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Connections page</h3>
+<p>The <strong>Connections</strong> page (<code>/connections</code>) lists your <code>scottyctl</code> sessions and
+MCP connections with client, redirect host, scopes, creation and last use.
+Revoking one stops its refresh and its access at once. Browser sessions are not
+listed. Users with <code>admin_write</code> can switch to all users' connections and
+revoke any of them.</p>
+<p><code>scottyctl auth:logout</code> revokes the CLI session on the server and then deletes
+the local credentials. If the server cannot be reached, it still deletes them
+and tells you to revoke the session on the connections page.</p>
+<h3 id="claude-code" tabindex="-1"><a class="header-anchor" href="#claude-code">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Claude Code</h3>
+<p>Add Scotty as a remote HTTP MCP server
+(<a href="https://code.claude.com/docs/en/mcp">Claude Code MCP docs</a>):</p>
+<pre class="language-bash"><code class="language-bash">claude mcp <span class="token function">add</span> <span class="token parameter variable">--transport</span> http scotty https://scotty.example.com/mcp</code></pre>
+<p>Then run <code>/mcp</code> inside Claude Code and choose to authenticate. Your browser
+opens Scotty's consent page.</p>
+<h3 id="claude.ai" tabindex="-1"><a class="header-anchor" href="#claude.ai">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> claude.ai</h3>
+<p>Add Scotty as a custom connector
+(<a href="https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp">Anthropic help: custom connectors</a>):</p>
 <ul>
-<li><strong>Subject (sub)</strong>: OIDC user ID (typically a string)</li>
-<li><strong>Username</strong>: Preferred username (optional)</li>
-<li><strong>Name</strong>: User's display name (optional)</li>
-<li><strong>Email</strong>: User's email address (optional)</li>
-<li><strong>Access Token</strong>: OAuth access token for API calls</li>
+<li><strong>Pro and Max</strong>: Customize → Connectors → <strong>+ Add</strong> → Add custom connector.
+Enter a name and <code>https://scotty.example.com/mcp</code>.</li>
+<li><strong>Team and Enterprise</strong>: an owner adds it under Organization settings →
+Connectors → Add → Custom → Web. Members then connect it under Customize →
+Connectors.</li>
 </ul>
-<p>This information is available to both the frontend (stored in sessionStorage) and backend (through authentication middleware).</p>
+<p>Leave the OAuth client fields empty; Scotty identifies claude.ai through its
+metadata document or dynamic registration.</p>
+<h3 id="network-access-for-claude.ai" tabindex="-1"><a class="header-anchor" href="#network-access-for-claude.ai">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Network access for claude.ai</h3>
+<p>claude.ai calls Scotty from Anthropic's servers, not from your browser. A
+firewalled Scotty must let Anthropic's outbound addresses reach:</p>
+<ul>
+<li><code>/mcp</code></li>
+<li><code>/.well-known/*</code></li>
+<li><code>/oauth/mcp/register</code></li>
+<li><code>/oauth/mcp/token</code></li>
+</ul>
+<p>The consent page and <code>/oauth/mcp/authorize</code> are opened in your browser and
+need no extra rule.</p>
+<p>Anthropic publishes its outbound IP ranges at
+<a href="https://platform.claude.com/docs/en/api/ip-addresses">platform.claude.com/docs/en/api/ip-addresses</a>.
+As of November 2026 the outbound IPv4 ranges are <code>160.79.104.0/21</code> and
+<code>153.61.208.0/20</code>. Check that page before you write firewall rules; the ranges
+can change.</p>
+<p>Scotty itself fetches Client ID Metadata Documents from the <code>https</code> URL a
+client gives as <code>client_id</code>. It fetches only from public addresses and follows
+no redirects. A Scotty without outbound HTTPS access needs dynamic registration
+instead.</p>
+<h3 id="registration-rate-limit" tabindex="-1"><a class="header-anchor" href="#registration-rate-limit">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Registration rate limit</h3>
+<p><code>/oauth/mcp/register</code> is always rate limited per client address in <code>oauth</code>
+mode, even when <code>api.rate_limiting.enabled</code> is <code>false</code>. The defaults are 10
+requests per minute with a burst of 5. If the <code>api.rate_limiting.oauth</code> tier
+has <code>requests_per_minute</code> above 0, its numbers are used instead.</p>
+<p>The limit keys on the first address in <code>X-Forwarded-For</code>, then <code>X-Real-IP</code>,
+then the connection's peer address. <strong>Run Scotty behind a proxy that sets
+<code>X-Forwarded-For</code></strong> and replaces any value the client sent (Traefik does this
+by default for untrusted sources). If clients can reach Scotty directly, they
+can set the header themselves and pick their own rate-limit key.</p>
 <h2 id="development-vs-production" tabindex="-1"><a class="header-anchor" href="#development-vs-production">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -378,6 +640,7 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
 <p>For local development, start Scotty with OAuth configuration:</p>
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Set OAuth configuration</span>
 <span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__AUTH_MODE</span><span class="token operator">=</span>oauth
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__JWT_SECRET</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">48</span><span class="token variable">)</span></span>
 <span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_client_id
 <span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_client_secret
 
@@ -391,7 +654,7 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
   <span class="token key atrule">auth_mode</span><span class="token punctuation">:</span> <span class="token string">"dev"</span>
   <span class="token key atrule">dev_user_email</span><span class="token punctuation">:</span> <span class="token string">"developer@localhost"</span>
-  <span class="token key atrule">dev_user_name</span><span class="token punctuation">:</span> <span class="token string">"Local Developer"</span>  </code></pre>
+  <span class="token key atrule">dev_user_name</span><span class="token punctuation">:</span> <span class="token string">"Local Developer"</span></code></pre>
 <p>This bypasses OAuth and uses a fixed development user.</p>
 <h3 id="production-considerations" tabindex="-1"><a class="header-anchor" href="#production-considerations">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -400,14 +663,15 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
 <ol>
 <li><strong>Use HTTPS</strong>: Configure TLS for your domain and update redirect URLs</li>
 <li><strong>Proper domains</strong>: Replace <code>localhost</code> with your actual domain in all configurations</li>
-<li><strong>Secure secrets</strong>: Use environment variables or secret management systems</li>
-<li><strong>CORS configuration</strong>: Ensure proper CORS settings for your domain</li>
-<li><strong>Session security</strong>: Configure appropriate session timeouts</li>
+<li><strong>Secure secrets</strong>: Set <code>jwt_secret</code> and <code>client_secret</code> through environment variables or a secret manager</li>
+<li><strong>Persistent volume</strong>: Keep <code>database_path</code> on a volume</li>
+<li><strong>Proxy</strong>: Put Scotty behind a proxy that sets <code>X-Forwarded-For</code></li>
+<li><strong>Firewall</strong>: Allow claude.ai's outbound range if you use the claude.ai connector</li>
 </ol>
-<h2 id="hybrid-authentication%3A-oauth-%2B-bearer-tokens" tabindex="-1"><a class="header-anchor" href="#hybrid-authentication%3A-oauth-%2B-bearer-tokens">
+<h2 id="hybrid-authentication-with-bearer-tokens" tabindex="-1"><a class="header-anchor" href="#hybrid-authentication-with-bearer-tokens">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> Hybrid Authentication: OAuth + Bearer Tokens</h2>
+      </a> Hybrid Authentication with Bearer Tokens</h2>
 <p><strong>Use Case:</strong> OAuth for human users + bearer tokens for service accounts (CI/CD, monitoring, automation).</p>
 <h3 id="overview-1" tabindex="-1"><a class="header-anchor" href="#overview-1">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -415,7 +679,7 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
       </a> Overview</h3>
 <p>When <code>auth_mode</code> is set to <code>oauth</code>, Scotty supports an optional <strong>bearer token fallback</strong> for service accounts. This hybrid approach provides:</p>
 <ul>
-<li><strong>OAuth authentication</strong> for human users (web UI, CLI via device flow)</li>
+<li><strong>OAuth authentication</strong> for human users (web UI, CLI via device login)</li>
 <li><strong>Bearer token authentication</strong> for service accounts (CI/CD pipelines, monitoring tools, automation scripts)</li>
 <li><strong>Single authentication mode</strong> - no need to switch between modes</li>
 </ul>
@@ -423,14 +687,13 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> How Hybrid Authentication Works</h3>
-<p><strong>Authentication Flow (Optimized for Performance):</strong></p>
 <ol>
 <li><strong>Extract token</strong> from <code>Authorization: Bearer &lt;token&gt;</code> header</li>
-<li><strong>Check bearer tokens FIRST</strong> (fast HashMap lookup) → If found, authenticate as service account</li>
-<li><strong>Try OAuth validation</strong> (network call to OIDC provider) → If bearer check fails</li>
+<li><strong>Check bearer tokens first</strong> (HashMap lookup) → if found, authenticate as service account</li>
+<li><strong>Verify a Scotty session token</strong> (signature, audience, expiry) and check that its grant is active</li>
 <li><strong>Return authentication result</strong> or 401 Unauthorized</li>
 </ol>
-<p>This order ensures <strong>service accounts experience zero OAuth latency</strong> while still supporting OAuth for human users.</p>
+<p>No step calls the OIDC provider.</p>
 <h3 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -447,15 +710,16 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span>
     <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
 
-  <span class="token comment"># Bearer tokens for service accounts (checked first for performance)</span>
+  <span class="token comment"># Bearer tokens for service accounts (checked first)</span>
   <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
     <span class="token key atrule">ci-bot</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>        <span class="token comment"># CI/CD pipeline</span>
     <span class="token key atrule">monitoring</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>    <span class="token comment"># Monitoring service</span>
     <span class="token key atrule">deployment</span><span class="token punctuation">:</span> <span class="token string">"OVERRIDE_VIA_ENV_VAR"</span>    <span class="token comment"># Deployment automation</span></code></pre>
 <p><strong>Environment Variable Configuration:</strong></p>
-<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set OAuth credentials</span>
+<pre class="language-bash"><code class="language-bash"><span class="token comment"># Set OAuth credentials and the signing secret</span>
 <span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_ID</span><span class="token operator">=</span>your_client_id
 <span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__OAUTH__CLIENT_SECRET</span><span class="token operator">=</span>your_client_secret
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__JWT_SECRET</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">48</span><span class="token variable">)</span></span>
 
 <span class="token comment"># Set bearer tokens for service accounts (IMPORTANT: Use secure random tokens!)</span>
 <span class="token comment"># Note: Hyphens in config keys (ci-bot) become underscores in env vars (CI_BOT)</span>
@@ -517,7 +781,7 @@ fallback when <code>SCOTTY__API__BASE_URL</code> is unset (see below).</p>
       </a> Usage Examples</h3>
 <p><strong>Human User (OAuth):</strong></p>
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Web UI: Click "Login with OAuth" button</span>
-<span class="token comment"># CLI: Use device flow</span>
+<span class="token comment"># CLI: Use the device login</span>
 scottyctl auth:login <span class="token parameter variable">--server</span> https://scotty.example.com
 
 <span class="token comment"># Use authenticated commands</span>
@@ -576,7 +840,7 @@ openssl rand <span class="token parameter variable">-base64</span> <span class="
 <li>
 <p><strong>Monitor and Audit</strong></p>
 <ul>
-<li>Track which authentication method is used (logs show "Bearer token authentication successful" vs "OAuth authentication successful")</li>
+<li>Grant creation and revocation are logged at info level (<code>grant created</code>, <code>grant revoked</code>, with realm, client and user)</li>
 <li>Monitor for suspicious activity</li>
 <li>Rotate tokens on compromise</li>
 </ul>
@@ -610,7 +874,7 @@ openssl rand <span class="token parameter variable">-base64</span> <span class="
 <pre class="language-bash"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY__API__BEARER_TOKENS__CI_BOT</span><span class="token operator">=</span><span class="token variable"><span class="token variable">$(</span>openssl rand <span class="token parameter variable">-base64</span> <span class="token number">32</span><span class="token variable">)</span></span></code></pre>
 </li>
 <li>
-<p><strong>Restart Scotty</strong> - No breaking changes to existing OAuth users!</p>
+<p><strong>Restart Scotty</strong> - existing OAuth users are not affected.</p>
 </li>
 <li>
 <p><strong>Update CI/CD pipelines</strong> to use bearer tokens</p>
@@ -631,7 +895,6 @@ scottyctl app:list
 scottyctl app:list</code></pre>
 </li>
 </ol>
-<p><strong>Zero Downtime:</strong> Existing OAuth users continue working without any changes. Service accounts can be added incrementally.</p>
 <h3 id="troubleshooting" tabindex="-1"><a class="header-anchor" href="#troubleshooting">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -660,29 +923,19 @@ scottyctl app:list</code></pre>
 <li>
 <p>Check logs with debug mode:</p>
 <pre class="language-bash"><code class="language-bash"><span class="token assign-left variable">RUST_LOG</span><span class="token operator">=</span>debug <span class="token function">cargo</span> run <span class="token parameter variable">--bin</span> scotty
-<span class="token comment"># Look for: "Bearer token authentication successful" or "OAuth authentication successful"</span></code></pre>
-</li>
-<li>
-<p>Verify expected behavior matches tests:</p>
-<pre class="language-bash"><code class="language-bash"><span class="token comment"># See test_oauth_bearer_token_fallback_with_valid_token in:</span>
-<span class="token comment"># scotty/src/api/bearer_auth_tests.rs:233-257</span>
-<span class="token function">cargo</span> <span class="token builtin class-name">test</span> test_oauth_bearer_token_fallback_with_valid_token -- <span class="token parameter variable">--nocapture</span></code></pre>
+<span class="token comment"># Look for: "Found identifier '...' for bearer token" or "Session token rejected"</span></code></pre>
 </li>
 </ol>
-<p><strong>Issue: OAuth users can't authenticate</strong></p>
-<pre><code>Error: OAuth validation failed
-</code></pre>
-<p><strong>Diagnosis:</strong></p>
+<p><strong>Issue: A GitLab token gets 401</strong></p>
+<p>This is expected. Scotty no longer accepts provider tokens. Use the web UI,
+<code>scottyctl auth:login</code> or a bearer token.</p>
+<p><strong>Issue: OAuth users can't log in</strong></p>
 <ul>
 <li>Verify OAuth configuration is still correct (client_id, client_secret, etc.)</li>
 <li>Check OIDC provider is accessible</li>
 <li>Verify redirect URLs match</li>
+<li>Check that the provider puts an email in the ID token or returns it from userinfo; without an email the login fails</li>
 </ul>
-<p><strong>Issue: Unclear which authentication method was used</strong></p>
-<p><strong>Solution:</strong> Check Scotty logs - authentication method is logged:</p>
-<pre><code>DEBUG Bearer token authentication successful
-DEBUG OAuth authentication successful
-</code></pre>
 <h3 id="when-to-use-hybrid-authentication" tabindex="-1"><a class="header-anchor" href="#when-to-use-hybrid-authentication">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -691,13 +944,12 @@ DEBUG OAuth authentication successful
 <ul>
 <li>✅ You have both human users (web UI) and service accounts (CI/CD)</li>
 <li>✅ You want centralized authentication with OIDC</li>
-<li>✅ You need service accounts with zero OAuth latency</li>
 <li>✅ You want fine-grained RBAC for different actors</li>
 </ul>
 <p><strong>Use Pure OAuth When:</strong></p>
 <ul>
 <li>✅ Only human users access Scotty</li>
-<li>✅ All access is via web UI or CLI with device flow</li>
+<li>✅ All access is via web UI, CLI device login or MCP clients</li>
 <li>✅ No automation or service accounts needed</li>
 </ul>
 <p><strong>Use Pure Bearer Mode When:</strong></p>
@@ -711,56 +963,34 @@ DEBUG OAuth authentication successful
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Frontend Integration</h2>
-<p>The Scotty frontend automatically detects OAuth mode and provides:</p>
-<h3 id="login-flow" tabindex="-1"><a class="header-anchor" href="#login-flow">
-        <span class="u-hiddenVisually">Jump to heading</span>
-        <span aria-hidden="true">#</span>
-      </a> Login Flow</h3>
+<p>The Scotty frontend detects OAuth mode and provides:</p>
 <ul>
-<li><strong>Login page</strong> shows "Continue with OAuth" button</li>
-<li><strong>OAuth callback page</strong> handles the return from OIDC provider</li>
-<li><strong>User info component</strong> displays authenticated user with logout option</li>
+<li><strong>Login page</strong> with a "Continue with OAuth" button</li>
+<li><strong>OAuth callback page</strong> that picks up the session token</li>
+<li><strong><code>/device</code></strong> to approve or deny a <code>scottyctl</code> login</li>
+<li><strong><code>/oauth/consent/{id}</code></strong> to approve or deny an MCP client</li>
+<li><strong><code>/connections</code></strong> to list and revoke CLI and MCP connections</li>
 </ul>
-<h3 id="token-management" tabindex="-1"><a class="header-anchor" href="#token-management">
-        <span class="u-hiddenVisually">Jump to heading</span>
-        <span aria-hidden="true">#</span>
-      </a> Token Management</h3>
-<ul>
-<li><strong>Automatic token storage</strong> in browser sessionStorage</li>
-<li><strong>Token validation</strong> on each API request</li>
-<li><strong>Automatic logout</strong> on token expiration or validation failure</li>
-</ul>
+<p>The session token is kept in <code>sessionStorage</code> (cleared when the tab closes).
+On a 401 the frontend sends you to log in and back to the page you were on.</p>
 <h2 id="cli-integration-(scottyctl)" tabindex="-1"><a class="header-anchor" href="#cli-integration-(scottyctl)">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CLI Integration (scottyctl)</h2>
-<p>For CLI usage with OAuth-enabled Scotty, you have two options:</p>
-<h3 id="device-flow-(recommended)" tabindex="-1"><a class="header-anchor" href="#device-flow-(recommended)">
-        <span class="u-hiddenVisually">Jump to heading</span>
-        <span aria-hidden="true">#</span>
-      </a> Device Flow (Recommended)</h3>
-<pre class="language-bash"><code class="language-bash"><span class="token comment"># Use OAuth device flow for CLI authentication</span>
-scottyctl <span class="token parameter variable">--server</span> http://localhost:21342 auth:login</code></pre>
-<h3 id="manual-token" tabindex="-1"><a class="header-anchor" href="#manual-token">
-        <span class="u-hiddenVisually">Jump to heading</span>
-        <span aria-hidden="true">#</span>
-      </a> Manual Token</h3>
-<pre class="language-bash"><code class="language-bash"><span class="token comment"># Extract token from browser sessionStorage and use manually</span>
-<span class="token builtin class-name">export</span> <span class="token assign-left variable">SCOTTY_ACCESS_TOKEN</span><span class="token operator">=</span>your_oauth_token
-scottyctl <span class="token parameter variable">--server</span> http://localhost:21342 app:list</code></pre>
+<pre class="language-bash"><code class="language-bash">scottyctl <span class="token parameter variable">--server</span> https://scotty.example.com auth:login</code></pre>
+<p>See <a href="cli.html#authentication">CLI authentication</a> for details. Service
+accounts use a bearer token in <code>SCOTTY_ACCESS_TOKEN</code>.</p>
 <h2 id="security-features" tabindex="-1"><a class="header-anchor" href="#security-features">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Security Features</h2>
-<h3 id="pkce-(proof-key-for-code-exchange)" tabindex="-1"><a class="header-anchor" href="#pkce-(proof-key-for-code-exchange)">
+<h3 id="pkce-and-nonce" tabindex="-1"><a class="header-anchor" href="#pkce-and-nonce">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> PKCE (Proof Key for Code Exchange)</h3>
+      </a> PKCE and nonce</h3>
 <ul>
-<li><strong>Enhanced security</strong> for public clients (SPAs) - prevents authorization code interception attacks</li>
-<li><strong>SHA256 code challenge</strong> - cryptographically secure random verifier with SHA256 hashing</li>
-<li><strong>Protected storage</strong> - PKCE verifier stored in memory using <code>MaskedSecret</code> type (protected from memory dumps and logs)</li>
-<li><strong>Single-use verification</strong> - verifier is removed from session store after successful token exchange</li>
+<li>The browser login uses PKCE (SHA256) and an OIDC nonce. Verifiers and nonces are stored in memory using the <code>MaskedSecret</code> type.</li>
+<li>MCP clients must use PKCE. Redirect URIs must match exactly (a loopback port may differ). Authorization codes are single use.</li>
 </ul>
 <h3 id="csrf-protection" tabindex="-1"><a class="header-anchor" href="#csrf-protection">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -768,20 +998,20 @@ scottyctl <span class="token parameter variable">--server</span> http://localhos
       </a> CSRF Protection</h3>
 <ul>
 <li><strong>State parameter validation</strong> - combines session ID and CSRF token (<code>session_id:csrf_token</code> format)</li>
-<li><strong>Session-based tracking</strong> - each OAuth flow gets a unique session with secure token storage</li>
-<li><strong>Automatic cleanup</strong> - expired sessions removed every 5 minutes by background task</li>
-<li><strong>Time-limited sessions</strong> - web flow sessions expire after 10 minutes, OAuth sessions after 5 minutes</li>
+<li><strong>Automatic cleanup</strong> - expired login sessions are removed every 5 minutes; a periodic sweep removes expired codes, pending authorizations and clients registered more than 7 days ago that never got a grant</li>
+<li><strong>Time-limited sessions</strong> - web flow sessions expire after 10 minutes, the exchange session after 5 minutes</li>
 </ul>
 <h3 id="token-security" tabindex="-1"><a class="header-anchor" href="#token-security">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Token Security</h3>
 <ul>
-<li><strong>Token validation on every request</strong> - authentication middleware validates tokens before allowing access to protected endpoints</li>
-<li><strong>OIDC provider validation</strong> - OAuth tokens validated against OIDC provider's userinfo endpoint</li>
-<li><strong>Session expiration</strong> - OAuth sessions expire after 5 minutes of token exchange</li>
-<li><strong>Memory protection</strong> - CSRF tokens and PKCE verifiers stored using <code>MaskedSecret</code> type with automatic zeroization</li>
-<li><strong>Secure storage</strong> - tokens stored in browser sessionStorage (cleared when tab closes)</li>
+<li><strong>Scotty-issued tokens only</strong> - provider tokens are used once at login and then dropped</li>
+<li><strong>Grant check on every request</strong> - logout and revocation take effect at once</li>
+<li><strong>Audience and kind</strong> - session tokens work only on the REST API, MCP tokens only on <code>/mcp</code></li>
+<li><strong>Refresh rotation</strong> - reusing a refresh token revokes the grant</li>
+<li><strong>Absolute lifetime</strong> - CLI and MCP grants end after 30 days</li>
+<li><strong>Secure storage</strong> - the web session token is stored in <code>sessionStorage</code> (cleared when the tab closes)</li>
 </ul>
 <h2 id="troubleshooting-1" tabindex="-1"><a class="header-anchor" href="#troubleshooting-1">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -791,6 +1021,12 @@ scottyctl <span class="token parameter variable">--server</span> http://localhos
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Common Issues</h3>
+<p><strong>Scotty does not start</strong></p>
+<pre><code>api.jwt_secret is required in oauth mode (set SCOTTY__API__JWT_SECRET)
+</code></pre>
+<ul>
+<li>Set <code>SCOTTY__API__JWT_SECRET</code> to at least 64 bytes, e.g. <code>openssl rand -base64 48</code>.</li>
+</ul>
 <p><strong>Redirect URI Mismatch</strong></p>
 <pre><code>Error: redirect_uri mismatch in OIDC provider
 </code></pre>
@@ -806,19 +1042,21 @@ scottyctl <span class="token parameter variable">--server</span> http://localhos
 <li>Verify <code>client_id</code> and <code>client_secret</code> match OIDC provider OAuth application</li>
 <li>Ensure credentials are correctly set in configuration or environment variables</li>
 </ul>
-<p><strong>PKCE Validation Failed</strong></p>
-<pre><code>Error: PKCE code challenge validation failed
-</code></pre>
-<ul>
-<li>This indicates a potential security issue or session corruption</li>
-<li>Clear browser data and retry the authentication flow</li>
-</ul>
 <p><strong>Session Expired</strong></p>
 <pre><code>Error: OAuth session not found or expired
 </code></pre>
 <ul>
 <li>OAuth sessions have a limited lifetime</li>
 <li>Restart the authentication flow from the beginning</li>
+</ul>
+<p><strong>Everyone is logged out after a restart</strong></p>
+<ul>
+<li>The database was not on a persistent volume, or <code>jwt_secret</code> changed. See <a href="#persistent-database">Persistent database</a>.</li>
+</ul>
+<p><strong>claude.ai cannot connect</strong></p>
+<ul>
+<li>Check that Anthropic's outbound range can reach <code>/mcp</code>, <code>/.well-known/*</code>, <code>/oauth/mcp/register</code> and <code>/oauth/mcp/token</code>.</li>
+<li>Check that <code>api.base_url</code> is the public HTTPS URL.</li>
 </ul>
 <h3 id="debug-commands" tabindex="-1"><a class="header-anchor" href="#debug-commands">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -827,10 +1065,11 @@ scottyctl <span class="token parameter variable">--server</span> http://localhos
 <pre class="language-bash"><code class="language-bash"><span class="token comment"># Check Scotty configuration</span>
 <span class="token function">curl</span> http://localhost:21342/api/v1/info
 
-<span class="token comment"># Test OAuth endpoints</span>
-<span class="token function">curl</span> <span class="token parameter variable">-I</span> http://localhost:21342/oauth/authorize
+<span class="token comment"># MCP discovery</span>
+<span class="token function">curl</span> http://localhost:21342/.well-known/oauth-authorization-server
+<span class="token function">curl</span> http://localhost:21342/.well-known/oauth-protected-resource/mcp
 
-<span class="token comment"># Verify authentication (with valid token)</span>
+<span class="token comment"># Verify authentication (with a session or bearer token)</span>
 <span class="token function">curl</span> <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer YOUR_TOKEN"</span> http://localhost:21342/api/v1/authenticated/apps</code></pre>
 <h3 id="debug-logging" tabindex="-1"><a class="header-anchor" href="#debug-logging">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -847,6 +1086,9 @@ scottyctl <span class="token parameter variable">--server</span> http://localhos
 <li><strong>OAuth Authorization</strong>: http://localhost:21342/oauth/authorize</li>
 <li><strong>OAuth Callback</strong>: http://localhost:21342/api/oauth/callback</li>
 <li><strong>OAuth Session Exchange</strong>: http://localhost:21342/oauth/exchange</li>
+<li><strong>Device approval</strong>: http://localhost:21342/device</li>
+<li><strong>Connections</strong>: http://localhost:21342/connections</li>
+<li><strong>MCP endpoint</strong>: http://localhost:21342/mcp</li>
 <li><strong>API Documentation</strong>: http://localhost:21342/rapidoc</li>
 <li><strong>Health Check</strong>: http://localhost:21342/api/v1/health (public)</li>
 </ul>

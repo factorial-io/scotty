@@ -635,6 +635,46 @@ Update <code>otel-collector-config.yaml</code> exporter from <code>prometheusrem
 <li>Detect apps that lost their connection to Traefik</li>
 <li>Alert on apps that stay unroutable after reconciliation</li>
 </ul>
+<h3 id="oauth-metrics" tabindex="-1"><a class="header-anchor" href="#oauth-metrics">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> OAuth Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scotty_oauth_web_flows_total</code></td>
+<td>Counter</td>
+<td>Browser logins started</td>
+</tr>
+<tr>
+<td><code>scotty_oauth_device_flows_total</code></td>
+<td>Counter</td>
+<td><code>scottyctl</code> device logins started</td>
+</tr>
+<tr>
+<td><code>scotty_oauth_web_flow_sessions_active</code></td>
+<td>Gauge</td>
+<td>Browser logins in progress (waiting for the provider callback)</td>
+</tr>
+<tr>
+<td><code>scotty_oauth_sessions_expired_cleaned_total</code></td>
+<td>Counter</td>
+<td>Expired login sessions removed by the cleanup task</td>
+</tr>
+</tbody>
+</table>
+<p><code>scotty_oauth_device_flow_sessions_active</code> was removed. Device logins are now
+stored in Scotty's OAuth database instead of in memory, so there is no
+in-memory count to report. Remove it from your own dashboards and alerts.</p>
+<p>Grant creation and revocation (for browser, CLI and MCP sessions) are not
+metrics; they are logged at info level as <code>grant created</code> and <code>grant revoked</code>.</p>
 <h3 id="tokio-runtime-metrics" tabindex="-1"><a class="header-anchor" href="#tokio-runtime-metrics">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

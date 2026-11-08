@@ -215,24 +215,33 @@ destroy apps, as well as manage authorization (scopes, roles, assignments).</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> OAuth Authentication (Recommended)</h3>
-<p>Use the device flow to authenticate interactively:</p>
+<p>Log in interactively with the device login:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl <span class="token parameter variable">--server</span> https://scotty.example.com auth:login</code></pre>
 <p>This command will:</p>
 <ol>
-<li>Open your browser to authenticate with the OIDC provider</li>
-<li>Store the OAuth token securely for future commands</li>
+<li>Print a URL and a code, and open Scotty's <code>/device</code> page in your browser</li>
+<li>Ask you to approve the login there (log in to the web UI first if needed)</li>
+<li>Store a Scotty session token and a refresh token for future commands</li>
 </ol>
-<p>scottyctl does not refresh tokens. When your token expires, run <code>auth:login</code>
-again.</p>
+<p>Scotty runs the device login itself; the OIDC provider's device flow is not
+used. The access token lasts 12 hours. When it expires, scottyctl refreshes it
+on the next request and retries once, so you do not notice. After 30 days, or
+when the session is revoked, run <code>auth:login</code> again.</p>
 <p><strong>Managing OAuth sessions:</strong></p>
 <pre class="language-shell"><code class="language-shell"><span class="token comment"># Check authentication status</span>
 scottyctl auth:status
 
-<span class="token comment"># Check whether the stored token is still valid</span>
+<span class="token comment"># Refresh the stored session now</span>
 scottyctl auth:refresh
 
-<span class="token comment"># Logout and clear stored credentials</span>
+<span class="token comment"># Delete the stored credentials on this machine</span>
 scottyctl auth:logout</code></pre>
+<p><code>auth:logout</code> revokes the session on the server, then deletes the local
+credentials. If the server cannot be reached, it still deletes them and asks
+you to revoke the session on the <strong>Connections</strong> page (<code>/connections</code>).</p>
+<p><strong>Upgrading:</strong> logins from older Scotty releases stored the provider's
+(GitLab) token. The server no longer accepts it, so run <code>auth:login</code> once
+after the upgrade.</p>
 <h3 id="bearer-token-authentication" tabindex="-1"><a class="header-anchor" href="#bearer-token-authentication">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

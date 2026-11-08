@@ -250,6 +250,8 @@ do not forget to adapt the Scotty configuration accordingly.</p>
       <span class="token comment"># folder mapping wont match for docker compose files of runing apps</span>
       <span class="token punctuation">-</span> $PWD/apps<span class="token punctuation">:</span>$PWD/apps
       <span class="token punctuation">-</span> /var/run/docker.sock<span class="token punctuation">:</span>/var/run/docker.sock
+      <span class="token comment"># OAuth database (auth_mode: oauth); must persist across restarts</span>
+      <span class="token punctuation">-</span> ./scotty<span class="token punctuation">-</span>data<span class="token punctuation">:</span>/app/data
     <span class="token key atrule">environment</span><span class="token punctuation">:</span>
       <span class="token key atrule">RUST_LOG</span><span class="token punctuation">:</span> info
       <span class="token key atrule">SCOTTY__APPS__ROOT_FOLDER</span><span class="token punctuation">:</span> $PWD/apps
@@ -297,6 +299,19 @@ must match.</p>
   <span class="token parameter variable">-v</span> /var/run/docker.sock:/var/run/docker.sock <span class="token punctuation">\</span>
   ghcr.io/factorial-io/scotty:main</code></pre>
 <p>You might need to map your local config overrides into the container.</p>
+<h3 id="persistent-data-for-oauth-mode" tabindex="-1"><a class="header-anchor" href="#persistent-data-for-oauth-mode">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Persistent data for OAuth mode</h3>
+<p>With <code>auth_mode: oauth</code>, Scotty keeps its OAuth database (CLI sessions, MCP
+connections, registered clients) in <code>api.database_path</code>, by default
+<code>data/scotty.sqlite</code> below the working directory. In the Docker image that is
+<code>/app/data/scotty.sqlite</code>. Mount a persistent, writable volume there, for
+example <code>-v $PWD/scotty-data:/app/data</code>. Without it, every CLI and MCP session
+is lost when the container is recreated, and users must log in again.</p>
+<p>OAuth mode also needs <code>SCOTTY__API__JWT_SECRET</code> (at least 64 bytes), and Scotty
+should run behind a proxy that sets <code>X-Forwarded-For</code>, such as the Traefik
+setup above. See <a href="oauth-authentication.html">OAuth Authentication</a>.</p>
 
   </div>
         <nav aria-label="article" class="Pagination">
