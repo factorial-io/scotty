@@ -21,7 +21,7 @@ pub struct CurrentUser {
 /// Authentication flow by mode:
 /// - Development: No token needed, returns dev user
 /// - Bearer: Validates against configured bearer tokens (fast HashMap lookup)
-/// - OAuth: Tries bearer tokens first (fast), falls back to OIDC validation (network call)
+/// - OAuth: Tries bearer tokens first, then Scotty session tokens (no provider call)
 pub async fn authenticate_user_from_token(
     state: &SharedAppState,
     token: &str,
@@ -46,10 +46,10 @@ pub async fn authenticate_user_from_token(
                 return Ok(user);
             }
 
-            // Fall back to OAuth validation (network call to OIDC provider)
-            match authorize_oauth_user_native(state.clone(), raw_token).await {
+            // Then a Scotty session token. Provider tokens are never accepted.
+            match authorize_session_user(state, raw_token).await {
                 Some(user) => Ok(user),
-                None => Err(anyhow::anyhow!("Invalid OAuth token")),
+                None => Err(anyhow::anyhow!("Invalid session token")),
             }
         }
     }
@@ -134,42 +134,44 @@ pub async fn authorize_bearer_user(
     None
 }
 
-/// Native OAuth token validation
-///
-/// # Arguments
-/// * `shared_app_state` - Application state with OAuth client
-/// * `token` - Raw token value (without "Bearer " prefix)
-pub async fn authorize_oauth_user_native(
-    shared_app_state: SharedAppState,
-    token: &str,
-) -> Option<CurrentUser> {
-    debug!("Validating OAuth token");
+/// Authenticate a Scotty session token: verify it with the session server
+/// (signature, expiry, audience `scotty-api`, kind `session`), then require its
+/// grant to be active. The user is the grant's subject (their email).
+pub async fn authorize_session_user(state: &SharedAppState, token: &str) -> Option<CurrentUser> {
+    let grant = active_session_grant(state, token).await?;
+    Some(CurrentUser {
+        name: grant.subject.clone(),
+        email: grant.subject,
+        picture: None,
+        access_token: Some(token.to_string()),
+    })
+}
 
-    // Get OAuth client for token validation
-    let oauth_state = match shared_app_state.oauth_state.as_ref() {
-        Some(state) => state,
-        None => {
-            warn!("OAuth authentication failed - OAuth state not initialized (server may not be configured for OAuth)");
+/// The active grant behind a session token, if the token verifies.
+pub async fn active_session_grant(
+    state: &SharedAppState,
+    token: &str,
+) -> Option<grantry::store::Grant<String>> {
+    let server = state.session_server.as_ref()?;
+    let claims = match server.verify(token) {
+        Ok(claims) => claims,
+        Err(e) => {
+            debug!("Session token rejected: {}", e);
             return None;
         }
     };
-
-    match oauth_state.client.validate_oidc_token(token).await {
-        Ok(oidc_user) => {
-            debug!(
-                "OAuth token validated for user: {} <{}>",
-                oidc_user.name.as_deref().unwrap_or("Unknown"),
-                oidc_user.email.as_deref().unwrap_or("unknown@example.com")
-            );
-            Some(CurrentUser {
-                email: oidc_user.email.unwrap_or("unknown@example.com".to_string()),
-                name: oidc_user.name.unwrap_or("Unknown".to_string()),
-                picture: oidc_user.picture,
-                access_token: Some(token.to_string()),
-            })
+    let grant_id = claims
+        .get("grant_id")
+        .and_then(|v| v.as_str())
+        .and_then(|id| uuid::Uuid::parse_str(id).ok())?;
+    match server.store().find_grant(grant_id).await {
+        Ok(Some(grant)) if grant.is_active(chrono::Utc::now()) => Some(grant),
+        Ok(_) => {
+            debug!("Session token's grant {} is not active", grant_id);
+            None
         }
         Err(e) => {
-            warn!("OAuth token validation failed: {}", e);
+            warn!("Failed to load grant {}: {}", grant_id, e);
             None
         }
     }

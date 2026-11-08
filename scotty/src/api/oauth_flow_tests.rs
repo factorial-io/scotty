@@ -1,9 +1,16 @@
 use crate::api::router::ApiRoutes;
-use crate::api::test_utils::create_test_websocket_messenger;
+use crate::api::test_utils::create_test_app_state_with_settings;
 use crate::app_state::AppState;
 use axum_test::TestServer;
 use config::Config;
-use scotty_core::utils::secret::MaskedSecret;
+use openidconnect::core::{
+    CoreIdToken, CoreIdTokenClaims, CoreJsonWebKeySet, CoreJwsSigningAlgorithm,
+    CoreRsaPrivateSigningKey,
+};
+use openidconnect::{
+    Audience, EmptyAdditionalClaims, EndUserEmail, IssuerUrl, JsonWebKeyId, Nonce,
+    PrivateSigningKey, StandardClaims, SubjectIdentifier,
+};
 use std::sync::Arc;
 use wiremock::{
     matchers::{body_string_contains, method, path},
@@ -24,8 +31,8 @@ async fn create_oauth_config_with_mock_server(
     config.try_deserialize().unwrap()
 }
 
-/// Create Scotty app with OAuth and mock OIDC provider
-async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Router {
+/// Create Scotty app state with OAuth, a session server and a mock OIDC provider
+async fn create_mock_oauth_state(mock_server_url: &str) -> Arc<AppState> {
     let settings = create_oauth_config_with_mock_server(mock_server_url).await;
 
     // Create OAuth client with mock server URL
@@ -39,36 +46,12 @@ async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Route
         _ => None,
     };
 
-    let auth_service = Arc::new(
-        crate::services::authorization::fallback::FallbackService::create_fallback_service(Some(
-            "test-oauth-token".to_string(),
-        ))
-        .await,
-    );
-    let docker = crate::api::test_utils::create_test_docker_client();
-    let app_state = Arc::new(AppState {
-        stop_flag: crate::stop_flag::StopFlag::new(),
-        apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(
-            create_test_websocket_messenger(),
-            auth_service.clone(),
-        ),
-        oauth_state,
-        auth_service: auth_service.clone(),
-        logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
-        shell_service: crate::docker::services::shell::ShellService::new(
-            docker,
-            settings.shell.clone(),
-        ),
-        task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
-        messenger: create_test_websocket_messenger(),
-        settings,
-        next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-        oauth_db: None,
-    });
+    create_test_app_state_with_settings(settings, oauth_state).await
+}
 
-    ApiRoutes::create(app_state)
+/// Create Scotty app with OAuth and mock OIDC provider
+async fn create_scotty_app_with_mock_oauth(mock_server_url: &str) -> axum::Router {
+    ApiRoutes::create(create_mock_oauth_state(mock_server_url).await)
 }
 
 #[tokio::test]
@@ -278,6 +261,7 @@ async fn test_oauth_device_flow_complete_success() {
 async fn test_oauth_web_flow_authorization_url() {
     let mock_server = MockServer::start().await;
     let mock_url = mock_server.uri();
+    mount_discovery(&mock_server).await;
 
     let router = create_scotty_app_with_mock_oauth(&mock_url).await;
     let server = TestServer::new(router);
@@ -463,7 +447,8 @@ async fn test_complete_oauth_flow_with_protected_endpoint_access() {
     let token_body: serde_json::Value = token_response.json();
     let access_token = token_body["access_token"].as_str().unwrap();
 
-    // STEP 4: Use OAuth token to access protected endpoint
+    // STEP 4: The provider token from the (old) device flow is no API
+    // credential any more; task 3.1 replaces this flow with grantry's.
     let protected_response = server
         .get("/api/v1/authenticated/blueprints")
         .add_header(
@@ -471,250 +456,12 @@ async fn test_complete_oauth_flow_with_protected_endpoint_access() {
             axum::http::HeaderValue::from_str(&format!("Bearer {}", access_token)).unwrap(),
         )
         .await;
-
-    // STEP 5: Verify protected endpoint access works with OAuth token
     assert_eq!(
         protected_response.status_code(),
-        200,
-        "Should access protected endpoint with OAuth token"
-    );
-
-    let blueprint_body = protected_response.text();
-    assert!(
-        blueprint_body.contains("oauth-test") || blueprint_body.contains("test-oauth"),
-        "Should access blueprint data: {}",
-        blueprint_body
-    );
-
-    // STEP 6: Verify token contains expected user info
-    assert_eq!(access_token, "complete_oauth_token_789");
-    assert_eq!(
-        token_body["user_name"].as_str().unwrap(),
-        "Complete Flow User"
-    );
-    assert_eq!(
-        token_body["user_email"].as_str().unwrap(),
-        "complete@example.com"
-    );
-}
-
-#[tokio::test]
-async fn test_complete_oauth_web_flow_with_appstate_session_management() {
-    let mock_server = MockServer::start().await;
-    let mock_url = mock_server.uri();
-
-    // Mock OAuth web flow endpoints
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "access_token": "web_flow_token_456",
-            "token_type": "Bearer",
-            "expires_in": 3600,
-            "scope": "read_user read_api openid profile email"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    Mock::given(method("GET"))
-        .and(path("/oauth/userinfo"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "sub": "web_user_789",
-            "name": "Web Flow User",
-            "email": "webflow@example.com",
-            "preferred_username": "webuser"
-        })))
-        .mount(&mock_server)
-        .await;
-
-    // Create app with OAuth state - we need access to manipulate stores
-    let settings = create_oauth_config_with_mock_server(&mock_url).await;
-    let oauth_state = match crate::oauth::client::create_oauth_client(&settings.api.oauth) {
-        Ok(Some(client)) => Some(crate::oauth::handlers::OAuthState {
-            client,
-            device_flow_store: crate::oauth::create_device_flow_store(),
-            web_flow_store: crate::oauth::create_web_flow_store(),
-            session_store: crate::oauth::create_oauth_session_store(),
-        }),
-        _ => None,
-    };
-
-    let auth_service = Arc::new(
-        crate::services::authorization::fallback::FallbackService::create_fallback_service(Some(
-            "test-oauth-token".to_string(),
-        ))
-        .await,
-    );
-    let docker = crate::api::test_utils::create_test_docker_client();
-    let app_state = Arc::new(AppState {
-        stop_flag: crate::stop_flag::StopFlag::new(),
-        apps: scotty_core::apps::shared_app_list::SharedAppList::new(),
-        docker: docker.clone(),
-        task_manager: crate::tasks::manager::TaskManager::new(
-            create_test_websocket_messenger(),
-            auth_service.clone(),
-        ),
-        oauth_state: oauth_state.clone(),
-        auth_service: auth_service.clone(),
-        logs_service: crate::docker::services::logs::LogStreamingService::new(docker.clone()),
-        shell_service: crate::docker::services::shell::ShellService::new(
-            docker,
-            settings.shell.clone(),
-        ),
-        task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
-        messenger: create_test_websocket_messenger(),
-        settings,
-        next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-        oauth_db: None,
-    });
-
-    let router = ApiRoutes::create(app_state.clone());
-    let server = TestServer::new(router);
-
-    // STEP 1: Verify protected endpoint requires auth
-    let unauth_response = server.get("/api/v1/authenticated/blueprints").await;
-    assert_eq!(
-        unauth_response.status_code(),
         401,
-        "Should require authentication"
+        "A provider token must not authenticate API requests"
     );
-
-    // STEP 2: Use AppState to directly manipulate OAuth session stores
-    if let Some(oauth) = &oauth_state {
-        use std::time::{Duration, SystemTime};
-        use uuid::Uuid;
-
-        // Create a test session ID and CSRF token
-        let session_id = Uuid::new_v4().to_string();
-        let csrf_token = "test_csrf_state_123";
-        let code_verifier = "test_pkce_code_verifier_456";
-
-        // State format expected by callback handler: "session_id:csrf_token"
-        // (Not needed for direct session exchange test but kept for reference)
-        let _state_param = format!("{}:{}", session_id, csrf_token);
-
-        // Populate the web flow store with session using CSRF token as key
-        {
-            let mut web_store = oauth.web_flow_store.lock().unwrap();
-            web_store.insert(
-                csrf_token.to_string(),
-                crate::oauth::WebFlowSession {
-                    csrf_token: MaskedSecret::new(csrf_token.to_string()),
-                    pkce_verifier: MaskedSecret::new(code_verifier.to_string()),
-                    redirect_url: "http://localhost:21342/api/oauth/callback".to_string(),
-                    frontend_callback_url: Some("http://localhost:3000/auth/callback".to_string()),
-                    expires_at: SystemTime::now() + Duration::from_secs(300), // 5 minutes
-                },
-            );
-        }
-
-        // Populate the session store for OAuth token storage
-        {
-            let mut session_store = oauth.session_store.lock().unwrap();
-            session_store.insert(
-                session_id.clone(),
-                crate::oauth::OAuthSession {
-                    oidc_token: "test_session_token".to_string(), // Temporary token
-                    user: crate::oauth::device_flow::OidcUser {
-                        id: "test_user_123".to_string(),
-                        username: Some("testuser".to_string()),
-                        name: Some("Test User".to_string()),
-                        given_name: None,
-                        family_name: None,
-                        nickname: None,
-                        picture: None,
-                        website: None,
-                        locale: None,
-                        zoneinfo: None,
-                        updated_at: None,
-                        email: Some("test@example.com".to_string()),
-                        email_verified: Some(true),
-                        custom_claims: std::collections::HashMap::new(),
-                    },
-                    expires_at: SystemTime::now() + Duration::from_secs(3600), // 1 hour
-                },
-            );
-        }
-
-        // STEP 3: Verify our sessions were populated correctly
-        {
-            let web_store = oauth.web_flow_store.lock().unwrap();
-            assert!(
-                web_store.contains_key(csrf_token),
-                "Web flow store should contain our test session"
-            );
-            let session_store = oauth.session_store.lock().unwrap();
-            assert!(
-                session_store.contains_key(&session_id),
-                "Session store should contain our test session"
-            );
-            println!("✅ Successfully populated both web flow store and session store");
-        }
-
-        // STEP 3b: Skip OAuth callback completely - test direct session exchange
-        // We have populated the session store, so we can directly test the exchange endpoint
-
-        // STEP 4: Exchange session for access token using our populated session ID
-        let exchange_response = server
-            .post("/oauth/exchange")
-            .json(&serde_json::json!({"session_id": session_id}))
-            .await;
-
-        println!(
-            "OAuth session exchange response: {} - {}",
-            exchange_response.status_code(),
-            exchange_response.text()
-        );
-
-        if exchange_response.status_code() == 200 {
-            let token_body: serde_json::Value = exchange_response.json();
-            if let Some(access_token) = token_body["access_token"].as_str() {
-                // STEP 5: Use OAuth token to access protected endpoint
-                let protected_response = server
-                    .get("/api/v1/authenticated/blueprints")
-                    .add_header(
-                        axum::http::header::AUTHORIZATION,
-                        axum::http::HeaderValue::from_str(&format!("Bearer {}", access_token))
-                            .unwrap(),
-                    )
-                    .await;
-
-                assert_eq!(
-                    protected_response.status_code(),
-                    200,
-                    "Should access protected endpoint with web flow token"
-                );
-
-                let body = protected_response.text();
-                assert!(
-                    body.contains("oauth-test") || body.contains("test-oauth"),
-                    "Should access blueprint data: {}",
-                    body
-                );
-
-                // STEP 6: Verify token contains expected user info from our test data
-                assert_eq!(token_body["user_name"].as_str().unwrap(), "Test User");
-                assert_eq!(
-                    token_body["user_email"].as_str().unwrap(),
-                    "test@example.com"
-                );
-                assert_eq!(token_body["user_id"].as_str().unwrap(), "testuser");
-
-                println!(
-                    "✅ Complete OAuth web flow test passed with AppState session management!"
-                );
-                return;
-            }
-        } else {
-            println!(
-                "Session exchange failed: {} - {}",
-                exchange_response.status_code(),
-                exchange_response.text()
-            );
-        }
-    }
-
-    // If we get here, the OAuth state wasn't available or session management failed
-    // This is still a valid test - it demonstrates the approach works when OAuth is properly configured
+    assert_eq!(access_token, "complete_oauth_token_789");
 }
 
 #[tokio::test]
@@ -752,4 +499,347 @@ async fn test_oauth_provider_error_handling() {
         "Error response should contain error field: {}",
         serde_json::to_string_pretty(&body).unwrap_or_default()
     );
+}
+
+// --- Mock OIDC provider ------------------------------------------------------
+
+const CLIENT_ID: &str = "test_oauth_client_id";
+const PROVIDER_ACCESS_TOKEN: &str = "provider_access_token_must_not_leak";
+const FRONTEND_CALLBACK: &str = "http://localhost:3000/oauth/callback";
+
+fn signing_key() -> CoreRsaPrivateSigningKey {
+    CoreRsaPrivateSigningKey::from_pem(
+        include_str!("../../tests/fixtures/oidc_test_key.pem"),
+        Some(JsonWebKeyId::new("test-key".to_string())),
+    )
+    .unwrap()
+}
+
+/// Serve discovery and JWKS; the token endpoint is mounted per test.
+async fn mount_discovery(mock_server: &MockServer) {
+    let issuer = mock_server.uri();
+    Mock::given(method("GET"))
+        .and(path("/.well-known/openid-configuration"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "issuer": issuer,
+            "authorization_endpoint": format!("{issuer}/authorize"),
+            "token_endpoint": format!("{issuer}/token"),
+            "userinfo_endpoint": format!("{issuer}/userinfo"),
+            "jwks_uri": format!("{issuer}/jwks"),
+            "response_types_supported": ["code"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+        })))
+        .mount(mock_server)
+        .await;
+    let jwks = CoreJsonWebKeySet::new(vec![signing_key().as_verification_key()]);
+    Mock::given(method("GET"))
+        .and(path("/jwks"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(jwks))
+        .mount(mock_server)
+        .await;
+}
+
+/// An RS256 ID token for `user-42` from `issuer`.
+fn id_token(issuer: &str, nonce: &str, email: Option<&str>) -> String {
+    let mut standard = StandardClaims::new(SubjectIdentifier::new("user-42".to_string()));
+    if let Some(email) = email {
+        standard = standard
+            .set_email(Some(EndUserEmail::new(email.to_string())))
+            .set_email_verified(Some(true));
+    }
+    let now = chrono::Utc::now();
+    let claims = CoreIdTokenClaims::new(
+        IssuerUrl::new(issuer.to_string()).unwrap(),
+        vec![Audience::new(CLIENT_ID.to_string())],
+        now + chrono::Duration::minutes(5),
+        now,
+        standard,
+        EmptyAdditionalClaims {},
+    )
+    .set_nonce(Some(Nonce::new(nonce.to_string())));
+    let token = CoreIdToken::new(
+        claims,
+        &signing_key(),
+        CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256,
+        None,
+        None,
+    )
+    .unwrap();
+    serde_json::to_value(&token)
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+
+async fn mount_token_endpoint(mock_server: &MockServer, id_token: String) {
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": PROVIDER_ACCESS_TOKEN,
+            "token_type": "Bearer",
+            "expires_in": 7200,
+            "id_token": id_token,
+        })))
+        .mount(mock_server)
+        .await;
+}
+
+fn query_param(url: &str, name: &str) -> String {
+    url::Url::parse(url)
+        .unwrap()
+        .query_pairs()
+        .find(|(k, _)| k == name)
+        .map(|(_, v)| v.into_owned())
+        .unwrap_or_else(|| panic!("no {name} in {url}"))
+}
+
+/// Start a web login; returns the `state` and `nonce` sent to the provider.
+async fn begin_login(server: &TestServer) -> (String, String) {
+    let response = server
+        .get("/oauth/authorize")
+        .add_query_param("redirect_uri", FRONTEND_CALLBACK)
+        .await;
+    assert_eq!(response.status_code(), 307, "{}", response.text());
+    let location = response.headers()["location"].to_str().unwrap().to_string();
+    (query_param(&location, "state"), query_param(&location, "nonce"))
+}
+
+async fn callback(server: &TestServer, state: &str) -> axum_test::TestResponse {
+    server
+        .get("/api/oauth/callback")
+        .add_query_param("code", "provider-code")
+        .add_query_param("state", state)
+        .await
+}
+
+fn bearer(token: &str) -> axum::http::HeaderValue {
+    axum::http::HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
+}
+
+async fn status_with(server: &TestServer, token: &str) -> u16 {
+    server
+        .post("/api/v1/authenticated/validate-token")
+        .add_header(axum::http::header::AUTHORIZATION, bearer(token))
+        .await
+        .status_code()
+        .as_u16()
+}
+
+#[tokio::test]
+async fn test_web_login_issues_scotty_session_token() {
+    let mock_server = MockServer::start().await;
+    mount_discovery(&mock_server).await;
+    let server = TestServer::new(create_scotty_app_with_mock_oauth(&mock_server.uri()).await);
+
+    let (state, nonce) = begin_login(&server).await;
+    mount_token_endpoint(
+        &mock_server,
+        id_token(&mock_server.uri(), &nonce, Some("alice@example.com")),
+    )
+    .await;
+
+    let response = callback(&server, &state).await;
+    assert_eq!(response.status_code(), 307, "{}", response.text());
+    let location = response.headers()["location"].to_str().unwrap().to_string();
+    assert!(location.starts_with(FRONTEND_CALLBACK), "{location}");
+    let session_id = query_param(&location, "session_id");
+
+    let exchange = server
+        .post("/oauth/exchange")
+        .json(&serde_json::json!({ "session_id": session_id }))
+        .await;
+    assert_eq!(exchange.status_code(), 200);
+    assert!(
+        !exchange.text().contains(PROVIDER_ACCESS_TOKEN),
+        "the provider token must not reach the browser"
+    );
+    let body: serde_json::Value = exchange.json();
+    assert_eq!(body["user_email"], "alice@example.com");
+    assert_eq!(body["expires_in"], 12 * 3600);
+    assert!(body["refresh_token"].is_null());
+    let token = body["access_token"].as_str().unwrap();
+
+    assert_eq!(status_with(&server, token).await, 200);
+
+    // The exchange is single-use.
+    let again = server
+        .post("/oauth/exchange")
+        .json(&serde_json::json!({ "session_id": session_id }))
+        .await;
+    assert_ne!(again.status_code(), 200);
+
+    // Logout revokes the grant, so the token stops working.
+    let logout = server
+        .post("/api/v1/authenticated/logout")
+        .add_header(axum::http::header::AUTHORIZATION, bearer(token))
+        .await;
+    assert_eq!(logout.status_code(), 204);
+    assert_eq!(status_with(&server, token).await, 401);
+}
+
+#[tokio::test]
+async fn test_web_login_without_email_fails() {
+    let mock_server = MockServer::start().await;
+    mount_discovery(&mock_server).await;
+    Mock::given(method("GET"))
+        .and(path("/userinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "sub": "user-42",
+            "name": "No Mail",
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+    let state = create_mock_oauth_state(&mock_server.uri()).await;
+    let server = TestServer::new(ApiRoutes::create(state.clone()));
+
+    let (csrf_state, nonce) = begin_login(&server).await;
+    mount_token_endpoint(&mock_server, id_token(&mock_server.uri(), &nonce, None)).await;
+
+    let response = callback(&server, &csrf_state).await;
+    assert_eq!(response.status_code(), 403, "{}", response.text());
+    let oauth = state.oauth_state.as_ref().unwrap();
+    assert!(oauth.session_store.lock().unwrap().is_empty());
+    mock_server.verify().await;
+}
+
+#[tokio::test]
+async fn test_web_login_with_wrong_nonce_fails() {
+    let mock_server = MockServer::start().await;
+    mount_discovery(&mock_server).await;
+    let server = TestServer::new(create_scotty_app_with_mock_oauth(&mock_server.uri()).await);
+
+    let (state, _nonce) = begin_login(&server).await;
+    mount_token_endpoint(
+        &mock_server,
+        id_token(&mock_server.uri(), "not-the-nonce", Some("alice@example.com")),
+    )
+    .await;
+
+    let response = callback(&server, &state).await;
+    assert_eq!(response.status_code(), 400, "{}", response.text());
+    assert!(response.headers().get("location").is_none());
+}
+
+// --- Session tokens on the REST API -------------------------------------------
+
+async fn session_app() -> (TestServer, Arc<AppState>) {
+    let state =
+        crate::api::test_utils::create_test_app_state_with_config("tests/test_oauth_auth", None)
+            .await;
+    (TestServer::new(ApiRoutes::create(state.clone())), state)
+}
+
+async fn issue_session(state: &AppState) -> (grantry::Grant<String>, String) {
+    let (grant, tokens) = state
+        .session_server
+        .as_ref()
+        .unwrap()
+        .issue_grant(&"alice@example.com".to_string(), "scotty-web", "Scotty web", "api")
+        .await
+        .unwrap();
+    (grant, tokens.access_token)
+}
+
+/// A token signed with the session secret for `grant`, with chosen claims.
+fn forge(
+    state: &AppState,
+    grant: &grantry::Grant<String>,
+    resource: &str,
+    kind: &str,
+    now: chrono::DateTime<chrono::Utc>,
+) -> String {
+    let server = state.session_server.as_ref().unwrap();
+    grantry::token::mint(
+        &server.config.signer,
+        now,
+        3600,
+        &grantry::token::AccessClaims {
+            resource,
+            kind,
+            scope: "api",
+            client_id: "scotty-web",
+            grant_id: &grant.id.to_string(),
+        },
+        serde_json::Map::new(),
+    )
+    .unwrap()
+}
+
+#[tokio::test]
+async fn test_session_token_accepted_and_revocation_rejected() {
+    let (server, state) = session_app().await;
+    let (grant, token) = issue_session(&state).await;
+    assert_eq!(status_with(&server, &token).await, 200);
+
+    state
+        .session_server
+        .as_ref()
+        .unwrap()
+        .revoke(&grant, "test", None)
+        .await
+        .unwrap();
+    assert_eq!(status_with(&server, &token).await, 401);
+}
+
+#[tokio::test]
+async fn test_session_token_wrong_kind_audience_or_expired_rejected() {
+    let (server, state) = session_app().await;
+    let (grant, _token) = issue_session(&state).await;
+    let now = chrono::Utc::now();
+
+    let control = forge(&state, &grant, "scotty-api", "session", now);
+    assert_eq!(status_with(&server, &control).await, 200);
+
+    let mcp_kind = forge(&state, &grant, "scotty-api", "mcp", now);
+    assert_eq!(status_with(&server, &mcp_kind).await, 401);
+    let mcp_audience = forge(&state, &grant, "http://localhost:21342/mcp", "session", now);
+    assert_eq!(status_with(&server, &mcp_audience).await, 401);
+    let mcp_token = forge(&state, &grant, "http://localhost:21342/mcp", "mcp", now);
+    assert_eq!(status_with(&server, &mcp_token).await, 401);
+    let expired = forge(
+        &state,
+        &grant,
+        "scotty-api",
+        "session",
+        now - chrono::Duration::hours(2),
+    );
+    assert_eq!(status_with(&server, &expired).await, 401);
+}
+
+#[tokio::test]
+async fn test_provider_token_rejected_without_provider_call() {
+    let mock_server = MockServer::start().await;
+    Mock::given(wiremock::matchers::any())
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "sub": "user-42",
+            "email": "alice@example.com",
+        })))
+        .expect(0)
+        .mount(&mock_server)
+        .await;
+    let server = TestServer::new(create_scotty_app_with_mock_oauth(&mock_server.uri()).await);
+
+    assert_eq!(status_with(&server, "glpat-provider-token").await, 401);
+    assert_eq!(status_with(&server, "a.b.c").await, 401);
+    let response = server
+        .get("/api/v1/authenticated/apps/list")
+        .add_header(axum::http::header::AUTHORIZATION, bearer("glpat-provider-token"))
+        .await;
+    assert_eq!(response.status_code(), 401);
+    mock_server.verify().await;
+}
+
+#[tokio::test]
+async fn test_bearer_token_still_works_in_oauth_mode_and_logout_is_noop() {
+    let (server, _state) = session_app().await;
+    assert_eq!(status_with(&server, "test-bearer-token-123").await, 200);
+    let logout = server
+        .post("/api/v1/authenticated/logout")
+        .add_header(axum::http::header::AUTHORIZATION, bearer("test-bearer-token-123"))
+        .await;
+    assert_eq!(logout.status_code(), 204);
+    assert_eq!(status_with(&server, "test-bearer-token-123").await, 200);
 }

@@ -10,6 +10,7 @@ use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::settings::docker::DockerConnectOptions;
+use secrecy::ExposeSecret;
 use tokio::sync::{broadcast, Mutex};
 use tracing::{info, warn};
 
@@ -68,6 +69,8 @@ pub struct AppState {
     pub next_app_check: Arc<AtomicI64>,
     /// The OAuth server's database (`api.database_path`), open in oauth mode.
     pub oauth_db: Option<sqlx::SqlitePool>,
+    /// The grantry session server (D2), built over `oauth_db` in oauth mode.
+    pub session_server: Option<oauth::server::SessionServer>,
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -146,6 +149,15 @@ impl AppState {
             }
         });
 
+        let session_server = match (&oauth_db, &settings.api.jwt_secret) {
+            (Some(pool), Some(secret)) => Some(oauth::server::session_server(
+                pool.clone(),
+                secret.expose_secret().as_bytes(),
+                auth_service.clone(),
+            )),
+            _ => None,
+        };
+
         // Create WebSocket clients and messenger
         let clients = Arc::new(Mutex::new(HashMap::new()));
         let messenger = WebSocketMessenger::new(clients.clone());
@@ -164,6 +176,7 @@ impl AppState {
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db,
+            session_server,
         });
 
         Ok(state)
@@ -191,6 +204,7 @@ impl AppState {
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db: None,
+            session_server: None,
         }))
     }
 }

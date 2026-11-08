@@ -108,3 +108,33 @@ pub async fn validate_token_handler() -> impl IntoResponse {
 
     Json(json_response)
 }
+
+/// End the presented session: revoke the grant of the session token. Bearer
+/// token users have no session, so this is a no-op for them.
+#[utoipa::path(
+    post,
+    path = "/api/v1/authenticated/logout",
+    responses(
+    (status = 204, description = "Logged out (the session token no longer authenticates)")
+    ),
+    security(("bearerAuth" = []))
+)]
+pub async fn logout_handler(
+    State(state): State<SharedAppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<axum::http::StatusCode, crate::api::error::AppError> {
+    let token = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .map(|h| h.strip_prefix("Bearer ").unwrap_or(h))
+        .unwrap_or_default();
+    if let (Some(server), Some(grant)) = (
+        state.session_server.as_ref(),
+        crate::api::auth_core::active_session_grant(&state, token).await,
+    ) {
+        server.revoke(&grant, "logout", None).await.map_err(|e| {
+            crate::api::error::AppError::InternalServerError(format!("Logout failed: {}", e))
+        })?;
+    }
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
