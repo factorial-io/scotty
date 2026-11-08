@@ -339,8 +339,9 @@ Revoking one stops its refresh and its access at once. Browser sessions are not
 listed. Users with `admin_write` can switch to all users' connections and
 revoke any of them.
 
-`scottyctl auth:logout` only deletes the local credentials. To end the session
-on the server, revoke it on the connections page.
+`scottyctl auth:logout` revokes the CLI session on the server and then deletes
+the local credentials. If the server cannot be reached, it still deletes them
+and tells you to revoke the session on the connections page.
 
 ### Claude Code
 

@@ -136,6 +136,14 @@ pub async fn auth_login(app_context: &AppContext, cmd: &AuthLoginCommand) -> Res
 }
 
 pub async fn auth_logout(app_context: &AppContext) -> Result<()> {
+    // End the session on the server first; local credentials go either way.
+    if let Err(e) = crate::api::revoke_stored_session(app_context.server()).await {
+        app_context.ui().println(format!(
+            "{} Could not end the session on the server ({}); revoke it on the Connections page.",
+            "Warning:".yellow(),
+            e
+        ));
+    }
     get_cached_token_manager().clear_for_server(&app_context.server().server)?;
     app_context.ui().success(format!(
         "Logged out from server: {}",
