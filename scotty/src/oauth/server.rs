@@ -5,11 +5,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Duration;
-use grantry::client::{DocumentPolicy, FetchError, Fetched, MetadataFetcher};
+use grantry::client::DocumentPolicy;
 use grantry::store::{BackendError, Events, Grant};
-use grantry::{Config, Recheck, ScopeSpec, Server, Signer, Subjects};
+use grantry::{Algorithm, Config, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects};
 use sqlx::SqlitePool;
-use url::Url;
 
 use super::store::{SqliteStore, REALM_SESSION};
 use crate::services::AuthorizationService;
@@ -50,7 +49,7 @@ pub fn session_server(
         resource: SESSION_RESOURCE.into(),
         token_kind: SESSION_KIND.into(),
         scopes: ScopeSpec::new(&["api", "offline_access"], &["api"], "offline_access"),
-        signer: Signer::hmac(jsonwebtoken::Algorithm::HS512, jwt_secret),
+        signer: Signer::hmac(Algorithm::HS512, jwt_secret),
         access_token_secs: ACCESS_TOKEN_SECS,
         // No authorization code flow on this server; grantry still wants these.
         code_ttl: Duration::seconds(60),
@@ -105,18 +104,5 @@ impl Events<String> for TracingEvents {
             client_ip,
             "session grant revoked"
         );
-    }
-}
-
-/// The session server only serves first-party clients and never resolves a
-/// client metadata document.
-struct NoFetch;
-
-#[async_trait]
-impl MetadataFetcher for NoFetch {
-    async fn fetch(&self, _url: &Url, _limit: usize) -> Result<Fetched, FetchError> {
-        Err(FetchError(
-            "the session server resolves no documents".into(),
-        ))
     }
 }

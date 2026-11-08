@@ -1735,9 +1735,9 @@ dependencies = [
 
 [[package]]
 name = "grantry"
-version = "0.2.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03ddcbeb21bae0322fd3c0ff6e6bbb3f0bfe03284a82c548d8cf0371385c6f1a"
+checksum = "88855fa46e4e80b5055dcace227ef1fcc2c4cdddf0a5da0b9970eb00ae979559"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4091,7 +4091,6 @@ dependencies = [
  "http-body-util",
  "include_dir",
  "init-tracing-opentelemetry",
- "jsonwebtoken",
  "maplit",
  "mime_guess",
  "num_cpus",
