@@ -782,7 +782,6 @@ actions: {}
 template:
   images:
     - ghcr.io/aincient-labs/atelier-cms:v0.24.0
-    - ghcr.io/aincient-labs/atelier-cms:latest
   payload: []
   parameters:
     type: object
@@ -829,7 +828,7 @@ file is rejected. No patterns means no caller files.
 ```shell
 scottyctl app:create report-x --app-blueprint static-html --folder ./site
 scottyctl app:create cms --app-blueprint atelier --ttl forever \
-  --param ADMIN_PASS=… --image ghcr.io/aincient-labs/atelier-cms:latest
+  --param ADMIN_PASS=…
 ```
 
 #### Snapshot

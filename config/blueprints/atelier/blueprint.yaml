@@ -4,19 +4,9 @@ required_services: [db, app, edge]
 public_services:
   edge: 80
 actions:
-  # ponytail: no `drush deploy` hooks like drupal-lagoon: Atelier's entrypoint
-  # already converges (updatedb, config import) on every start, and Scotty only
-  # waits for "running", so the hooks first wait for the image's healthcheck.
-  post_create:
-    description: "Generate a one-time login link once Atelier has converged"
-    commands:
-      app:
-        - for i in $(seq 1 120); do /usr/local/bin/healthcheck.sh >/dev/null 2>&1 && break; sleep 5; done; /opt/drupal/vendor/bin/drush uli --uri=$SCOTTY__PUBLIC_URL__EDGE
-  post_run:
-    description: "Generate a one-time login link once Atelier has converged"
-    commands:
-      app:
-        - for i in $(seq 1 120); do /usr/local/bin/healthcheck.sh >/dev/null 2>&1 && break; sleep 5; done; /opt/drupal/vendor/bin/drush uli --uri=$SCOTTY__PUBLIC_URL__EDGE
+  # ponytail: no lifecycle hooks. `drush deploy` would race Atelier's own
+  # converge on start, and a login link in post_create/post_run output would
+  # be readable by everyone with `view` on the app (task visibility).
   drush:uli:
     description: "Generate a one-time login link"
     commands:
@@ -41,7 +31,6 @@ actions:
 template:
   images:
     - ghcr.io/aincient-labs/atelier-cms:v0.24.0
-    - ghcr.io/aincient-labs/atelier-cms:latest
   payload: []
   parameters:
     type: object

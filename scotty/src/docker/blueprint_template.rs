@@ -158,7 +158,11 @@ pub fn resolve_environment(
 /// Copies the values Scotty generated for an existing app into `settings`,
 /// so `resolve_environment` doesn't generate them again (create-existing-app D4).
 fn keep_generated(existing: Option<&AppSettings>, settings: &mut AppSettings) {
-    let Some(old) = existing else { return };
+    // Only for the same blueprint: another blueprint's secrets don't belong
+    // in this app's environment.
+    let Some(old) = existing.filter(|old| old.app_blueprint == settings.app_blueprint) else {
+        return;
+    };
     for key in &old.generated_parameters {
         if let Some(value) = old.environment.get(key) {
             settings
@@ -168,20 +172,47 @@ fn keep_generated(existing: Option<&AppSettings>, settings: &mut AppSettings) {
     }
 }
 
+/// Supported `x-scotty-generate` and `x-scotty-from` values.
+const GENERATE_KINDS: &[&str] = &["hex32", "hex64", "password"];
+const FROM_SOURCES: &[&str] = &["app.name", "app.domain", "app.domain_pattern"];
+
+/// Checks a templated blueprint when Scotty starts, so a broken blueprint
+/// fails the server start instead of every create request with a 400: the
+/// schema compiles, Scotty-filled values are supported, payload globs parse.
+pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
+    if let Some(schema) = &t.parameters {
+        jsonschema::validator_for(schema).map_err(|e| format!("invalid parameter schema: {e}"))?;
+    }
+    for (key, prop) in properties(t).into_iter().flatten() {
+        for (keyword, allowed) in [(GENERATE, GENERATE_KINDS), (FROM, FROM_SOURCES)] {
+            if let Some(v) = prop.get(keyword) {
+                if !v.as_str().is_some_and(|v| allowed.contains(&v)) {
+                    return Err(format!("{key}: unsupported {keyword} value {v}"));
+                }
+            }
+        }
+    }
+    for pattern in &t.payload {
+        Glob::new(pattern).map_err(|e| format!("invalid payload pattern {pattern}: {e}"))?;
+    }
+    Ok(())
+}
+
 fn generate(kind: &str) -> Result<String, AppError> {
-    let random = |n: usize| {
+    let random = |n: usize| -> Result<Vec<u8>, AppError> {
         let mut buf = vec![0u8; n];
-        getrandom::fill(&mut buf).expect("OS random source unavailable");
-        buf
+        getrandom::fill(&mut buf)
+            .map_err(|e| AppError::InternalServerError(format!("no OS randomness: {e}")))?;
+        Ok(buf)
     };
     Ok(match kind {
-        "hex32" => hex(&random(32)),
-        "hex64" => hex(&random(64)),
+        "hex32" => hex(&random(32)?),
+        "hex64" => hex(&random(64)?),
         // 64-symbol alphabet, so `byte % 64` has no modulo bias.
         "password" => {
             const ALPHABET: &[u8] =
                 b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-            random(32)
+            random(32)?
                 .iter()
                 .map(|b| ALPHABET[(*b % 64) as usize] as char)
                 .collect()
@@ -411,6 +442,21 @@ mod tests {
         let salt = |s: &AppSettings| s.environment.expose_all()["HASH_SALT"].clone();
         assert_eq!(salt(&first), salt(&second));
 
+        // Switching blueprints doesn't carry the old secrets over.
+        let mut other = first.clone();
+        other.app_blueprint = Some("something-else".into());
+        let (third, _) = apply(
+            Some(&bp),
+            &p,
+            None,
+            "demo",
+            &AppSettings::default(),
+            &FileList { files: vec![] },
+            Some(&other),
+        )
+        .unwrap();
+        assert_ne!(salt(&first), salt(&third));
+
         // The caller still can't set it, even on a re-create.
         let mut caller = AppSettings::default();
         caller.environment.insert("HASH_SALT".into(), "mine".into());
@@ -424,6 +470,38 @@ mod tests {
             Some(&first)
         )
         .is_err());
+    }
+
+    #[test]
+    fn broken_blueprints_fail_the_startup_check() {
+        check_template(&atelier()).unwrap();
+        for (schema, payload, want) in [
+            (
+                json!({"type": "object", "properties": {"X": {"type": 5}}}),
+                vec![],
+                "schema",
+            ),
+            (
+                json!({"type": "object", "properties": {"X": {"x-scotty-generate": "uuid"}}}),
+                vec![],
+                "x-scotty-generate",
+            ),
+            (
+                json!({"type": "object", "properties": {"X": {"x-scotty-from": "app.ip"}}}),
+                vec![],
+                "x-scotty-from",
+            ),
+            (
+                json!({"type": "object"}),
+                vec!["html/[".to_string()],
+                "payload",
+            ),
+        ] {
+            let mut t = template(schema);
+            t.payload = payload;
+            let e = check_template(&t).unwrap_err();
+            assert!(e.contains(want), "{want}: {e}");
+        }
     }
 
     // 2.3

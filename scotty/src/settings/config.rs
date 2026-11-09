@@ -133,6 +133,12 @@ impl Settings {
             &mut settings.apps.blueprints,
         )
         .map_err(ConfigError::Message)?;
+        for (name, blueprint) in &settings.apps.blueprints {
+            if let Some(t) = &blueprint.template {
+                crate::docker::blueprint_template::check_template(t)
+                    .map_err(|e| ConfigError::Message(format!("blueprint {name}: {e}")))?;
+            }
+        }
 
         // Check if we should serve the frontend.
         // We check for special strings here, so we can override and disable

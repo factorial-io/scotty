@@ -12,7 +12,7 @@ upstream appliance topology in `docker/compose.yaml` and `docker/edge.conf` of
 | `db` (`pgvector/pgvector:pg16-trixie`) | kept | Password generated per app (`DB_PASSWORD`) instead of the upstream default `aincient` |
 | `app` (`ghcr.io/aincient-labs/atelier-cms`) | kept | Image from the blueprint's allowlist (`IMAGE`), no `build:` section, no `host.docker.internal` mapping |
 | `edge` (`nginx:1.30-alpine-slim`, `edge.conf`) | kept | Public service on port 80; Traefik in front instead of the published port 41221 |
-| `updater` (one-click upgrade sidecar) | dropped | It mounts `/var/run/docker.sock`, which is root on the Scotty host. Upgrade through Scotty instead: recreate the app with a newer `--image` |
+| `updater` (one-click upgrade sidecar) | dropped | It mounts `/var/run/docker.sock`, which is root on the Scotty host. Upgrade through Scotty instead: add the new pinned tag to `images` in `blueprint.yaml`, then re-create the app with `--image <tag>` |
 
 ## Volumes
 
@@ -33,6 +33,6 @@ and without `--destroy-on-ttl`.
 | `AINCIENT_REVERSE_PROXY` | fixed `1`: edge is the only way in, so its forwarded headers are trusted |
 | `AINCIENT_FAST_RESTART` | fixed `1`, the upstream default |
 
-When moving to a newer upstream tag, diff its `docker/compose.yaml` and
+Only pinned tags go into `images`, never `:latest`: a mutable tag would change what an app runs without any change to the blueprint. When moving to a newer upstream tag, diff its `docker/compose.yaml` and
 `docker/edge.conf` against this blueprint; `edge.conf` must match the image
 version.
