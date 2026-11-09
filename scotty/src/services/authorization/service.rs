@@ -96,10 +96,7 @@ impl AuthorizationService {
             let perms: Vec<String> = role_config
                 .permissions
                 .iter()
-                .map(|p| match p {
-                    PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                    PermissionOrWildcard::Wildcard => "*".to_string(),
-                })
+                .map(|p| p.as_policy_string())
                 .collect();
             println!(
                 "  - {}: [{}] - {}",
@@ -222,6 +219,7 @@ impl AuthorizationService {
                 let has_permission = role_config.permissions.iter().any(|p| match p {
                     PermissionOrWildcard::Wildcard => true,
                     PermissionOrWildcard::Permission(perm) => perm == action,
+                    PermissionOrWildcard::CreateFromBlueprint(_) => false,
                 });
 
                 if has_permission {
@@ -252,53 +250,81 @@ impl AuthorizationService {
         scopes: &[String],
         action: &Permission,
     ) -> bool {
-        info!(
-            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+        self.role_grants_in_scopes(user, scopes, action.as_str(), |p| match p {
+            PermissionOrWildcard::Wildcard => true,
+            PermissionOrWildcard::Permission(perm) => perm == action,
+            PermissionOrWildcard::CreateFromBlueprint(_) => false,
+        })
+        .await
+    }
+
+    /// Check whether a user may create an app in any of `scopes` (D8).
+    ///
+    /// Plain `create` allows everything. `create:<blueprint>` allows only
+    /// `blueprint`, which the caller passes as `Some` only when the request
+    /// uses a templated blueprint and carries no compose file of its own.
+    pub async fn check_create_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        blueprint: Option<&str>,
+    ) -> bool {
+        if self
+            .check_permission_in_scopes(user, scopes, &Permission::Create)
+            .await
+        {
+            return true;
+        }
+        let Some(blueprint) = blueprint else {
+            return false;
+        };
+        let action = format!("create:{blueprint}");
+        self.role_grants_in_scopes(
             user,
             scopes,
-            action.as_str()
+            &action,
+            |p| matches!(p, PermissionOrWildcard::CreateFromBlueprint(bp) if bp == blueprint),
+        )
+        .await
+    }
+
+    /// Whether one of the user's roles has a permission matching `grants`
+    /// and is assigned to at least one of `scopes`.
+    async fn role_grants_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &str,
+        grants: impl Fn(&PermissionOrWildcard) -> bool,
+    ) -> bool {
+        info!(
+            "Checking permission in scopes: user='{}', scopes={:?}, action='{}'",
+            user, scopes, action
         );
 
         let config = self.config.read().await;
-
-        // Get user assignments (with domain fallback support)
         let all_assignments = self.resolve_user_assignments(user, &config);
 
-        // Check if user has the permission in any of their roles that overlap with target scopes
         for assignment in &all_assignments {
-            if let Some(role_config) = config.roles.get(&assignment.role) {
-                let has_permission = role_config.permissions.iter().any(|p| match p {
-                    PermissionOrWildcard::Wildcard => true,
-                    PermissionOrWildcard::Permission(perm) => perm == action,
-                });
-
-                if has_permission {
-                    // Expand wildcard scopes and check access
-                    let expanded_scopes =
-                        self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
-                    let has_scope_access = expanded_scopes
-                        .iter()
-                        .any(|assigned_scope| scopes.contains(assigned_scope));
-
-                    if has_scope_access {
-                        info!(
-                            "Permission granted: {} has {} in scopes {:?} via role {}",
-                            user,
-                            action.as_str(),
-                            scopes,
-                            assignment.role
-                        );
-                        return true;
-                    }
-                }
+            let Some(role_config) = config.roles.get(&assignment.role) else {
+                continue;
+            };
+            if !role_config.permissions.iter().any(&grants) {
+                continue;
+            }
+            let expanded_scopes = self.expand_wildcard_scopes(&assignment.scopes, &config.scopes);
+            if expanded_scopes.iter().any(|s| scopes.contains(s)) {
+                info!(
+                    "Permission granted: {} has {} in scopes {:?} via role {}",
+                    user, action, scopes, assignment.role
+                );
+                return true;
             }
         }
 
         info!(
             "Permission denied: {} lacks {} in scopes {:?}",
-            user,
-            action.as_str(),
-            scopes
+            user, action, scopes
         );
         false
     }
@@ -528,10 +554,7 @@ impl AuthorizationService {
                 role_config
                     .permissions
                     .iter()
-                    .map(|p| match p {
-                        PermissionOrWildcard::Wildcard => "*".to_string(),
-                        PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                    })
+                    .map(|p| p.as_policy_string())
                     .collect()
             } else {
                 vec![]
@@ -712,13 +735,12 @@ impl AuthorizationService {
                                     .await?;
                             }
                         }
-                        PermissionOrWildcard::Permission(perm) => {
-                            let action = perm.as_str();
+                        other => {
                             enforcer
                                 .add_policy(vec![
                                     user.to_string(),
                                     scope.clone(),
-                                    action.to_string(),
+                                    other.as_policy_string(),
                                 ])
                                 .await?;
                         }
@@ -767,10 +789,7 @@ impl AuthorizationService {
                 let permissions: Vec<String> = role_config
                     .permissions
                     .iter()
-                    .map(|p| match p {
-                        PermissionOrWildcard::Wildcard => "*".to_string(),
-                        PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                    })
+                    .map(|p| p.as_policy_string())
                     .collect();
 
                 // Expand wildcard scopes and add permissions for each scope

@@ -165,6 +165,14 @@ impl CasbinManager {
                         .await?;
                 }
             }
+            PermissionOrWildcard::CreateFromBlueprint(_) => {
+                // Checked against the role config by `check_create_in_scopes`;
+                // mirrored into Casbin so policy dumps show the grant.
+                let action = permission.as_policy_string();
+                enforcer
+                    .add_policy(vec![user.to_string(), scope.to_string(), action])
+                    .await?;
+            }
             PermissionOrWildcard::Permission(perm) => {
                 let action = perm.as_str();
                 info!(

@@ -1,0 +1,145 @@
+//! `create:<blueprint>` lets a user create apps from that templated blueprint
+//! only: not from another blueprint, not from a caller compose file. Plain
+//! `create` still allows everything.
+//!
+//! Allowed requests are built to fail validation after the permission check
+//! (400), so no app is actually created; denied ones get 403.
+
+use axum_test::TestServer;
+use base64::prelude::*;
+use scotty::api::router::ApiRoutes;
+use scotty::api::test_utils::create_test_app_state_with_policy_dir;
+
+const PUBLISHER: &str = "publisher-token";
+const DEVELOPER: &str = "developer-token";
+
+const POLICY: &str = r#"
+scopes:
+  default:
+    description: Default
+    created_at: 2024-01-01T00:00:00Z
+roles:
+  publisher:
+    permissions: [view, "create:demo-template"]
+    description: May only publish from demo-template
+  developer:
+    permissions: [view, create]
+    description: May create anything
+assignments:
+  identifier:publisher:
+    - { role: publisher, scopes: [default] }
+  identifier:developer:
+    - { role: developer, scopes: [default] }
+"#;
+
+async fn setup() -> (TestServer, tempfile::TempDir) {
+    let policy_dir = tempfile::tempdir().unwrap();
+    std::fs::copy(
+        "tests/fixtures/casbin/model.conf",
+        policy_dir.path().join("model.conf"),
+    )
+    .unwrap();
+    std::fs::write(policy_dir.path().join("policy.yaml"), POLICY).unwrap();
+
+    let mut settings: scotty::settings::config::Settings = config::Config::builder()
+        .add_source(config::File::with_name("tests/test_bearer_auth"))
+        .set_override("api.rate_limiting.enabled", false)
+        .unwrap()
+        .set_override("api.bearer_tokens.publisher", PUBLISHER)
+        .unwrap()
+        .set_override("api.bearer_tokens.developer", DEVELOPER)
+        .unwrap()
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
+    scotty_core::settings::app_blueprint::load_blueprint_dirs(
+        std::path::Path::new("tests/fixtures/blueprints"),
+        &mut settings.apps.blueprints,
+    )
+    .unwrap();
+
+    let state =
+        create_test_app_state_with_policy_dir(settings, None, policy_dir.path().to_str().unwrap())
+            .await;
+    (TestServer::new(ApiRoutes::create(state)), policy_dir)
+}
+
+/// A create request; `files` are (name, content) pairs.
+fn request(blueprint: Option<&str>, files: &[(&str, &str)]) -> serde_json::Value {
+    serde_json::json!({
+        "app_name": "perm-test",
+        "settings": {
+            "public_services": [],
+            "domain": "",
+            "time_to_live": "Forever",
+            "basic_auth": null,
+            "disallow_robots": true,
+            "environment": {},
+            "registry": null,
+            "app_blueprint": blueprint,
+        },
+        "files": { "files": files.iter().map(|(name, content)| serde_json::json!({
+            "name": name, "content": BASE64_STANDARD.encode(content)
+        })).collect::<Vec<_>>() },
+        "custom_domains": [],
+        "requested_scopes": ["default"],
+    })
+}
+
+async fn status(server: &TestServer, token: &str, body: serde_json::Value) -> u16 {
+    server
+        .post("/api/v1/authenticated/apps/create")
+        .authorization_bearer(token)
+        .json(&body)
+        .await
+        .status_code()
+        .as_u16()
+}
+
+const COMPOSE: (&str, &str) = ("docker-compose.yml", "services: {web: {image: x}}");
+
+#[tokio::test]
+async fn restricted_user_may_create_from_allowed_blueprint() {
+    let (server, _dir) = setup().await;
+    // Passes the permission check, then fails on the missing GREETING.
+    let response = server
+        .post("/api/v1/authenticated/apps/create")
+        .authorization_bearer(PUBLISHER)
+        .json(&request(Some("demo-template"), &[]))
+        .await;
+    assert_eq!(response.status_code(), 400);
+    assert!(response.text().contains("GREETING"), "{}", response.text());
+}
+
+#[tokio::test]
+async fn restricted_user_is_forbidden_elsewhere() {
+    let (server, _dir) = setup().await;
+    for (case, body) in [
+        ("caller compose", request(Some("demo-template"), &[COMPOSE])),
+        (
+            "other blueprint",
+            request(Some("test-blueprint"), &[COMPOSE]),
+        ),
+        ("no blueprint", request(None, &[COMPOSE])),
+    ] {
+        assert_eq!(status(&server, PUBLISHER, body).await, 403, "{case}");
+    }
+}
+
+#[tokio::test]
+async fn plain_create_still_allows_everything() {
+    let (server, _dir) = setup().await;
+    // `.scotty.yml` is rejected right after the permission check.
+    let scotty_yml = (".scotty.yml", "x");
+    for (case, body) in [
+        ("templated", request(Some("demo-template"), &[])),
+        (
+            "other blueprint",
+            request(Some("test-blueprint"), &[COMPOSE, scotty_yml]),
+        ),
+        ("no blueprint", request(None, &[COMPOSE, scotty_yml])),
+    ] {
+        assert_eq!(status(&server, DEVELOPER, body).await, 400, "{case}");
+    }
+}

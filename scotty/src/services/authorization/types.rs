@@ -6,10 +6,26 @@ use std::collections::{BTreeMap, HashMap};
 pub use scotty_core::authorization::Permission;
 
 /// Represents either a specific permission or wildcard (*)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionOrWildcard {
     Permission(Permission),
     Wildcard,
+    /// `create:<blueprint>`: create apps from that blueprint only, never from
+    /// a caller-supplied compose file. Plain `create` implies it.
+    CreateFromBlueprint(String),
+}
+
+impl PermissionOrWildcard {
+    const CREATE_FROM_PREFIX: &'static str = "create:";
+
+    /// The policy string, e.g. `view`, `*` or `create:static-html`.
+    pub fn as_policy_string(&self) -> String {
+        match self {
+            Self::Permission(perm) => perm.as_str().to_string(),
+            Self::Wildcard => "*".to_string(),
+            Self::CreateFromBlueprint(bp) => format!("{}{bp}", Self::CREATE_FROM_PREFIX),
+        }
+    }
 }
 
 /// Authorization configuration loaded from YAML
@@ -62,13 +78,7 @@ pub mod permission_serde {
     where
         S: Serializer,
     {
-        let strings: Vec<String> = perms
-            .iter()
-            .map(|p| match p {
-                PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                PermissionOrWildcard::Wildcard => "*".to_string(),
-            })
-            .collect();
+        let strings: Vec<String> = perms.iter().map(|p| p.as_policy_string()).collect();
         strings.serialize(serializer)
     }
 
@@ -82,6 +92,11 @@ pub mod permission_serde {
             .map(|s| {
                 if s == "*" {
                     PermissionOrWildcard::Wildcard
+                } else if let Some(bp) = s
+                    .strip_prefix(PermissionOrWildcard::CREATE_FROM_PREFIX)
+                    .filter(|bp| !bp.is_empty())
+                {
+                    PermissionOrWildcard::CreateFromBlueprint(bp.to_string())
                 } else if let Some(perm) = Permission::from_str(&s) {
                     PermissionOrWildcard::Permission(perm)
                 } else {
@@ -90,5 +105,27 @@ pub mod permission_serde {
                 }
             })
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod create_from_blueprint_tests {
+    use super::*;
+
+    #[test]
+    fn create_from_blueprint_parses_and_round_trips() {
+        let role: RoleConfig =
+            serde_norway::from_str("permissions: [view, 'create:static-html']\ndescription: d\n")
+                .unwrap();
+        // Before this variant existed, unknown strings became `*`.
+        assert_eq!(
+            role.permissions,
+            vec![
+                PermissionOrWildcard::Permission(Permission::View),
+                PermissionOrWildcard::CreateFromBlueprint("static-html".into()),
+            ]
+        );
+        let yaml = serde_norway::to_string(&role).unwrap();
+        assert!(yaml.contains("create:static-html"), "{yaml}");
     }
 }

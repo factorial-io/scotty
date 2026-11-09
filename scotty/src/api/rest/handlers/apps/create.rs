@@ -1,10 +1,7 @@
 use crate::{
-    api::error::AppError,
-    api::middleware::authorization::AuthorizationContext,
-    api::secure_response::SecureJson,
-    app_state::SharedAppState,
-    docker::create_app::create_app,
-    services::{authorization::Permission, AuthorizationService},
+    api::error::AppError, api::middleware::authorization::AuthorizationContext,
+    api::secure_response::SecureJson, app_state::SharedAppState, docker::create_app::create_app,
+    services::AuthorizationService,
 };
 use axum::{
     debug_handler,
@@ -72,14 +69,42 @@ pub async fn create_app_handler(
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     let auth_service = &state.auth_service;
 
+    // `create:<blueprint>` only covers templated blueprints without a caller
+    // compose file; anything else needs plain `create` (D8).
+    let templated_blueprint = payload
+        .settings
+        .app_blueprint
+        .as_deref()
+        .filter(|bp| {
+            state
+                .settings
+                .apps
+                .blueprints
+                .get(*bp)
+                .is_some_and(|b| b.template.is_some())
+        })
+        .filter(|_| {
+            !payload
+                .files
+                .files
+                .iter()
+                .any(|f| scotty_core::utils::compose::is_valid_config_file(&f.name))
+        });
     let allowed = auth_service
-        .check_permission_in_scopes(&user_id, &payload.requested_scopes, &Permission::Create)
+        .check_create_in_scopes(&user_id, &payload.requested_scopes, templated_blueprint)
         .await;
 
     if !allowed {
         return Err(AppError::ScopeAccessDenied(format!(
-            "User {} lacks create permission in scopes: {:?}",
-            auth_context.user.email, payload.requested_scopes
+            "User {} lacks create permission in scopes {:?}{}",
+            auth_context.user.email,
+            payload.requested_scopes,
+            payload
+                .settings
+                .app_blueprint
+                .as_deref()
+                .map(|bp| format!(" for blueprint {bp}"))
+                .unwrap_or_default()
         )));
     }
 

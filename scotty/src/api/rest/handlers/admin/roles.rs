@@ -37,10 +37,7 @@ pub async fn list_roles_handler(
             let permissions: Vec<String> = config
                 .permissions
                 .into_iter()
-                .map(|p| match p {
-                    PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                    PermissionOrWildcard::Wildcard => "*".to_string(),
-                })
+                .map(|p| p.as_policy_string())
                 .collect();
 
             RoleInfo {
