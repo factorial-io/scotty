@@ -124,6 +124,9 @@ pub fn resolve_environment(
         } else if let Some(from) = prop.get(FROM).and_then(Value::as_str) {
             let value = match from {
                 "app.domain" => settings.domain.clone(),
+                // Anchored, escaped regex for apps that take host patterns
+                // (e.g. Drupal's trusted_host_patterns, matched unanchored).
+                "app.domain_pattern" => format!("^{}$", regex::escape(&settings.domain)),
                 "app.name" => app_name.to_string(),
                 other => {
                     return Err(AppError::BadRequest(format!(
@@ -286,6 +289,7 @@ mod tests {
                 "SITE_NAME": {"type": "string", "minLength": 1},
                 "HASH_SALT": {"type": "string", "x-scotty-generate": "hex32"},
                 "TRUSTED": {"type": "string", "x-scotty-from": "app.domain"},
+                "TRUSTED_RE": {"type": "string", "x-scotty-from": "app.domain_pattern"},
             }
         }))
     }
@@ -351,6 +355,7 @@ mod tests {
         let env = s.environment.expose_all();
         assert_eq!(env["SITE_NAME"], "Demo");
         assert_eq!(env["TRUSTED"], "demo.example.com");
+        assert_eq!(env["TRUSTED_RE"], r"^demo\.example\.com$");
         assert_eq!(env["IMAGE"], "img:2");
         let salt = &env["HASH_SALT"];
         assert_eq!(salt.len(), 64);
