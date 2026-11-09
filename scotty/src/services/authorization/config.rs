@@ -115,3 +115,24 @@ impl ConfigManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn example_policy_loads_with_blueprint_scoped_create() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../config/casbin/policy.yaml.example"
+        );
+        let config = ConfigManager::load_config(path).await.unwrap();
+        let role = &config.roles["artifact_publisher"];
+        assert!(role
+            .permissions
+            .contains(&PermissionOrWildcard::CreateFromBlueprint(
+                "static-html".into()
+            )));
+        assert!(!role.permissions.contains(&PermissionOrWildcard::Wildcard));
+    }
+}
