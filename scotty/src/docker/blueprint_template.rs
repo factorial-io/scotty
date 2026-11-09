@@ -113,6 +113,17 @@ pub fn resolve_environment(
         (None, None) => {}
     }
 
+    // The hosts the app is actually served at: `<service>.<domain>` or the
+    // custom domains, public services in blueprint order.
+    let mut hosts: Vec<String> = settings
+        .public_services
+        .iter()
+        .flat_map(|s| s.get_domains(&settings.domain))
+        .collect();
+    if hosts.is_empty() {
+        hosts.push(settings.domain.clone());
+    }
+
     for (key, prop) in properties(t).into_iter().flatten() {
         if let Some(kind) = prop.get(GENERATE).and_then(Value::as_str) {
             if settings.environment.get(key).is_none() {
@@ -123,10 +134,14 @@ pub fn resolve_environment(
             }
         } else if let Some(from) = prop.get(FROM).and_then(Value::as_str) {
             let value = match from {
-                "app.domain" => settings.domain.clone(),
-                // Anchored, escaped regex for apps that take host patterns
+                "app.domain" => hosts.first().cloned().unwrap_or_default(),
+                // Anchored, escaped regexes for apps that take host patterns
                 // (e.g. Drupal's trusted_host_patterns, matched unanchored).
-                "app.domain_pattern" => format!("^{}$", regex::escape(&settings.domain)),
+                "app.domain_pattern" => hosts
+                    .iter()
+                    .map(|h| format!("^{}$", regex::escape(h)))
+                    .collect::<Vec<_>>()
+                    .join(","),
                 "app.name" => app_name.to_string(),
                 other => {
                     return Err(AppError::BadRequest(format!(
@@ -260,6 +275,7 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scotty_core::apps::app_data::ServicePortMapping;
     use scotty_core::apps::file_list::FileContent;
     use serde_json::json;
 
@@ -348,14 +364,26 @@ mod tests {
     fn resolves_generated_derived_and_image() {
         let mut s = AppSettings {
             domain: "demo.example.com".into(),
+            public_services: vec![ServicePortMapping {
+                service: "edge".into(),
+                port: 80,
+                domains: vec![],
+            }],
             ..Default::default()
         };
         let p = params(json!({"SITE_NAME": "Demo"}));
         resolve_environment(&atelier(), &p, Some("img:2"), "demo", &mut s).unwrap();
         let env = s.environment.expose_all();
         assert_eq!(env["SITE_NAME"], "Demo");
-        assert_eq!(env["TRUSTED"], "demo.example.com");
-        assert_eq!(env["TRUSTED_RE"], r"^demo\.example\.com$");
+        assert_eq!(env["TRUSTED"], "edge.demo.example.com");
+        assert_eq!(env["TRUSTED_RE"], r"^edge\.demo\.example\.com$");
+
+        // Custom domains are what the app is served at.
+        s.public_services[0].domains = vec!["a.org".into(), "b.org".into()];
+        resolve_environment(&atelier(), &p, Some("img:2"), "demo", &mut s).unwrap();
+        let env = s.environment.expose_all();
+        assert_eq!(env["TRUSTED"], "a.org");
+        assert_eq!(env["TRUSTED_RE"], r"^a\.org$,^b\.org$");
         assert_eq!(env["IMAGE"], "img:2");
         let salt = &env["HASH_SALT"];
         assert_eq!(salt.len(), 64);
