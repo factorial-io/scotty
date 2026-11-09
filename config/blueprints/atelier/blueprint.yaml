@@ -1,0 +1,27 @@
+name: Atelier
+description: Self-hosted Atelier CMS (AI website builder) from aincient-labs/atelier-cms
+required_services: [db, app, edge]
+public_services:
+  edge: 80
+actions: {}
+template:
+  images:
+    - ghcr.io/aincient-labs/atelier-cms:v0.24.0
+    - ghcr.io/aincient-labs/atelier-cms:latest
+  payload: []
+  parameters:
+    type: object
+    properties:
+      ADMIN_PASS:
+        type: string
+        minLength: 12
+        description: Admin password. Leave empty to have Atelier generate one into private/INITIAL_ADMIN_PASSWORD (read it with app:shell).
+      HASH_SALT:
+        type: string
+        x-scotty-generate: hex32
+      DB_PASSWORD:
+        type: string
+        x-scotty-generate: hex32
+      AINCIENT_TRUSTED_HOSTS:
+        type: string
+        x-scotty-from: app.domain_pattern
