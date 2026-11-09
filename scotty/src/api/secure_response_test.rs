@@ -314,3 +314,30 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
     assert!(masked_token.starts_with("*****")); // Should start with asterisks
     assert!(masked_token.ends_with("123")); // Should end with last few chars
 }
+
+#[tokio::test]
+async fn test_secure_json_strips_generated_parameters() {
+    // HASH_SALT is not recognised as sensitive by name, so masking alone
+    // would return it in clear text.
+    let mut env_vars = HashMap::new();
+    env_vars.insert("HASH_SALT".to_string(), "a".repeat(64));
+    env_vars.insert("SITE_NAME".to_string(), "Demo".to_string());
+    let mut settings = create_app_settings_with_env_vars(env_vars);
+    settings.generated_parameters = vec!["HASH_SALT".to_string()];
+    let app_data = create_test_app_data(settings);
+
+    let info = extract_json_body(SecureJson(app_data.clone())).await;
+    let list = extract_json_body(SecureJson(AppDataVec {
+        apps: vec![app_data],
+    }))
+    .await;
+
+    for env in [
+        &info["settings"]["environment"],
+        &list["apps"][0]["settings"]["environment"],
+    ] {
+        assert!(env.get("HASH_SALT").is_none(), "{env}");
+        assert_eq!(env["SITE_NAME"], json!("Demo"));
+    }
+    assert!(!info.to_string().contains(&"a".repeat(64)));
+}
