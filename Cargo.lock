@@ -1625,9 +1625,9 @@ dependencies = [
 
 [[package]]
 name = "grantry"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "593c306918e05b347b175f728ca66aa813d449f343dd5924f107cde90162fa56"
+checksum = "003668af63f43652a57068e39b38831ce663c16b23fba3e6b080875d81435509"
 dependencies = [
  "async-trait",
  "axum",
