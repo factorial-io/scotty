@@ -127,6 +127,8 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             },
             files: file_list,
             requested_scopes,
+            blueprint_parameters: Default::default(),
+            image: None,
         };
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;

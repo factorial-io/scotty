@@ -41,6 +41,13 @@ pub struct AppSettings {
     /// Custom actions defined for this app (action_name -> CustomAction)
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub custom_actions: HashMap<String, CustomAction>,
+    /// Environment keys Scotty generated from the blueprint schema
+    /// (`x-scotty-generate`). Their values are never returned by the API.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generated_parameters: Vec<String>,
+    /// Content hash of the templated blueprint the app was created from (D6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blueprint_hash: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -59,6 +66,8 @@ impl Default for AppSettings {
             middlewares: Vec::new(),
             scopes: default_scopes(),
             custom_actions: HashMap::new(),
+            generated_parameters: Vec::new(),
+            blueprint_hash: None,
         }
     }
 }

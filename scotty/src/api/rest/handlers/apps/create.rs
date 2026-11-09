@@ -182,6 +182,8 @@ pub async fn create_app_handler(
         &payload.app_name,
         &settings,
         &file_list,
+        &payload.blueprint_parameters,
+        payload.image.as_deref(),
         Some(user_id.clone()),
     )
     .await

@@ -130,7 +130,7 @@ async fn validate_app(
 /// # let app_state = todo!();
 /// # let settings = todo!();
 /// # let files = todo!();
-/// let result = create_app(app_state, "my-app", &settings, &files).await;
+/// let result = create_app(app_state, "my-app", &settings, &files, &Default::default(), None, None).await;
 /// assert!(result.is_ok());
 /// # }
 /// ```
@@ -139,9 +139,24 @@ pub async fn create_app(
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
+    blueprint_parameters: &serde_json::Map<String, serde_json::Value>,
+    image: Option<&str>,
     requested_by: Option<String>,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
+    let blueprint = settings
+        .app_blueprint
+        .as_ref()
+        .and_then(|b| app_state.settings.apps.blueprints.get(b));
+    let (settings, files) = super::blueprint_template::apply(
+        blueprint,
+        blueprint_parameters,
+        image,
+        app_name,
+        settings,
+        files,
+    )?;
+    let (settings, files) = (&settings, &files);
     let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);

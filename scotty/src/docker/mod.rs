@@ -1,3 +1,4 @@
+pub mod blueprint_template;
 pub mod create_app;
 pub mod destroy_app;
 pub mod docker_compose;
