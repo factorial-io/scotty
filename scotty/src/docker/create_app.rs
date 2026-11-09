@@ -34,8 +34,9 @@ pub async fn create_steps(
     rebuild_steps(ctx, false)
         .await
         .context("Docker compose rebuild failed")?;
-    run_post_actions(ctx, &ActionName::PostCreate).await?;
-    update_app_data(ctx).await
+    // Inspect first, so post_create sees the services and their public URLs.
+    update_app_data(ctx).await?;
+    run_post_actions(ctx, &ActionName::PostCreate).await
 }
 
 async fn validate_app(
