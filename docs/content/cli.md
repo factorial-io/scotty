@@ -279,12 +279,24 @@ scottyctl --server <SERVER> --access-token <TOKEN> app:create <APP> --folder <FO
   [--env <KEY=VALUE>] [--env <KEY=VALUE> ...] \
   [--env-file <FILE>] \
   [--registry <REGISTRY>] \
-  [--middleware <MIDDLEWARE>] [--middleware <MIDDLEWARE> ...]
+  [--middleware <MIDDLEWARE>] [--middleware <MIDDLEWARE> ...] \
+  [--param <KEY=VALUE>] [--param <KEY=VALUE> ...] [--image <IMAGE>]
 ```
 
-This command will create a new app on the server. The `--folder` argument is
-mandatory and should point to a folder containing at least a `compose.yml`
-file. The complete folder will be uploaded to the server (size limits may apply).
+This command will create a new app on the server. The `--folder` argument
+should point to a folder containing at least a `compose.yml` file. The complete
+folder will be uploaded to the server (size limits may apply).
+
+With a templated blueprint (`Templated: yes` in `blueprint:list`) no compose
+file is needed: `--folder` is optional and holds only the blueprint's payload
+(e.g. `html/` for `static-html`), and a compose file in it is rejected.
+`--param` sets the blueprint's parameters and `--image` picks one of its
+allowed images. `scottyctl blueprint:info <BLUEPRINT>` shows both, see
+[Templated blueprints](configuration.md#templated-blueprints).
+
+```shell
+scottyctl app:create report-x --app-blueprint static-html --folder ./site
+```
 
 You either need to declare a public service via `--service` or use the
 `--app-blueprint` argument (You can get a list of available blueprints with
