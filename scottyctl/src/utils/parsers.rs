@@ -75,14 +75,11 @@ pub fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
     Err(format!("Invalid TTL format: {s}"))
 }
 
-pub fn parse_folder_containing_docker_compose(s: &str) -> Result<String, String> {
-    let path = std::path::Path::new(s);
-    if path.is_dir() {
-        scotty_core::utils::compose::find_config_file_in_dir(path)
-            .map(|p| p.to_string_lossy().to_string())
-            .ok_or_else(|| "Folder does not contain a Docker Compose standard config file, such as docker-compose.yaml or compose.yaml.".to_string())
+pub fn parse_folder(s: &str) -> Result<String, String> {
+    if std::path::Path::new(s).is_dir() {
+        Ok(s.to_string())
     } else {
-        Err("No Docker Compose config file found, path is not a directory".to_string())
+        Err("path is not a directory".to_string())
     }
 }
 

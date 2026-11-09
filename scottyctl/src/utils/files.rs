@@ -5,7 +5,7 @@ use std::path::Path;
 use tracing::info;
 use walkdir::WalkDir;
 
-/// Collects all files in the directory containing the docker-compose file.
+/// Collects all files below `folder`.
 ///
 /// This function walks through the directory tree and collects all files,
 /// supporting both text and binary files. Files matching patterns in
@@ -23,16 +23,12 @@ use walkdir::WalkDir;
 ///
 /// # Arguments
 ///
-/// * `docker_compose_path` - Path to the docker-compose.yml file
+/// * `folder` - The folder to upload
 ///
 /// # Returns
 ///
 /// A `FileList` containing all collected files with their contents
-pub fn collect_files(docker_compose_path: &str) -> anyhow::Result<FileList> {
-    let folder = std::path::Path::new(docker_compose_path)
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("Invalid docker-compose path"))?;
-
+pub fn collect_files(folder: &Path) -> anyhow::Result<FileList> {
     // Check for .scottyignore in source folder
     let scottyignore_path = folder.join(".scottyignore");
     let scottyignore = if scottyignore_path.exists() {
@@ -135,7 +131,7 @@ mod tests {
         fs::write(&compose_path, "version: '3'").unwrap();
         fs::write(temp_dir.path().join("app.rs"), "fn main() {}").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert_eq!(files.files.len(), 2); // docker-compose.yml + app.rs
     }
 
@@ -148,7 +144,7 @@ mod tests {
         fs::write(temp_dir.path().join("debug.log"), "logs").unwrap();
         fs::write(temp_dir.path().join(".scottyignore"), "*.log").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert_eq!(files.files.len(), 3); // docker-compose.yml + app.rs + .scottyignore
         assert!(!files.files.iter().any(|f| f.name.contains("debug.log")));
     }
@@ -165,7 +161,7 @@ mod tests {
 
         fs::write(temp_dir.path().join(".scottyignore"), "target").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("target")));
     }
 
@@ -182,7 +178,7 @@ mod tests {
         )
         .unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("debug.log")));
         assert!(files.files.iter().any(|f| f.name.contains("important.log")));
     }
@@ -198,7 +194,7 @@ mod tests {
         fs::create_dir(&git_dir).unwrap();
         fs::write(git_dir.join("config"), "").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains(".DS_Store")));
         assert!(!files.files.iter().any(|f| f.name.contains(".git")));
     }
@@ -213,7 +209,7 @@ mod tests {
         fs::write(temp_dir.path().join(".scottyignore"), "[[[invalid").unwrap();
 
         // Should still collect files despite malformed .scottyignore
-        let result = collect_files(compose_path.to_str().unwrap());
+        let result = collect_files(compose_path.parent().unwrap());
         assert!(result.is_ok());
         let files = result.unwrap();
         assert!(files.files.len() >= 2); // At least docker-compose.yml + app.rs
@@ -232,7 +228,7 @@ mod tests {
         )
         .unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("debug.log")));
     }
 
@@ -249,7 +245,7 @@ mod tests {
 
         fs::write(temp_dir.path().join(".scottyignore"), "**/*.tmp").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         assert!(!files.files.iter().any(|f| f.name.contains("cache.tmp")));
         assert!(files.files.iter().any(|f| f.name.contains("main.rs")));
     }
@@ -271,7 +267,7 @@ mod tests {
         // Ignore node_modules directory
         fs::write(temp_dir.path().join(".scottyignore"), "node_modules/").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         // Files inside node_modules should be ignored
         assert!(!files.files.iter().any(|f| f.name.contains("node_modules")));
         assert!(!files.files.iter().any(|f| f.name.contains("index.js")));
@@ -292,7 +288,7 @@ mod tests {
         fs::write(git_dir.join("config"), "git config").unwrap();
         fs::write(temp_dir.path().join("README.md"), "# Project").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         // .git files should be ignored
         assert!(!files.files.iter().any(|f| f.name.contains(".git")));
         assert!(!files.files.iter().any(|f| f.name.contains("config")));
@@ -314,7 +310,7 @@ mod tests {
         fs::write(git_dir.join("HEAD"), "ref: refs/heads/main").unwrap();
         fs::write(submodule.join("lib.rs"), "// lib").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         // .git files should be ignored
         assert!(!files.files.iter().any(|f| f.name.contains(".git")));
         assert!(!files.files.iter().any(|f| f.name.contains("HEAD")));
@@ -331,7 +327,7 @@ mod tests {
         fs::write(temp_dir.path().join(".DS_Store"), "macOS metadata").unwrap();
         fs::write(temp_dir.path().join("app.js"), "// app").unwrap();
 
-        let files = collect_files(compose_path.to_str().unwrap()).unwrap();
+        let files = collect_files(compose_path.parent().unwrap()).unwrap();
         // .DS_Store should be ignored
         assert!(!files.files.iter().any(|f| f.name.contains(".DS_Store")));
         // app.js should be included

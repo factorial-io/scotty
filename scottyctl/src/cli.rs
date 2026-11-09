@@ -1,6 +1,6 @@
 use crate::utils::parsers::{
-    parse_app_ttl, parse_basic_auth, parse_custom_domain_mapping, parse_env_vars,
-    parse_folder_containing_docker_compose, parse_service_ids, parse_service_ports,
+    parse_app_ttl, parse_basic_auth, parse_custom_domain_mapping, parse_env_vars, parse_folder,
+    parse_service_ids, parse_service_ports,
 };
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
@@ -316,9 +316,18 @@ pub struct CreateCommand {
     /// Name of the app
     pub app_name: String,
 
-    /// Path to the folder containing a docker-compose file and other needed files
-    #[arg(name="folder", long, value_parser=parse_folder_containing_docker_compose)]
-    pub docker_compose_path: String,
+    /// Folder with the files to upload: a docker-compose file and everything it
+    /// needs, or for a templated blueprint only its payload (e.g. `html/`)
+    #[arg(long, value_parser=parse_folder, required_unless_present="app_blueprint")]
+    pub folder: Option<String>,
+
+    /// Parameter for a templated blueprint (KEY=VALUE), use multiple times
+    #[arg(long, value_name = "KEY=VALUE", value_parser(parse_env_vars))]
+    pub param: Vec<(String, String)>,
+
+    /// Image for a templated blueprint, must be one of its allowed images
+    #[arg(long)]
+    pub image: Option<String>,
 
     /// Public service ports to expose, can be specified multiple times (e.g. web:80, api:8080)
     #[arg(long, value_parser=parse_service_ports, value_name="SERVICE:PORT", required_unless_present="app_blueprint")]
