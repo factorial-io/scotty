@@ -235,6 +235,7 @@ mod tests {
                 domain_suffix: suffix.map(Into::into),
                 ..Default::default()
             }),
+            templated: true,
         };
         let mut apps = Apps {
             domain_suffix: "global.test".into(),

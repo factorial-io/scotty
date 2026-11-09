@@ -150,6 +150,9 @@ pub struct AppBlueprint {
     /// `None` means a validation-only blueprint.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<BlueprintTemplate>,
+    /// True for directory blueprints. Set by the loader, never read from YAML.
+    #[serde(default, skip_deserializing)]
+    pub templated: bool,
 }
 
 /// The parts of a templated blueprint (`config/blueprints/<name>/`).
@@ -311,6 +314,7 @@ fn load_blueprint_dir(path: &std::path::Path) -> Result<AppBlueprint, String> {
         check_flat_schema(schema)?;
     }
     blueprint.template = Some(template);
+    blueprint.templated = true;
     blueprint.validate().map_err(|e| e.to_string())?;
     Ok(blueprint)
 }

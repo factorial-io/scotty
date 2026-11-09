@@ -143,3 +143,38 @@ async fn plain_create_still_allows_everything() {
         assert_eq!(status(&server, DEVELOPER, body).await, 400, "{case}");
     }
 }
+
+async fn list(server: &TestServer, token: &str) -> serde_json::Value {
+    let response = server
+        .get("/api/v1/authenticated/blueprints")
+        .authorization_bearer(token)
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    response.json::<serde_json::Value>()["blueprints"].clone()
+}
+
+#[tokio::test]
+async fn restricted_user_lists_only_allowed_blueprint_with_contract() {
+    let (server, _dir) = setup().await;
+    let blueprints = list(&server, PUBLISHER).await;
+    let names: Vec<_> = blueprints.as_object().unwrap().keys().collect();
+    assert_eq!(names, ["demo-template"]);
+
+    let bp = &blueprints["demo-template"];
+    assert_eq!(bp["templated"], true);
+    let t = &bp["template"];
+    assert_eq!(t["images"], serde_json::json!(["alpine:3"]));
+    assert_eq!(t["payload"], serde_json::json!(["html/**"]));
+    let props = &t["parameters"]["properties"];
+    assert_eq!(props["SECRET"]["readOnly"], true);
+    assert!(props["GREETING"].get("readOnly").is_none());
+    assert!(t.get("files").is_none());
+}
+
+#[tokio::test]
+async fn plain_create_lists_every_blueprint() {
+    let (server, _dir) = setup().await;
+    let blueprints = list(&server, DEVELOPER).await;
+    assert!(blueprints.get("demo-template").is_some());
+    assert_eq!(blueprints["test-blueprint"]["templated"], false);
+}
