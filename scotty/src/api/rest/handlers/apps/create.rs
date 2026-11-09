@@ -13,15 +13,29 @@ use axum::{
 use flate2::read::GzDecoder;
 use scotty_core::{
     apps::{
+        app_data::AppSettings,
         create_app_request::CreateAppRequest,
         file_list::{File, FileList},
     },
     settings::loadbalancer::LoadBalancerType,
     tasks::running_app_context::RunningAppContext,
-    utils::format::format_bytes,
+    utils::{format::format_bytes, slugify::slugify},
 };
 use std::io::Read;
 use tracing::error;
+
+/// Settings of an existing app with this name, read from its directory, or
+/// `None` if there is none. A directory without `.scotty.yml` counts as an
+/// app in scope `default` without a blueprint, as in `find_apps`.
+fn existing_app_settings(root_folder: &str, app_name: &str) -> anyhow::Result<Option<AppSettings>> {
+    let dir = std::path::Path::new(root_folder).join(slugify(app_name));
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+    Ok(Some(
+        AppSettings::from_file(&dir.join(".scotty.yml"))?.unwrap_or_default(),
+    ))
+}
 
 /// Human-readable `Content-Length`, for error messages only.
 fn declared_body_size(headers: &HeaderMap) -> String {
@@ -106,6 +120,44 @@ pub async fn create_app_handler(
                 .map(|bp| format!(" for blueprint {bp}"))
                 .unwrap_or_default()
         )));
+    }
+
+    // Create is create-or-update. Updating an app needs rights on the app
+    // being replaced, read from disk, not the in-memory list, which is empty
+    // right after a restart (create-existing-app D1-D3).
+    let existing = existing_app_settings(&state.settings.apps.root_folder, &payload.app_name)
+        .map_err(|e| {
+            AppError::BadRequest(format!(
+                "Can't read the settings of existing app {}: {e}",
+                payload.app_name
+            ))
+        })?;
+    if let Some(existing) = &existing {
+        let as_set = |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
+        if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {
+            return Err(AppError::ScopeAccessDenied(format!(
+                "App {} exists in scopes {:?}; re-creating it can't change them to {:?}",
+                payload.app_name, existing.scopes, payload.requested_scopes
+            )));
+        }
+        // `create:<blueprint>` only covers apps created from that blueprint.
+        let candidate =
+            templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
+        if !auth_service
+            .check_create_in_scopes(&user_id, &existing.scopes, candidate)
+            .await
+        {
+            return Err(AppError::ScopeAccessDenied(format!(
+                "User {} may not replace existing app {}{}",
+                auth_context.user.email,
+                payload.app_name,
+                existing
+                    .app_blueprint
+                    .as_deref()
+                    .map(|bp| format!(" (blueprint {bp})"))
+                    .unwrap_or_default()
+            )));
+        }
     }
 
     // Copy validated scopes to settings
@@ -210,6 +262,7 @@ pub async fn create_app_handler(
         &payload.blueprint_parameters,
         payload.image.as_deref(),
         Some(user_id.clone()),
+        existing.as_ref(),
     )
     .await
     {

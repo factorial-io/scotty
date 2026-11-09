@@ -155,6 +155,19 @@ pub fn resolve_environment(
     Ok(())
 }
 
+/// Copies the values Scotty generated for an existing app into `settings`,
+/// so `resolve_environment` doesn't generate them again (create-existing-app D4).
+fn keep_generated(existing: Option<&AppSettings>, settings: &mut AppSettings) {
+    let Some(old) = existing else { return };
+    for key in &old.generated_parameters {
+        if let Some(value) = old.environment.get(key) {
+            settings
+                .environment
+                .insert(key.clone(), value.expose_secret().to_string());
+        }
+    }
+}
+
 fn generate(kind: &str) -> Result<String, AppError> {
     let random = |n: usize| {
         let mut buf = vec![0u8; n];
@@ -203,6 +216,8 @@ pub fn content_hash(t: &BlueprintTemplate) -> String {
 
 /// Prepares settings and files for a create request (D3–D6). For a
 /// validation-only blueprint, or none, template inputs must be absent.
+/// `existing` is the app being re-created, if any: its generated values are
+/// kept instead of generated again.
 pub fn apply(
     blueprint: Option<&scotty_core::settings::app_blueprint::AppBlueprint>,
     params: &Map<String, Value>,
@@ -210,6 +225,7 @@ pub fn apply(
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
+    existing: Option<&AppSettings>,
 ) -> Result<(AppSettings, FileList), AppError> {
     let Some(t) = blueprint.and_then(|b| b.template.as_ref()) else {
         if !params.is_empty() || image.is_some() {
@@ -222,6 +238,7 @@ pub fn apply(
     validate_parameters(t, params, settings)?;
     let merged = merge_files(t, files)?;
     let mut settings = settings.clone();
+    keep_generated(existing, &mut settings);
     resolve_environment(t, params, image, app_name, &mut settings)?;
     settings.blueprint_hash = Some(content_hash(t));
     Ok((settings, merged))
@@ -357,6 +374,56 @@ mod tests {
         let p = params(json!({"SITE_NAME": "x"}));
         let e = err(validate_parameters(&atelier(), &p, &s));
         assert!(e.contains("HASH_SALT") && e.contains("IMAGE"), "{e}");
+    }
+
+    #[test]
+    fn re_create_keeps_generated_values() {
+        let p = params(json!({"SITE_NAME": "Demo"}));
+        let bp = scotty_core::settings::app_blueprint::AppBlueprint {
+            name: "a".into(),
+            description: String::new(),
+            actions: Default::default(),
+            required_services: vec![],
+            public_services: None,
+            template: Some(atelier()),
+            templated: true,
+        };
+        let (first, _) = apply(
+            Some(&bp),
+            &p,
+            None,
+            "demo",
+            &AppSettings::default(),
+            &FileList { files: vec![] },
+            None,
+        )
+        .unwrap();
+        let (second, _) = apply(
+            Some(&bp),
+            &p,
+            None,
+            "demo",
+            &AppSettings::default(),
+            &FileList { files: vec![] },
+            Some(&first),
+        )
+        .unwrap();
+        let salt = |s: &AppSettings| s.environment.expose_all()["HASH_SALT"].clone();
+        assert_eq!(salt(&first), salt(&second));
+
+        // The caller still can't set it, even on a re-create.
+        let mut caller = AppSettings::default();
+        caller.environment.insert("HASH_SALT".into(), "mine".into());
+        assert!(apply(
+            Some(&bp),
+            &p,
+            None,
+            "demo",
+            &caller,
+            &FileList { files: vec![] },
+            Some(&first)
+        )
+        .is_err());
     }
 
     // 2.3

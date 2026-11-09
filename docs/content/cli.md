@@ -287,6 +287,20 @@ This command will create a new app on the server. The `--folder` argument
 should point to a folder containing at least a `compose.yml` file. The complete
 folder will be uploaded to the server (size limits may apply).
 
+`app:create` is create-or-update: running it again for an existing app
+replaces the app's files and settings and restarts it, so CI can run the same
+command on every pipeline. Updating an existing app has three extra rules:
+
+* You need create rights in the existing app's scopes, not only in the scopes
+  you request.
+* The requested scopes must match the app's current scopes; a re-create can't
+  move an app to another scope.
+* With only `create:<blueprint>`, you can update apps created from that
+  blueprint, and no others.
+
+Values Scotty generated for a templated blueprint (e.g. secrets) are kept on
+re-create.
+
 With a templated blueprint (`Templated: yes` in `blueprint:list`) no compose
 file is needed: `--folder` is optional and holds only the blueprint's payload
 (e.g. `html/` for `static-html`), and a compose file in it is rejected.

@@ -38,6 +38,8 @@ Granular actions users can perform on applications and the system:
 - `create:<blueprint>` - Create new apps in scope, but only from the named blueprint (e.g. `create:static-html`). A caller-supplied compose file or another blueprint is rejected as forbidden. `GET /api/v1/authenticated/blueprints` lists only the blueprints the user may create from.
 - `destroy` - Delete apps from scope
 
+Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with `create:<blueprint>`: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes.
+
 **Custom Action Permissions** (for per-app custom actions):
 - `action_read` - Execute read-only custom actions (no side effects)
 - `action_write` - Execute custom actions that modify state

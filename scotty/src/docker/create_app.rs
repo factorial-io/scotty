@@ -131,10 +131,13 @@ async fn validate_app(
 /// # let app_state = todo!();
 /// # let settings = todo!();
 /// # let files = todo!();
-/// let result = create_app(app_state, "my-app", &settings, &files, &Default::default(), None, None).await;
+/// let result = create_app(app_state, "my-app", &settings, &files, &Default::default(), None, None, None).await;
 /// assert!(result.is_ok());
 /// # }
 /// ```
+// ponytail: one caller (the create handler); group the request inputs into a
+// struct if this grows further.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_app(
     app_state: SharedAppState,
     app_name: &str,
@@ -143,6 +146,7 @@ pub async fn create_app(
     blueprint_parameters: &serde_json::Map<String, serde_json::Value>,
     image: Option<&str>,
     requested_by: Option<String>,
+    existing: Option<&AppSettings>,
 ) -> anyhow::Result<RunningAppContext> {
     info!("Creating app: {}", app_name);
     let blueprint = settings
@@ -156,6 +160,7 @@ pub async fn create_app(
         app_name,
         settings,
         files,
+        existing,
     )?;
     let (settings, files) = (&settings, &files);
     let candidate = validate_app(app_state.clone(), settings, files).await?;
