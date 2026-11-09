@@ -18,6 +18,22 @@ pub enum PermissionOrWildcard {
 impl PermissionOrWildcard {
     const CREATE_FROM_PREFIX: &'static str = "create:";
 
+    /// Parses a policy string. Unknown or malformed strings are `None`, never
+    /// `*`: a typo must not grant everything.
+    pub fn parse(s: &str) -> Option<Self> {
+        if s == "*" {
+            return Some(Self::Wildcard);
+        }
+        if let Some(bp) = s.strip_prefix(Self::CREATE_FROM_PREFIX) {
+            let valid = !bp.is_empty()
+                && bp
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+            return valid.then(|| Self::CreateFromBlueprint(bp.to_string()));
+        }
+        Permission::from_str(s).map(Self::Permission)
+    }
+
     /// The policy string, e.g. `view`, `*` or `create:static-html`.
     pub fn as_policy_string(&self) -> String {
         match self {
@@ -71,7 +87,7 @@ pub struct Assignment {
 
 /// Custom serde module for permission serialization
 pub mod permission_serde {
-    use super::{Permission, PermissionOrWildcard};
+    use super::PermissionOrWildcard;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     pub fn serialize<S>(perms: &[PermissionOrWildcard], serializer: S) -> Result<S::Ok, S::Error>
@@ -87,24 +103,13 @@ pub mod permission_serde {
         D: Deserializer<'de>,
     {
         let strings: Vec<String> = Vec::deserialize(deserializer)?;
-        Ok(strings
+        strings
             .into_iter()
             .map(|s| {
-                if s == "*" {
-                    PermissionOrWildcard::Wildcard
-                } else if let Some(bp) = s
-                    .strip_prefix(PermissionOrWildcard::CREATE_FROM_PREFIX)
-                    .filter(|bp| !bp.is_empty())
-                {
-                    PermissionOrWildcard::CreateFromBlueprint(bp.to_string())
-                } else if let Some(perm) = Permission::from_str(&s) {
-                    PermissionOrWildcard::Permission(perm)
-                } else {
-                    // For backward compatibility, treat unknown strings as wildcard
-                    PermissionOrWildcard::Wildcard
-                }
+                PermissionOrWildcard::parse(&s)
+                    .ok_or_else(|| serde::de::Error::custom(format!("unknown permission '{s}'")))
             })
-            .collect())
+            .collect()
     }
 }
 
@@ -127,5 +132,24 @@ mod create_from_blueprint_tests {
         );
         let yaml = serde_norway::to_string(&role).unwrap();
         assert!(yaml.contains("create:static-html"), "{yaml}");
+    }
+
+    #[test]
+    fn unknown_or_malformed_permissions_are_errors_not_wildcards() {
+        for bad in [
+            "create:",
+            "create :static-html",
+            "create:a b",
+            "creat",
+            "viewer",
+        ] {
+            let yaml = format!("permissions: ['{bad}']\ndescription: d\n");
+            let err = serde_norway::from_str::<RoleConfig>(&yaml).unwrap_err();
+            assert!(
+                err.to_string().contains("unknown permission"),
+                "{bad}: {err}"
+            );
+            assert_eq!(PermissionOrWildcard::parse(bad), None, "{bad}");
+        }
     }
 }
