@@ -3,7 +3,41 @@ description: Self-hosted Atelier CMS (AI website builder) from aincient-labs/ate
 required_services: [db, app, edge]
 public_services:
   edge: 80
-actions: {}
+actions:
+  # ponytail: no `drush deploy` hooks like drupal-lagoon: Atelier's entrypoint
+  # already converges (updatedb, config import) on every start, and Scotty only
+  # waits for "running", so the hooks first wait for the image's healthcheck.
+  post_create:
+    description: "Generate a one-time login link once Atelier has converged"
+    commands:
+      app:
+        - for i in $(seq 1 120); do /usr/local/bin/healthcheck.sh >/dev/null 2>&1 && break; sleep 5; done; /opt/drupal/vendor/bin/drush uli --uri=$SCOTTY__PUBLIC_URL__EDGE
+  post_run:
+    description: "Generate a one-time login link once Atelier has converged"
+    commands:
+      app:
+        - for i in $(seq 1 120); do /usr/local/bin/healthcheck.sh >/dev/null 2>&1 && break; sleep 5; done; /opt/drupal/vendor/bin/drush uli --uri=$SCOTTY__PUBLIC_URL__EDGE
+  drush:uli:
+    description: "Generate a one-time login link"
+    commands:
+      app:
+        - /opt/drupal/vendor/bin/drush uli --uri=$SCOTTY__PUBLIC_URL__EDGE
+  drush:deploy:
+    description: "Run drush deploy (updatedb, config import, cache rebuild)"
+    commands:
+      app:
+        - /opt/drupal/vendor/bin/drush deploy --uri=$SCOTTY__PUBLIC_URL__EDGE
+  drush:cr:
+    description: "Rebuild Drupal caches"
+    commands:
+      app:
+        - /opt/drupal/vendor/bin/drush cr
+  drush:status:
+    description: "Show Drupal status"
+    permission: action_read
+    commands:
+      app:
+        - /opt/drupal/vendor/bin/drush status
 template:
   images:
     - ghcr.io/aincient-labs/atelier-cms:v0.24.0
