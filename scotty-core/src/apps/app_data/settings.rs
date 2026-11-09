@@ -76,7 +76,11 @@ impl AppSettings {
     pub fn merge_with_global_settings(&self, setting: &Apps, app_name: &str) -> AppSettings {
         let safe_name = domain_hash::domain_safe_name(app_name);
         AppSettings {
-            domain: format!("{}.{}", safe_name, setting.domain_suffix),
+            domain: format!(
+                "{}.{}",
+                safe_name,
+                setting.domain_suffix_for(self.app_blueprint.as_deref())
+            ),
             ..self.clone()
         }
     }
@@ -217,6 +221,47 @@ impl AppSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn domain_suffix_resolution_order() {
+        use crate::settings::app_blueprint::{AppBlueprint, BlueprintTemplate};
+        let blueprint = |suffix: Option<&str>| AppBlueprint {
+            name: "b".into(),
+            description: "".into(),
+            actions: HashMap::new(),
+            required_services: vec![],
+            public_services: None,
+            template: Some(BlueprintTemplate {
+                domain_suffix: suffix.map(Into::into),
+                ..Default::default()
+            }),
+        };
+        let mut apps = Apps {
+            domain_suffix: "global.test".into(),
+            ..Default::default()
+        };
+        apps.blueprints
+            .insert("own".into(), blueprint(Some("own.test")));
+        apps.blueprints.insert("plain".into(), blueprint(None));
+        apps.blueprints
+            .insert("overridden".into(), blueprint(Some("own.test")));
+        apps.blueprint_domain_suffixes
+            .insert("overridden".into(), "config.test".into());
+
+        let domain = |bp: Option<&str>| {
+            AppSettings {
+                app_blueprint: bp.map(Into::into),
+                ..Default::default()
+            }
+            .merge_with_global_settings(&apps, "report-x")
+            .domain
+        };
+        let name = domain_hash::domain_safe_name("report-x");
+        assert_eq!(domain(Some("overridden")), format!("{name}.config.test"));
+        assert_eq!(domain(Some("own")), format!("{name}.own.test"));
+        assert_eq!(domain(Some("plain")), format!("{name}.global.test"));
+        assert_eq!(domain(None), format!("{name}.global.test"));
+    }
     use crate::utils::sensitive_data::is_sensitive;
     use tempfile::tempdir;
 

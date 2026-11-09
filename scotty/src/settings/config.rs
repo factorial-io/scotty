@@ -241,6 +241,28 @@ mod tests {
     }
 
     #[test]
+    fn test_blueprint_domain_suffix_from_env() {
+        env::set_var(
+            "SCOTTY__APPS__BLUEPRINT_DOMAIN_SUFFIXES__STATIC-HTML",
+            "artifacts.example.net",
+        );
+        let settings: Settings = Config::builder()
+            .add_source(config::File::with_name(
+                "tests/test_docker_registry_password.yaml",
+            ))
+            .add_source(Settings::get_environment())
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        env::remove_var("SCOTTY__APPS__BLUEPRINT_DOMAIN_SUFFIXES__STATIC-HTML");
+        assert_eq!(
+            settings.apps.domain_suffix_for(Some("static-html")),
+            "artifacts.example.net"
+        );
+    }
+
+    #[test]
     fn test_notificaction_service_settings() {
         let builder = Config::builder()
             // Add in `./Settings.toml`
