@@ -105,3 +105,4 @@ undocumented_routes:
   - /oauth/authorize
   - /api/oauth/callback
   - /oauth/exchange
+  - /robots.txt

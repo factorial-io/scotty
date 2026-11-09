@@ -618,6 +618,7 @@ impl ApiRoutes {
         let public_router = Router::new()
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))
+            .route("/robots.txt", get(robots_txt_handler))
             .route("/ws", get(ws_handler))
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
             .merge(Redoc::with_url("/redoc", api.clone()))
@@ -636,9 +637,51 @@ impl ApiRoutes {
 
         // The MCP authorization server (metadata, /oauth/mcp/*, /mcp), in
         // oauth mode only.
-        match crate::oauth::mcp::router(&state) {
+        let router = match crate::oauth::mcp::router(&state) {
             Some(mcp) => router.merge(mcp),
             None => router,
-        }
+        };
+
+        // Keep search engines from indexing the Scotty server itself (UI + API).
+        router.layer(middleware::map_response(add_noindex_header))
+    }
+}
+
+/// Body of `/robots.txt`: disallow all crawlers on the Scotty server.
+const ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
+
+async fn robots_txt_handler() -> impl axum::response::IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/plain")],
+        ROBOTS_TXT,
+    )
+}
+
+async fn add_noindex_header(mut res: axum::response::Response) -> axum::response::Response {
+    res.headers_mut().insert(
+        "x-robots-tag",
+        axum::http::HeaderValue::from_static("noindex, nofollow"),
+    );
+    res
+}
+
+#[cfg(test)]
+mod robots_tests {
+    use crate::api::router::ApiRoutes;
+    use crate::api::test_utils::create_test_app_state_with_config;
+    use axum_test::TestServer;
+
+    #[tokio::test]
+    async fn test_robots_txt_and_noindex_header() {
+        let state = create_test_app_state_with_config("tests/test_bearer_auth", None).await;
+        let server = TestServer::new(ApiRoutes::create(state));
+
+        let res = server.get("/robots.txt").await;
+        res.assert_status_ok();
+        res.assert_text("User-agent: *\nDisallow: /\n");
+        assert_eq!(res.header("x-robots-tag"), "noindex, nofollow");
+
+        let res = server.get("/api/v1/health").await;
+        assert_eq!(res.header("x-robots-tag"), "noindex, nofollow");
     }
 }
