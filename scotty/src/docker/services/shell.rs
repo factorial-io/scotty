@@ -15,6 +15,7 @@ use scotty_core::settings::shell::ShellSettings;
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{
     ShellDataType, ShellSessionData, ShellSessionEnd, ShellSessionError, ShellSessionInfo,
+    ShellSessionRequest,
 };
 
 use thiserror::Error;
@@ -150,55 +151,129 @@ impl Drop for SessionGuard {
     }
 }
 
-/// Helper to emit audit log for shell session termination
-fn audit_log_session_ended(
-    session_id: Uuid,
-    client_id: Uuid,
-    app_name: &str,
-    service_name: &str,
-    duration_secs: f64,
-    reason: &str,
-    exit_code: Option<i32>,
-) {
-    info!(
-        event = "shell_session_ended",
-        session_id = %session_id,
-        client_id = %client_id,
-        app_name = %app_name,
-        service_name = %service_name,
-        duration_seconds = duration_secs,
-        reason = %reason,
-        exit_code = ?exit_code,
-        "Shell session ended for compliance audit"
-    );
+/// How a shell session ended
+#[derive(Debug)]
+enum SessionOutcome {
+    /// The process exited, with its exit code if Docker reported one
+    Exited(Option<i32>),
+    /// The session reached its TTL
+    Timeout,
+    /// The client asked to terminate the session
+    Terminated,
+    /// Reading output or writing input failed
+    Failed(String),
 }
 
-/// How often and how long to poll Docker for the exit code once the output
-/// stream of an exec has closed. Docker may still report the exec as running
-/// for a moment after its streams are closed.
-const EXIT_CODE_POLL_INTERVAL: Duration = Duration::from_millis(50);
-const EXIT_CODE_POLL_ATTEMPTS: u32 = 60;
+/// What a running session needs to report about itself
+struct SessionContext {
+    session_id: Uuid,
+    client_id: Uuid,
+    app_name: String,
+    service_name: String,
+    started: tokio::time::Instant,
+    app_state: SharedAppState,
+}
 
-/// Read the exit code of a finished exec, waiting briefly for Docker to
-/// record it.
-async fn wait_for_exit_code(docker: &Docker, exec_id: &str) -> Option<i32> {
-    for _ in 0..EXIT_CODE_POLL_ATTEMPTS {
-        match docker.inspect_exec(exec_id).await {
-            Ok(info) if info.running == Some(false) => {
-                return info.exit_code.map(|c| c as i32);
+impl SessionContext {
+    /// Send a message to the client that owns the session
+    async fn send(&self, message: WebSocketMessage) -> Result<(), String> {
+        self.app_state
+            .messenger
+            .send_to_client(self.client_id, message)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    /// Record metrics and the audit log for the end of the session and tell
+    /// the client about it.
+    async fn end(&self, outcome: SessionOutcome) {
+        let duration_secs = self.started.elapsed().as_secs_f64();
+        let (reason, exit_code) = match &outcome {
+            SessionOutcome::Exited(code) => {
+                crate::metrics::shell::record_session_ended(duration_secs);
+                ("Shell exited".to_string(), *code)
             }
-            Ok(_) => tokio::time::sleep(EXIT_CODE_POLL_INTERVAL).await,
-            Err(e) => {
-                warn!("Failed to inspect exec {}: {}", exec_id, e);
-                return None;
+            SessionOutcome::Timeout => {
+                crate::metrics::shell::record_session_timeout(duration_secs);
+                ("Session timeout".to_string(), None)
             }
+            SessionOutcome::Terminated => {
+                crate::metrics::shell::record_session_ended(duration_secs);
+                ("Terminated by user".to_string(), None)
+            }
+            SessionOutcome::Failed(error) => {
+                crate::metrics::shell::record_session_error(duration_secs);
+                (error.clone(), None)
+            }
+        };
+
+        info!(
+            event = "shell_session_ended",
+            session_id = %self.session_id,
+            client_id = %self.client_id,
+            app_name = %self.app_name,
+            service_name = %self.service_name,
+            duration_seconds = duration_secs,
+            reason = %reason,
+            exit_code = ?exit_code,
+            "Shell session ended for compliance audit"
+        );
+
+        let message = match outcome {
+            SessionOutcome::Failed(error) => {
+                WebSocketMessage::ShellSessionError(ShellSessionError {
+                    session_id: self.session_id,
+                    error,
+                })
+            }
+            _ => WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
+                session_id: self.session_id,
+                exit_code,
+                reason,
+            }),
+        };
+        if let Err(e) = self.send(message).await {
+            warn!(
+                "Failed to send end of shell session {} to client {}: {}",
+                self.session_id, self.client_id, e
+            );
         }
     }
-    warn!(
-        "Exec {} still reported as running after its output closed",
-        exec_id
-    );
-    None
+}
+
+/// How often to poll Docker for the exit code once the output stream of an
+/// exec has closed, and how long at most. Docker may still report the exec
+/// as running for a moment after its streams are closed.
+const EXIT_CODE_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const EXIT_CODE_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Read the exit code of a finished exec, waiting at most
+/// [`EXIT_CODE_TIMEOUT`] for Docker to record it.
+async fn wait_for_exit_code(docker: &Docker, exec_id: &str) -> Option<i32> {
+    let poll = async {
+        loop {
+            match docker.inspect_exec(exec_id).await {
+                Ok(info) if info.running == Some(false) => {
+                    return info.exit_code.map(|c| c as i32);
+                }
+                Ok(_) => tokio::time::sleep(EXIT_CODE_POLL_INTERVAL).await,
+                Err(e) => {
+                    warn!("Failed to inspect exec {}: {}", exec_id, e);
+                    return None;
+                }
+            }
+        }
+    };
+    match tokio::time::timeout(EXIT_CODE_TIMEOUT, poll).await {
+        Ok(exit_code) => exit_code,
+        Err(_) => {
+            warn!(
+                "Exec {} still reported as running {:?} after its output closed",
+                exec_id, EXIT_CODE_TIMEOUT
+            );
+            None
+        }
+    }
 }
 
 /// Number of stdin chunks queued per session before the client is slowed down
@@ -250,7 +325,10 @@ async fn write_stdin(
             ShellCommand::CloseStdin => {}
             // `ShellSession::send_command` routes these to the session loop.
             ShellCommand::Resize { .. } | ShellCommand::Terminate => {
-                debug_assert!(false, "control command reached the stdin writer");
+                warn!(
+                    "Ignoring control command {:?} sent to the stdin of shell session {}",
+                    cmd, session_id
+                );
             }
         }
     }
@@ -260,6 +338,9 @@ async fn write_stdin(
 /// Environment variable that tags every process of a shell session
 const SESSION_ENV_VAR: &str = "SCOTTY_SHELL_SESSION";
 
+/// Exit code of the stop script when the container lacks a tool it needs
+const STOP_SCRIPT_MISSING_TOOLS: i64 = 127;
+
 /// Stop every process of a shell session in its container.
 ///
 /// Docker does not kill an exec's process when the attached connection
@@ -267,9 +348,15 @@ const SESSION_ENV_VAR: &str = "SCOTTY_SHELL_SESSION";
 /// running (e.g. `tail -f` after the client pressed Ctrl-C). There is no
 /// Docker API to kill an exec, so a second exec sends TERM, then KILL, to
 /// all processes tagged with the session's environment variable.
+///
+/// This needs `sh`, `tr`, `grep` and `kill` in the container and read
+/// access to `/proc/<pid>/environ` of the session's processes. When they are
+/// missing (e.g. distroless images), a warning is logged and the processes
+/// keep running until they exit by themselves.
 async fn stop_session_processes(docker: &Docker, container_id: &str, session_id: Uuid) {
     let script = format!(
-        "m={var}={id}; \
+        "for t in tr grep kill; do command -v $t >/dev/null 2>&1 || exit {missing}; done; \
+         m={var}={id}; \
          for sig in TERM KILL; do \
            for d in /proc/[0-9]*; do \
              [ \"$d\" = /proc/$$ ] && continue; \
@@ -278,32 +365,304 @@ async fn stop_session_processes(docker: &Docker, container_id: &str, session_id:
            done; \
            [ $sig = TERM ] && sleep 2; \
          done; true",
+        missing = STOP_SCRIPT_MISSING_TOOLS,
         var = SESSION_ENV_VAR,
         id = session_id
     );
     let options = CreateExecOptions {
         cmd: Some(vec!["sh", "-c", script.as_str()]),
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
         ..Default::default()
     };
-    let result = match docker.create_exec(container_id, options).await {
-        Ok(exec) => docker
-            .start_exec(
-                &exec.id,
-                Some(StartExecOptions {
-                    detach: true,
-                    ..Default::default()
-                }),
-            )
-            .await
-            .map(|_| ()),
-        Err(e) => Err(e),
+    let exec_id = match docker.create_exec(container_id, options).await {
+        Ok(exec) => exec.id,
+        Err(e) => {
+            warn!(
+                "Failed to stop processes of shell session {}: {}",
+                session_id, e
+            );
+            return;
+        }
     };
-    match result {
-        Ok(()) => info!("Stopping processes of shell session {}", session_id),
-        Err(e) => warn!(
-            "Failed to stop processes of shell session {}: {}",
-            session_id, e
+    // Run attached and wait for the script, so its result can be reported.
+    match docker.start_exec(&exec_id, None).await {
+        Ok(StartExecResults::Attached { mut output, .. }) => while output.next().await.is_some() {},
+        Ok(StartExecResults::Detached) => {}
+        Err(e) => {
+            warn!(
+                "Failed to stop processes of shell session {}: {}",
+                session_id, e
+            );
+            return;
+        }
+    }
+    match wait_for_exit_code(docker, &exec_id).await {
+        Some(0) => info!("Stopped processes of shell session {}", session_id),
+        Some(code) if i64::from(code) == STOP_SCRIPT_MISSING_TOOLS => warn!(
+            "Could not stop processes of shell session {}: the container lacks sh, tr, grep \
+             or kill; they keep running until they exit",
+            session_id
         ),
+        code => warn!(
+            "Stopping processes of shell session {} failed (exit code {:?}); \
+             they may still be running",
+            session_id, code
+        ),
+    }
+}
+
+/// Drives a started exec: forwards its output to the client and the
+/// client's commands to the exec until the session ends.
+struct SessionRunner {
+    ctx: SessionContext,
+    docker: Docker,
+    exec_id: String,
+    container_id: String,
+    tty: bool,
+    ttl: std::time::Duration,
+}
+
+/// What to do after reading one item of the exec's output
+enum OutputStep {
+    /// Keep going
+    Continue,
+    /// The client is behind; send this data once it caught up
+    Hold(ShellSessionData),
+    /// The session is over
+    End(Option<SessionOutcome>),
+}
+
+impl SessionRunner {
+    /// Run the session to its end. Returns whether the session's processes
+    /// may still be running and have to be stopped.
+    async fn run(
+        &self,
+        exec_stream: StartExecResults,
+        mut control: mpsc::Receiver<ShellCommand>,
+        stdin: mpsc::Receiver<ShellCommand>,
+    ) -> bool {
+        let session_id = self.ctx.session_id;
+        let client_id = self.ctx.client_id;
+        info!(
+            "Starting shell session {} for container {}",
+            session_id, self.container_id
+        );
+
+        let (input, mut output) = match exec_stream {
+            StartExecResults::Attached { input, output } => (input, output),
+            StartExecResults::Detached => {
+                error!(
+                    "Shell session {} started in detached mode (unexpected)",
+                    session_id
+                );
+                self.ctx
+                    .end(SessionOutcome::Failed(
+                        "Shell started in detached mode".to_string(),
+                    ))
+                    .await;
+                return false;
+            }
+        };
+
+        let mut status_check_interval = tokio::time::interval(Duration::from_millis(500));
+        status_check_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut stdin_writer = tokio::spawn(write_stdin(session_id, input, stdin));
+        let mut stdin_writer_done = false;
+        // Output held back until the client catches up. While set, no more
+        // output is read from Docker, which slows down the process instead of
+        // dropping data.
+        let mut held_output: Option<ShellSessionData> = None;
+        let mut output_retry = tokio::time::interval(OUTPUT_RETRY_INTERVAL);
+        output_retry.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let deadline = self.ctx.started + self.ttl;
+
+        // `None`: the session ended without a message to the client (the
+        // client is gone). Otherwise, how it ended.
+        let outcome: Option<SessionOutcome> = loop {
+            tokio::select! {
+                _ = tokio::time::sleep_until(deadline) => {
+                    info!("Shell session {} expired after TTL", session_id);
+                    break Some(SessionOutcome::Timeout);
+                }
+
+                // Periodically check if exec is still running. Only for TTY
+                // mode, where a background process can keep the pty (and
+                // therefore the output stream) open after the shell exited.
+                // Without a TTY the output stream closes when the process
+                // exits, after all output was delivered.
+                _ = status_check_interval.tick(), if self.tty => {
+                    match self.docker.inspect_exec(&self.exec_id).await {
+                        Ok(exec_info) if exec_info.running == Some(false) => {
+                            info!("Shell session {} detected exec completion via status check", session_id);
+                            break Some(SessionOutcome::Exited(exec_info.exit_code.map(|c| c as i32)));
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!("Failed to inspect exec {} for session {}: {}", self.exec_id, session_id, e);
+                        }
+                    }
+                }
+
+                // The stdin writer stopped: report a write failure. A clean
+                // stop (queue closed) needs no action.
+                result = &mut stdin_writer, if !stdin_writer_done => {
+                    stdin_writer_done = true;
+                    let error = match result {
+                        Ok(Ok(())) => continue,
+                        Ok(Err(e)) => e.to_string(),
+                        Err(e) => format!("stdin writer failed: {}", e),
+                    };
+                    error!("Failed to write to shell {}: {}", session_id, error);
+                    break Some(SessionOutcome::Failed(format!("Failed to write input: {}", error)));
+                }
+
+                Some(cmd) = control.recv() => {
+                    match cmd {
+                        ShellCommand::Resize { width, height } => {
+                            if let Err(e) = self.docker.resize_exec(
+                                &self.exec_id,
+                                bollard::exec::ResizeExecOptions { height, width },
+                            ).await {
+                                warn!("Failed to resize TTY for session {}: {}", session_id, e);
+                            }
+                        }
+                        ShellCommand::Terminate => {
+                            info!("Terminating shell session {} by request", session_id);
+                            break Some(SessionOutcome::Terminated);
+                        }
+                        // `ShellSession::send_command` routes these to the stdin writer.
+                        ShellCommand::Input(_) | ShellCommand::CloseStdin => {
+                            warn!("Ignoring stdin command on the control channel of shell session {}", session_id);
+                        }
+                    }
+                }
+
+                // Send held-back output once the client caught up
+                _ = output_retry.tick(), if held_output.is_some() => {
+                    match self.ctx.app_state.messenger.queued_messages(client_id).await {
+                        Some(queued) if queued >= OUTPUT_QUEUE_HIGH_WATER => {}
+                        Some(_) => {
+                            let data = held_output.take().expect("checked by the guard");
+                            if let Err(e) = self.ctx.send(WebSocketMessage::ShellSessionData(data)).await {
+                                warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
+                                break None;
+                            }
+                        }
+                        None => {
+                            warn!("Client {} is gone - terminating shell session {}", client_id, session_id);
+                            break None;
+                        }
+                    }
+                }
+
+                result = output.next(), if held_output.is_none() => {
+                    match self.handle_output(result).await {
+                        OutputStep::Continue => {}
+                        OutputStep::Hold(data) => held_output = Some(data),
+                        OutputStep::End(outcome) => break outcome,
+                    }
+                }
+            }
+        };
+
+        // The session is over; stop writing to the exec.
+        stdin_writer.abort();
+        let process_exited = matches!(outcome, Some(SessionOutcome::Exited(_)));
+        if let Some(outcome) = outcome {
+            self.ctx.end(outcome).await;
+        } else {
+            // The client is gone; record the end for metrics and the audit log.
+            let duration_secs = self.ctx.started.elapsed().as_secs_f64();
+            crate::metrics::shell::record_session_ended(duration_secs);
+            info!(
+                event = "shell_session_ended",
+                session_id = %session_id,
+                client_id = %client_id,
+                app_name = %self.ctx.app_name,
+                service_name = %self.ctx.service_name,
+                duration_seconds = duration_secs,
+                reason = "Client gone",
+                "Shell session ended for compliance audit"
+            );
+        }
+        // Without a tty nothing hangs up the process when the connection
+        // closes, so it has to be stopped explicitly.
+        !self.tty && !process_exited
+    }
+
+    /// Forward one item of the exec's output to the client
+    async fn handle_output(
+        &self,
+        item: Option<Result<bollard::container::LogOutput, bollard::errors::Error>>,
+    ) -> OutputStep {
+        use bollard::container::LogOutput;
+        let session_id = self.ctx.session_id;
+        let client_id = self.ctx.client_id;
+
+        let log_output = match item {
+            Some(Ok(log_output)) => log_output,
+            Some(Err(e)) => {
+                error!("Failed to read from shell stream {}: {}", session_id, e);
+                return OutputStep::End(Some(SessionOutcome::Failed(format!(
+                    "Failed to read output: {}",
+                    e
+                ))));
+            }
+            // Stream closed: the process exited and all of its output has
+            // been forwarded.
+            None => {
+                info!("Shell session {} ended (stream closed)", session_id);
+                // Blocks the session loop for at most EXIT_CODE_TIMEOUT; with
+                // the output closed there is nothing left to forward, and
+                // control commands can wait.
+                let exit_code = wait_for_exit_code(&self.docker, &self.exec_id).await;
+                return OutputStep::End(Some(SessionOutcome::Exited(exit_code)));
+            }
+        };
+
+        let (data_type, message) = match log_output {
+            LogOutput::StdOut { message } => (ShellDataType::Output, message),
+            LogOutput::StdErr { message } => (ShellDataType::Stderr, message),
+            // TTY mode sends output as Console
+            LogOutput::Console { message } => (ShellDataType::Output, message),
+            LogOutput::StdIn { .. } => return OutputStep::Continue,
+        };
+        // With a TTY, keep plain text for existing clients. Without one, send
+        // the exact bytes.
+        let data = if self.tty {
+            ShellSessionData::text(session_id, data_type, String::from_utf8_lossy(&message))
+        } else {
+            ShellSessionData::binary(session_id, data_type, &message)
+        };
+
+        // Hold the output back while the client is behind. The check and the
+        // send below are not atomic: other tasks may queue messages for the
+        // client in between. That is fine, the high-water mark leaves plenty
+        // of room below the per-client buffer.
+        let queued = self
+            .ctx
+            .app_state
+            .messenger
+            .queued_messages(client_id)
+            .await;
+        if queued.is_some_and(|q| q >= OUTPUT_QUEUE_HIGH_WATER) {
+            return OutputStep::Hold(data);
+        }
+
+        // If we can't send output, client is gone - terminate session
+        if let Err(e) = self
+            .ctx
+            .send(WebSocketMessage::ShellSessionData(data))
+            .await
+        {
+            warn!(
+                "Failed to send output to client {}: {} - terminating session",
+                client_id, e
+            );
+            return OutputStep::End(None);
+        }
+        OutputStep::Continue
     }
 }
 
@@ -324,16 +683,18 @@ impl ShellService {
         }
     }
 
-    /// Create a new shell session
+    /// Create a new shell session for `request` in `app_data`, owned by the
+    /// WebSocket client `client_id`.
     pub async fn create_session(
         &self,
         app_state: &SharedAppState,
         app_data: &AppData,
-        service_name: &str,
-        shell_command: Option<String>,
-        tty: bool,
-        client_id: Uuid, // WebSocket client ID
+        request: &ShellSessionRequest,
+        client_id: Uuid,
     ) -> ShellServiceResult<Uuid> {
+        let service_name = request.service_name.as_str();
+        let tty = request.tty;
+
         // Check session limits
         {
             let sessions = self.active_sessions.read().await;
@@ -369,13 +730,17 @@ impl ShellService {
                         app: app_data.name.clone(),
                     }
                 }
-            })?;
+            })?
+            .clone();
 
         // Generate session ID
         let session_id = Uuid::new_v4();
 
         // Determine shell command to use
-        let shell_cmd = shell_command.unwrap_or_else(|| self.shell_settings.default_shell.clone());
+        let shell_cmd = request
+            .shell_command
+            .clone()
+            .unwrap_or_else(|| self.shell_settings.default_shell.clone());
 
         // Prepare environment variables
         // Tag the session's processes so they can be found and stopped later;
@@ -406,7 +771,7 @@ impl ShellService {
 
         let exec_creation = self
             .docker
-            .create_exec(container_id, exec_options)
+            .create_exec(&container_id, exec_options)
             .await
             .map_err(|e| ShellServiceError::DockerOperationFailed {
                 operation: "create exec".to_string(),
@@ -431,7 +796,7 @@ impl ShellService {
                 message: e.to_string(),
             })?;
 
-        let (tx, mut rx) = mpsc::channel::<ShellCommand>(100);
+        let (tx, rx) = mpsc::channel::<ShellCommand>(100);
         // Bounded, so a client sending faster than the process reads stdin is
         // slowed down instead of buffering without limit.
         let (stdin_tx, stdin_rx) = mpsc::channel::<ShellCommand>(STDIN_QUEUE_CAPACITY);
@@ -453,7 +818,7 @@ impl ShellService {
         // Store session
         {
             let mut sessions = self.active_sessions.write().await;
-            sessions.insert(session_id, session.clone());
+            sessions.insert(session_id, session);
         }
 
         // Record session started
@@ -472,25 +837,26 @@ impl ShellService {
             "Shell session created for compliance audit"
         );
 
-        // Clone values we need to move into the spawned task
-        let app_name_clone = app_data.name.clone();
-        let service_name_clone = service_name.to_string();
-        let container_id_clone = container_id.clone();
-        let shell_cmd_clone = shell_cmd.clone();
+        let ctx = SessionContext {
+            session_id,
+            client_id,
+            app_name: app_data.name.clone(),
+            service_name: service_name.to_string(),
+            started: tokio::time::Instant::now(),
+            app_state: app_state.clone(),
+        };
 
         // Send session created message to client
-        if let Err(e) = app_state
-            .messenger
-            .send_to_client(
-                client_id,
-                WebSocketMessage::ShellSessionCreated(ShellSessionInfo::new(
+        if let Err(e) = ctx
+            .send(WebSocketMessage::ShellSessionCreated(
+                ShellSessionInfo::new(
                     session_id,
-                    app_name_clone.clone(),
-                    service_name_clone.clone(),
-                    container_id_clone.clone(),
-                    shell_cmd_clone.clone(),
-                )),
-            )
+                    app_data.name.clone(),
+                    service_name.to_string(),
+                    container_id.clone(),
+                    shell_cmd,
+                ),
+            ))
             .await
         {
             warn!(
@@ -500,349 +866,27 @@ impl ShellService {
             // Continue anyway - session is already created
         }
 
-        // Start the shell session handler
-        let docker = self.docker.clone();
-        let app_state = app_state.clone();
+        let runner = SessionRunner {
+            ctx,
+            docker: self.docker.clone(),
+            exec_id,
+            container_id,
+            tty,
+            ttl: self.shell_settings.session_ttl(),
+        };
         let active_sessions = self.active_sessions.clone();
-        let session_ttl = self.shell_settings.session_ttl();
 
         crate::metrics::spawn_instrumented(async move {
-            // Create guard to ensure session cleanup even on panic
-            let _guard = SessionGuard::new(session_id, active_sessions.clone());
-
-            info!(
-                "Starting shell session {} for container {}",
-                session_id, container_id_clone
-            );
-
-            match exec_stream {
-                StartExecResults::Attached { input, mut output } => {
-                    let session_start = tokio::time::Instant::now();
-                    let mut status_check_interval =
-                        tokio::time::interval(tokio::time::Duration::from_millis(500));
-                    status_check_interval
-                        .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-                    let mut stdin_writer = tokio::spawn(write_stdin(session_id, input, stdin_rx));
-                    let mut stdin_writer_done = false;
-                    // Output held back until the client catches up. While set,
-                    // no more output is read from Docker, which slows down the
-                    // process instead of dropping data.
-                    let mut held_output: Option<ShellSessionData> = None;
-                    // Whether the process ended by itself; otherwise (terminate,
-                    // timeout, client gone, error) it may still be running.
-                    let mut process_exited = false;
-                    let mut output_retry = tokio::time::interval(OUTPUT_RETRY_INTERVAL);
-                    output_retry.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-
-                    loop {
-                        tokio::select! {
-                            // Check for TTL timeout
-                            _ = tokio::time::sleep_until(session_start + session_ttl) => {
-                                info!("Shell session {} expired after TTL", session_id);
-                                let duration_secs = session_start.elapsed().as_secs_f64();
-                                crate::metrics::shell::record_session_timeout(duration_secs);
-
-                                // Audit log session end
-                                audit_log_session_ended(
-                                    session_id,
-                                    client_id,
-                                    &app_name_clone,
-                                    &service_name_clone,
-                                    duration_secs,
-                                    "Session timeout",
-                                    None,
-                                );
-
-                                if let Err(e) = app_state.messenger.send_to_client(
-                                    client_id,
-                                    WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
-                                        session_id,
-                                        exit_code: None,
-                                        reason: "Session timeout".to_string(),
-                                    }),
-                                ).await {
-                                    warn!("Failed to send timeout message to client {}: {}", client_id, e);
-                                }
-                                break;
-                            }
-
-                            // Periodically check if exec is still running. Only for
-                            // TTY mode, where a background process can keep the pty
-                            // (and therefore the output stream) open after the shell
-                            // exited. Without a TTY the output stream closes when the
-                            // process exits, after all output was delivered.
-                            _ = status_check_interval.tick(), if tty => {
-                                match docker.inspect_exec(&exec_id).await {
-                                    Ok(exec_info) => {
-                                        if let Some(running) = exec_info.running {
-                                            if !running {
-                                                info!("Shell session {} detected exec completion via status check", session_id);
-                                                process_exited = true;
-                                                let duration_secs = session_start.elapsed().as_secs_f64();
-                                                crate::metrics::shell::record_session_ended(duration_secs);
-                                                let exit_code = exec_info.exit_code.map(|c| c as i32);
-
-                                                // Audit log session end
-                                                audit_log_session_ended(
-                                                    session_id,
-                                                    client_id,
-                                                    &app_name_clone,
-                                                    &service_name_clone,
-                                                    duration_secs,
-                                                    "Shell exited",
-                                                    exit_code,
-                                                );
-
-                                                if let Err(e) = app_state.messenger.send_to_client(
-                                                    client_id,
-                                                    WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
-                                                        session_id,
-                                                        exit_code,
-                                                        reason: "Shell exited".to_string(),
-                                                    }),
-                                                ).await {
-                                                    warn!("Failed to send session end message to client {}: {}", client_id, e);
-                                                }
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        warn!("Failed to inspect exec {} for session {}: {}", exec_id, session_id, e);
-                                    }
-                                }
-                            }
-
-                            // The stdin writer stopped: report a write failure.
-                            // A clean stop (queue closed) needs no action.
-                            result = &mut stdin_writer, if !stdin_writer_done => {
-                                stdin_writer_done = true;
-                                let error = match result {
-                                    Ok(Ok(())) => continue,
-                                    Ok(Err(e)) => e.to_string(),
-                                    Err(e) => format!("stdin writer failed: {}", e),
-                                };
-                                error!("Failed to write to shell {}: {}", session_id, error);
-                                let duration_secs = session_start.elapsed().as_secs_f64();
-                                crate::metrics::shell::record_session_error(duration_secs);
-
-                                // Audit log session end due to error
-                                audit_log_session_ended(
-                                    session_id,
-                                    client_id,
-                                    &app_name_clone,
-                                    &service_name_clone,
-                                    duration_secs,
-                                    &format!("Error writing input: {}", error),
-                                    None,
-                                );
-
-                                if let Err(send_err) = app_state.messenger.send_to_client(
-                                    client_id,
-                                    WebSocketMessage::ShellSessionError(ShellSessionError {
-                                        session_id,
-                                        error: format!("Failed to write input: {}", error),
-                                    }),
-                                ).await {
-                                    warn!("Failed to send error message to client {}: {}", client_id, send_err);
-                                }
-                                break;
-                            }
-
-                            // Handle control commands
-                            Some(cmd) = rx.recv() => {
-                                match cmd {
-                                    // Routed to the stdin writer by send_command
-                                    ShellCommand::Input(_) | ShellCommand::CloseStdin => {}
-                                    ShellCommand::Resize { width, height } => {
-                                        // Resize the TTY
-                                        if let Err(e) = docker.resize_exec(&exec_id, bollard::exec::ResizeExecOptions {
-                                            height,
-                                            width,
-                                        }).await {
-                                            warn!("Failed to resize TTY for session {}: {}", session_id, e);
-                                        }
-                                    }
-                                    ShellCommand::Terminate => {
-                                        info!("Terminating shell session {} by request", session_id);
-                                        let duration_secs = session_start.elapsed().as_secs_f64();
-                                        crate::metrics::shell::record_session_ended(duration_secs);
-
-                                        // Audit log session end
-                                        audit_log_session_ended(
-                                            session_id,
-                                            client_id,
-                                            &app_name_clone,
-                                            &service_name_clone,
-                                            duration_secs,
-                                            "Terminated by user",
-                                            None,
-                                        );
-
-                                        if let Err(e) = app_state.messenger.send_to_client(
-                                            client_id,
-                                            WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
-                                                session_id,
-                                                exit_code: None,
-                                                reason: "Terminated by user".to_string(),
-                                            }),
-                                        ).await {
-                                            warn!("Failed to send termination message to client {}: {}", client_id, e);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-
-                            // Send held-back output once the client caught up
-                            _ = output_retry.tick(), if held_output.is_some() => {
-                                match app_state.messenger.queued_messages(client_id).await {
-                                    Some(queued) if queued >= OUTPUT_QUEUE_HIGH_WATER => {}
-                                    Some(_) => {
-                                        let data = held_output.take().expect("checked by the guard");
-                                        if let Err(e) = app_state.messenger.send_to_client(
-                                            client_id,
-                                            WebSocketMessage::ShellSessionData(data),
-                                        ).await {
-                                            warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
-                                            break;
-                                        }
-                                    }
-                                    None => {
-                                        warn!("Client {} is gone - terminating shell session {}", client_id, session_id);
-                                        break;
-                                    }
-                                }
-                            }
-
-                            // Read output from shell stream
-                            result = output.next(), if held_output.is_none() => {
-                                match result {
-                                    Some(Ok(log_output)) => {
-                                        use bollard::container::LogOutput;
-                                        let (data_type, message) = match log_output {
-                                            LogOutput::StdOut { message } => (ShellDataType::Output, message),
-                                            LogOutput::StdErr { message } => (ShellDataType::Stderr, message),
-                                            // TTY mode sends output as Console
-                                            LogOutput::Console { message } => (ShellDataType::Output, message),
-                                            LogOutput::StdIn { .. } => continue, // Skip stdin
-                                        };
-                                        // With a TTY, keep plain text for existing clients.
-                                        // Without one, send the exact bytes.
-                                        let data = if tty {
-                                            ShellSessionData::text(
-                                                session_id,
-                                                data_type,
-                                                String::from_utf8_lossy(&message),
-                                            )
-                                        } else {
-                                            ShellSessionData::binary(session_id, data_type, &message)
-                                        };
-
-                                        // Hold the output back while the client is behind
-                                        let queued = app_state.messenger.queued_messages(client_id).await;
-                                        if queued.is_some_and(|q| q >= OUTPUT_QUEUE_HIGH_WATER) {
-                                            held_output = Some(data);
-                                            continue;
-                                        }
-
-                                        // If we can't send output, client is gone - terminate session
-                                        if let Err(e) = app_state.messenger.send_to_client(
-                                            client_id,
-                                            WebSocketMessage::ShellSessionData(data),
-                                        ).await {
-                                            warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
-                                            break;
-                                        }
-                                    }
-                                    Some(Err(e)) => {
-                                        error!("Failed to read from shell stream {}: {}", session_id, e);
-                                        let duration_secs = session_start.elapsed().as_secs_f64();
-                                        crate::metrics::shell::record_session_error(duration_secs);
-                                        if let Err(send_err) = app_state.messenger.send_to_client(
-                                            client_id,
-                                            WebSocketMessage::ShellSessionError(ShellSessionError {
-                                                session_id,
-                                                error: format!("Failed to read output: {}", e),
-                                            }),
-                                        ).await {
-                                            warn!("Failed to send error message to client {}: {}", client_id, send_err);
-                                        }
-                                        break;
-                                    }
-                                    // Stream closed: the process exited and all of
-                                    // its output has been forwarded.
-                                    None => {
-                                        info!("Shell session {} ended (stream closed)", session_id);
-                                        process_exited = true;
-                                        // Blocks this loop for at most a few seconds;
-                                        // with the output closed there is nothing left
-                                        // to forward, and control commands can wait.
-                                        let exit_code = wait_for_exit_code(&docker, &exec_id).await;
-                                        let duration_secs = session_start.elapsed().as_secs_f64();
-                                        crate::metrics::shell::record_session_ended(duration_secs);
-
-                                        audit_log_session_ended(
-                                            session_id,
-                                            client_id,
-                                            &app_name_clone,
-                                            &service_name_clone,
-                                            duration_secs,
-                                            "Shell exited",
-                                            exit_code,
-                                        );
-
-                                        if let Err(e) = app_state.messenger.send_to_client(
-                                            client_id,
-                                            WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
-                                                session_id,
-                                                exit_code,
-                                                reason: "Shell exited".to_string(),
-                                            }),
-                                        ).await {
-                                            warn!("Failed to send session end message to client {}: {}", client_id, e);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // The session is over; stop writing to the exec.
-                    stdin_writer.abort();
-                    // Without a tty nothing hangs up the process when the
-                    // connection closes, so stop it explicitly.
-                    if !tty && !process_exited {
-                        stop_session_processes(&docker, &container_id_clone, session_id).await;
-                    }
-                }
-                StartExecResults::Detached => {
-                    drop(stdin_rx);
-                    error!(
-                        "Shell session {} started in detached mode (unexpected)",
-                        session_id
-                    );
-                    crate::metrics::shell::record_session_error(0.0);
-                    if let Err(e) = app_state
-                        .messenger
-                        .send_to_client(
-                            client_id,
-                            WebSocketMessage::ShellSessionError(ShellSessionError {
-                                session_id,
-                                error: "Shell started in detached mode".to_string(),
-                            }),
-                        )
-                        .await
-                    {
-                        warn!(
-                            "Failed to send detached error message to client {}: {}",
-                            client_id, e
-                        );
-                    }
-                }
+            let stop_processes = {
+                // Create guard to ensure session cleanup even on panic
+                let _guard = SessionGuard::new(session_id, active_sessions);
+                runner.run(exec_stream, rx, stdin_rx).await
+            };
+            // Done after the session was removed, so stopping the processes
+            // does not count against the session limits.
+            if stop_processes {
+                stop_session_processes(&runner.docker, &runner.container_id, session_id).await;
             }
-
-            // Session cleanup is handled automatically by SessionGuard on drop
         });
 
         Ok(session_id)
@@ -992,6 +1036,43 @@ impl ShellService {
             .await
             .insert(session_id, session);
         (session_id, receiver)
+    }
+
+    /// Register a session without a Docker exec whose stdin queue holds
+    /// `stdin_capacity` commands, like a real session, for tests.
+    ///
+    /// Returns the receiving ends of the control and the stdin channel.
+    #[cfg(test)]
+    pub(crate) async fn insert_test_session_with_stdin_queue(
+        &self,
+        app_name: &str,
+        client_id: Uuid,
+        stdin_capacity: usize,
+    ) -> (
+        Uuid,
+        mpsc::Receiver<ShellCommand>,
+        mpsc::Receiver<ShellCommand>,
+    ) {
+        let (sender, control) = mpsc::channel(16);
+        let (stdin_sender, stdin) = mpsc::channel(stdin_capacity);
+        let session_id = Uuid::new_v4();
+        let session = ShellSession {
+            session_id,
+            app_name: app_name.to_string(),
+            service_name: "web".to_string(),
+            container_id: "test-container".to_string(),
+            exec_id: "test-exec".to_string(),
+            sender,
+            stdin_sender,
+            client_id,
+            tty: false,
+            created_at: chrono::Utc::now(),
+        };
+        self.active_sessions
+            .write()
+            .await
+            .insert(session_id, session);
+        (session_id, control, stdin)
     }
 
     /// Get active sessions

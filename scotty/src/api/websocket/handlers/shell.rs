@@ -70,14 +70,7 @@ pub async fn handle_create_shell_session(
     // Create the shell session
     match state
         .shell_service
-        .create_session(
-            state,
-            &app,
-            &request.service_name,
-            request.shell_command.clone(),
-            request.tty,
-            client_id,
-        )
+        .create_session(state, &app, request, client_id)
         .await
     {
         Ok(session_id) => {

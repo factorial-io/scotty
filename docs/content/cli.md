@@ -165,6 +165,10 @@ Like `docker exec` and `ssh`, forwarding stdin and allocating a tty are separate
 
 Without a tty, the output is passed through byte for byte: remote stdout goes to local stdout, remote stderr to local stderr, there is no prompt, echo or CRLF conversion, and binary data is preserved. When stdin reaches end-of-file, the remote process reads end-of-file too. Status messages are written to stderr only when stderr is a terminal. scottyctl exits with the exit code of the remote process, or with 1 if the session ended without one (for example after a timeout).
 
+Every process of a shell session has the environment variable `SCOTTY_SHELL_SESSION=<session id>` set. Without a tty, nothing hangs up the remote process when the session ends early (Ctrl-C, terminate, timeout, lost connection), so Scotty uses this variable to find the session's processes and stops them with TERM, then KILL. This needs `sh`, `tr`, `grep` and `kill` in the container and access to `/proc`. On images without them (for example distroless images) Scotty logs a warning, and the processes keep running until they exit by themselves.
+
+The server queues up to 1 MiB of input per connection for processes that do not read their stdin yet. Up to that limit, other messages on the same connection, such as terminating the session, are still handled. Beyond it, the server stops reading from the connection until the process reads its input.
+
 > **Changed behavior:** `--command` used to run with a remote tty. It now runs without one unless `-t` is given, so its output no longer contains CRLF line endings or terminal control sequences, and its stderr goes to local stderr.
 
 ### Examples

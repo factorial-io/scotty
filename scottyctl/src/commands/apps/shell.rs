@@ -361,7 +361,7 @@ async fn run_stream_mode(
 /// Run a single command and exit (non-interactive mode)
 async fn run_command_mode(
     mut ws: crate::websocket::AuthenticatedWebSocket,
-    _session_id: Uuid,
+    session_id: Uuid,
 ) -> anyhow::Result<()> {
     // Track exit code to propagate to CLI
     let mut exit_code: i32 = 0;
@@ -372,12 +372,16 @@ async fn run_command_mode(
             Ok(Message::Text(text)) => {
                 if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
                     match ws_message {
-                        WebSocketMessage::ShellSessionData(data) => {
+                        WebSocketMessage::ShellSessionData(data)
+                            if data.session_id == session_id =>
+                        {
                             // Print shell output directly
                             print!("{}", data.data);
                             let _ = stdout().flush();
                         }
-                        WebSocketMessage::ShellSessionEnded(end) => {
+                        WebSocketMessage::ShellSessionEnded(end)
+                            if end.session_id == session_id =>
+                        {
                             // Capture exit code from shell session
                             exit_code = end.exit_code.unwrap_or(0);
                             break;

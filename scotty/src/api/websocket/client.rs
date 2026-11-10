@@ -7,7 +7,8 @@ use axum::{
 };
 use futures_util::SinkExt;
 use futures_util::StreamExt;
-use tokio::sync::broadcast;
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc, OwnedSemaphorePermit, Semaphore};
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
@@ -85,13 +86,14 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
         info!("WebSocket forwarding task ended for client {}", client_id);
     });
 
+    let dispatcher = MessageDispatcher::new(state.clone(), client_id);
     while let Some(Ok(msg)) = receiver.next().await {
         // Never log the content: it carries shell input (passwords, piped files).
         debug!("Received WebSocket message from client {}", client_id);
         match msg {
             Message::Text(text) => {
                 crate::metrics::websocket::record_message_received();
-                handle_text_message(&state, client_id, &text).await;
+                dispatcher.dispatch(&text).await;
             }
             Message::Binary(_bin) => {
                 // not handled.
@@ -100,6 +102,8 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
             _ => {}
         }
     }
+    // Input still queued for a shell is of no use once the client is gone.
+    dispatcher.abort();
 
     {
         info!("WebSocket client {} disconnected, cleaning up", client_id);
@@ -115,15 +119,79 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
     }
 }
 
-async fn handle_text_message(state: &SharedAppState, client_id: Uuid, text: &str) {
-    match serde_json::from_str::<WebSocketMessage>(text) {
-        Ok(parsed_msg) => handle_websocket_message(state, client_id, &parsed_msg).await,
-        Err(_) => {
-            state
-                .messenger
-                .send_error(client_id, "Could not parse message".to_string())
-                .await
+/// Bytes of shell input a client may have queued before reading from its
+/// connection pauses.
+const SHELL_INPUT_BUFFER_BYTES: usize = 1024 * 1024;
+
+/// Handles the messages of one client.
+///
+/// Shell input (`ShellSessionData`, `CloseShellStdin`) goes through a queue
+/// served by its own task, in order. When a process does not read its stdin,
+/// only that queue waits; the connection keeps being read, so `Terminate`,
+/// `Resize`, pings and other sessions still get through. Reading pauses only
+/// once [`SHELL_INPUT_BUFFER_BYTES`] of input are queued, which slows the
+/// client down instead of buffering without limit.
+struct MessageDispatcher {
+    state: SharedAppState,
+    client_id: Uuid,
+    input_budget: Arc<Semaphore>,
+    input_queue: mpsc::UnboundedSender<(WebSocketMessage, OwnedSemaphorePermit)>,
+    input_task: tokio::task::JoinHandle<()>,
+}
+
+impl MessageDispatcher {
+    fn new(state: SharedAppState, client_id: Uuid) -> Self {
+        let (input_queue, mut queued) =
+            mpsc::unbounded_channel::<(WebSocketMessage, OwnedSemaphorePermit)>();
+        let task_state = state.clone();
+        let input_task = tokio::spawn(async move {
+            // The permit is released once the input reached the session.
+            while let Some((msg, _permit)) = queued.recv().await {
+                handle_websocket_message(&task_state, client_id, &msg).await;
+            }
+        });
+        Self {
+            state,
+            client_id,
+            input_budget: Arc::new(Semaphore::new(SHELL_INPUT_BUFFER_BYTES)),
+            input_queue,
+            input_task,
         }
+    }
+
+    async fn dispatch(&self, text: &str) {
+        let msg = match serde_json::from_str::<WebSocketMessage>(text) {
+            Ok(msg) => msg,
+            Err(_) => {
+                self.state
+                    .messenger
+                    .send_error(self.client_id, "Could not parse message".to_string())
+                    .await;
+                return;
+            }
+        };
+        if !matches!(
+            msg,
+            WebSocketMessage::ShellSessionData(_) | WebSocketMessage::CloseShellStdin { .. }
+        ) {
+            handle_websocket_message(&self.state, self.client_id, &msg).await;
+            return;
+        }
+        // A message larger than the whole budget takes all of it.
+        let cost = text.len().clamp(1, SHELL_INPUT_BUFFER_BYTES) as u32;
+        let Ok(permit) = self.input_budget.clone().acquire_many_owned(cost).await else {
+            return;
+        };
+        if self.input_queue.send((msg, permit)).is_err() {
+            warn!(
+                "Shell input task of client {} has stopped, dropping input",
+                self.client_id
+            );
+        }
+    }
+
+    fn abort(&self) {
+        self.input_task.abort();
     }
 }
 
@@ -199,7 +267,9 @@ mod tests {
             .add_client(other_id, WebSocketClient::new(other_tx))
             .await;
 
-        handle_text_message(&state, sender_id, "not json").await;
+        MessageDispatcher::new(state.clone(), sender_id)
+            .dispatch("not json")
+            .await;
 
         let Message::Text(text) = sender_rx.try_recv().unwrap() else {
             panic!("expected a text message");
@@ -209,5 +279,71 @@ mod tests {
             WebSocketMessage::Error(e) if e == "Could not parse message"
         ));
         assert!(other_rx.try_recv().is_err());
+    }
+
+    /// A process that does not read stdin fills its stdin queue. Further
+    /// input waits, but control messages of the same client must still get
+    /// through, or the session could not be terminated.
+    #[tokio::test]
+    async fn terminate_gets_through_while_stdin_is_full() {
+        use crate::docker::services::shell::ShellCommand;
+        use scotty_types::{ShellDataType, ShellSessionData};
+        use std::time::Duration;
+
+        let state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let client_id = Uuid::new_v4();
+        let (tx, _rx) = broadcast::channel(64);
+        state
+            .messenger
+            .add_client(client_id, WebSocketClient::new(tx))
+            .await;
+        state
+            .messenger
+            .authenticate_client(
+                client_id,
+                crate::api::auth_core::CurrentUser {
+                    email: "owner@example.com".to_string(),
+                    name: "owner".to_string(),
+                    picture: None,
+                    access_token: None,
+                },
+            )
+            .await
+            .unwrap();
+        let (session_id, mut control, mut stdin) = state
+            .shell_service
+            .insert_test_session_with_stdin_queue("app", client_id, 1)
+            .await;
+
+        let dispatcher = MessageDispatcher::new(state.clone(), client_id);
+        let input = serde_json::to_string(&WebSocketMessage::ShellSessionData(
+            ShellSessionData::text(session_id, ShellDataType::Input, "x"),
+        ))
+        .unwrap();
+        // More input than the stdin queue holds; nobody reads it.
+        for _ in 0..4 {
+            tokio::time::timeout(Duration::from_secs(1), dispatcher.dispatch(&input))
+                .await
+                .expect("queuing input must not wait for the process");
+        }
+        let terminate =
+            serde_json::to_string(&WebSocketMessage::TerminateShellSession { session_id }).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), dispatcher.dispatch(&terminate))
+            .await
+            .expect("terminate must not wait behind input");
+        assert!(matches!(control.try_recv(), Ok(ShellCommand::Terminate)));
+
+        // The queued input still arrives, in order, once stdin is read.
+        for _ in 0..4 {
+            let cmd = tokio::time::timeout(Duration::from_secs(1), stdin.recv())
+                .await
+                .unwrap();
+            assert!(matches!(cmd, Some(ShellCommand::Input(data)) if data == b"x"));
+        }
+        dispatcher.abort();
     }
 }
