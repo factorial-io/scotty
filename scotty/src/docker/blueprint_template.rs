@@ -299,6 +299,18 @@ pub fn apply(
     Ok((settings, merged))
 }
 
+/// `compose.*.yml`, `docker-compose.override.yaml` and the like: override files
+/// Compose merges, or Scotty writes itself.
+fn is_compose_variant(path: &std::path::Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    (name.starts_with("compose.") || name.starts_with("docker-compose."))
+        && (name.ends_with(".yml") || name.ends_with(".yaml"))
+}
+
 /// D5: caller files may only land on payload paths; blueprint files are added
 /// and may not be replaced.
 pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList, AppError> {
@@ -324,11 +336,14 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
             .any(|c| c == std::path::Component::ParentDir)
         {
             Some("path contains ..")
-        } else if is_valid_config_file(name) {
+        } else if is_valid_config_file(name) || is_compose_variant(path) {
             Some("compose files are supplied by the blueprint")
-        } else if t.files.iter().any(|b| b.name == name) {
+        } else if t.files.iter().any(|b| b.name.eq_ignore_ascii_case(name)) {
             Some("would replace a blueprint file")
-        } else if files[t.files.len()..].iter().any(|b| b.name == name) {
+        } else if files[t.files.len()..]
+            .iter()
+            .any(|b| b.name.eq_ignore_ascii_case(name))
+        {
             Some("duplicate file name")
         } else if !payload.is_match(name) {
             Some("outside the blueprint's payload paths")
@@ -648,13 +663,16 @@ mod tests {
             ("../x", ".."),
             ("/etc/passwd", "absolute"),
             ("sws.toml", "replace"),
+            ("SWS.toml", "replace"),
+            ("html/docker-compose.override.yml", "compose"),
+            ("html/compose.override.yaml", "compose"),
         ] {
             let e = err(merge_files(&atelier(), &caller(&[name])));
             assert!(e.contains(why), "{name}: {e}");
         }
         let e = err(merge_files(
             &atelier(),
-            &caller(&["html/a.html", "./html/a.html"]),
+            &caller(&["html/a.html", "./html/A.html"]),
         ));
         assert!(e.contains("duplicate"), "{e}");
     }
