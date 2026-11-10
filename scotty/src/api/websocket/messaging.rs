@@ -56,6 +56,15 @@ impl WebSocketMessenger {
         }
     }
 
+    /// Number of messages queued for a client that its forwarding task has
+    /// not taken yet, or `None` if the client is gone. Producers of bulk data
+    /// use it to wait for a slow client instead of overflowing its buffer,
+    /// which would drop messages.
+    pub async fn queued_messages(&self, client_id: Uuid) -> Option<usize> {
+        let clients = self.clients.lock().await;
+        clients.get(&client_id).map(|client| client.sender.len())
+    }
+
     /// Broadcast a message to all connected clients
     pub async fn broadcast_to_all(&self, message: WebSocketMessage) {
         debug!("Broadcasting message {:?} to all clients", message);

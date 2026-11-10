@@ -6,12 +6,12 @@ use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream};
 use crate::api::get_auth_token;
 use crate::context::ServerSettings;
 
-type WsSender = futures_util::stream::SplitSink<
+pub type WsSender = futures_util::stream::SplitSink<
     WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     Message,
 >;
 
-type WsReceiver = futures_util::stream::SplitStream<
+pub type WsReceiver = futures_util::stream::SplitStream<
     WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 

@@ -441,6 +441,51 @@ mod tests {
         }
     }
 
+    /// Stdin commands go to the stdin writer, control commands to the session
+    /// loop, so a process that does not read stdin cannot hold up terminate.
+    #[tokio::test]
+    async fn test_send_command_routes_stdin_and_control_separately() {
+        let (control_tx, mut control_rx) = tokio::sync::mpsc::channel(4);
+        let (stdin_tx, mut stdin_rx) = tokio::sync::mpsc::channel(4);
+        let session = ShellSession {
+            session_id: Uuid::new_v4(),
+            app_name: "test-app".to_string(),
+            service_name: "web".to_string(),
+            container_id: "container-123".to_string(),
+            exec_id: "exec-456".to_string(),
+            sender: control_tx,
+            stdin_sender: stdin_tx,
+            client_id: Uuid::new_v4(),
+            tty: false,
+            created_at: chrono::Utc::now(),
+        };
+
+        for cmd in [
+            ShellCommand::Input(b"data".to_vec()),
+            ShellCommand::Resize {
+                width: 80,
+                height: 24,
+            },
+            ShellCommand::CloseStdin,
+            ShellCommand::Terminate,
+        ] {
+            session.send_command(cmd).await.unwrap();
+        }
+
+        assert!(matches!(stdin_rx.try_recv(), Ok(ShellCommand::Input(d)) if d == b"data"));
+        assert!(matches!(stdin_rx.try_recv(), Ok(ShellCommand::CloseStdin)));
+        assert!(stdin_rx.try_recv().is_err());
+        assert!(matches!(
+            control_rx.try_recv(),
+            Ok(ShellCommand::Resize {
+                width: 80,
+                height: 24
+            })
+        ));
+        assert!(matches!(control_rx.try_recv(), Ok(ShellCommand::Terminate)));
+        assert!(control_rx.try_recv().is_err());
+    }
+
     mod ownership {
         use super::*;
 
