@@ -44,6 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Shell session types
     ShellDataType::export(&cfg)?;
+    ShellDataEncoding::export(&cfg)?;
     ShellSessionRequest::export(&cfg)?;
     ShellSessionInfo::export(&cfg)?;
     ShellSessionData::export(&cfg)?;

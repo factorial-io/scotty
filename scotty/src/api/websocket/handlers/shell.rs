@@ -75,6 +75,7 @@ pub async fn handle_create_shell_session(
             &app,
             &request.service_name,
             request.shell_command.clone(),
+            request.tty,
             client_id,
         )
         .await
@@ -126,18 +127,32 @@ pub async fn handle_shell_session_data(
         return;
     }
 
+    let input = match data.bytes() {
+        Ok(input) => input,
+        Err(e) => {
+            state
+                .messenger
+                .send_error(
+                    client_id,
+                    format!("Invalid base64 in shell session input: {}", e),
+                )
+                .await;
+            return;
+        }
+    };
+
     debug!(
         "Shell input received from client {} for session {}: {} bytes",
         client_id,
         data.session_id,
-        data.data.len()
+        input.len()
     );
 
     // Send input to the shell session; the service rejects sessions owned by
     // another client.
     if let Err(e) = state
         .shell_service
-        .send_input(data.session_id, client_id, data.data.clone())
+        .send_input(data.session_id, client_id, input)
         .await
     {
         info!(
@@ -249,5 +264,40 @@ pub async fn handle_terminate_shell_session(
                 )
                 .await;
         }
+    }
+}
+
+/// Handle closing the stdin of a shell session via WebSocket
+pub async fn handle_close_shell_stdin(state: &SharedAppState, client_id: Uuid, session_id: Uuid) {
+    debug!(
+        "Closing stdin of shell session {} requested by client {}",
+        session_id, client_id
+    );
+
+    // Check authentication (no need for specific app permissions)
+    if state
+        .messenger
+        .get_user_for_client(client_id)
+        .await
+        .is_none()
+    {
+        state
+            .messenger
+            .send_error(
+                client_id,
+                "Authentication required for shell session management".to_string(),
+            )
+            .await;
+        return;
+    }
+
+    if let Err(e) = state.shell_service.close_stdin(session_id, client_id).await {
+        state
+            .messenger
+            .send_error(
+                client_id,
+                format!("Failed to close shell session stdin: {}", e),
+            )
+            .await;
     }
 }

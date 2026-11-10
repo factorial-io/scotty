@@ -76,6 +76,7 @@ mod tests {
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now() - chrono::Duration::hours(2),
         };
 
@@ -96,6 +97,7 @@ mod tests {
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now(),
         };
 
@@ -156,7 +158,7 @@ mod tests {
 
         let random_id = Uuid::new_v4();
         let result = service
-            .send_input(random_id, Uuid::new_v4(), "test input".to_string())
+            .send_input(random_id, Uuid::new_v4(), b"test input".to_vec())
             .await;
 
         assert!(result.is_err());
@@ -203,12 +205,13 @@ mod tests {
             exec_id: "exec-456".to_string(),
             sender: tx,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now(),
         };
 
         // Test that input commands are transmitted correctly
         let result = session
-            .send_command(ShellCommand::Input("ls -la".to_string()))
+            .send_command(ShellCommand::Input(b"ls -la".to_vec()))
             .await;
         assert!(result.is_ok());
 
@@ -216,7 +219,7 @@ mod tests {
         let received = rx.try_recv();
         assert!(received.is_ok());
         match received.unwrap() {
-            ShellCommand::Input(text) => assert_eq!(text, "ls -la"),
+            ShellCommand::Input(text) => assert_eq!(text, b"ls -la"),
             _ => panic!("Command type was altered during transmission"),
         }
 
@@ -249,6 +252,7 @@ mod tests {
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now() - chrono::Duration::seconds(3600),
         };
 
@@ -270,6 +274,7 @@ mod tests {
             exec_id: "exec-456".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now() - chrono::Duration::seconds(3601),
         };
 
@@ -367,6 +372,7 @@ mod tests {
             exec_id: "exec-id".to_string(),
             sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
+            tty: true,
             created_at: chrono::Utc::now(),
         }
         .to_info("/bin/sh".to_string());
@@ -386,15 +392,16 @@ mod tests {
     fn test_shell_command_enum_completeness() {
         use tokio::sync::mpsc;
 
-        let (tx, mut rx) = mpsc::channel(3);
+        let (tx, mut rx) = mpsc::channel(4);
 
         // Test all ShellCommand variants
         let commands = vec![
-            ShellCommand::Input("test input".to_string()),
+            ShellCommand::Input(b"test input".to_vec()),
             ShellCommand::Resize {
                 width: 100,
                 height: 50,
             },
+            ShellCommand::CloseStdin,
             ShellCommand::Terminate,
         ];
 
@@ -405,7 +412,7 @@ mod tests {
 
         // Verify all received correctly
         match rx.try_recv().unwrap() {
-            ShellCommand::Input(s) => assert_eq!(s, "test input"),
+            ShellCommand::Input(s) => assert_eq!(s, b"test input"),
             _ => panic!("Wrong variant"),
         }
 
@@ -414,6 +421,11 @@ mod tests {
                 assert_eq!(width, 100);
                 assert_eq!(height, 50);
             }
+            _ => panic!("Wrong variant"),
+        }
+
+        match rx.try_recv().unwrap() {
+            ShellCommand::CloseStdin => (),
             _ => panic!("Wrong variant"),
         }
 
@@ -440,12 +452,12 @@ mod tests {
             let (session_id, mut rx) = service.insert_test_session("app", owner).await;
 
             service
-                .send_input(session_id, owner, "ls\n".to_string())
+                .send_input(session_id, owner, b"ls\n".to_vec())
                 .await
                 .expect("owner input should be accepted");
 
             match rx.try_recv().expect("command should be queued") {
-                ShellCommand::Input(data) => assert_eq!(data, "ls\n"),
+                ShellCommand::Input(data) => assert_eq!(data, b"ls\n"),
                 other => panic!("unexpected command {other:?}"),
             }
         }
@@ -458,12 +470,13 @@ mod tests {
             let (session_id, mut rx) = service.insert_test_session("app", owner).await;
 
             let input = service
-                .send_input(session_id, intruder, "id\n".to_string())
+                .send_input(session_id, intruder, b"id\n".to_vec())
                 .await;
             let resize = service.resize_tty(session_id, intruder, 80, 24).await;
+            let close_stdin = service.close_stdin(session_id, intruder).await;
             let terminate = service.terminate_session(session_id, intruder).await;
 
-            for result in [input, resize, terminate] {
+            for result in [input, resize, close_stdin, terminate] {
                 match result {
                     Err(ShellServiceError::SessionNotFound { session_id: id }) => {
                         assert_eq!(id, session_id)

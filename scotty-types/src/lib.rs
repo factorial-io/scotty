@@ -409,6 +409,15 @@ pub struct ShellSessionRequest {
     pub app_name: String,
     pub service_name: String,
     pub shell_command: Option<String>, // Optional, uses default shell if None
+    /// Allocate a tty for the remote process. Without a tty, stdout and
+    /// stderr are delivered separately and all data is base64-encoded.
+    /// Defaults to `true` for clients that predate this field.
+    #[serde(default = "default_shell_tty")]
+    pub tty: bool,
+}
+
+fn default_shell_tty() -> bool {
+    true
 }
 
 impl ShellSessionRequest {
@@ -417,6 +426,7 @@ impl ShellSessionRequest {
             app_name,
             service_name,
             shell_command: None,
+            tty: true,
         }
     }
 
@@ -425,6 +435,7 @@ impl ShellSessionRequest {
             app_name,
             service_name,
             shell_command: Some(shell_command),
+            tty: true,
         }
     }
 }
@@ -433,7 +444,17 @@ impl ShellSessionRequest {
 #[ts(export)]
 pub enum ShellDataType {
     Input,  // Data from client to shell
-    Output, // Data from shell to client
+    Output, // Data from shell to client (stdout, or everything with a tty)
+    Stderr, // Stderr from shell to client (sessions without a tty only)
+}
+
+/// Encoding of `ShellSessionData::data`. Absent means plain UTF-8 text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum ShellDataEncoding {
+    /// `data` holds the raw bytes, base64-encoded (standard alphabet, padded).
+    Base64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -472,6 +493,43 @@ pub struct ShellSessionData {
     pub session_id: Uuid,
     pub data_type: ShellDataType,
     pub data: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub encoding: Option<ShellDataEncoding>,
+}
+
+impl ShellSessionData {
+    /// Plain text data (no encoding).
+    pub fn text(session_id: Uuid, data_type: ShellDataType, data: impl Into<String>) -> Self {
+        Self {
+            session_id,
+            data_type,
+            data: data.into(),
+            encoding: None,
+        }
+    }
+
+    /// Raw bytes, base64-encoded so binary data survives the JSON envelope.
+    pub fn binary(session_id: Uuid, data_type: ShellDataType, bytes: &[u8]) -> Self {
+        use base64::Engine;
+        Self {
+            session_id,
+            data_type,
+            data: base64::engine::general_purpose::STANDARD.encode(bytes),
+            encoding: Some(ShellDataEncoding::Base64),
+        }
+    }
+
+    /// The raw bytes this message carries, decoding base64 when marked so.
+    pub fn bytes(&self) -> Result<Vec<u8>, base64::DecodeError> {
+        use base64::Engine;
+        match self.encoding {
+            None => Ok(self.data.as_bytes().to_vec()),
+            Some(ShellDataEncoding::Base64) => {
+                base64::engine::general_purpose::STANDARD.decode(&self.data)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -535,6 +593,11 @@ pub enum WebSocketMessage {
         height: u16,
     },
     TerminateShellSession {
+        #[ts(type = "string")]
+        session_id: Uuid,
+    },
+    /// Close the shell's stdin so the remote process reads end-of-file.
+    CloseShellStdin {
         #[ts(type = "string")]
         session_id: Uuid,
     },
@@ -638,6 +701,9 @@ impl fmt::Display for WebSocketMessage {
             }
             WebSocketMessage::TerminateShellSession { session_id } => {
                 write!(f, "Terminate shell session {}", session_id)
+            }
+            WebSocketMessage::CloseShellStdin { session_id } => {
+                write!(f, "Close stdin of shell session {}", session_id)
             }
             WebSocketMessage::ShellSessionCreated(info) => {
                 write!(
@@ -777,6 +843,7 @@ mod tests {
             app_name: "test-app".to_string(),
             service_name: "web".to_string(),
             shell_command: Some("/bin/bash".to_string()),
+            tty: true,
         };
 
         // Serialize to JSON
@@ -819,6 +886,7 @@ mod tests {
             session_id,
             data_type: ShellDataType::Input,
             data: "test command\n".to_string(),
+            encoding: None,
         };
 
         assert!(matches!(input.data_type, ShellDataType::Input));
@@ -829,6 +897,7 @@ mod tests {
             session_id,
             data_type: ShellDataType::Output,
             data: "command result\n".to_string(),
+            encoding: None,
         };
 
         assert!(matches!(output.data_type, ShellDataType::Output));
@@ -842,6 +911,7 @@ mod tests {
             session_id,
             data_type: ShellDataType::Input,
             data: "echo hello".to_string(),
+            encoding: None,
         };
 
         // Serialize
@@ -852,6 +922,79 @@ mod tests {
         assert_eq!(deserialized.session_id, session_id);
         assert!(matches!(deserialized.data_type, ShellDataType::Input));
         assert_eq!(deserialized.data, "echo hello");
+    }
+
+    #[test]
+    fn test_shell_session_request_without_tty_field_requests_a_tty() {
+        // Clients that predate the tty flag must keep getting a tty.
+        let json = r#"{"app_name":"app","service_name":"web","shell_command":null}"#;
+        let req: ShellSessionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.tty);
+        assert!(ShellSessionRequest::new("app".into(), "web".into()).tty);
+    }
+
+    #[test]
+    fn test_shell_session_request_tty_false_round_trip() {
+        let req = ShellSessionRequest {
+            tty: false,
+            ..ShellSessionRequest::new("app".into(), "web".into())
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let deserialized: ShellSessionRequest = serde_json::from_str(&json).unwrap();
+        assert!(!deserialized.tty);
+    }
+
+    #[test]
+    fn test_shell_session_data_text_omits_encoding() {
+        let data = ShellSessionData::text(Uuid::new_v4(), ShellDataType::Output, "hi");
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(!json.contains("encoding"), "{json}");
+        let deserialized: ShellSessionData = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.encoding, None);
+    }
+
+    #[test]
+    fn test_shell_session_data_base64_encoding_round_trip() {
+        let session_id = Uuid::new_v4();
+        let json = format!(
+            r#"{{"session_id":"{session_id}","data_type":"Stderr","data":"AP+A","encoding":"base64"}}"#
+        );
+        let data: ShellSessionData = serde_json::from_str(&json).unwrap();
+        assert!(matches!(data.data_type, ShellDataType::Stderr));
+        assert_eq!(data.encoding, Some(ShellDataEncoding::Base64));
+        assert_eq!(serde_json::to_string(&data).unwrap(), json);
+    }
+
+    #[test]
+    fn test_shell_session_data_binary_round_trip() {
+        let bytes = [0x00, 0xff, 0x80, b'\n'];
+        let data = ShellSessionData::binary(Uuid::new_v4(), ShellDataType::Output, &bytes);
+        assert_eq!(data.encoding, Some(ShellDataEncoding::Base64));
+        assert_eq!(data.bytes().unwrap(), bytes);
+        let text = ShellSessionData::text(Uuid::new_v4(), ShellDataType::Output, "héllo");
+        assert_eq!(text.bytes().unwrap(), "héllo".as_bytes());
+    }
+
+    #[test]
+    fn test_shell_session_data_invalid_base64_is_an_error() {
+        let mut data = ShellSessionData::text(Uuid::new_v4(), ShellDataType::Input, "not base64!");
+        data.encoding = Some(ShellDataEncoding::Base64);
+        assert!(data.bytes().is_err());
+    }
+
+    #[test]
+    fn test_close_shell_stdin_message_serialization() {
+        let session_id = Uuid::new_v4();
+        let msg = WebSocketMessage::CloseShellStdin { session_id };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert_eq!(
+            json,
+            format!(r#"{{"type":"CloseShellStdin","data":{{"session_id":"{session_id}"}}}}"#)
+        );
+        assert!(matches!(
+            serde_json::from_str::<WebSocketMessage>(&json).unwrap(),
+            WebSocketMessage::CloseShellStdin { session_id: id } if id == session_id
+        ));
     }
 
     #[test]
