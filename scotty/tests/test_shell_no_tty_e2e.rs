@@ -122,7 +122,8 @@ impl Harness {
             .unwrap();
 
         let client_id = Uuid::new_v4();
-        let (tx, rx) = broadcast::channel(4096);
+        // Large enough to hold every output message of the biggest test.
+        let (tx, rx) = broadcast::channel(65536);
         state
             .messenger
             .add_client(client_id, WebSocketClient::new(tx))
@@ -316,6 +317,32 @@ async fn closing_stdin_ends_cat_and_data_is_byte_exact() {
     assert_eq!(outcome.exit_code, Some(0));
 }
 
+/// Input and output flow at the same time. `cat` echoes while it reads, so
+/// the server must keep reading output while it is still writing input;
+/// otherwise both pipes fill up and the session deadlocks.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn large_bidirectional_transfer_does_not_deadlock() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("cat"), false).await;
+
+    let payload: Vec<u8> = (0..=255u8).cycle().take(16 * 1024 * 1024).collect();
+    let send_all = async {
+        for chunk in payload.chunks(32 * 1024) {
+            h.input(session_id, chunk).await;
+        }
+        h.close_stdin(session_id).await;
+    };
+    tokio::time::timeout(Duration::from_secs(60), send_all)
+        .await
+        .expect("writing input stalled: the session stopped reading output");
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout.len(), payload.len());
+    assert!(outcome.stdout == payload, "output differs from input");
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn binary_output_is_preserved() {
@@ -393,4 +420,39 @@ async fn tty_session_is_unchanged() {
     assert_eq!(String::from_utf8_lossy(&outcome.stdout), "a\r\n");
     assert!(outcome.plain_text_messages > 0);
     assert_eq!(outcome.exit_code, Some(5));
+}
+
+/// The process writes a lot of output before it reads stdin, while the
+/// client is already sending input. The server must keep forwarding output
+/// while the process is not reading stdin; a single loop that blocks on the
+/// stdin write deadlocks here.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn output_before_reading_stdin_does_not_deadlock() {
+    const OUTPUT: usize = 32 * 1024 * 1024;
+    let mut h = Harness::new().await;
+    let session_id = h
+        .create(
+            Some(&format!(
+                "head -c {OUTPUT} /dev/zero; cat >/dev/null; echo done"
+            )),
+            false,
+        )
+        .await;
+
+    let payload = vec![7u8; 8 * 1024 * 1024];
+    let send_all = async {
+        for chunk in payload.chunks(32 * 1024) {
+            h.input(session_id, chunk).await;
+        }
+        h.close_stdin(session_id).await;
+    };
+    tokio::time::timeout(Duration::from_secs(60), send_all)
+        .await
+        .expect("writing input stalled: the session stopped forwarding output");
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout.len(), OUTPUT + "done\n".len());
+    assert!(outcome.stdout.ends_with(b"done\n"));
+    assert_eq!(outcome.exit_code, Some(0));
 }

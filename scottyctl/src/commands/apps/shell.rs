@@ -234,12 +234,18 @@ async fn run_stream_mode(
                 match chunk {
                     Some(bytes) => {
                         let data = ShellSessionData::binary(session_id, ShellDataType::Input, &bytes);
-                        ws.send(WebSocketMessage::ShellSessionData(data)).await?;
+                        if let Err(e) = ws.send(WebSocketMessage::ShellSessionData(data)).await {
+                            eprintln!("Failed to send input: {}", e);
+                            break 1;
+                        }
                     }
                     None => {
                         debug!("stdin reached end-of-file, closing remote stdin");
                         stdin_rx = None;
-                        ws.send(close_stdin.clone()).await?;
+                        if let Err(e) = ws.send(close_stdin.clone()).await {
+                            eprintln!("Failed to close remote stdin: {}", e);
+                            break 1;
+                        }
                     }
                 }
             }
@@ -252,17 +258,25 @@ async fn run_stream_mode(
                         };
                         match ws_message {
                             WebSocketMessage::ShellSessionData(data) if data.session_id == session_id => {
-                                let bytes = data
-                                    .bytes()
-                                    .context("Server sent invalid shell output")?;
-                                match data.data_type {
-                                    ShellDataType::Stderr => {
-                                        err.write_all(&bytes)?;
-                                        err.flush()?;
+                                let bytes = match data.bytes() {
+                                    Ok(bytes) => bytes,
+                                    Err(e) => {
+                                        eprintln!("Server sent invalid shell output: {}", e);
+                                        break 1;
                                     }
-                                    _ => {
-                                        out.write_all(&bytes)?;
-                                        out.flush()?;
+                                };
+                                let written = match data.data_type {
+                                    ShellDataType::Stderr => err.write_all(&bytes).and_then(|_| err.flush()),
+                                    _ => out.write_all(&bytes).and_then(|_| out.flush()),
+                                };
+                                match written {
+                                    Ok(()) => {}
+                                    // The reader went away (e.g. `| head`): stop quietly,
+                                    // like a process killed by SIGPIPE.
+                                    Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break 141,
+                                    Err(e) => {
+                                        eprintln!("Failed to write shell output: {}", e);
+                                        break 1;
                                     }
                                 }
                             }
