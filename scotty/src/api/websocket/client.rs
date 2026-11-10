@@ -86,7 +86,8 @@ async fn websocket_handler(ws: WebSocket, state: SharedAppState, client_id: Uuid
     });
 
     while let Some(Ok(msg)) = receiver.next().await {
-        info!("Received message: {:?}", msg);
+        // Never log the content: it carries shell input (passwords, piped files).
+        debug!("Received WebSocket message from client {}", client_id);
         match msg {
             Message::Text(text) => {
                 crate::metrics::websocket::record_message_received();

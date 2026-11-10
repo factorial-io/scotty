@@ -1,5 +1,7 @@
-use axum::extract::DefaultBodyLimit;
-use axum::middleware;
+use axum::extract::{DefaultBodyLimit, Request, State};
+use axum::http::{header, HeaderMap, HeaderName, HeaderValue, Uri};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
@@ -72,7 +74,7 @@ use crate::oauth::handlers::{CallbackQuery, DeviceFlowResponse, TokenResponse};
 use scotty_core::api::{OAuthConfig, ServerInfo};
 use scotty_core::settings::api_server::AuthMode;
 
-use super::rest::handlers::landing::landing_or_frontend_handler;
+use super::rest::handlers::landing::{is_scotty_request, landing_or_frontend_handler};
 use crate::api::rest::handlers::admin::assignments::{
     __path_create_assignment_handler, __path_list_assignments_handler,
     __path_remove_assignment_handler,
@@ -618,6 +620,7 @@ impl ApiRoutes {
         let public_router = Router::new()
             .route("/api/v1/health", get(health_checker_handler))
             .route("/api/v1/info", get(info_handler))
+            .route("/robots.txt", get(robots_txt_handler))
             .route("/ws", get(ws_handler))
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
             .merge(Redoc::with_url("/redoc", api.clone()))
@@ -636,9 +639,118 @@ impl ApiRoutes {
 
         // The MCP authorization server (metadata, /oauth/mcp/*, /mcp), in
         // oauth mode only.
-        match crate::oauth::mcp::router(&state) {
+        let router = match crate::oauth::mcp::router(&state) {
             Some(mcp) => router.merge(mcp),
             None => router,
+        };
+
+        // Keep search engines from indexing the Scotty server itself (UI + API).
+        router.layer(middleware::from_fn_with_state(state, add_noindex_header))
+    }
+}
+
+/// Body of `/robots.txt`: disallow all crawlers on the Scotty server.
+const ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
+
+/// `/robots.txt` for Scotty's own host. A stopped app's domain also reaches
+/// Scotty through the load balancer's fallback; those requests go to the
+/// landing handler, so a crawler never caches Scotty's `Disallow` for an app.
+async fn robots_txt_handler(
+    State(state): State<SharedAppState>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    if !is_scotty_request(&state, &headers) {
+        return landing_or_frontend_handler(State(state), headers, uri)
+            .await
+            .into_response();
+    }
+    (
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        ROBOTS_TXT,
+    )
+        .into_response()
+}
+
+/// Marks Scotty's own responses `noindex`. Responses for hosted apps' domains
+/// (landing redirects, 503s) keep the app's own robots setting.
+async fn add_noindex_header(
+    State(state): State<SharedAppState>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let ours = is_scotty_request(&state, req.headers());
+    let mut res = next.run(req).await;
+    if ours {
+        res.headers_mut().insert(
+            HeaderName::from_static("x-robots-tag"),
+            HeaderValue::from_static("noindex, nofollow"),
+        );
+    }
+    res
+}
+
+#[cfg(test)]
+mod robots_tests {
+    use crate::api::router::ApiRoutes;
+    use crate::api::test_utils::create_test_app_state_with_settings;
+    use axum_test::TestServer;
+
+    const SCOTTY: &str = "scotty.example.com";
+
+    async fn server() -> TestServer {
+        let settings: crate::settings::config::Settings = config::Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .set_override("api.base_url", format!("http://{SCOTTY}"))
+            .unwrap()
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        TestServer::new(ApiRoutes::create(
+            create_test_app_state_with_settings(settings, None).await,
+        ))
+    }
+
+    fn noindex(res: &axum_test::TestResponse) -> bool {
+        res.maybe_header("x-robots-tag")
+            .is_some_and(|v| v == "noindex, nofollow")
+    }
+
+    #[tokio::test]
+    async fn scotty_host_is_noindex_everywhere() {
+        let server = server().await;
+        let res = server.get("/robots.txt").add_header("host", SCOTTY).await;
+        res.assert_status_ok();
+        res.assert_text("User-agent: *\nDisallow: /\n");
+        assert_eq!(res.header("content-type"), "text/plain; charset=utf-8");
+        assert!(noindex(&res));
+
+        for path in [
+            "/api/v1/health",                  // public API
+            "/api/v1/authenticated/apps/list", // 401 without a token
+            "/some/spa/route",                 // frontend fallback
+        ] {
+            let res = server.get(path).add_header("host", SCOTTY).await;
+            assert!(noindex(&res), "{path}: {}", res.status_code());
         }
+    }
+
+    #[tokio::test]
+    async fn app_hosts_keep_their_own_robots_setting() {
+        let server = server().await;
+        // A hosted app's domain reaching Scotty via the load balancer fallback.
+        let res = server
+            .get("/robots.txt")
+            .add_header("host", "shop.apps.example.com")
+            .await;
+        assert_ne!(res.text(), "User-agent: *\nDisallow: /\n");
+        assert!(!noindex(&res));
+
+        let res = server
+            .get("/")
+            .add_header("host", "shop.apps.example.com")
+            .await;
+        assert!(!noindex(&res));
     }
 }

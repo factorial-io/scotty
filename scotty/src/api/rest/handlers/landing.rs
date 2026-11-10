@@ -153,6 +153,13 @@ pub async fn landing_or_frontend_handler(
         .expect("BUG: response builder failed")
 }
 
+/// Whether a request is for Scotty itself rather than a hosted app's domain
+/// that reached Scotty through the load balancer's fallback. Requests without
+/// a Host header count as Scotty's.
+pub fn is_scotty_request(state: &SharedAppState, headers: &HeaderMap) -> bool {
+    extract_hostname(headers).is_none_or(|h| is_scotty_domain(state, &h))
+}
+
 /// Check if the given hostname matches Scotty's own domain.
 fn is_scotty_domain(state: &SharedAppState, hostname: &str) -> bool {
     let Some(base_url) = state.settings.api.configured_base_url() else {

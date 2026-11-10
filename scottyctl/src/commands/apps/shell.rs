@@ -4,7 +4,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size},
 };
 use futures_util::StreamExt;
-use std::io::{stdout, Write};
+use std::io::{stdout, IsTerminal, Read, Write};
 use tokio::select;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error};
@@ -14,19 +14,64 @@ use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{ShellDataType, ShellSessionData};
 use uuid::Uuid;
 
+/// How a shell session handles stdin and the remote tty.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ShellMode {
+    /// Forward local stdin to the remote process
+    forward_stdin: bool,
+    /// Allocate a tty on the remote side
+    tty: bool,
+}
+
+/// Work out stdin forwarding and tty allocation, like `ssh` and `docker exec`:
+/// without `--command` stdin is always forwarded and a tty is allocated only
+/// when stdin is a terminal; with `--command` both are opt-in (`-i`, `-t`).
+fn resolve_mode(cmd: &ShellCommand, stdin_is_terminal: bool) -> anyhow::Result<ShellMode> {
+    let forward_stdin = cmd.interactive || cmd.command.is_none();
+    let tty = if cmd.tty {
+        true
+    } else if cmd.no_tty {
+        false
+    } else {
+        cmd.command.is_none() && stdin_is_terminal
+    };
+    if tty && forward_stdin && !stdin_is_terminal {
+        anyhow::bail!(
+            "An interactive tty needs a terminal on stdin. \
+             Omit -t, or use -T to forward stdin without a tty."
+        );
+    }
+    Ok(ShellMode { forward_stdin, tty })
+}
+
 /// Open an interactive shell for an app service
 pub async fn shell_app(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<()> {
+    let mode = resolve_mode(cmd, std::io::stdin().is_terminal())?;
+    // Without a tty the output is data: keep status messages out of the way
+    // unless someone is watching stderr.
+    let show_status = mode.tty || std::io::stderr().is_terminal();
+
     // Validate app and service using shared utility
-    let _app_data =
-        super::validate_app_and_service(context, &cmd.app_name, &cmd.service_name, "app:shell")
-            .await?;
+    let _app_data = super::validate_app_and_service_with_status(
+        context,
+        &cmd.app_name,
+        &cmd.service_name,
+        "app:shell",
+        show_status,
+    )
+    .await?;
 
     // Create shell session and open interactive terminal
-    open_shell(context, cmd).await
+    open_shell(context, cmd, mode, show_status).await
 }
 
 /// Create shell session and open interactive terminal
-async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<()> {
+async fn open_shell(
+    context: &AppContext,
+    cmd: &ShellCommand,
+    mode: ShellMode,
+    show_status: bool,
+) -> anyhow::Result<()> {
     use crate::websocket::AuthenticatedWebSocket;
     use scotty_types::ShellSessionRequest;
 
@@ -38,7 +83,9 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
         .await
         .context("Failed to connect to WebSocket")?;
 
-    ui.success("🔐 WebSocket authenticated");
+    if show_status {
+        ui.success("🔐 WebSocket authenticated");
+    }
 
     // Build shell command:
     // - If command is provided, just pass it (server will wrap with sh -c)
@@ -58,6 +105,7 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
         app_name: cmd.app_name.clone(),
         service_name: cmd.service_name.clone(),
         shell_command,
+        tty: mode.tty,
     };
 
     // Send CreateShellSession message
@@ -74,7 +122,9 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
                 if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
                     match ws_message {
                         WebSocketMessage::ShellSessionCreated(info) => {
-                            ui.success(format!("Shell session created: {}", info.session_id));
+                            if show_status {
+                                ui.success(format!("Shell session created: {}", info.session_id));
+                            }
                             break info.session_id;
                         }
                         WebSocketMessage::Error(err) => {
@@ -100,8 +150,14 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
         }
     };
 
-    // If running a single command, just wait for output and exit
-    if cmd.command.is_some() {
+    // Without a tty, stream stdin and output as raw bytes
+    if !mode.tty {
+        ui.clear();
+        return run_stream_mode(ws, session_id, mode.forward_stdin).await;
+    }
+
+    // A tty without stdin: just wait for output and exit
+    if !mode.forward_stdin {
         return run_command_mode(ws, session_id).await;
     }
 
@@ -121,6 +177,185 @@ async fn open_shell(context: &AppContext, cmd: &ShellCommand) -> anyhow::Result<
 
     // Otherwise, run interactive mode
     run_interactive_mode(ws, session_id, ui).await
+}
+
+/// Size of the chunks read from stdin in stream mode
+const STDIN_CHUNK_SIZE: usize = 32 * 1024;
+
+/// Read stdin on a blocking thread and hand chunks to the async side.
+/// The channel closes after end-of-file; a read error is passed on so it is
+/// not mistaken for the end of the input.
+fn spawn_stdin_reader() -> tokio::sync::mpsc::Receiver<std::io::Result<Vec<u8>>> {
+    let (tx, rx) = tokio::sync::mpsc::channel(8);
+    std::thread::spawn(move || {
+        let mut stdin = std::io::stdin().lock();
+        let mut buf = vec![0u8; STDIN_CHUNK_SIZE];
+        loop {
+            let chunk = match stdin.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => Ok(buf[..n].to_vec()),
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => Err(e),
+            };
+            let failed = chunk.is_err();
+            if tx.blocking_send(chunk).is_err() || failed {
+                break;
+            }
+        }
+    });
+    rx
+}
+
+/// Forward stdin to the session and close the remote stdin at end-of-file
+/// (right away when stdin is not forwarded).
+///
+/// Runs in its own task so the client keeps reading output while a send
+/// waits: the server slows down input when the process does not read stdin,
+/// and output it cannot deliver slows down the process. A client that stops
+/// reading while it sends would block itself. Returns the sender so the
+/// connection stays open after the input is done.
+async fn forward_stdin(
+    mut sender: crate::websocket::WsSender,
+    session_id: Uuid,
+    stdin: Option<tokio::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>>,
+) -> Result<crate::websocket::WsSender, String> {
+    use futures_util::SinkExt;
+
+    async fn send(
+        sender: &mut crate::websocket::WsSender,
+        message: WebSocketMessage,
+    ) -> Result<(), String> {
+        let json = serde_json::to_string(&message).map_err(|e| e.to_string())?;
+        sender
+            .send(Message::Text(json.into()))
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    if let Some(mut stdin) = stdin {
+        while let Some(chunk) = stdin.recv().await {
+            let bytes = chunk.map_err(|e| format!("Failed to read stdin: {}", e))?;
+            let data = ShellSessionData::binary(session_id, ShellDataType::Input, &bytes);
+            send(&mut sender, WebSocketMessage::ShellSessionData(data))
+                .await
+                .map_err(|e| format!("Failed to send input: {}", e))?;
+        }
+        debug!("stdin reached end-of-file, closing remote stdin");
+    }
+    send(
+        &mut sender,
+        WebSocketMessage::CloseShellStdin { session_id },
+    )
+    .await
+    .map_err(|e| format!("Failed to close remote stdin: {}", e))?;
+    Ok(sender)
+}
+
+/// Run a session without a tty: forward stdin as raw bytes, close the
+/// remote stdin on end-of-file, and pass stdout and stderr through unchanged.
+/// Exits the process with the remote exit code.
+async fn run_stream_mode(
+    ws: crate::websocket::AuthenticatedWebSocket,
+    session_id: Uuid,
+    forward: bool,
+) -> anyhow::Result<()> {
+    let crate::websocket::AuthenticatedWebSocket {
+        sender,
+        mut receiver,
+    } = ws;
+    let stdin = forward.then(spawn_stdin_reader);
+    let mut input_task = tokio::spawn(forward_stdin(sender, session_id, stdin));
+    let mut input_done = false;
+    // Keeps the connection's sending half alive once the input is done.
+    let mut _sender = None;
+
+    let mut out = std::io::stdout();
+    let mut err = std::io::stderr();
+
+    let exit_code = loop {
+        select! {
+            result = &mut input_task, if !input_done => {
+                input_done = true;
+                match result {
+                    Ok(Ok(sender)) => _sender = Some(sender),
+                    Ok(Err(e)) => {
+                        eprintln!("{}", e);
+                        break 1;
+                    }
+                    Err(e) => {
+                        eprintln!("Forwarding stdin failed: {}", e);
+                        break 1;
+                    }
+                }
+            }
+
+            message = receiver.next() => {
+                match message {
+                    Some(Ok(Message::Text(text))) => {
+                        let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) else {
+                            continue;
+                        };
+                        match ws_message {
+                            WebSocketMessage::ShellSessionData(data) if data.session_id == session_id => {
+                                let bytes = match data.bytes() {
+                                    Ok(bytes) => bytes,
+                                    Err(e) => {
+                                        eprintln!("Server sent invalid shell output: {}", e);
+                                        break 1;
+                                    }
+                                };
+                                let written = match data.data_type {
+                                    ShellDataType::Stderr => err.write_all(&bytes).and_then(|_| err.flush()),
+                                    _ => out.write_all(&bytes).and_then(|_| out.flush()),
+                                };
+                                match written {
+                                    Ok(()) => {}
+                                    // The reader went away (e.g. `| head`): stop quietly,
+                                    // like a process killed by SIGPIPE.
+                                    Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break 141,
+                                    Err(e) => {
+                                        eprintln!("Failed to write shell output: {}", e);
+                                        break 1;
+                                    }
+                                }
+                            }
+                            WebSocketMessage::ShellSessionEnded(end) if end.session_id == session_id => {
+                                break match end.exit_code {
+                                    Some(code) => code,
+                                    None => {
+                                        eprintln!("Shell session ended: {}", end.reason);
+                                        1
+                                    }
+                                };
+                            }
+                            WebSocketMessage::ShellSessionError(error) => {
+                                eprintln!("Shell error: {}", error.error);
+                                break 1;
+                            }
+                            WebSocketMessage::Error(msg) => {
+                                eprintln!("Error: {}", msg);
+                                break 1;
+                            }
+                            _ => {}
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => {
+                        eprintln!("Connection to the server closed before the shell session ended");
+                        break 1;
+                    }
+                    Some(Err(e)) => {
+                        eprintln!("WebSocket error: {}", e);
+                        break 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    };
+
+    // Exiting closes the connection; the server ends the session if it is
+    // still running.
+    std::process::exit(exit_code);
 }
 
 /// Run a single command and exit (non-interactive mode)
@@ -263,11 +498,8 @@ async fn handle_terminal_event(
         }) => {
             // Ctrl+C - send interrupt to shell
             debug!("Ctrl+C pressed");
-            let input_data = ShellSessionData {
-                session_id,
-                data_type: ShellDataType::Input,
-                data: "\x03".to_string(), // Send Ctrl+C as raw byte
-            };
+            // Send Ctrl+C as raw byte
+            let input_data = ShellSessionData::text(session_id, ShellDataType::Input, "\x03");
             let message = WebSocketMessage::ShellSessionData(input_data);
             ws.send(message).await?;
             Ok(None)
@@ -286,11 +518,7 @@ async fn handle_terminal_event(
         }) => {
             // Convert key event to string and send to shell
             if let Some(input) = key_to_string(code, modifiers) {
-                let input_data = ShellSessionData {
-                    session_id,
-                    data_type: ShellDataType::Input,
-                    data: input,
-                };
+                let input_data = ShellSessionData::text(session_id, ShellDataType::Input, input);
                 let message = WebSocketMessage::ShellSessionData(input_data);
                 ws.send(message).await?;
             }
@@ -368,6 +596,81 @@ fn key_to_string(code: KeyCode, modifiers: KeyModifiers) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn shell_cmd(args: &[&str]) -> ShellCommand {
+        use clap::Parser;
+        let mut argv = vec!["app:shell", "my-app", "web"];
+        argv.extend_from_slice(args);
+        ShellCommand::try_parse_from(argv).unwrap()
+    }
+
+    fn mode(forward_stdin: bool, tty: bool) -> ShellMode {
+        ShellMode { forward_stdin, tty }
+    }
+
+    #[test]
+    fn test_mode_interactive_shell_from_terminal() {
+        assert_eq!(
+            resolve_mode(&shell_cmd(&[]), true).unwrap(),
+            mode(true, true)
+        );
+    }
+
+    #[test]
+    fn test_mode_piped_stdin_without_command_has_no_tty() {
+        assert_eq!(
+            resolve_mode(&shell_cmd(&[]), false).unwrap(),
+            mode(true, false)
+        );
+    }
+
+    #[test]
+    fn test_mode_command_has_neither_stdin_nor_tty_by_default() {
+        for terminal in [true, false] {
+            assert_eq!(
+                resolve_mode(&shell_cmd(&["-c", "ls"]), terminal).unwrap(),
+                mode(false, false)
+            );
+        }
+    }
+
+    #[test]
+    fn test_mode_command_with_interactive_forwards_stdin() {
+        assert_eq!(
+            resolve_mode(&shell_cmd(&["-i", "-c", "cat"]), false).unwrap(),
+            mode(true, false)
+        );
+    }
+
+    #[test]
+    fn test_mode_command_with_tty_needs_no_terminal() {
+        assert_eq!(
+            resolve_mode(&shell_cmd(&["-t", "-c", "top"]), false).unwrap(),
+            mode(false, true)
+        );
+    }
+
+    #[test]
+    fn test_mode_no_tty_from_terminal() {
+        assert_eq!(
+            resolve_mode(&shell_cmd(&["-T"]), true).unwrap(),
+            mode(true, false)
+        );
+    }
+
+    #[test]
+    fn test_mode_interactive_tty_without_terminal_is_an_error() {
+        let err = resolve_mode(&shell_cmd(&["-t"]), false).unwrap_err();
+        assert!(err.to_string().contains("-T"), "{err}");
+        let err = resolve_mode(&shell_cmd(&["-it", "-c", "sh"]), false).unwrap_err();
+        assert!(err.to_string().contains("terminal"), "{err}");
+    }
+
+    #[test]
+    fn test_mode_tty_and_no_tty_conflict() {
+        use clap::Parser;
+        assert!(ShellCommand::try_parse_from(["app:shell", "a", "b", "-t", "-T"]).is_err());
+    }
 
     /// Test key_to_string with printable characters
     #[test]

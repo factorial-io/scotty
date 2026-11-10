@@ -480,6 +480,19 @@ pub struct ShellCommand {
     /// Shell to use (default: /bin/bash)
     #[arg(long = "shell")]
     pub shell: Option<String>,
+
+    /// Forward stdin to the remote process (always on without --command)
+    #[arg(short = 'i', long = "interactive")]
+    pub interactive: bool,
+
+    /// Allocate a tty on the remote side (default: only without --command
+    /// and when stdin is a terminal)
+    #[arg(short = 't', long = "tty", conflicts_with = "no_tty")]
+    pub tty: bool,
+
+    /// Never allocate a tty; stdout and stderr are passed through unchanged
+    #[arg(short = 'T', long = "no-tty")]
+    pub no_tty: bool,
 }
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {

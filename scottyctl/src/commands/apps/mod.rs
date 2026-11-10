@@ -76,6 +76,18 @@ pub async fn validate_app_and_service(
     service_name: &str,
     command_name: &str,
 ) -> anyhow::Result<AppData> {
+    validate_app_and_service_with_status(context, app_name, service_name, command_name, true).await
+}
+
+/// Like [`validate_app_and_service`]; `announce_success` controls whether the
+/// "Found service" message is printed (failures are always reported).
+pub async fn validate_app_and_service_with_status(
+    context: &AppContext,
+    app_name: &str,
+    service_name: &str,
+    command_name: &str,
+    announce_success: bool,
+) -> anyhow::Result<AppData> {
     use owo_colors::OwoColorize;
 
     let ui = context.ui();
@@ -142,11 +154,13 @@ pub async fn validate_app_and_service(
         ));
     }
 
-    ui.success(format!(
-        "Found service {} in app {}",
-        service_name.yellow(),
-        app_name.yellow()
-    ));
+    if announce_success {
+        ui.success(format!(
+            "Found service {} in app {}",
+            service_name.yellow(),
+            app_name.yellow()
+        ));
+    }
 
     Ok(app_data)
 }
