@@ -156,6 +156,23 @@ async fn overwrite_across_scopes_is_forbidden() {
     assert_eq!(code, 403, "{text}");
 }
 
+/// Rights in one scope of a multi-scope app aren't enough to replace it.
+#[tokio::test]
+async fn re_create_needs_rights_in_every_scope_of_the_app() {
+    let env = setup().await;
+    env.existing(
+        "both",
+        Some(&settings_yml(&["default", "production"], None)),
+    );
+    let body = request("both", None, &["default", "production"]);
+    // `developer` has create in `default` only.
+    let (code, text) = env.status(DEVELOPER, body.clone()).await;
+    assert_eq!(code, 403, "{text}");
+    // `ops` has create in both.
+    let (code, text) = env.status(OPS, body).await;
+    assert_eq!(code, 400, "{text}");
+}
+
 #[tokio::test]
 async fn scope_change_on_re_create_is_forbidden() {
     let env = setup().await;

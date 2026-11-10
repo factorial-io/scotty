@@ -322,7 +322,7 @@ folder will be uploaded to the server (size limits may apply).
 replaces the app's files and settings and restarts it, so CI can run the same
 command on every pipeline. Updating an existing app has three extra rules:
 
-* You need create rights in the existing app's scopes, not only in the scopes
+* You need create rights in every one of the existing app's scopes, not only in the scopes
   you request.
 * The requested scopes must match the app's current scopes; a re-create can't
   move an app to another scope.

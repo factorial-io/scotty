@@ -211,8 +211,9 @@ pub async fn create_app_handler(
         // `create:<blueprint>` only covers apps created from that blueprint.
         let candidate =
             templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
+        // Rights in every scope of the app being replaced, not just one.
         if !auth_service
-            .check_create_in_scopes(&user_id, &existing.scopes, candidate)
+            .check_create_in_every_scope(&user_id, &existing.scopes, candidate)
             .await
         {
             return Err(AppError::ScopeAccessDenied(format!(

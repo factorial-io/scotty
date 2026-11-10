@@ -288,6 +288,30 @@ impl AuthorizationService {
         .await
     }
 
+    /// Like [`Self::check_create_in_scopes`], but the user needs the right
+    /// in every one of `scopes`, not just one. Used before replacing an
+    /// existing app, so rights in one scope of a multi-scope app aren't
+    /// enough to overwrite it. No scopes means no right.
+    pub async fn check_create_in_every_scope(
+        &self,
+        user: &str,
+        scopes: &[String],
+        blueprint: Option<&str>,
+    ) -> bool {
+        if scopes.is_empty() {
+            return false;
+        }
+        for scope in scopes {
+            if !self
+                .check_create_in_scopes(user, std::slice::from_ref(scope), blueprint)
+                .await
+            {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Whether one of the user's roles has a permission matching `grants`
     /// and is assigned to at least one of `scopes`.
     async fn role_grants_in_scopes(
