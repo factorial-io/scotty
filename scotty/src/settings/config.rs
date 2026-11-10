@@ -127,6 +127,19 @@ impl Settings {
 
         let mut settings: Settings = s.try_deserialize()?;
 
+        // Directory blueprints carry file trees, so they bypass `config` (D1).
+        scotty_core::settings::app_blueprint::load_blueprint_dirs(
+            std::path::Path::new("config/blueprints"),
+            &mut settings.apps.blueprints,
+        )
+        .map_err(ConfigError::Message)?;
+        for (name, blueprint) in &settings.apps.blueprints {
+            if let Some(t) = &blueprint.template {
+                crate::docker::blueprint_template::check_template(t)
+                    .map_err(|e| ConfigError::Message(format!("blueprint {name}: {e}")))?;
+            }
+        }
+
         // Check if we should serve the frontend.
         // We check for special strings here, so we can override and disable
         // config via environment variables, even if set in the default config
@@ -231,6 +244,28 @@ mod tests {
             .get_commands_for_service(&ActionName::PostCreate, "nginx")
             .unwrap();
         assert_eq!(script[0], "echo \"Hello, World!\"".to_string());
+    }
+
+    #[test]
+    fn test_blueprint_domain_suffix_from_env() {
+        env::set_var(
+            "SCOTTY__APPS__BLUEPRINT_DOMAIN_SUFFIXES__STATIC-HTML",
+            "artifacts.example.net",
+        );
+        let settings: Settings = Config::builder()
+            .add_source(config::File::with_name(
+                "tests/test_docker_registry_password.yaml",
+            ))
+            .add_source(Settings::get_environment())
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        env::remove_var("SCOTTY__APPS__BLUEPRINT_DOMAIN_SUFFIXES__STATIC-HTML");
+        assert_eq!(
+            settings.apps.domain_suffix_for(Some("static-html")),
+            "artifacts.example.net"
+        );
     }
 
     #[test]

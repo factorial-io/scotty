@@ -1,0 +1,7 @@
+services:
+  web:
+    image: ${IMAGE}
+    command: sleep 3600
+    environment:
+      GREETING: ${GREETING}
+      SECRET: ${SECRET}

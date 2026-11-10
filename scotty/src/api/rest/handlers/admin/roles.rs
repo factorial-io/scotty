@@ -1,8 +1,7 @@
 use crate::api::basic_auth::CurrentUser;
 use crate::{
-    api::error::AppError,
-    app_state::SharedAppState,
-    services::authorization::{types::PermissionOrWildcard, Permission},
+    api::error::AppError, app_state::SharedAppState,
+    services::authorization::types::PermissionOrWildcard,
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
 use scotty_core::admin::{CreateRoleRequest, CreateRoleResponse, RoleInfo, RolesListResponse};
@@ -37,10 +36,7 @@ pub async fn list_roles_handler(
             let permissions: Vec<String> = config
                 .permissions
                 .into_iter()
-                .map(|p| match p {
-                    PermissionOrWildcard::Permission(perm) => perm.as_str().to_string(),
-                    PermissionOrWildcard::Wildcard => "*".to_string(),
-                })
+                .map(|p| p.as_policy_string())
                 .collect();
 
             RoleInfo {
@@ -108,10 +104,8 @@ pub async fn create_role_handler(
     // Parse and validate permissions
     let mut parsed_permissions = Vec::new();
     for perm_str in &request.permissions {
-        if perm_str == "*" {
-            parsed_permissions.push(PermissionOrWildcard::Wildcard);
-        } else if let Some(perm) = Permission::from_str(perm_str) {
-            parsed_permissions.push(PermissionOrWildcard::Permission(perm));
+        if let Some(perm) = PermissionOrWildcard::parse(perm_str) {
+            parsed_permissions.push(perm);
         } else {
             return Ok(Json(CreateRoleResponse {
                 success: false,
@@ -154,7 +148,7 @@ pub async fn create_role_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::authorization::AuthorizationService;
+    use crate::services::authorization::{AuthorizationService, Permission};
     use tempfile::tempdir;
 
     async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {

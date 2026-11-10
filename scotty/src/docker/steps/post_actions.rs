@@ -107,8 +107,16 @@ pub async fn run_post_actions(context: &Context, action: &ActionName) -> anyhow:
         // - `augmented_env`: Only the augmented SCOTTY__* variables (APP_NAME, PUBLIC_URL__*, etc.)
         //   These are explicitly exported in the shell script for convenience, so custom action scripts
         //   can easily access Scotty-provided metadata without relying on docker-compose.yml environment section
-        let environment = context.app_data.get_environment();
-        let augmented_env = context.app_data.augment_environment(SecretHashMap::new());
+        // The context's app_data is a snapshot from before `compose up` on
+        // create; the app list holds the inspected one with services and URLs.
+        let app_data = context
+            .app_state
+            .apps
+            .get_app(&context.app_data.name)
+            .await
+            .unwrap_or_else(|| context.app_data.clone());
+        let environment = app_data.get_environment();
+        let augmented_env = app_data.augment_environment(SecretHashMap::new());
 
         info!(
             app_name = %context.app_data.name,

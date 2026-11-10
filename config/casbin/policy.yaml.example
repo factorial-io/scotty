@@ -64,6 +64,15 @@ roles:
     - logs
     description: Operations team - can manage apps but no shell or destroy
 
+  # Blueprint-scoped create: `create:<blueprint>` allows creating apps only
+  # from that blueprint, never from a caller-supplied compose file. Plain
+  # `create` allows any blueprint and arbitrary compose.
+  artifact_publisher:
+    permissions:
+    - view
+    - create:static-html
+    description: Can publish static HTML artifacts, nothing else
+
   admin:
     permissions:
     - '*'
@@ -94,6 +103,12 @@ assignments:
   - role: operator
     scopes:
     - production
+
+  # MCP / Claude publishing HTML artifacts into the default scope
+  identifier:artifact-bot:
+  - role: artifact_publisher
+    scopes:
+    - default
 
   # Fallback: all authenticated users get viewer access to default scope
   '*':

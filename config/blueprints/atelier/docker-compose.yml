@@ -1,0 +1,46 @@
+# Adapted from aincient-labs/atelier-cms docker/compose.yaml at v0.24.0, see README.md.
+services:
+  db:
+    image: pgvector/pgvector:pg16-trixie
+    environment:
+      POSTGRES_DB: aincient
+      POSTGRES_USER: aincient
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aincient -d aincient"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    image: ${IMAGE}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: pgsql://aincient:${DB_PASSWORD}@db/aincient
+      HASH_SALT: ${HASH_SALT}
+      AINCIENT_TRUSTED_HOSTS: ${AINCIENT_TRUSTED_HOSTS}
+      AINCIENT_ADMIN_PASS: ${ADMIN_PASS:-}
+      AINCIENT_REVERSE_PROXY: "1"
+      AINCIENT_FAST_RESTART: "1"
+    volumes:
+      - files:/opt/drupal/web/sites/default/files
+      - private:/opt/drupal/private
+    restart: unless-stopped
+
+  edge:
+    image: nginx:1.30-alpine-slim
+    depends_on:
+      - app
+    volumes:
+      - ./edge.conf:/etc/nginx/conf.d/default.conf:ro
+      - private:/srv/private:ro
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  files:
+  private:

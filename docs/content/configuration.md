@@ -748,6 +748,126 @@ apps:
 If you create a new app via `app:create` or the REST-API, you can provide the
 blueprint to associate with your app.
 
+### Templated blueprints
+
+A templated blueprint ships the whole app: its own compose file and config
+files. Callers create apps from it with parameters and, optionally, payload
+files, without writing compose. Scotty ships two: `static-html` (serves an
+uploaded `html/` folder) and `atelier` (runs the Atelier CMS).
+
+#### Layout
+
+A templated blueprint is a directory instead of a YAML file:
+
+```
+config/blueprints/static-html/
+├── blueprint.yaml       # same keys as a YAML blueprint, plus `template`
+├── docker-compose.yml   # required
+└── sws.toml             # any other file is copied into the app
+```
+
+`blueprint.yaml` holds the keys of a blueprint directly, without the
+`apps.blueprints.<name>` wrapping; the directory name is the blueprint's key.
+Every file in the directory except `blueprint.yaml` is copied into the app
+directory at creation. Scotty refuses to start when the compose file is
+missing, `blueprint.yaml` doesn't parse, or a YAML blueprint has the same name.
+
+```yaml
+name: Atelier
+description: Self-hosted Atelier CMS
+required_services: [db, app, edge]
+public_services:
+  edge: 80
+actions: {}
+template:
+  images:
+    - ghcr.io/aincient-labs/atelier-cms:v0.24.0
+  payload: []
+  parameters:
+    type: object
+    properties:
+      ADMIN_PASS: {type: string, minLength: 12}
+      HASH_SALT: {type: string, x-scotty-generate: hex32}
+      AINCIENT_TRUSTED_HOSTS: {type: string, x-scotty-from: app.domain_pattern}
+```
+
+#### Parameters
+
+`template.parameters` is a JSON Schema of `type: object` whose properties
+each declare `type: string`, `number`, `integer` or `boolean`; Scotty refuses
+to start otherwise. Scotty validates the request's parameters against it and
+passes each one to compose as an environment variable of the same name, so
+the compose file uses them as `${NAME}`. Numbers and booleans arrive as their
+JSON text (`8080`, `true`). Two extension keywords
+mark values Scotty fills in; the caller may not send them:
+
+* `x-scotty-generate: hex32 | hex64 | password` generates a secret once, at
+  creation. It stays the same across rebuilds and is never returned by the API.
+* `x-scotty-from` derives a value from the app:
+  * `app.name` the app's name
+  * `app.domain` the first host the app is served at, e.g.
+    `edge.demo.example.com` (a custom domain, if one is set)
+  * `app.domain_pattern` every host the app is served at as an anchored,
+    escaped regex, comma-separated, e.g. `^edge\.demo\.example\.com$`. Use it
+    for settings like Drupal's trusted host patterns.
+
+The blueprint listing (`blueprint:info`, `GET /api/v1/authenticated/blueprints`)
+returns the schema with the Scotty-filled properties marked `readOnly`.
+
+#### Image allowlist
+
+`template.images` lists the images a caller may choose with `--image`; the
+first is the default. The chosen image reaches compose as `${IMAGE}`. Any
+other image is rejected.
+
+#### Payload
+
+`template.payload` lists glob patterns (e.g. `html/**`) for the files a caller
+may upload with `--folder`. `*` and `?` match within one directory, so
+`html/*` accepts `html/index.html` but not `html/img/a.png`; `**` matches
+across directories. Matching is case-sensitive. A file outside these patterns, a path with `..` or
+an absolute path, a compose file, or a file that would replace a blueprint
+file is rejected. No patterns means no caller files.
+
+```shell
+scottyctl app:create report-x --app-blueprint static-html --folder ./site
+scottyctl app:create cms --app-blueprint atelier --ttl forever \
+  --param ADMIN_PASS=…
+```
+
+#### Snapshot
+
+The app directory is the snapshot: rebuilds use the files written at creation,
+even after the blueprint changes. `.scotty.yml` records the blueprint name and
+a content hash (`blueprint_hash`). Actions still come from the live blueprint.
+
+#### Domain suffix
+
+Apps get domains under, in this order: `apps.blueprint_domain_suffixes.<name>`,
+the blueprint's `template.domain_suffix`, then `apps.domain_suffix`.
+
+```yaml
+apps:
+  blueprint_domain_suffixes:
+    static-html: artifacts.example.net
+```
+
+Serve untrusted HTML (`static-html`) from a separate registrable domain, so it
+can't set cookies on your other apps. Since every app gets its own subdomain,
+use a wildcard certificate for that suffix (DNS-01 challenge in Traefik), or
+you will hit the Let's Encrypt rate limits.
+
+#### Permission
+
+`create:<blueprint>` lets a role create apps from that blueprint only, see
+[Authorization](authorization.md).
+
+#### Data
+
+Destroying an app, including a TTL destroy, removes its volumes. Create apps
+that keep data (e.g. `atelier`) with `--ttl forever` and without
+`--destroy-on-ttl`.
+
 ### 1Password settings
 
 Scotty can integrate with 1Password connect and resolve secrets from

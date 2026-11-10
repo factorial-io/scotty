@@ -1,0 +1,9 @@
+services:
+  web:
+    image: ${IMAGE}
+    environment:
+      SERVER_CONFIG_FILE: /etc/sws.toml
+    volumes:
+      - ./sws.toml:/etc/sws.toml:ro
+      - ./html:/public:ro
+    restart: unless-stopped

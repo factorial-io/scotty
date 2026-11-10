@@ -1,0 +1,13 @@
+name: Demo template
+description: Fixture for templated blueprint tests
+actions: {}
+required_services: [web]
+template:
+  images: ["alpine:3"]
+  payload: ["html/**"]
+  parameters:
+    type: object
+    required: [GREETING]
+    properties:
+      GREETING: {type: string}
+      SECRET: {type: string, x-scotty-generate: hex32}

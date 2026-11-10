@@ -263,7 +263,15 @@ async fn inspect_docker_compose(
     state: &SharedAppState,
     file: &PathBuf,
 ) -> anyhow::Result<Vec<ContainerState>> {
-    let output = run_docker_compose_now(file, &["ps", "-q", "-a"], None, false)?;
+    // Compose interpolates `${VAR}` even for `ps`; a templated blueprint's
+    // compose file (e.g. `image: ${IMAGE}`) is invalid without the app env.
+    // ponytail: unresolved values (op:// refs) are fine here, ps only needs the keys set.
+    let env = get_app_settings(file)
+        .await
+        .ok()
+        .flatten()
+        .map(|s| s.environment.expose_all());
+    let output = run_docker_compose_now(file, &["ps", "-q", "-a"], env.as_ref(), false)?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
     info!(
         "Found containers for {}: {}",
