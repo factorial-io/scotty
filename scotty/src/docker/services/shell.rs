@@ -204,6 +204,14 @@ async fn wait_for_exit_code(docker: &Docker, exec_id: &str) -> Option<i32> {
 /// Number of stdin chunks queued per session before the client is slowed down
 const STDIN_QUEUE_CAPACITY: usize = 32;
 
+/// Shell output waits while the client has this many messages queued. Well
+/// below the per-client buffer (1000 messages), so output never overflows it
+/// and other messages (logs, task updates) still have room.
+const OUTPUT_QUEUE_HIGH_WATER: usize = 256;
+
+/// How often held-back output checks whether the client caught up.
+const OUTPUT_RETRY_INTERVAL: Duration = Duration::from_millis(5);
+
 /// Write stdin commands to the exec's input until the queue closes.
 ///
 /// Runs in its own task: a process that writes a lot of output before it
@@ -239,10 +247,64 @@ async fn write_stdin(
                     );
                 }
             }
-            ShellCommand::CloseStdin | ShellCommand::Resize { .. } | ShellCommand::Terminate => {}
+            ShellCommand::CloseStdin => {}
+            // `ShellSession::send_command` routes these to the session loop.
+            ShellCommand::Resize { .. } | ShellCommand::Terminate => {
+                debug_assert!(false, "control command reached the stdin writer");
+            }
         }
     }
     Ok(())
+}
+
+/// Environment variable that tags every process of a shell session
+const SESSION_ENV_VAR: &str = "SCOTTY_SHELL_SESSION";
+
+/// Stop every process of a shell session in its container.
+///
+/// Docker does not kill an exec's process when the attached connection
+/// closes. With a tty the process gets a hang-up; without one it keeps
+/// running (e.g. `tail -f` after the client pressed Ctrl-C). There is no
+/// Docker API to kill an exec, so a second exec sends TERM, then KILL, to
+/// all processes tagged with the session's environment variable.
+async fn stop_session_processes(docker: &Docker, container_id: &str, session_id: Uuid) {
+    let script = format!(
+        "m={var}={id}; \
+         for sig in TERM KILL; do \
+           for d in /proc/[0-9]*; do \
+             [ \"$d\" = /proc/$$ ] && continue; \
+             tr '\\0' '\\n' < \"$d/environ\" 2>/dev/null | grep -qx \"$m\" \
+               && kill -$sig \"${{d#/proc/}}\" 2>/dev/null; \
+           done; \
+           [ $sig = TERM ] && sleep 2; \
+         done; true",
+        var = SESSION_ENV_VAR,
+        id = session_id
+    );
+    let options = CreateExecOptions {
+        cmd: Some(vec!["sh", "-c", script.as_str()]),
+        ..Default::default()
+    };
+    let result = match docker.create_exec(container_id, options).await {
+        Ok(exec) => docker
+            .start_exec(
+                &exec.id,
+                Some(StartExecOptions {
+                    detach: true,
+                    ..Default::default()
+                }),
+            )
+            .await
+            .map(|_| ()),
+        Err(e) => Err(e),
+    };
+    match result {
+        Ok(()) => info!("Stopping processes of shell session {}", session_id),
+        Err(e) => warn!(
+            "Failed to stop processes of shell session {}: {}",
+            session_id, e
+        ),
+    }
 }
 
 /// Service for managing container shell sessions
@@ -316,11 +378,17 @@ impl ShellService {
         let shell_cmd = shell_command.unwrap_or_else(|| self.shell_settings.default_shell.clone());
 
         // Prepare environment variables
+        // Tag the session's processes so they can be found and stopped later;
+        // child processes inherit the variable.
         let env_vars: Vec<String> = self
             .shell_settings
             .default_env
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
+            .chain(std::iter::once(format!(
+                "{}={}",
+                SESSION_ENV_VAR, session_id
+            )))
             .collect();
         let env_refs: Vec<&str> = env_vars.iter().map(|s| s.as_str()).collect();
 
@@ -332,11 +400,7 @@ impl ShellService {
             attach_stderr: Some(true),
             tty: Some(tty),
             cmd: Some(vec!["sh", "-c", shell_cmd.as_str()]),
-            env: if env_refs.is_empty() {
-                None
-            } else {
-                Some(env_refs)
-            },
+            env: Some(env_refs),
             ..Default::default()
         };
 
@@ -460,6 +524,15 @@ impl ShellService {
                         .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                     let mut stdin_writer = tokio::spawn(write_stdin(session_id, input, stdin_rx));
                     let mut stdin_writer_done = false;
+                    // Output held back until the client catches up. While set,
+                    // no more output is read from Docker, which slows down the
+                    // process instead of dropping data.
+                    let mut held_output: Option<ShellSessionData> = None;
+                    // Whether the process ended by itself; otherwise (terminate,
+                    // timeout, client gone, error) it may still be running.
+                    let mut process_exited = false;
+                    let mut output_retry = tokio::time::interval(OUTPUT_RETRY_INTERVAL);
+                    output_retry.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
                     loop {
                         tokio::select! {
@@ -504,6 +577,7 @@ impl ShellService {
                                         if let Some(running) = exec_info.running {
                                             if !running {
                                                 info!("Shell session {} detected exec completion via status check", session_id);
+                                                process_exited = true;
                                                 let duration_secs = session_start.elapsed().as_secs_f64();
                                                 crate::metrics::shell::record_session_ended(duration_secs);
                                                 let exit_code = exec_info.exit_code.map(|c| c as i32);
@@ -620,8 +694,29 @@ impl ShellService {
                                 }
                             }
 
+                            // Send held-back output once the client caught up
+                            _ = output_retry.tick(), if held_output.is_some() => {
+                                match app_state.messenger.queued_messages(client_id).await {
+                                    Some(queued) if queued >= OUTPUT_QUEUE_HIGH_WATER => {}
+                                    Some(_) => {
+                                        let data = held_output.take().expect("checked by the guard");
+                                        if let Err(e) = app_state.messenger.send_to_client(
+                                            client_id,
+                                            WebSocketMessage::ShellSessionData(data),
+                                        ).await {
+                                            warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
+                                            break;
+                                        }
+                                    }
+                                    None => {
+                                        warn!("Client {} is gone - terminating shell session {}", client_id, session_id);
+                                        break;
+                                    }
+                                }
+                            }
+
                             // Read output from shell stream
-                            result = output.next() => {
+                            result = output.next(), if held_output.is_none() => {
                                 match result {
                                     Some(Ok(log_output)) => {
                                         use bollard::container::LogOutput;
@@ -643,6 +738,13 @@ impl ShellService {
                                         } else {
                                             ShellSessionData::binary(session_id, data_type, &message)
                                         };
+
+                                        // Hold the output back while the client is behind
+                                        let queued = app_state.messenger.queued_messages(client_id).await;
+                                        if queued.is_some_and(|q| q >= OUTPUT_QUEUE_HIGH_WATER) {
+                                            held_output = Some(data);
+                                            continue;
+                                        }
 
                                         // If we can't send output, client is gone - terminate session
                                         if let Err(e) = app_state.messenger.send_to_client(
@@ -672,6 +774,7 @@ impl ShellService {
                                     // its output has been forwarded.
                                     None => {
                                         info!("Shell session {} ended (stream closed)", session_id);
+                                        process_exited = true;
                                         // Blocks this loop for at most a few seconds;
                                         // with the output closed there is nothing left
                                         // to forward, and control commands can wait.
@@ -707,6 +810,11 @@ impl ShellService {
                     }
                     // The session is over; stop writing to the exec.
                     stdin_writer.abort();
+                    // Without a tty nothing hangs up the process when the
+                    // connection closes, so stop it explicitly.
+                    if !tty && !process_exited {
+                        stop_session_processes(&docker, &container_id_clone, session_id).await;
+                    }
                 }
                 StartExecResults::Detached => {
                     drop(stdin_rx);

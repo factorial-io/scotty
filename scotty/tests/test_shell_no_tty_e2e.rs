@@ -62,6 +62,29 @@ struct Outcome {
     errors: Vec<String>,
 }
 
+/// Sends input for one client; usable while the harness reads output.
+#[derive(Clone)]
+struct InputSender {
+    state: SharedAppState,
+    client_id: Uuid,
+}
+
+impl InputSender {
+    async fn input(&self, session_id: Uuid, bytes: &[u8]) {
+        let msg = WebSocketMessage::ShellSessionData(ShellSessionData::binary(
+            session_id,
+            ShellDataType::Input,
+            bytes,
+        ));
+        handle_websocket_message(&self.state, self.client_id, &msg).await;
+    }
+
+    async fn close_stdin(&self, session_id: Uuid) {
+        let msg = WebSocketMessage::CloseShellStdin { session_id };
+        handle_websocket_message(&self.state, self.client_id, &msg).await;
+    }
+}
+
 struct Harness {
     state: SharedAppState,
     client_id: Uuid,
@@ -72,6 +95,13 @@ struct Harness {
 
 impl Harness {
     async fn new() -> Self {
+        // Large enough to hold every output message of the biggest test.
+        Self::with_client_buffer(65536).await
+    }
+
+    /// `client_buffer` is the per-client message buffer, as in the real
+    /// WebSocket handler.
+    async fn with_client_buffer(client_buffer: usize) -> Self {
         init_metrics_once();
 
         // Work on a copy of the fixture policy: assigning app scopes writes
@@ -122,8 +152,7 @@ impl Harness {
             .unwrap();
 
         let client_id = Uuid::new_v4();
-        // Large enough to hold every output message of the biggest test.
-        let (tx, rx) = broadcast::channel(65536);
+        let (tx, rx) = broadcast::channel(client_buffer);
         state
             .messenger
             .add_client(client_id, WebSocketClient::new(tx))
@@ -151,6 +180,13 @@ impl Harness {
         }
     }
 
+    fn input_sender(&self) -> InputSender {
+        InputSender {
+            state: self.state.clone(),
+            client_id: self.client_id,
+        }
+    }
+
     async fn send(&self, msg: WebSocketMessage) {
         handle_websocket_message(&self.state, self.client_id, &msg).await;
     }
@@ -160,7 +196,7 @@ impl Harness {
             let msg = tokio::time::timeout(TIMEOUT, self.rx.recv())
                 .await
                 .expect("timed out waiting for a WebSocket message")
-                .expect("message channel closed");
+                .expect("message channel closed or lagged: output was dropped");
             if let Message::Text(text) = msg {
                 if let Ok(parsed) = serde_json::from_str(&text) {
                     return parsed;
@@ -327,16 +363,20 @@ async fn large_bidirectional_transfer_does_not_deadlock() {
     let session_id = h.create(Some("cat"), false).await;
 
     let payload: Vec<u8> = (0..=255u8).cycle().take(16 * 1024 * 1024).collect();
+    let sender = h.input_sender();
     let send_all = async {
         for chunk in payload.chunks(32 * 1024) {
-            h.input(session_id, chunk).await;
+            sender.input(session_id, chunk).await;
         }
-        h.close_stdin(session_id).await;
+        sender.close_stdin(session_id).await;
     };
-    tokio::time::timeout(Duration::from_secs(60), send_all)
-        .await
-        .expect("writing input stalled: the session stopped reading output");
-    let outcome = h.run_to_end(session_id).await;
+    // Like a real client, read output while sending input.
+    let (_, outcome) = tokio::time::timeout(
+        Duration::from_secs(60),
+        futures_util::future::join(send_all, h.run_to_end(session_id)),
+    )
+    .await
+    .expect("transfer stalled: the session stopped forwarding output");
 
     assert_eq!(outcome.stdout.len(), payload.len());
     assert!(outcome.stdout == payload, "output differs from input");
@@ -441,18 +481,123 @@ async fn output_before_reading_stdin_does_not_deadlock() {
         .await;
 
     let payload = vec![7u8; 8 * 1024 * 1024];
+    let sender = h.input_sender();
     let send_all = async {
         for chunk in payload.chunks(32 * 1024) {
-            h.input(session_id, chunk).await;
+            sender.input(session_id, chunk).await;
         }
-        h.close_stdin(session_id).await;
+        sender.close_stdin(session_id).await;
     };
-    tokio::time::timeout(Duration::from_secs(60), send_all)
-        .await
-        .expect("writing input stalled: the session stopped forwarding output");
-    let outcome = h.run_to_end(session_id).await;
+    // Like a real client, read output while sending input.
+    let (_, outcome) = tokio::time::timeout(
+        Duration::from_secs(60),
+        futures_util::future::join(send_all, h.run_to_end(session_id)),
+    )
+    .await
+    .expect("transfer stalled: the session stopped forwarding output");
 
     assert_eq!(outcome.stdout.len(), OUTPUT + "done\n".len());
     assert!(outcome.stdout.ends_with(b"done\n"));
     assert_eq!(outcome.exit_code, Some(0));
+}
+
+/// A client that reads output slower than the process writes it must still
+/// get every byte: the server has to wait for the client instead of letting
+/// the per-client message buffer overflow and drop output.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn slow_client_gets_all_output() {
+    // Several thousand output messages: far more than the client buffer.
+    const OUTPUT: usize = 128 * 1024 * 1024;
+    // The same per-client buffer as the real WebSocket handler.
+    let mut h = Harness::with_client_buffer(1000).await;
+    let session_id = h
+        .create(Some(&format!("head -c {OUTPUT} /dev/zero")), false)
+        .await;
+    h.close_stdin(session_id).await;
+
+    // Let the process run ahead of the client before reading anything.
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let mut outcome = Outcome::default();
+    loop {
+        let msg = h.next_message().await;
+        if Harness::record(&mut outcome, session_id, msg) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_micros(200)).await;
+    }
+
+    assert_eq!(outcome.stdout.len(), OUTPUT);
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+/// Processes in the container that belong to a shell session.
+fn session_processes(container: &str, session_id: Uuid) -> String {
+    let script = format!(
+        "for d in /proc/[0-9]*; do tr '\\0' '\\n' < $d/environ 2>/dev/null \
+         | grep -qx SCOTTY_SHELL_SESSION={session_id} && cat $d/comm; done; true"
+    );
+    let out = Command::new("docker")
+        .args(["exec", container, "sh", "-c", &script])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// Wait until the session's processes are gone; returns what is left.
+async fn wait_for_no_session_processes(container: &str, session_id: Uuid) -> String {
+    let mut left = String::new();
+    for _ in 0..50 {
+        left = session_processes(container, session_id);
+        if left.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    left
+}
+
+/// Docker does not kill an exec's process when its connection closes; without
+/// a tty there is no hang-up either. Terminating a session must stop it.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn terminating_a_session_stops_its_processes() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("sleep 300 & sleep 300"), false).await;
+    let container = h._container.0.clone();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(
+        !session_processes(&container, session_id).is_empty(),
+        "the session's processes should be running"
+    );
+
+    h.send(WebSocketMessage::TerminateShellSession { session_id })
+        .await;
+
+    assert_eq!(
+        wait_for_no_session_processes(&container, session_id).await,
+        ""
+    );
+}
+
+/// A client that disconnects (e.g. Ctrl-C on `app:shell -c 'tail -f ...'`)
+/// must not leave the command running in the container.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn client_going_away_stops_the_processes() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("yes"), false).await;
+    let container = h._container.0.clone();
+    h.next_message().await;
+    assert!(
+        !session_processes(&container, session_id).is_empty(),
+        "the session's processes should be running"
+    );
+
+    h.state.messenger.remove_client(h.client_id).await;
+
+    assert_eq!(
+        wait_for_no_session_processes(&container, session_id).await,
+        ""
+    );
 }

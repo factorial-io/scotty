@@ -183,74 +183,113 @@ async fn open_shell(
 const STDIN_CHUNK_SIZE: usize = 32 * 1024;
 
 /// Read stdin on a blocking thread and hand chunks to the async side.
-/// The channel closes when stdin reaches end-of-file.
-fn spawn_stdin_reader() -> tokio::sync::mpsc::Receiver<Vec<u8>> {
-    let (tx, rx) = tokio::sync::mpsc::channel::<Vec<u8>>(8);
+/// The channel closes after end-of-file; a read error is passed on so it is
+/// not mistaken for the end of the input.
+fn spawn_stdin_reader() -> tokio::sync::mpsc::Receiver<std::io::Result<Vec<u8>>> {
+    let (tx, rx) = tokio::sync::mpsc::channel(8);
     std::thread::spawn(move || {
         let mut stdin = std::io::stdin().lock();
         let mut buf = vec![0u8; STDIN_CHUNK_SIZE];
         loop {
-            match stdin.read(&mut buf) {
+            let chunk = match stdin.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => {
-                    if tx.blocking_send(buf[..n].to_vec()).is_err() {
-                        break;
-                    }
-                }
+                Ok(n) => Ok(buf[..n].to_vec()),
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(e) => {
-                    error!("Failed to read stdin: {}", e);
-                    break;
-                }
+                Err(e) => Err(e),
+            };
+            let failed = chunk.is_err();
+            if tx.blocking_send(chunk).is_err() || failed {
+                break;
             }
         }
     });
     rx
 }
 
+/// Forward stdin to the session and close the remote stdin at end-of-file
+/// (right away when stdin is not forwarded).
+///
+/// Runs in its own task so the client keeps reading output while a send
+/// waits: the server slows down input when the process does not read stdin,
+/// and output it cannot deliver slows down the process. A client that stops
+/// reading while it sends would block itself. Returns the sender so the
+/// connection stays open after the input is done.
+async fn forward_stdin(
+    mut sender: crate::websocket::WsSender,
+    session_id: Uuid,
+    stdin: Option<tokio::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>>,
+) -> Result<crate::websocket::WsSender, String> {
+    use futures_util::SinkExt;
+
+    async fn send(
+        sender: &mut crate::websocket::WsSender,
+        message: WebSocketMessage,
+    ) -> Result<(), String> {
+        let json = serde_json::to_string(&message).map_err(|e| e.to_string())?;
+        sender
+            .send(Message::Text(json.into()))
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    if let Some(mut stdin) = stdin {
+        while let Some(chunk) = stdin.recv().await {
+            let bytes = chunk.map_err(|e| format!("Failed to read stdin: {}", e))?;
+            let data = ShellSessionData::binary(session_id, ShellDataType::Input, &bytes);
+            send(&mut sender, WebSocketMessage::ShellSessionData(data))
+                .await
+                .map_err(|e| format!("Failed to send input: {}", e))?;
+        }
+        debug!("stdin reached end-of-file, closing remote stdin");
+    }
+    send(
+        &mut sender,
+        WebSocketMessage::CloseShellStdin { session_id },
+    )
+    .await
+    .map_err(|e| format!("Failed to close remote stdin: {}", e))?;
+    Ok(sender)
+}
+
 /// Run a session without a tty: forward stdin as raw bytes, close the
 /// remote stdin on end-of-file, and pass stdout and stderr through unchanged.
 /// Exits the process with the remote exit code.
 async fn run_stream_mode(
-    mut ws: crate::websocket::AuthenticatedWebSocket,
+    ws: crate::websocket::AuthenticatedWebSocket,
     session_id: Uuid,
-    forward_stdin: bool,
+    forward: bool,
 ) -> anyhow::Result<()> {
-    let close_stdin = WebSocketMessage::CloseShellStdin { session_id };
-    let mut stdin_rx = if forward_stdin {
-        Some(spawn_stdin_reader())
-    } else {
-        // The remote process must not wait for input that never comes.
-        ws.send(close_stdin.clone()).await?;
-        None
-    };
+    let crate::websocket::AuthenticatedWebSocket {
+        sender,
+        mut receiver,
+    } = ws;
+    let stdin = forward.then(spawn_stdin_reader);
+    let mut input_task = tokio::spawn(forward_stdin(sender, session_id, stdin));
+    let mut input_done = false;
+    // Keeps the connection's sending half alive once the input is done.
+    let mut _sender = None;
 
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
 
     let exit_code = loop {
         select! {
-            chunk = async { stdin_rx.as_mut().unwrap().recv().await }, if stdin_rx.is_some() => {
-                match chunk {
-                    Some(bytes) => {
-                        let data = ShellSessionData::binary(session_id, ShellDataType::Input, &bytes);
-                        if let Err(e) = ws.send(WebSocketMessage::ShellSessionData(data)).await {
-                            eprintln!("Failed to send input: {}", e);
-                            break 1;
-                        }
+            result = &mut input_task, if !input_done => {
+                input_done = true;
+                match result {
+                    Ok(Ok(sender)) => _sender = Some(sender),
+                    Ok(Err(e)) => {
+                        eprintln!("{}", e);
+                        break 1;
                     }
-                    None => {
-                        debug!("stdin reached end-of-file, closing remote stdin");
-                        stdin_rx = None;
-                        if let Err(e) = ws.send(close_stdin.clone()).await {
-                            eprintln!("Failed to close remote stdin: {}", e);
-                            break 1;
-                        }
+                    Err(e) => {
+                        eprintln!("Forwarding stdin failed: {}", e);
+                        break 1;
                     }
                 }
             }
 
-            message = ws.receiver.next() => {
+            message = receiver.next() => {
                 match message {
                     Some(Ok(Message::Text(text))) => {
                         let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) else {
@@ -314,7 +353,8 @@ async fn run_stream_mode(
         }
     };
 
-    let _ = ws.close().await;
+    // Exiting closes the connection; the server ends the session if it is
+    // still running.
     std::process::exit(exit_code);
 }
 
