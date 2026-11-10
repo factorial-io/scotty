@@ -466,10 +466,35 @@ stopped by this command.</p>
   <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--env-file <span class="token operator">&lt;</span>FILE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--registry <span class="token operator">&lt;</span>REGISTRY<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
-  <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span></code></pre>
-<p>This command will create a new app on the server. The <code>--folder</code> argument is
-mandatory and should point to a folder containing at least a <code>compose.yml</code>
-file. The complete folder will be uploaded to the server (size limits may apply).</p>
+  <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--middleware <span class="token operator">&lt;</span>MIDDLEWARE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--param <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--param <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">[</span>--image <span class="token operator">&lt;</span>IMAGE<span class="token operator">&gt;</span><span class="token punctuation">]</span></code></pre>
+<p>This command will create a new app on the server. The <code>--folder</code> argument
+should point to a folder containing at least a <code>compose.yml</code> file. The complete
+folder will be uploaded to the server (size limits may apply).</p>
+<p><code>app:create</code> is create-or-update: running it again for an existing app
+replaces the app's files and settings and restarts it, so CI can run the same
+command on every pipeline. Updating an existing app has three extra rules:</p>
+<ul>
+<li>You need create rights in every one of the existing app's scopes, not only in the scopes
+you request.</li>
+<li>The requested scopes must match the app's current scopes; a re-create can't
+move an app to another scope.</li>
+<li>With only <code>create:&lt;blueprint&gt;</code>, you can update apps created from that
+blueprint, and no others.</li>
+</ul>
+<p>Values Scotty generated for a templated blueprint (e.g. secrets) and the
+app's custom actions are kept on re-create. A second <code>app:create</code> of an app
+that is still being created fails with 409; retry once the first finished.</p>
+<p>With only <code>create:&lt;blueprint&gt;</code>, <code>--custom-domain</code>, <code>--env</code>, <code>--env-file</code>,
+<code>--registry</code> and notification receivers in the request are rejected; pass values with
+<code>--param</code> instead.</p>
+<p>With a templated blueprint (<code>Templated: yes</code> in <code>blueprint:list</code>) no compose
+file is needed: <code>--folder</code> is optional and holds only the blueprint's payload
+(e.g. <code>html/</code> for <code>static-html</code>), and a compose file in it is rejected.
+<code>--param</code> sets the blueprint's parameters and <code>--image</code> picks one of its
+allowed images. <code>scottyctl blueprint:info &lt;BLUEPRINT&gt;</code> shows both, see
+<a href="configuration.html#templated-blueprints">Templated blueprints</a>.</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:create report-x --app-blueprint static-html <span class="token parameter variable">--folder</span> ./site</code></pre>
 <p>You either need to declare a public service via <code>--service</code> or use the
 <code>--app-blueprint</code> argument (You can get a list of available blueprints with
 <code>scottyctl blueprint:list</code>). When declaring a public service, you need to

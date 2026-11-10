@@ -178,9 +178,12 @@
 <li><code>manage</code> - Start, stop, restart applications</li>
 <li><code>logs</code> - View application logs</li>
 <li><code>shell</code> - Execute shell commands in containers and download files from them (<code>app:cp</code> from a container)</li>
-<li><code>create</code> - Create new apps in scope</li>
+<li><code>create</code> - Create new apps in scope, from any blueprint or from your own compose file</li>
+<li><code>create:&lt;blueprint&gt;</code> - Create new apps in scope, but only from the named blueprint (e.g. <code>create:static-html</code>). A caller-supplied compose file, another blueprint, custom domains, caller-set public services, environment variables, a registry or notification receivers are rejected as forbidden: the blueprint decides the app's services, hostnames and environment, and the caller passes values through the blueprint's parameters. TTL, basic auth, the robots setting and allowlisted middlewares stay with the caller. <code>GET /api/v1/authenticated/blueprints</code> lists only the blueprints the user may create from.</li>
 <li><code>destroy</code> - Delete apps from scope</li>
 </ul>
+<p>Scotty refuses to start when a role lists an unknown or malformed permission (e.g. <code>create:</code> without a blueprint name). Scotty versions before templated blueprints read any unknown permission, including <code>create:&lt;blueprint&gt;</code>, as <code>*</code>. Don't use a policy with <code>create:&lt;blueprint&gt;</code> on an older Scotty.</p>
+<p>Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with <code>create:&lt;blueprint&gt;</code>: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes. Unlike other app permissions, rights in one of a multi-scope app's scopes are not enough: replacing the app needs create rights in each of its scopes. Only one create of an app runs at a time; a second one gets <code>409 Conflict</code> until the first has written the app. A re-create keeps the app's custom actions, and a create request can't bring its own: custom actions are added through their own endpoints and need approval.</p>
 <p><strong>Custom Action Permissions</strong> (for per-app custom actions):</p>
 <ul>
 <li><code>action_read</code> - Execute read-only custom actions (no side effects)</li>

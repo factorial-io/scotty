@@ -905,6 +905,125 @@ configured for your app via the <code>--env</code> option or in the <code>.scott
             <span class="token punctuation">-</span> drush uli <span class="token punctuation">-</span><span class="token punctuation">-</span>uri="$SCOTTY__PUBLIC_URL__NGINX"</code></pre>
 <p>If you create a new app via <code>app:create</code> or the REST-API, you can provide the
 blueprint to associate with your app.</p>
+<h3 id="templated-blueprints" tabindex="-1"><a class="header-anchor" href="#templated-blueprints">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Templated blueprints</h3>
+<p>A templated blueprint ships the whole app: its own compose file and config
+files. Callers create apps from it with parameters and, optionally, payload
+files, without writing compose. Scotty ships two: <code>static-html</code> (serves an
+uploaded <code>html/</code> folder) and <code>atelier</code> (runs the Atelier CMS).</p>
+<h4 id="layout" tabindex="-1"><a class="header-anchor" href="#layout">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Layout</h4>
+<p>A templated blueprint is a directory instead of a YAML file:</p>
+<pre><code>config/blueprints/static-html/
+├── blueprint.yaml       # same keys as a YAML blueprint, plus `template`
+├── docker-compose.yml   # required
+└── sws.toml             # any other file is copied into the app
+</code></pre>
+<p><code>blueprint.yaml</code> holds the keys of a blueprint directly, without the
+<code>apps.blueprints.&lt;name&gt;</code> wrapping; the directory name is the blueprint's key.
+Every file in the directory except <code>blueprint.yaml</code> is copied into the app
+directory at creation. Scotty refuses to start when the compose file is
+missing, <code>blueprint.yaml</code> doesn't parse, or a YAML blueprint has the same name.</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">name</span><span class="token punctuation">:</span> Atelier
+<span class="token key atrule">description</span><span class="token punctuation">:</span> Self<span class="token punctuation">-</span>hosted Atelier CMS
+<span class="token key atrule">required_services</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>db<span class="token punctuation">,</span> app<span class="token punctuation">,</span> edge<span class="token punctuation">]</span>
+<span class="token key atrule">public_services</span><span class="token punctuation">:</span>
+  <span class="token key atrule">edge</span><span class="token punctuation">:</span> <span class="token number">80</span>
+<span class="token key atrule">actions</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+<span class="token key atrule">template</span><span class="token punctuation">:</span>
+  <span class="token key atrule">images</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> ghcr.io/aincient<span class="token punctuation">-</span>labs/atelier<span class="token punctuation">-</span>cms<span class="token punctuation">:</span>v0.24.0
+  <span class="token key atrule">payload</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+  <span class="token key atrule">parameters</span><span class="token punctuation">:</span>
+    <span class="token key atrule">type</span><span class="token punctuation">:</span> object
+    <span class="token key atrule">properties</span><span class="token punctuation">:</span>
+      <span class="token key atrule">ADMIN_PASS</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token key atrule">type</span><span class="token punctuation">:</span> string<span class="token punctuation">,</span> <span class="token key atrule">minLength</span><span class="token punctuation">:</span> <span class="token number">12</span><span class="token punctuation">}</span>
+      <span class="token key atrule">HASH_SALT</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token key atrule">type</span><span class="token punctuation">:</span> string<span class="token punctuation">,</span> <span class="token key atrule">x-scotty-generate</span><span class="token punctuation">:</span> hex32<span class="token punctuation">}</span>
+      <span class="token key atrule">AINCIENT_TRUSTED_HOSTS</span><span class="token punctuation">:</span> <span class="token punctuation">{</span><span class="token key atrule">type</span><span class="token punctuation">:</span> string<span class="token punctuation">,</span> <span class="token key atrule">x-scotty-from</span><span class="token punctuation">:</span> app.domain_pattern<span class="token punctuation">}</span></code></pre>
+<h4 id="parameters" tabindex="-1"><a class="header-anchor" href="#parameters">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Parameters</h4>
+<p><code>template.parameters</code> is a JSON Schema of <code>type: object</code> whose properties
+each declare <code>type: string</code>, <code>number</code>, <code>integer</code> or <code>boolean</code>; Scotty refuses
+to start otherwise. Scotty validates the request's parameters against it and
+passes each one to compose as an environment variable of the same name, so
+the compose file uses them as <code>${NAME}</code>. Numbers and booleans arrive as their
+JSON text (<code>8080</code>, <code>true</code>). Two extension keywords
+mark values Scotty fills in; the caller may not send them:</p>
+<ul>
+<li><code>x-scotty-generate: hex32 | hex64 | password</code> generates a secret once, at
+creation. It stays the same across rebuilds and is never returned by the API.</li>
+<li><code>x-scotty-from</code> derives a value from the app:
+<ul>
+<li><code>app.name</code> the app's name</li>
+<li><code>app.domain</code> the first host the app is served at, e.g.
+<code>edge.demo.example.com</code> (a custom domain, if one is set)</li>
+<li><code>app.domain_pattern</code> every host the app is served at as an anchored,
+escaped regex, comma-separated, e.g. <code>^edge\.demo\.example\.com$</code>. Use it
+for settings like Drupal's trusted host patterns.</li>
+</ul>
+</li>
+</ul>
+<p>The blueprint listing (<code>blueprint:info</code>, <code>GET /api/v1/authenticated/blueprints</code>)
+returns the schema with the Scotty-filled properties marked <code>readOnly</code>.</p>
+<h4 id="image-allowlist" tabindex="-1"><a class="header-anchor" href="#image-allowlist">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Image allowlist</h4>
+<p><code>template.images</code> lists the images a caller may choose with <code>--image</code>; the
+first is the default. The chosen image reaches compose as <code>${IMAGE}</code>. Any
+other image is rejected.</p>
+<h4 id="payload" tabindex="-1"><a class="header-anchor" href="#payload">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Payload</h4>
+<p><code>template.payload</code> lists glob patterns (e.g. <code>html/**</code>) for the files a caller
+may upload with <code>--folder</code>. <code>*</code> and <code>?</code> match within one directory, so
+<code>html/*</code> accepts <code>html/index.html</code> but not <code>html/img/a.png</code>; <code>**</code> matches
+across directories. Matching is case-sensitive. A file outside these patterns, a path with <code>..</code> or
+an absolute path, a compose file, or a file that would replace a blueprint
+file is rejected. No patterns means no caller files.</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:create report-x --app-blueprint static-html <span class="token parameter variable">--folder</span> ./site
+scottyctl app:create cms --app-blueprint atelier <span class="token parameter variable">--ttl</span> forever <span class="token punctuation">\</span>
+  <span class="token parameter variable">--param</span> <span class="token assign-left variable">ADMIN_PASS</span><span class="token operator">=</span>…</code></pre>
+<h4 id="snapshot" tabindex="-1"><a class="header-anchor" href="#snapshot">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Snapshot</h4>
+<p>The app directory is the snapshot: rebuilds use the files written at creation,
+even after the blueprint changes. <code>.scotty.yml</code> records the blueprint name and
+a content hash (<code>blueprint_hash</code>). Actions still come from the live blueprint.</p>
+<h4 id="domain-suffix" tabindex="-1"><a class="header-anchor" href="#domain-suffix">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Domain suffix</h4>
+<p>Apps get domains under, in this order: <code>apps.blueprint_domain_suffixes.&lt;name&gt;</code>,
+the blueprint's <code>template.domain_suffix</code>, then <code>apps.domain_suffix</code>.</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">blueprint_domain_suffixes</span><span class="token punctuation">:</span>
+    <span class="token key atrule">static-html</span><span class="token punctuation">:</span> artifacts.example.net</code></pre>
+<p>Serve untrusted HTML (<code>static-html</code>) from a separate registrable domain, so it
+can't set cookies on your other apps. Since every app gets its own subdomain,
+use a wildcard certificate for that suffix (DNS-01 challenge in Traefik), or
+you will hit the Let's Encrypt rate limits.</p>
+<h4 id="permission" tabindex="-1"><a class="header-anchor" href="#permission">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Permission</h4>
+<p><code>create:&lt;blueprint&gt;</code> lets a role create apps from that blueprint only, see
+<a href="authorization.html">Authorization</a>.</p>
+<h4 id="data" tabindex="-1"><a class="header-anchor" href="#data">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Data</h4>
+<p>Destroying an app, including a TTL destroy, removes its volumes. Create apps
+that keep data (e.g. <code>atelier</code>) with <code>--ttl forever</code> and without
+<code>--destroy-on-ttl</code>.</p>
 <h3 id="1password-settings" tabindex="-1"><a class="header-anchor" href="#1password-settings">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
