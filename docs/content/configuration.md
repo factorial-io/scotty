@@ -793,10 +793,12 @@ template:
 
 #### Parameters
 
-`template.parameters` is a JSON Schema of `type: object` with flat string,
-number or boolean properties. Scotty validates the request's parameters
-against it and passes each one to compose as an environment variable of the
-same name, so the compose file uses them as `${NAME}`. Two extension keywords
+`template.parameters` is a JSON Schema of `type: object` whose properties
+each declare `type: string`, `number`, `integer` or `boolean`; Scotty refuses
+to start otherwise. Scotty validates the request's parameters against it and
+passes each one to compose as an environment variable of the same name, so
+the compose file uses them as `${NAME}`. Numbers and booleans arrive as their
+JSON text (`8080`, `true`). Two extension keywords
 mark values Scotty fills in; the caller may not send them:
 
 * `x-scotty-generate: hex32 | hex64 | password` generates a secret once, at

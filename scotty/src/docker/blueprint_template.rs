@@ -157,13 +157,27 @@ pub fn resolve_environment(
 
 /// Copies the values Scotty generated for an existing app into `settings`,
 /// so `resolve_environment` doesn't generate them again (create-existing-app D4).
-fn keep_generated(existing: Option<&AppSettings>, settings: &mut AppSettings) {
+fn keep_generated(
+    t: &BlueprintTemplate,
+    existing: Option<&AppSettings>,
+    settings: &mut AppSettings,
+) {
     // Only for the same blueprint: another blueprint's secrets don't belong
     // in this app's environment.
     let Some(old) = existing.filter(|old| old.app_blueprint == settings.app_blueprint) else {
         return;
     };
-    for key in &old.generated_parameters {
+    // Only keys the blueprint still generates: a dropped one is gone.
+    let still_generated = |key: &String| {
+        properties(t)
+            .and_then(|p| p.get(key))
+            .is_some_and(|p| p.get(GENERATE).is_some())
+    };
+    for key in old
+        .generated_parameters
+        .iter()
+        .filter(|k| still_generated(k))
+    {
         if let Some(value) = old.environment.get(key) {
             settings
                 .environment
@@ -184,6 +198,16 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
         jsonschema::validator_for(schema).map_err(|e| format!("invalid parameter schema: {e}"))?;
     }
     for (key, prop) in properties(t).into_iter().flatten() {
+        // Parameters end up as environment variables, so only scalars.
+        if !prop
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|ty| ["string", "number", "integer", "boolean"].contains(&ty))
+        {
+            return Err(format!(
+                "{key}: type must be string, number, integer or boolean"
+            ));
+        }
         for (keyword, allowed) in [(GENERATE, GENERATE_KINDS), (FROM, FROM_SOURCES)] {
             if let Some(v) = prop.get(keyword) {
                 if !v.as_str().is_some_and(|v| allowed.contains(&v)) {
@@ -269,7 +293,7 @@ pub fn apply(
     validate_parameters(t, params, settings)?;
     let merged = merge_files(t, files)?;
     let mut settings = settings.clone();
-    keep_generated(existing, &mut settings);
+    keep_generated(t, existing, &mut settings);
     resolve_environment(t, params, image, app_name, &mut settings)?;
     settings.blueprint_hash = Some(content_hash(t));
     Ok((settings, merged))
@@ -304,6 +328,8 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
             Some("compose files are supplied by the blueprint")
         } else if t.files.iter().any(|b| b.name == name) {
             Some("would replace a blueprint file")
+        } else if files[t.files.len()..].iter().any(|b| b.name == name) {
+            Some("duplicate file name")
         } else if !payload.is_match(name) {
             Some("outside the blueprint's payload paths")
         } else {
@@ -457,6 +483,28 @@ mod tests {
         .unwrap();
         assert_ne!(salt(&first), salt(&third));
 
+        // A key the blueprint no longer generates isn't carried over.
+        let mut dropped = bp.clone();
+        let mut t = atelier();
+        t.parameters.as_mut().unwrap()["properties"]
+            .as_object_mut()
+            .unwrap()
+            .remove("HASH_SALT");
+        t.parameters.as_mut().unwrap()["required"] = json!(["SITE_NAME"]);
+        dropped.template = Some(t);
+        let (fourth, _) = apply(
+            Some(&dropped),
+            &p,
+            None,
+            "demo",
+            &AppSettings::default(),
+            &FileList { files: vec![] },
+            Some(&first),
+        )
+        .unwrap();
+        assert!(fourth.environment.get("HASH_SALT").is_none());
+        assert!(fourth.generated_parameters.is_empty());
+
         // The caller still can't set it, even on a re-create.
         let mut caller = AppSettings::default();
         caller.environment.insert("HASH_SALT".into(), "mine".into());
@@ -482,14 +530,24 @@ mod tests {
                 "schema",
             ),
             (
-                json!({"type": "object", "properties": {"X": {"x-scotty-generate": "uuid"}}}),
+                json!({"type": "object", "properties": {"X": {"type": "string", "x-scotty-generate": "uuid"}}}),
                 vec![],
                 "x-scotty-generate",
             ),
             (
-                json!({"type": "object", "properties": {"X": {"x-scotty-from": "app.ip"}}}),
+                json!({"type": "object", "properties": {"X": {"type": "string", "x-scotty-from": "app.ip"}}}),
                 vec![],
                 "x-scotty-from",
+            ),
+            (
+                json!({"type": "object", "properties": {"X": {"type": "object"}}}),
+                vec![],
+                "type must be",
+            ),
+            (
+                json!({"type": "object", "properties": {"X": {"enum": ["a"]}}}),
+                vec![],
+                "type must be",
             ),
             (
                 json!({"type": "object"}),
@@ -594,6 +652,11 @@ mod tests {
             let e = err(merge_files(&atelier(), &caller(&[name])));
             assert!(e.contains(why), "{name}: {e}");
         }
+        let e = err(merge_files(
+            &atelier(),
+            &caller(&["html/a.html", "./html/a.html"]),
+        ));
+        assert!(e.contains("duplicate"), "{e}");
     }
 
     #[test]

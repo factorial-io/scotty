@@ -35,7 +35,7 @@ Granular actions users can perform on applications and the system:
 - `logs` - View application logs
 - `shell` - Execute shell commands in containers and download files from them (`app:cp` from a container)
 - `create` - Create new apps in scope, from any blueprint or from your own compose file
-- `create:<blueprint>` - Create new apps in scope, but only from the named blueprint (e.g. `create:static-html`). A caller-supplied compose file or another blueprint is rejected as forbidden. `GET /api/v1/authenticated/blueprints` lists only the blueprints the user may create from.
+- `create:<blueprint>` - Create new apps in scope, but only from the named blueprint (e.g. `create:static-html`). A caller-supplied compose file, another blueprint, custom domains or caller-set public services are rejected as forbidden: the blueprint decides the app's services and hostnames. `GET /api/v1/authenticated/blueprints` lists only the blueprints the user may create from.
 - `destroy` - Delete apps from scope
 
 Scotty refuses to start when a role lists an unknown or malformed permission (e.g. `create:` without a blueprint name). Scotty versions before templated blueprints read any unknown permission, including `create:<blueprint>`, as `*`. Don't use a policy with `create:<blueprint>` on an older Scotty.

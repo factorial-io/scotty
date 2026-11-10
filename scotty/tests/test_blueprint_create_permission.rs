@@ -178,3 +178,23 @@ async fn plain_create_lists_every_blueprint() {
     assert!(blueprints.get("demo-template").is_some());
     assert_eq!(blueprints["test-blueprint"]["templated"], false);
 }
+
+#[tokio::test]
+async fn restricted_user_cannot_choose_hostnames() {
+    let (server, _dir) = setup().await;
+    let mut custom = request(Some("demo-template"), &[]);
+    custom["custom_domains"] =
+        serde_json::json!([{"domain": "login.example.com", "service": "web"}]);
+    let mut services = request(Some("demo-template"), &[]);
+    services["settings"]["public_services"] =
+        serde_json::json!([{"service": "web", "port": 80, "domains": ["login.example.com"]}]);
+    for (case, body) in [("custom domain", custom), ("public services", services)] {
+        assert_eq!(
+            status(&server, PUBLISHER, body.clone()).await,
+            403,
+            "{case}"
+        );
+        // Plain `create` passes the check (and fails later on validation).
+        assert_ne!(status(&server, DEVELOPER, body).await, 403, "{case}");
+    }
+}

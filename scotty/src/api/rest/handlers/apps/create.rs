@@ -122,13 +122,30 @@ pub async fn create_app_handler(
         )));
     }
 
+    // `create:<blueprint>` doesn't cover choosing hostnames: the blueprint
+    // decides the app's services and its domain comes from the suffix.
+    // Otherwise a restricted caller could claim any host on the load balancer.
+    if templated_blueprint.is_some()
+        && (!payload.custom_domains.is_empty() || !payload.settings.public_services.is_empty())
+        && !auth_service
+            .check_create_in_scopes(&user_id, &payload.requested_scopes, None)
+            .await
+    {
+        return Err(AppError::ScopeAccessDenied(
+            "custom domains and public services need the create permission".into(),
+        ));
+    }
+
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
     // right after a restart (create-existing-app D1-D3).
     let existing = existing_app_settings(&state.settings.apps.root_folder, &payload.app_name)
         .map_err(|e| {
-            AppError::BadRequest(format!(
-                "Can't read the settings of existing app {}: {e}",
+            // A broken file on disk is a server problem; keep its contents
+            // out of the response.
+            tracing::error!("Can't read .scotty.yml of app {}: {e}", payload.app_name);
+            AppError::InternalServerError(format!(
+                "Can't read the settings of existing app {}",
                 payload.app_name
             ))
         })?;

@@ -230,6 +230,8 @@ async fn unreadable_settings_reject_the_request() {
     let (code, text) = env
         .status(DEVELOPER, request("broken", None, &["default"]))
         .await;
-    assert_eq!(code, 400);
-    assert!(text.contains("Can't read the settings"), "{text}");
+    // A broken file on the server is a server error, and its contents
+    // stay out of the response.
+    assert_eq!(code, 500);
+    assert!(!text.contains("not: [settings"), "{text}");
 }
