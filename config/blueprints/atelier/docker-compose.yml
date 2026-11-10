@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 
   edge:
-    image: nginx:1.30-alpine-slim
+    image: nginx:1.31-alpine-slim
     depends_on:
       - app
     volumes:
