@@ -335,7 +335,41 @@ because the container has stopped; showing historical logs.")</li>
 <ul>
 <li><code>-c, --command &lt;COMMAND&gt;</code>: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.</li>
 <li><code>--shell &lt;SHELL&gt;</code>: Specify which shell to use (default: <code>/bin/bash</code>)</li>
+<li><code>-i, --interactive</code>: Forward stdin to the remote process. Always on without <code>--command</code>; with <code>--command</code>, stdin is only forwarded when <code>-i</code> is given.</li>
+<li><code>-t, --tty</code>: Allocate a tty on the remote side. Combined with forwarded stdin this needs a terminal on stdin.</li>
+<li><code>-T, --no-tty</code>: Never allocate a tty.</li>
 </ul>
+<p>Like <code>docker exec</code> and <code>ssh</code>, forwarding stdin and allocating a tty are separate switches:</p>
+<table>
+<thead>
+<tr>
+<th>Invocation</th>
+<th>stdin forwarded</th>
+<th>remote tty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>no <code>--command</code>, stdin is a terminal</td>
+<td>yes</td>
+<td>yes (interactive shell)</td>
+</tr>
+<tr>
+<td>no <code>--command</code>, stdin is piped or redirected</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>--command</code></td>
+<td>only with <code>-i</code></td>
+<td>only with <code>-t</code></td>
+</tr>
+</tbody>
+</table>
+<p>Without a tty, the output is passed through byte for byte: remote stdout goes to local stdout, remote stderr to local stderr, there is no prompt, echo or CRLF conversion, and binary data is preserved. When stdin reaches end-of-file, the remote process reads end-of-file too. Status messages are written to stderr only when stderr is a terminal. scottyctl exits with the exit code of the remote process, or with 1 if the session ended without one (for example after a timeout).</p>
+<blockquote>
+<p><strong>Changed behavior:</strong> <code>--command</code> used to run with a remote tty. It now runs without one unless <code>-t</code> is given, so its output no longer contains CRLF line endings or terminal control sequences, and its stderr goes to local stderr.</p>
+</blockquote>
 <h3 id="examples-1" tabindex="-1"><a class="header-anchor" href="#examples-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -351,6 +385,13 @@ because the container has stopped; showing historical logs.")</li>
 <p>Run a script and capture its exit code:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">--command</span> <span class="token string">"/app/scripts/healthcheck.sh"</span>
 <span class="token builtin class-name">echo</span> <span class="token string">"Exit code: <span class="token variable">$?</span>"</span></code></pre>
+<p>Pipe commands into a shell, for example from a script or a CI job:</p>
+<pre class="language-shell"><code class="language-shell"><span class="token builtin class-name">printf</span> <span class="token string">'cd /app\nphp artisan migrate --force\n'</span> <span class="token operator">|</span> scottyctl app:shell my-app web <span class="token parameter variable">--shell</span> /bin/sh</code></pre>
+<p>Stream a file into and out of a container:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app db <span class="token parameter variable">-i</span> <span class="token parameter variable">-c</span> <span class="token string">'mysql app'</span> <span class="token operator">&lt;</span> dump.sql
+scottyctl app:shell my-app db <span class="token parameter variable">-c</span> <span class="token string">'mysqldump app | gzip'</span> <span class="token operator">&gt;</span> dump.sql.gz</code></pre>
+<p>Run a command with terminal output (colors, progress bars), without forwarding stdin:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:shell my-app web <span class="token parameter variable">-t</span> <span class="token parameter variable">-c</span> <span class="token string">'composer install'</span></code></pre>
 <h2 id="copy-files-to-or-from-an-app-service" tabindex="-1"><a class="header-anchor" href="#copy-files-to-or-from-an-app-service">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
