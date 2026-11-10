@@ -56,7 +56,11 @@ pub struct ShellSession {
     pub service_name: String,
     pub container_id: String,
     pub exec_id: String,
+    /// Control commands (resize, terminate), handled by the session loop
     pub sender: mpsc::Sender<ShellCommand>,
+    /// Stdin commands (input, close), handled by a separate writer task so a
+    /// process that is slow to read stdin never stops the output from flowing
+    pub stdin_sender: mpsc::Sender<ShellCommand>,
     pub client_id: Uuid, // WebSocket client that owns this session
     /// Whether the exec runs with a tty
     pub tty: bool,
@@ -85,7 +89,11 @@ impl ShellSession {
 
     /// Send a command to this session
     pub async fn send_command(&self, cmd: ShellCommand) -> ShellServiceResult<()> {
-        self.sender
+        let sender = match cmd {
+            ShellCommand::Input(_) | ShellCommand::CloseStdin => &self.stdin_sender,
+            ShellCommand::Resize { .. } | ShellCommand::Terminate => &self.sender,
+        };
+        sender
             .send(cmd)
             .await
             .map_err(|e| ShellServiceError::CommandSendFailed {
@@ -191,6 +199,50 @@ async fn wait_for_exit_code(docker: &Docker, exec_id: &str) -> Option<i32> {
         exec_id
     );
     None
+}
+
+/// Number of stdin chunks queued per session before the client is slowed down
+const STDIN_QUEUE_CAPACITY: usize = 32;
+
+/// Write stdin commands to the exec's input until the queue closes.
+///
+/// Runs in its own task: a process that writes a lot of output before it
+/// reads stdin would otherwise block the input write, the session loop would
+/// stop reading output, and both pipes would fill up (deadlock). Returns the
+/// write error, if any, so the session loop can end the session.
+async fn write_stdin(
+    session_id: Uuid,
+    mut input: std::pin::Pin<Box<dyn tokio::io::AsyncWrite + Send>>,
+    mut commands: mpsc::Receiver<ShellCommand>,
+) -> Result<(), std::io::Error> {
+    let mut closed = false;
+    while let Some(cmd) = commands.recv().await {
+        match cmd {
+            ShellCommand::Input(data) if closed => {
+                warn!(
+                    "Dropping {} bytes of input for shell session {}: stdin is closed",
+                    data.len(),
+                    session_id
+                );
+            }
+            ShellCommand::Input(data) => {
+                input.write_all(&data).await?;
+                input.flush().await?;
+            }
+            ShellCommand::CloseStdin if !closed => {
+                closed = true;
+                info!("Closing stdin of shell session {}", session_id);
+                if let Err(e) = input.shutdown().await {
+                    warn!(
+                        "Failed to close stdin of shell session {}: {}",
+                        session_id, e
+                    );
+                }
+            }
+            ShellCommand::CloseStdin | ShellCommand::Resize { .. } | ShellCommand::Terminate => {}
+        }
+    }
+    Ok(())
 }
 
 /// Service for managing container shell sessions
@@ -316,6 +368,9 @@ impl ShellService {
             })?;
 
         let (tx, mut rx) = mpsc::channel::<ShellCommand>(100);
+        // Bounded, so a client sending faster than the process reads stdin is
+        // slowed down instead of buffering without limit.
+        let (stdin_tx, stdin_rx) = mpsc::channel::<ShellCommand>(STDIN_QUEUE_CAPACITY);
 
         // Create session info
         let session = ShellSession {
@@ -325,6 +380,7 @@ impl ShellService {
             container_id: container_id.clone(),
             exec_id: exec_id.clone(),
             sender: tx,
+            stdin_sender: stdin_tx,
             client_id,
             tty,
             created_at: chrono::Utc::now(),
@@ -396,16 +452,14 @@ impl ShellService {
             );
 
             match exec_stream {
-                StartExecResults::Attached {
-                    mut input,
-                    mut output,
-                } => {
+                StartExecResults::Attached { input, mut output } => {
                     let session_start = tokio::time::Instant::now();
                     let mut status_check_interval =
                         tokio::time::interval(tokio::time::Duration::from_millis(500));
                     status_check_interval
                         .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-                    let mut stdin_closed = false;
+                    let mut stdin_writer = tokio::spawn(write_stdin(session_id, input, stdin_rx));
+                    let mut stdin_writer_done = false;
 
                     loop {
                         tokio::select! {
@@ -485,54 +539,47 @@ impl ShellService {
                                 }
                             }
 
-                            // Handle input commands
+                            // The stdin writer stopped: report a write failure.
+                            // A clean stop (queue closed) needs no action.
+                            result = &mut stdin_writer, if !stdin_writer_done => {
+                                stdin_writer_done = true;
+                                let error = match result {
+                                    Ok(Ok(())) => continue,
+                                    Ok(Err(e)) => e.to_string(),
+                                    Err(e) => format!("stdin writer failed: {}", e),
+                                };
+                                error!("Failed to write to shell {}: {}", session_id, error);
+                                let duration_secs = session_start.elapsed().as_secs_f64();
+                                crate::metrics::shell::record_session_error(duration_secs);
+
+                                // Audit log session end due to error
+                                audit_log_session_ended(
+                                    session_id,
+                                    client_id,
+                                    &app_name_clone,
+                                    &service_name_clone,
+                                    duration_secs,
+                                    &format!("Error writing input: {}", error),
+                                    None,
+                                );
+
+                                if let Err(send_err) = app_state.messenger.send_to_client(
+                                    client_id,
+                                    WebSocketMessage::ShellSessionError(ShellSessionError {
+                                        session_id,
+                                        error: format!("Failed to write input: {}", error),
+                                    }),
+                                ).await {
+                                    warn!("Failed to send error message to client {}: {}", client_id, send_err);
+                                }
+                                break;
+                            }
+
+                            // Handle control commands
                             Some(cmd) = rx.recv() => {
                                 match cmd {
-                                    ShellCommand::Input(data) => {
-                                        if stdin_closed {
-                                            warn!("Dropping {} bytes of input for shell session {}: stdin is closed", data.len(), session_id);
-                                            continue;
-                                        }
-                                        if let Err(e) = input.write_all(&data).await {
-                                            error!("Failed to write to shell {}: {}", session_id, e);
-                                            let duration_secs = session_start.elapsed().as_secs_f64();
-                                            crate::metrics::shell::record_session_error(duration_secs);
-
-                                            // Audit log session end due to error
-                                            audit_log_session_ended(
-                                                session_id,
-                                                client_id,
-                                                &app_name_clone,
-                                                &service_name_clone,
-                                                duration_secs,
-                                                &format!("Error writing input: {}", e),
-                                                None,
-                                            );
-
-                                            if let Err(send_err) = app_state.messenger.send_to_client(
-                                                client_id,
-                                                WebSocketMessage::ShellSessionError(ShellSessionError {
-                                                    session_id,
-                                                    error: format!("Failed to write input: {}", e),
-                                                }),
-                                            ).await {
-                                                warn!("Failed to send error message to client {}: {}", client_id, send_err);
-                                            }
-                                            break;
-                                        }
-                                        if let Err(e) = input.flush().await {
-                                            error!("Failed to flush shell input {}: {}", session_id, e);
-                                        }
-                                    }
-                                    ShellCommand::CloseStdin => {
-                                        if !stdin_closed {
-                                            stdin_closed = true;
-                                            info!("Closing stdin of shell session {}", session_id);
-                                            if let Err(e) = input.shutdown().await {
-                                                warn!("Failed to close stdin of shell session {}: {}", session_id, e);
-                                            }
-                                        }
-                                    }
+                                    // Routed to the stdin writer by send_command
+                                    ShellCommand::Input(_) | ShellCommand::CloseStdin => {}
                                     ShellCommand::Resize { width, height } => {
                                         // Resize the TTY
                                         if let Err(e) = docker.resize_exec(&exec_id, bollard::exec::ResizeExecOptions {
@@ -625,6 +672,9 @@ impl ShellService {
                                     // its output has been forwarded.
                                     None => {
                                         info!("Shell session {} ended (stream closed)", session_id);
+                                        // Blocks this loop for at most a few seconds;
+                                        // with the output closed there is nothing left
+                                        // to forward, and control commands can wait.
                                         let exit_code = wait_for_exit_code(&docker, &exec_id).await;
                                         let duration_secs = session_start.elapsed().as_secs_f64();
                                         crate::metrics::shell::record_session_ended(duration_secs);
@@ -655,8 +705,11 @@ impl ShellService {
                             }
                         }
                     }
+                    // The session is over; stop writing to the exec.
+                    stdin_writer.abort();
                 }
                 StartExecResults::Detached => {
+                    drop(stdin_rx);
                     error!(
                         "Shell session {} started in detached mode (unexpected)",
                         session_id
@@ -811,6 +864,7 @@ impl ShellService {
         client_id: Uuid,
         tty: bool,
     ) -> (Uuid, mpsc::Receiver<ShellCommand>) {
+        // One channel for control and stdin, so tests observe every command.
         let (sender, receiver) = mpsc::channel(16);
         let session_id = Uuid::new_v4();
         let session = ShellSession {
@@ -819,6 +873,7 @@ impl ShellService {
             service_name: "web".to_string(),
             container_id: "test-container".to_string(),
             exec_id: "test-exec".to_string(),
+            stdin_sender: sender.clone(),
             sender,
             client_id,
             tty,

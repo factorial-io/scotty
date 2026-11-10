@@ -163,7 +163,7 @@ Like `docker exec` and `ssh`, forwarding stdin and allocating a tty are separate
 | no `--command`, stdin is piped or redirected | yes | no |
 | `--command` | only with `-i` | only with `-t` |
 
-Without a tty, the output is passed through byte for byte: remote stdout goes to local stdout, remote stderr to local stderr, there is no prompt, echo or CRLF conversion, and binary data is preserved. When stdin reaches end-of-file, the remote process reads end-of-file too. Status messages are written to stderr only when stderr is a terminal. scottyctl exits with the exit code of the remote process.
+Without a tty, the output is passed through byte for byte: remote stdout goes to local stdout, remote stderr to local stderr, there is no prompt, echo or CRLF conversion, and binary data is preserved. When stdin reaches end-of-file, the remote process reads end-of-file too. Status messages are written to stderr only when stderr is a terminal. scottyctl exits with the exit code of the remote process, or with 1 if the session ended without one (for example after a timeout).
 
 > **Changed behavior:** `--command` used to run with a remote tty. It now runs without one unless `-t` is given, so its output no longer contains CRLF line endings or terminal control sequences, and its stderr goes to local stderr.
 
