@@ -298,8 +298,13 @@ command on every pipeline. Updating an existing app has three extra rules:
 * With only `create:<blueprint>`, you can update apps created from that
   blueprint, and no others.
 
-Values Scotty generated for a templated blueprint (e.g. secrets) are kept on
-re-create.
+Values Scotty generated for a templated blueprint (e.g. secrets) and the
+app's custom actions are kept on re-create. A second `app:create` of an app
+that is still being created fails with 409; retry once the first finished.
+
+With only `create:<blueprint>`, `--custom-domain`, `--env`, `--env-file`,
+`--registry` and notification receivers in the request are rejected; pass values with
+`--param` instead.
 
 With a templated blueprint (`Templated: yes` in `blueprint:list`) no compose
 file is needed: `--folder` is optional and holds only the blueprint's payload

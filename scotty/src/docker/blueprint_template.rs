@@ -1,7 +1,7 @@
 //! Turns a create request for a templated blueprint into a plain `FileList`
 //! plus environment, so the normal create pipeline can run (design D3–D5).
 
-use globset::{Glob, GlobSetBuilder};
+use globset::GlobSetBuilder;
 use serde_json::{Map, Value};
 
 use crate::api::error::AppError;
@@ -214,8 +214,10 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
             .and_then(Value::as_str)
             .is_some_and(|ty| ["string", "number", "integer", "boolean"].contains(&ty))
         {
+            // Also rejects `enum`/`oneOf`/`anyOf` without a `type`.
             return Err(format!(
-                "{key}: type must be string, number, integer or boolean"
+                "{key}: needs a `type` of string, number, integer or boolean \
+                 (parameters become environment variables)"
             ));
         }
         for (keyword, allowed) in [(GENERATE, GENERATE_KINDS), (FROM, FROM_SOURCES)] {
@@ -227,7 +229,7 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
         }
     }
     for pattern in &t.payload {
-        Glob::new(pattern).map_err(|e| format!("invalid payload pattern {pattern}: {e}"))?;
+        payload_glob(pattern).map_err(|e| format!("invalid payload pattern {pattern}: {e}"))?;
     }
     Ok(())
 }
@@ -260,14 +262,49 @@ fn generate(kind: &str) -> Result<String, AppError> {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    use std::fmt::Write as _;
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+            let _ = write!(s, "{b:02x}");
+            s
+        })
+}
+
+/// `value` with the keys of every object in sorted order, so its JSON text
+/// doesn't depend on map ordering (e.g. `serde_json`'s `preserve_order`
+/// feature, which feature unification can turn on).
+fn canonical(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<_> = map.into_iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(k, v)| (k, canonical(v)))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical).collect()),
+        other => other,
+    }
+}
+
+/// A payload pattern. `*` and `?` stay within one path segment, so `html/*`
+/// matches `html/index.html` but not `html/a/b.html`; `**` crosses segments.
+fn payload_glob(pattern: &str) -> Result<globset::Glob, globset::Error> {
+    globset::GlobBuilder::new(pattern)
+        .literal_separator(true)
+        .build()
 }
 
 /// Content hash of a templated blueprint: its contract plus all its files.
 pub fn content_hash(t: &BlueprintTemplate) -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
-    h.update(serde_json::to_vec(t).expect("template serializes"));
+    let contract = canonical(serde_json::to_value(t).expect("template serializes"));
+    h.update(serde_json::to_vec(&contract).expect("template serializes"));
     let mut files: Vec<_> = t.files.iter().collect();
     files.sort_by(|a, b| a.name.cmp(&b.name));
     for f in files {
@@ -279,21 +316,32 @@ pub fn content_hash(t: &BlueprintTemplate) -> String {
     hex(&h.finalize())
 }
 
+/// What a caller passes for a templated blueprint, plus the app being
+/// re-created, if any.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct TemplateInputs<'a> {
+    /// Values for the blueprint's parameters; `None` means none.
+    pub parameters: Option<&'a Map<String, Value>>,
+    /// The chosen image; `None` means the blueprint's default.
+    pub image: Option<&'a str>,
+    /// Settings of the app being re-created: its generated values are kept
+    /// instead of generated again.
+    pub existing: Option<&'a AppSettings>,
+}
+
 /// Prepares settings and files for a create request (D3–D6). For a
 /// validation-only blueprint, or none, template inputs must be absent.
-/// `existing` is the app being re-created, if any: its generated values are
-/// kept instead of generated again.
 pub fn apply(
     blueprint: Option<&scotty_core::settings::app_blueprint::AppBlueprint>,
-    params: &Map<String, Value>,
-    image: Option<&str>,
+    inputs: &TemplateInputs<'_>,
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
-    existing: Option<&AppSettings>,
 ) -> Result<(AppSettings, FileList), AppError> {
+    let empty = Map::new();
+    let params = inputs.parameters.unwrap_or(&empty);
     let Some(t) = blueprint.and_then(|b| b.template.as_ref()) else {
-        if !params.is_empty() || image.is_some() {
+        if !params.is_empty() || inputs.image.is_some() {
             return Err(AppError::BadRequest(
                 "blueprint parameters and image need a templated blueprint".into(),
             ));
@@ -303,8 +351,8 @@ pub fn apply(
     validate_parameters(t, params, settings)?;
     let merged = merge_files(t, files)?;
     let mut settings = settings.clone();
-    keep_generated(t, existing, &mut settings);
-    resolve_environment(t, params, image, app_name, &mut settings)?;
+    keep_generated(t, inputs.existing, &mut settings);
+    resolve_environment(t, params, inputs.image, app_name, &mut settings)?;
     settings.blueprint_hash = Some(content_hash(t));
     Ok((settings, merged))
 }
@@ -332,7 +380,7 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
     let mut builder = GlobSetBuilder::new();
     for pattern in &t.payload {
         builder.add(
-            Glob::new(pattern)
+            payload_glob(pattern)
                 .map_err(|e| AppError::BadRequest(format!("invalid payload pattern: {e}")))?,
         );
     }
@@ -477,22 +525,26 @@ mod tests {
         };
         let (first, _) = apply(
             Some(&bp),
-            &p,
-            None,
+            &TemplateInputs {
+                parameters: Some(&p),
+                image: None,
+                existing: None,
+            },
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
-            None,
         )
         .unwrap();
         let (second, _) = apply(
             Some(&bp),
-            &p,
-            None,
+            &TemplateInputs {
+                parameters: Some(&p),
+                image: None,
+                existing: Some(&first),
+            },
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
-            Some(&first),
         )
         .unwrap();
         let salt = |s: &AppSettings| s.environment.expose_all()["HASH_SALT"].clone();
@@ -503,12 +555,14 @@ mod tests {
         other.app_blueprint = Some("something-else".into());
         let (third, _) = apply(
             Some(&bp),
-            &p,
-            None,
+            &TemplateInputs {
+                parameters: Some(&p),
+                image: None,
+                existing: Some(&other),
+            },
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
-            Some(&other),
         )
         .unwrap();
         assert_ne!(salt(&first), salt(&third));
@@ -524,12 +578,14 @@ mod tests {
         dropped.template = Some(t);
         let (fourth, _) = apply(
             Some(&dropped),
-            &p,
-            None,
+            &TemplateInputs {
+                parameters: Some(&p),
+                image: None,
+                existing: Some(&first),
+            },
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
-            Some(&first),
         )
         .unwrap();
         assert!(fourth.environment.get("HASH_SALT").is_none());
@@ -540,12 +596,14 @@ mod tests {
         caller.environment.insert("HASH_SALT".into(), "mine".into());
         assert!(apply(
             Some(&bp),
-            &p,
-            None,
+            &TemplateInputs {
+                parameters: Some(&p),
+                image: None,
+                existing: Some(&first),
+            },
             "demo",
             &caller,
             &FileList { files: vec![] },
-            Some(&first)
         )
         .is_err());
     }
@@ -572,12 +630,12 @@ mod tests {
             (
                 json!({"type": "object", "properties": {"X": {"type": "object"}}}),
                 vec![],
-                "type must be",
+                "needs a `type`",
             ),
             (
                 json!({"type": "object", "properties": {"X": {"enum": ["a"]}}}),
                 vec![],
-                "type must be",
+                "needs a `type`",
             ),
             (
                 json!({"type": "object", "required": ["Y"], "properties": {}}),
@@ -686,6 +744,8 @@ mod tests {
             ("SWS.toml", "replace"),
             ("html/docker-compose.override.yml", "compose"),
             ("html/compose.override.yaml", "compose"),
+            ("./html/../../x", ".."),
+            ("html/./../x", ".."),
         ] {
             let e = err(merge_files(&atelier(), &caller(&[name])));
             assert!(e.contains(why), "{name}: {e}");
@@ -695,6 +755,47 @@ mod tests {
             &caller(&["html/a.html", "./html/A.html"]),
         ));
         assert!(e.contains("duplicate"), "{e}");
+    }
+
+    #[test]
+    fn single_star_stays_in_one_directory() {
+        let mut t = atelier();
+        t.payload = vec!["html/*".into()];
+        assert!(merge_files(&t, &caller(&["html/index.html"])).is_ok());
+        let e = err(merge_files(&t, &caller(&["html/a/b.html"])));
+        assert!(e.contains("payload"), "{e}");
+        // Matching is case-sensitive, like the file system.
+        assert!(merge_files(&t, &caller(&["HTML/index.html"])).is_err());
+    }
+
+    #[test]
+    fn content_hash_ignores_key_order_but_not_content() {
+        let a = template(json!({"type": "object", "properties": {
+            "A": {"type": "string"}, "B": {"type": "string"}}}));
+        let b = template(json!({"properties": {
+            "B": {"type": "string"}, "A": {"type": "string"}}, "type": "object"}));
+        assert_eq!(content_hash(&a), content_hash(&b));
+
+        let mut changed = a.clone();
+        changed.files = vec![file("compose.yml")];
+        assert_ne!(content_hash(&a), content_hash(&changed));
+        changed.files[0].content = FileContent::new(b"y".to_vec());
+        let before = content_hash(&changed);
+        changed.files[0].content = FileContent::new(b"z".to_vec());
+        assert_ne!(before, content_hash(&changed));
+    }
+
+    #[test]
+    fn app_domain_falls_back_to_the_app_domain() {
+        let mut s = AppSettings {
+            domain: "demo.example.com".into(),
+            ..Default::default()
+        };
+        let p = params(json!({"SITE_NAME": "Demo"}));
+        resolve_environment(&atelier(), &p, None, "demo", &mut s).unwrap();
+        let env = s.environment.expose_all();
+        assert_eq!(env["TRUSTED"], "demo.example.com");
+        assert_eq!(env["TRUSTED_RE"], r"^demo\.example\.com$");
     }
 
     #[test]

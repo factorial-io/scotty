@@ -35,12 +35,12 @@ Granular actions users can perform on applications and the system:
 - `logs` - View application logs
 - `shell` - Execute shell commands in containers and download files from them (`app:cp` from a container)
 - `create` - Create new apps in scope, from any blueprint or from your own compose file
-- `create:<blueprint>` - Create new apps in scope, but only from the named blueprint (e.g. `create:static-html`). A caller-supplied compose file, another blueprint, custom domains or caller-set public services are rejected as forbidden: the blueprint decides the app's services and hostnames. `GET /api/v1/authenticated/blueprints` lists only the blueprints the user may create from.
+- `create:<blueprint>` - Create new apps in scope, but only from the named blueprint (e.g. `create:static-html`). A caller-supplied compose file, another blueprint, custom domains, caller-set public services, environment variables, a registry or notification receivers are rejected as forbidden: the blueprint decides the app's services, hostnames and environment, and the caller passes values through the blueprint's parameters. TTL, basic auth, the robots setting and allowlisted middlewares stay with the caller. `GET /api/v1/authenticated/blueprints` lists only the blueprints the user may create from.
 - `destroy` - Delete apps from scope
 
 Scotty refuses to start when a role lists an unknown or malformed permission (e.g. `create:` without a blueprint name). Scotty versions before templated blueprints read any unknown permission, including `create:<blueprint>`, as `*`. Don't use a policy with `create:<blueprint>` on an older Scotty.
 
-Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with `create:<blueprint>`: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes. As for every app permission, rights in one of a multi-scope app's scopes are enough.
+Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with `create:<blueprint>`: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes. As for every app permission, rights in one of a multi-scope app's scopes are enough. Only one create of an app runs at a time; a second one gets `409 Conflict` until the first has written the app. A re-create keeps the app's custom actions, and a create request can't bring its own: custom actions are added through their own endpoints and need approval.
 
 **Custom Action Permissions** (for per-app custom actions):
 - `action_read` - Execute read-only custom actions (no side effects)

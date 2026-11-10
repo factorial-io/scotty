@@ -823,7 +823,9 @@ other image is rejected.
 #### Payload
 
 `template.payload` lists glob patterns (e.g. `html/**`) for the files a caller
-may upload with `--folder`. A file outside these patterns, a path with `..` or
+may upload with `--folder`. `*` and `?` match within one directory, so
+`html/*` accepts `html/index.html` but not `html/img/a.png`; `**` matches
+across directories. Matching is case-sensitive. A file outside these patterns, a path with `..` or
 an absolute path, a compose file, or a file that would replace a blueprint
 file is rejected. No patterns means no caller files.
 

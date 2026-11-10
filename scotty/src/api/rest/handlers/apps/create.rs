@@ -1,6 +1,10 @@
 use crate::{
-    api::error::AppError, api::middleware::authorization::AuthorizationContext,
-    api::secure_response::SecureJson, app_state::SharedAppState, docker::create_app::create_app,
+    api::error::AppError,
+    api::middleware::authorization::AuthorizationContext,
+    api::secure_response::SecureJson,
+    app_state::SharedAppState,
+    docker::blueprint_template::TemplateInputs,
+    docker::create_app::{create_app, CreateRequest},
     services::AuthorizationService,
 };
 use axum::{
@@ -35,6 +39,43 @@ fn existing_app_settings(root_folder: &str, app_name: &str) -> anyhow::Result<Op
     Ok(Some(
         AppSettings::from_file(&dir.join(".scotty.yml"))?.unwrap_or_default(),
     ))
+}
+
+/// Request fields a caller with only `create:<blueprint>` may not set, by
+/// name. They would let the caller claim hostnames (custom domains, public
+/// services), change what the blueprint's compose file interpolates or what
+/// its containers see (environment; parameters are the interface for that),
+/// use Scotty's registry credentials (registry), or make Scotty send requests
+/// to arbitrary URLs (notify).
+///
+/// Allowed: TTL, basic auth, robots, allowlisted middlewares. The domain is
+/// always derived from the app name.
+fn blueprint_only_violations(payload: &CreateAppRequest) -> Vec<&'static str> {
+    let settings = &payload.settings;
+    [
+        ("custom domains", !payload.custom_domains.is_empty()),
+        ("public services", !settings.public_services.is_empty()),
+        ("environment", !settings.environment.is_empty()),
+        ("registry", settings.registry.is_some()),
+        ("notifications", !settings.notify.is_empty()),
+    ]
+    .into_iter()
+    .filter_map(|(field, set)| set.then_some(field))
+    .collect()
+}
+
+/// Replaces the settings only Scotty manages with Scotty's values:
+/// - `blueprint_hash` and `generated_parameters` are recorded for templated
+///   blueprints by the create itself;
+/// - custom actions are managed through their own endpoints and need
+///   approval, so a caller can't bring its own (e.g. already approved). A
+///   re-create keeps the existing app's.
+fn drop_scotty_managed_settings(settings: &mut AppSettings, existing: Option<&AppSettings>) {
+    settings.blueprint_hash = None;
+    settings.generated_parameters.clear();
+    settings.custom_actions = existing
+        .map(|e| e.custom_actions.clone())
+        .unwrap_or_default();
 }
 
 /// Human-readable `Content-Length`, for error messages only.
@@ -122,19 +163,29 @@ pub async fn create_app_handler(
         )));
     }
 
-    // `create:<blueprint>` doesn't cover choosing hostnames: the blueprint
-    // decides the app's services and its domain comes from the suffix.
-    // Otherwise a restricted caller could claim any host on the load balancer.
-    if templated_blueprint.is_some()
-        && (!payload.custom_domains.is_empty() || !payload.settings.public_services.is_empty())
-        && !auth_service
-            .check_create_in_scopes(&user_id, &payload.requested_scopes, None)
-            .await
-    {
-        return Err(AppError::ScopeAccessDenied(
-            "custom domains and public services need the create permission".into(),
-        ));
+    // `create:<blueprint>` covers parameters, image and payload files; the
+    // blueprint decides everything else that reaches the load balancer, the
+    // containers or other systems.
+    if templated_blueprint.is_some() {
+        let fields = blueprint_only_violations(&payload);
+        if !fields.is_empty()
+            && !auth_service
+                .check_create_in_scopes(&user_id, &payload.requested_scopes, None)
+                .await
+        {
+            return Err(AppError::ScopeAccessDenied(format!(
+                "setting {} needs the create permission",
+                fields.join(", ")
+            )));
+        }
     }
+
+    // One create per app at a time: the checks below decide on the app's
+    // current state on disk, and the create task writes the new one.
+    let lock = state
+        .create_locks
+        .try_lock(&slugify(&payload.app_name))
+        .ok_or_else(|| AppError::CreateInProgress(payload.app_name.clone()))?;
 
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
@@ -247,9 +298,7 @@ pub async fn create_app_handler(
 
     // Set the default settings for the app.
     let mut settings = payload.settings.clone();
-    // Scotty records these for templated blueprints; never from the caller.
-    settings.blueprint_hash = None;
-    settings.generated_parameters.clear();
+    drop_scotty_managed_settings(&mut settings, existing.as_ref());
     let settings = settings.merge_with_global_settings(&state.settings.apps, &payload.app_name);
 
     // Apply blueprint settings, if any.
@@ -274,18 +323,19 @@ pub async fn create_app_handler(
         }
     }
 
-    match create_app(
-        state,
-        &payload.app_name,
-        &settings,
-        &file_list,
-        &payload.blueprint_parameters,
-        payload.image.as_deref(),
-        Some(user_id.clone()),
-        existing.as_ref(),
-    )
-    .await
-    {
+    let request = CreateRequest {
+        app_name: &payload.app_name,
+        settings: &settings,
+        files: &file_list,
+        template: TemplateInputs {
+            parameters: Some(&payload.blueprint_parameters),
+            image: payload.image.as_deref(),
+            existing: existing.as_ref(),
+        },
+        requested_by: Some(user_id.clone()),
+        lock: Some(lock),
+    };
+    match create_app(state, request).await {
         Ok(app_data) => Ok(SecureJson(app_data)),
         Err(e) => {
             error!("App create failed with: {:?}", e);
@@ -297,6 +347,112 @@ pub async fn create_app_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn action(name: &str) -> scotty_core::settings::custom_action::CustomAction {
+        let mut action = scotty_core::settings::custom_action::CustomAction::new(
+            name.into(),
+            String::new(),
+            [("web".to_string(), vec!["true".to_string()])].into(),
+            serde_json::from_value(serde_json::json!("action_write")).unwrap(),
+            "someone".into(),
+        );
+        action.approve("someone".into(), None);
+        action
+    }
+
+    #[test]
+    fn caller_cannot_set_scotty_managed_settings() {
+        let mut caller = AppSettings {
+            blueprint_hash: Some("forged".into()),
+            generated_parameters: vec!["X".into()],
+            ..Default::default()
+        };
+        caller
+            .custom_actions
+            .insert("sneaky".into(), action("sneaky"));
+
+        let mut fresh = caller.clone();
+        drop_scotty_managed_settings(&mut fresh, None);
+        assert!(fresh.blueprint_hash.is_none());
+        assert!(fresh.generated_parameters.is_empty());
+        assert!(fresh.custom_actions.is_empty());
+
+        // A re-create keeps the existing app's actions, not the caller's.
+        let mut existing = AppSettings::default();
+        existing
+            .custom_actions
+            .insert("approved".into(), action("approved"));
+        let mut re_create = caller.clone();
+        drop_scotty_managed_settings(&mut re_create, Some(&existing));
+        let names: Vec<_> = re_create.custom_actions.keys().collect();
+        assert_eq!(names, ["approved"]);
+    }
+
+    #[test]
+    fn blueprint_only_callers_may_set_only_harmless_fields() {
+        let request = |settings: serde_json::Value, custom_domains: serde_json::Value| {
+            let mut base = serde_json::json!({
+                "public_services": [], "domain": "", "time_to_live": "Forever",
+                "basic_auth": null, "disallow_robots": true, "environment": {},
+                "registry": null, "app_blueprint": "bp",
+            });
+            base.as_object_mut()
+                .unwrap()
+                .extend(settings.as_object().unwrap().clone());
+            serde_json::from_value::<CreateAppRequest>(serde_json::json!({
+                "app_name": "a",
+                "settings": base,
+                "files": {"files": []},
+                "custom_domains": custom_domains,
+                "requested_scopes": ["default"],
+            }))
+            .unwrap()
+        };
+        let none = serde_json::json!([]);
+
+        // TTL, basic auth, robots, middlewares and the domain are fine.
+        let harmless = request(
+            serde_json::json!({
+                "time_to_live": {"Days": 1}, "basic_auth": ["u", "p"],
+                "disallow_robots": false, "middlewares": ["x"], "domain": "evil.org",
+            }),
+            none.clone(),
+        );
+        assert!(blueprint_only_violations(&harmless).is_empty());
+
+        for (settings, domains, field) in [
+            (
+                serde_json::json!({}),
+                serde_json::json!([{"domain": "login.example.com", "service": "web"}]),
+                "custom domains",
+            ),
+            (
+                serde_json::json!({"public_services": [{"service": "web", "port": 80, "domains": []}]}),
+                none.clone(),
+                "public services",
+            ),
+            (
+                serde_json::json!({"environment": {"PORT": "1"}}),
+                none.clone(),
+                "environment",
+            ),
+            (
+                serde_json::json!({"registry": "private"}),
+                none.clone(),
+                "registry",
+            ),
+            (
+                serde_json::json!({"notify": ["Log"]}),
+                none.clone(),
+                "notifications",
+            ),
+        ] {
+            assert_eq!(
+                blueprint_only_violations(&request(settings, domains)),
+                [field]
+            );
+        }
+    }
     use base64::prelude::*;
     use flate2::write::GzEncoder;
     use flate2::Compression;
