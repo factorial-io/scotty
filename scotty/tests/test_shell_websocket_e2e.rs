@@ -61,6 +61,7 @@ async fn test_shell_session_creation_and_termination() {
         app_name: "test-app".to_string(),
         service_name: "web".to_string(),
         shell_command: Some("/bin/sh".to_string()),
+        tty: true,
     };
 
     let create_message = WebSocketMessage::CreateShellSession(session_request);
@@ -102,6 +103,7 @@ async fn test_shell_session_creation_and_termination() {
         session_id: session_id.unwrap(),
         data_type: ShellDataType::Input,
         data: "exit\n".to_string(),
+        encoding: None,
     });
 
     let json = serde_json::to_string(&input_message).expect("Failed to serialize input");
@@ -166,6 +168,7 @@ async fn test_shell_command_execution_with_exit_code() {
         app_name: "test-app".to_string(),
         service_name: "web".to_string(),
         shell_command: Some("exit 42".to_string()),
+        tty: true,
     };
 
     let create_message = WebSocketMessage::CreateShellSession(session_request);
@@ -248,6 +251,7 @@ async fn test_shell_bidirectional_io() {
         app_name: "test-app".to_string(),
         service_name: "web".to_string(),
         shell_command: None, // Interactive mode
+        tty: true,
     };
 
     let create_message = WebSocketMessage::CreateShellSession(session_request);
@@ -281,6 +285,7 @@ async fn test_shell_bidirectional_io() {
         session_id,
         data_type: ShellDataType::Input,
         data: "echo 'Hello from shell test'\n".to_string(),
+        encoding: None,
     });
 
     let json = serde_json::to_string(&echo_input).expect("Failed to serialize input");
@@ -354,6 +359,7 @@ async fn test_shell_tty_resize() {
         app_name: "test-app".to_string(),
         service_name: "web".to_string(),
         shell_command: None,
+        tty: true,
     };
 
     let create_message = WebSocketMessage::CreateShellSession(session_request);

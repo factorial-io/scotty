@@ -151,6 +151,21 @@ This command opens an interactive shell session inside a running container. This
 
 * `-c, --command <COMMAND>`: Execute a single command instead of opening an interactive shell. The command will run and scottyctl will exit with the same exit code as the command.
 * `--shell <SHELL>`: Specify which shell to use (default: `/bin/bash`)
+* `-i, --interactive`: Forward stdin to the remote process. Always on without `--command`; with `--command`, stdin is only forwarded when `-i` is given.
+* `-t, --tty`: Allocate a tty on the remote side. Combined with forwarded stdin this needs a terminal on stdin.
+* `-T, --no-tty`: Never allocate a tty.
+
+Like `docker exec` and `ssh`, forwarding stdin and allocating a tty are separate switches:
+
+| Invocation | stdin forwarded | remote tty |
+|---|---|---|
+| no `--command`, stdin is a terminal | yes | yes (interactive shell) |
+| no `--command`, stdin is piped or redirected | yes | no |
+| `--command` | only with `-i` | only with `-t` |
+
+Without a tty, the output is passed through byte for byte: remote stdout goes to local stdout, remote stderr to local stderr, there is no prompt, echo or CRLF conversion, and binary data is preserved. When stdin reaches end-of-file, the remote process reads end-of-file too. Status messages are written to stderr only when stderr is a terminal. scottyctl exits with the exit code of the remote process.
+
+> **Changed behavior:** `--command` used to run with a remote tty. It now runs without one unless `-t` is given, so its output no longer contains CRLF line endings or terminal control sequences, and its stderr goes to local stderr.
 
 ### Examples
 
@@ -178,6 +193,22 @@ Run a script and capture its exit code:
 ```shell
 scottyctl app:shell my-app web --command "/app/scripts/healthcheck.sh"
 echo "Exit code: $?"
+```
+
+Pipe commands into a shell, for example from a script or a CI job:
+```shell
+printf 'cd /app\nphp artisan migrate --force\n' | scottyctl app:shell my-app web --shell /bin/sh
+```
+
+Stream a file into and out of a container:
+```shell
+scottyctl app:shell my-app db -i -c 'mysql app' < dump.sql
+scottyctl app:shell my-app db -c 'mysqldump app | gzip' > dump.sql.gz
+```
+
+Run a command with terminal output (colors, progress bars), without forwarding stdin:
+```shell
+scottyctl app:shell my-app web -t -c 'composer install'
 ```
 
 ## Copy files to or from an app service

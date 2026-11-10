@@ -68,11 +68,11 @@ async fn expect_error(rx: &mut broadcast::Receiver<Message>) -> String {
 }
 
 fn input(session_id: Uuid, data: &str) -> WebSocketMessage {
-    WebSocketMessage::ShellSessionData(ShellSessionData {
+    WebSocketMessage::ShellSessionData(ShellSessionData::text(
         session_id,
-        data_type: ShellDataType::Input,
-        data: data.to_string(),
-    })
+        ShellDataType::Input,
+        data,
+    ))
 }
 
 #[tokio::test]
@@ -102,9 +102,117 @@ async fn owner_shell_input_is_delivered() {
     handle_websocket_message(&state, owner, &input(session_id, "ls\n")).await;
 
     match session_rx.try_recv() {
-        Ok(ShellCommand::Input(data)) => assert_eq!(data, "ls\n"),
+        Ok(ShellCommand::Input(data)) => assert_eq!(data, b"ls\n"),
         other => panic!("expected input to reach the shell, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn owner_base64_shell_input_is_decoded() {
+    let state = app_state().await;
+    let (owner, _owner_rx) = connect(&state, Some("owner@example.com")).await;
+    let (session_id, mut session_rx) = state.shell_service.insert_test_session("app", owner).await;
+
+    let bytes = [0x00, 0xff, 0x80, b'\n'];
+    let msg = WebSocketMessage::ShellSessionData(ShellSessionData::binary(
+        session_id,
+        ShellDataType::Input,
+        &bytes,
+    ));
+    handle_websocket_message(&state, owner, &msg).await;
+
+    match session_rx.try_recv() {
+        Ok(ShellCommand::Input(data)) => assert_eq!(data, bytes),
+        other => panic!("expected decoded input to reach the shell, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn invalid_base64_shell_input_is_rejected() {
+    let state = app_state().await;
+    let (owner, mut owner_rx) = connect(&state, Some("owner@example.com")).await;
+    let (session_id, mut session_rx) = state.shell_service.insert_test_session("app", owner).await;
+
+    let mut data = ShellSessionData::text(session_id, ShellDataType::Input, "not base64!");
+    data.encoding = Some(scotty_types::ShellDataEncoding::Base64);
+    handle_websocket_message(&state, owner, &WebSocketMessage::ShellSessionData(data)).await;
+
+    assert!(expect_error(&mut owner_rx).await.contains("base64"));
+    assert!(
+        session_rx.try_recv().is_err(),
+        "input must not reach the shell"
+    );
+}
+
+#[tokio::test]
+async fn owner_can_close_shell_stdin() {
+    let state = app_state().await;
+    let (owner, _owner_rx) = connect(&state, Some("owner@example.com")).await;
+    let (session_id, mut session_rx) = state.shell_service.insert_test_session("app", owner).await;
+
+    handle_websocket_message(
+        &state,
+        owner,
+        &WebSocketMessage::CloseShellStdin { session_id },
+    )
+    .await;
+
+    assert!(matches!(
+        session_rx.try_recv(),
+        Ok(ShellCommand::CloseStdin)
+    ));
+}
+
+#[tokio::test]
+async fn unauthenticated_close_shell_stdin_is_rejected() {
+    let state = app_state().await;
+    let (owner, _owner_rx) = connect(&state, Some("owner@example.com")).await;
+    let (session_id, mut session_rx) = state.shell_service.insert_test_session("app", owner).await;
+    let (anon, mut anon_rx) = connect(&state, None).await;
+
+    handle_websocket_message(
+        &state,
+        anon,
+        &WebSocketMessage::CloseShellStdin { session_id },
+    )
+    .await;
+
+    assert!(expect_error(&mut anon_rx)
+        .await
+        .contains("Authentication required"));
+    assert!(session_rx.try_recv().is_err(), "stdin must stay open");
+}
+
+#[tokio::test]
+async fn resize_of_session_without_tty_is_ignored() {
+    let state = app_state().await;
+    let (owner, mut owner_rx) = connect(&state, Some("owner@example.com")).await;
+    let (session_id, mut session_rx) = state
+        .shell_service
+        .insert_test_session_without_tty("app", owner)
+        .await;
+
+    handle_websocket_message(
+        &state,
+        owner,
+        &WebSocketMessage::ResizeShellTty {
+            session_id,
+            width: 80,
+            height: 24,
+        },
+    )
+    .await;
+
+    assert!(
+        session_rx.try_recv().is_err(),
+        "resize must not reach the exec"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), owner_rx.recv())
+            .await
+            .is_err(),
+        "resize must not produce an error"
+    );
 }
 
 #[tokio::test]
@@ -121,6 +229,7 @@ async fn other_user_cannot_control_session() {
             width: 80,
             height: 24,
         },
+        WebSocketMessage::CloseShellStdin { session_id },
         WebSocketMessage::TerminateShellSession { session_id },
     ];
     for msg in &messages {

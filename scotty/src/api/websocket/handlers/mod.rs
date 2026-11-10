@@ -162,6 +162,10 @@ pub async fn handle_websocket_message(
             shell::handle_terminate_shell_session(state, client_id, *session_id).await;
         }
 
+        WebSocketMessage::CloseShellStdin { session_id } => {
+            shell::handle_close_shell_stdin(state, client_id, *session_id).await;
+        }
+
         _ => {
             warn!("Unhandled WebSocket message type: {:?}", msg);
         }

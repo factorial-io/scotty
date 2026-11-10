@@ -1,0 +1,396 @@
+//! End-to-end tests for shell sessions without a tty (`docker exec -i` style).
+//!
+//! They drive the real WebSocket message dispatcher against a real container,
+//! covering the `container-shell` spec: stdin forwarding, closing stdin,
+//! separate stdout/stderr, binary-safe data and exit codes.
+//!
+//! Marked #[ignore] because they need a Docker daemon and the `alpine:3.20`
+//! image. Run locally with:
+//! cargo test -p scotty --test test_shell_no_tty_e2e -- --ignored --nocapture
+
+use std::path::Path;
+use std::process::Command;
+use std::time::Duration;
+
+use axum::extract::ws::Message;
+use scotty::api::auth_core::CurrentUser;
+use scotty::api::test_utils::create_test_app_state_with_policy_dir;
+use scotty::api::websocket::handlers::handle_websocket_message;
+use scotty::app_state::{SharedAppState, WebSocketClient};
+use scotty_core::apps::app_data::{AppData, ContainerState, ContainerStatus};
+use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{ShellDataType, ShellSessionData, ShellSessionRequest};
+use tokio::sync::broadcast;
+use uuid::Uuid;
+
+const APP: &str = "shell-e2e";
+const IMAGE: &str = "alpine:3.20";
+const TIMEOUT: Duration = Duration::from_secs(30);
+
+/// A throwaway container, removed on drop.
+struct TestContainer(String);
+
+impl TestContainer {
+    fn start() -> Self {
+        let out = Command::new("docker")
+            .args(["run", "-d", "--rm", IMAGE, "sleep", "600"])
+            .output()
+            .expect("docker must be installed");
+        assert!(
+            out.status.success(),
+            "docker run failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        Self(String::from_utf8(out.stdout).unwrap().trim().to_string())
+    }
+}
+
+impl Drop for TestContainer {
+    fn drop(&mut self) {
+        let _ = Command::new("docker").args(["rm", "-f", &self.0]).output();
+    }
+}
+
+/// What a session produced until `ShellSessionEnded`.
+#[derive(Debug, Default)]
+struct Outcome {
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    exit_code: Option<i32>,
+    /// Number of data messages without an `encoding`.
+    plain_text_messages: usize,
+    errors: Vec<String>,
+}
+
+struct Harness {
+    state: SharedAppState,
+    client_id: Uuid,
+    rx: broadcast::Receiver<Message>,
+    _policy_dir: tempfile::TempDir,
+    _container: TestContainer,
+}
+
+impl Harness {
+    async fn new() -> Self {
+        init_metrics_once();
+
+        // Work on a copy of the fixture policy: assigning app scopes writes
+        // the policy file.
+        let policy_dir = tempfile::tempdir().unwrap();
+        for file in ["model.conf", "policy.yaml"] {
+            std::fs::copy(
+                Path::new("tests/fixtures/casbin").join(file),
+                policy_dir.path().join(file),
+            )
+            .unwrap();
+        }
+        let settings: scotty::settings::config::Settings = config::Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        let state = create_test_app_state_with_policy_dir(
+            settings,
+            None,
+            policy_dir.path().to_str().unwrap(),
+        )
+        .await;
+
+        let container = TestContainer::start();
+        let web = ContainerState {
+            status: ContainerStatus::Running,
+            id: Some(container.0.clone()),
+            service: "web".to_string(),
+            ..Default::default()
+        };
+        state
+            .apps
+            .add_app(AppData::new(
+                APP,
+                "/tmp/shell-e2e",
+                "/tmp/shell-e2e/docker-compose.yml",
+                vec![web],
+                None,
+            ))
+            .await
+            .unwrap();
+        state
+            .auth_service
+            .set_app_scopes(APP, vec!["default".to_string()])
+            .await
+            .unwrap();
+
+        let client_id = Uuid::new_v4();
+        let (tx, rx) = broadcast::channel(4096);
+        state
+            .messenger
+            .add_client(client_id, WebSocketClient::new(tx))
+            .await;
+        state
+            .messenger
+            .authenticate_client(
+                client_id,
+                CurrentUser {
+                    email: "identifier:admin".to_string(),
+                    name: "admin".to_string(),
+                    picture: None,
+                    access_token: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        Self {
+            state,
+            client_id,
+            rx,
+            _policy_dir: policy_dir,
+            _container: container,
+        }
+    }
+
+    async fn send(&self, msg: WebSocketMessage) {
+        handle_websocket_message(&self.state, self.client_id, &msg).await;
+    }
+
+    async fn next_message(&mut self) -> WebSocketMessage {
+        loop {
+            let msg = tokio::time::timeout(TIMEOUT, self.rx.recv())
+                .await
+                .expect("timed out waiting for a WebSocket message")
+                .expect("message channel closed");
+            if let Message::Text(text) = msg {
+                if let Ok(parsed) = serde_json::from_str(&text) {
+                    return parsed;
+                }
+            }
+        }
+    }
+
+    async fn create(&mut self, command: Option<&str>, tty: bool) -> Uuid {
+        self.send(WebSocketMessage::CreateShellSession(ShellSessionRequest {
+            app_name: APP.to_string(),
+            service_name: "web".to_string(),
+            shell_command: command.map(str::to_string),
+            tty,
+        }))
+        .await;
+        loop {
+            match self.next_message().await {
+                WebSocketMessage::ShellSessionCreated(info) => return info.session_id,
+                WebSocketMessage::Error(err) => panic!("session creation failed: {err}"),
+                _ => continue,
+            }
+        }
+    }
+
+    async fn input(&self, session_id: Uuid, bytes: &[u8]) {
+        self.send(WebSocketMessage::ShellSessionData(
+            ShellSessionData::binary(session_id, ShellDataType::Input, bytes),
+        ))
+        .await;
+    }
+
+    async fn close_stdin(&self, session_id: Uuid) {
+        self.send(WebSocketMessage::CloseShellStdin { session_id })
+            .await;
+    }
+
+    /// Record one message into `outcome`; returns true once the session ended.
+    fn record(outcome: &mut Outcome, session_id: Uuid, msg: WebSocketMessage) -> bool {
+        match msg {
+            WebSocketMessage::ShellSessionData(data) if data.session_id == session_id => {
+                if data.encoding.is_none() {
+                    outcome.plain_text_messages += 1;
+                }
+                let bytes = data.bytes().expect("output must decode");
+                match data.data_type {
+                    ShellDataType::Stderr => outcome.stderr.extend(bytes),
+                    _ => outcome.stdout.extend(bytes),
+                }
+                false
+            }
+            WebSocketMessage::ShellSessionEnded(end) if end.session_id == session_id => {
+                outcome.exit_code = end.exit_code;
+                true
+            }
+            WebSocketMessage::ShellSessionError(err) => {
+                outcome.errors.push(err.error);
+                false
+            }
+            WebSocketMessage::Error(err) => {
+                outcome.errors.push(err);
+                false
+            }
+            _ => false,
+        }
+    }
+
+    async fn run_to_end(&mut self, session_id: Uuid) -> Outcome {
+        let mut outcome = Outcome::default();
+        loop {
+            let msg = self.next_message().await;
+            if Self::record(&mut outcome, session_id, msg) {
+                return outcome;
+            }
+        }
+    }
+
+    /// Read stdout until it ends with `marker`; returns everything read.
+    async fn read_stdout_until(&mut self, session_id: Uuid, marker: &[u8]) -> Vec<u8> {
+        let mut outcome = Outcome::default();
+        while !outcome.stdout.ends_with(marker) {
+            let msg = self.next_message().await;
+            assert!(
+                !Self::record(&mut outcome, session_id, msg),
+                "session ended before {:?} arrived; got {:?}",
+                String::from_utf8_lossy(marker),
+                outcome
+            );
+        }
+        outcome.stdout
+    }
+}
+
+fn init_metrics_once() {
+    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
+    {
+        static INIT: std::sync::Once = std::sync::Once::new();
+        INIT.call_once(|| {
+            scotty::metrics::init_metrics().expect("failed to initialise metrics");
+        });
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn stdin_without_tty_runs_commands_and_propagates_exit_code() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("/bin/sh"), false).await;
+
+    h.input(session_id, b"echo hello\nexit 3\n").await;
+    h.close_stdin(session_id).await;
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(String::from_utf8_lossy(&outcome.stdout), "hello\n");
+    assert!(outcome.stderr.is_empty(), "{outcome:?}");
+    assert_eq!(outcome.exit_code, Some(3));
+    assert_eq!(
+        outcome.plain_text_messages, 0,
+        "non-tty data must be base64"
+    );
+    assert!(outcome.errors.is_empty(), "{outcome:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn stdout_and_stderr_stay_separate() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("echo out; echo err >&2"), false).await;
+    h.close_stdin(session_id).await;
+
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout, b"out\n");
+    assert_eq!(outcome.stderr, b"err\n");
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn closing_stdin_ends_cat_and_data_is_byte_exact() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("cat"), false).await;
+
+    // Every byte value, repeated to span several Docker frames.
+    let payload: Vec<u8> = (0..=255u8).cycle().take(256 * 1024).collect();
+    for chunk in payload.chunks(16 * 1024) {
+        h.input(session_id, chunk).await;
+    }
+    h.close_stdin(session_id).await;
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout.len(), payload.len());
+    assert!(outcome.stdout == payload, "output differs from input");
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn binary_output_is_preserved() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some(r"printf '\000\377\200\n'"), false).await;
+    h.close_stdin(session_id).await;
+
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout, [0x00, 0xff, 0x80, b'\n']);
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn long_running_shell_is_driven_command_by_command() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("/bin/sh"), false).await;
+
+    // The phabalicious pattern: write one command, read until a marker.
+    h.input(session_id, b"echo first; echo __DONE__\n").await;
+    let out = h.read_stdout_until(session_id, b"__DONE__\n").await;
+    assert_eq!(out, b"first\n__DONE__\n");
+
+    h.input(session_id, b"x=42; echo \"x=$x\"; echo __DONE__\n")
+        .await;
+    let out = h.read_stdout_until(session_id, b"__DONE__\n").await;
+    assert_eq!(out, b"x=42\n__DONE__\n");
+
+    h.input(session_id, b"exit 0\n").await;
+    let outcome = h.run_to_end(session_id).await;
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn command_without_stdin_sees_eof() {
+    let mut h = Harness::new().await;
+    // Without stdin forwarding the client closes stdin right away; `cat`
+    // must end instead of waiting forever.
+    let session_id = h.create(Some("cat; echo end"), false).await;
+    h.close_stdin(session_id).await;
+
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout, b"end\n");
+    assert_eq!(outcome.exit_code, Some(0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn input_after_closing_stdin_is_ignored() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("cat"), false).await;
+    h.input(session_id, b"before\n").await;
+    h.close_stdin(session_id).await;
+    h.input(session_id, b"after\n").await;
+
+    let outcome = h.run_to_end(session_id).await;
+
+    assert_eq!(outcome.stdout, b"before\n");
+    assert_eq!(outcome.exit_code, Some(0));
+    assert!(outcome.errors.is_empty(), "{outcome:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn tty_session_is_unchanged() {
+    let mut h = Harness::new().await;
+    let session_id = h.create(Some("printf 'a\\n'; exit 5"), true).await;
+
+    let outcome = h.run_to_end(session_id).await;
+
+    // A tty translates LF to CRLF and the data stays plain text.
+    assert_eq!(String::from_utf8_lossy(&outcome.stdout), "a\r\n");
+    assert!(outcome.plain_text_messages > 0);
+    assert_eq!(outcome.exit_code, Some(5));
+}

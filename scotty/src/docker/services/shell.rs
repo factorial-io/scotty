@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, RwLock};
+use tokio::time::Duration;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -57,6 +58,8 @@ pub struct ShellSession {
     pub exec_id: String,
     pub sender: mpsc::Sender<ShellCommand>,
     pub client_id: Uuid, // WebSocket client that owns this session
+    /// Whether the exec runs with a tty
+    pub tty: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -94,8 +97,13 @@ impl ShellSession {
 /// Commands that can be sent to a shell session
 #[derive(Debug)]
 pub enum ShellCommand {
-    Input(String),
-    Resize { width: u16, height: u16 },
+    Input(Vec<u8>),
+    Resize {
+        width: u16,
+        height: u16,
+    },
+    /// Close the exec's stdin so the process reads end-of-file
+    CloseStdin,
     Terminate,
 }
 
@@ -157,6 +165,34 @@ fn audit_log_session_ended(
     );
 }
 
+/// How often and how long to poll Docker for the exit code once the output
+/// stream of an exec has closed. Docker may still report the exec as running
+/// for a moment after its streams are closed.
+const EXIT_CODE_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const EXIT_CODE_POLL_ATTEMPTS: u32 = 60;
+
+/// Read the exit code of a finished exec, waiting briefly for Docker to
+/// record it.
+async fn wait_for_exit_code(docker: &Docker, exec_id: &str) -> Option<i32> {
+    for _ in 0..EXIT_CODE_POLL_ATTEMPTS {
+        match docker.inspect_exec(exec_id).await {
+            Ok(info) if info.running == Some(false) => {
+                return info.exit_code.map(|c| c as i32);
+            }
+            Ok(_) => tokio::time::sleep(EXIT_CODE_POLL_INTERVAL).await,
+            Err(e) => {
+                warn!("Failed to inspect exec {}: {}", exec_id, e);
+                return None;
+            }
+        }
+    }
+    warn!(
+        "Exec {} still reported as running after its output closed",
+        exec_id
+    );
+    None
+}
+
 /// Service for managing container shell sessions
 #[derive(Debug, Clone)]
 pub struct ShellService {
@@ -181,6 +217,7 @@ impl ShellService {
         app_data: &AppData,
         service_name: &str,
         shell_command: Option<String>,
+        tty: bool,
         client_id: Uuid, // WebSocket client ID
     ) -> ShellServiceResult<Uuid> {
         // Check session limits
@@ -241,7 +278,7 @@ impl ShellService {
             attach_stdin: Some(true),
             attach_stdout: Some(true),
             attach_stderr: Some(true),
-            tty: Some(true),
+            tty: Some(tty),
             cmd: Some(vec!["sh", "-c", shell_cmd.as_str()]),
             env: if env_refs.is_empty() {
                 None
@@ -265,7 +302,7 @@ impl ShellService {
         // Start exec instance
         let start_options = StartExecOptions {
             detach: false,
-            tty: true,
+            tty,
             ..Default::default()
         };
 
@@ -289,6 +326,7 @@ impl ShellService {
             exec_id: exec_id.clone(),
             sender: tx,
             client_id,
+            tty,
             created_at: chrono::Utc::now(),
         };
 
@@ -310,6 +348,7 @@ impl ShellService {
             service_name = %service_name,
             container_id = %container_id,
             shell_command = %shell_cmd,
+            tty = tty,
             "Shell session created for compliance audit"
         );
 
@@ -366,6 +405,7 @@ impl ShellService {
                         tokio::time::interval(tokio::time::Duration::from_millis(500));
                     status_check_interval
                         .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                    let mut stdin_closed = false;
 
                     loop {
                         tokio::select! {
@@ -399,8 +439,12 @@ impl ShellService {
                                 break;
                             }
 
-                            // Periodically check if exec is still running (important for TTY mode)
-                            _ = status_check_interval.tick() => {
+                            // Periodically check if exec is still running. Only for
+                            // TTY mode, where a background process can keep the pty
+                            // (and therefore the output stream) open after the shell
+                            // exited. Without a TTY the output stream closes when the
+                            // process exits, after all output was delivered.
+                            _ = status_check_interval.tick(), if tty => {
                                 match docker.inspect_exec(&exec_id).await {
                                     Ok(exec_info) => {
                                         if let Some(running) = exec_info.running {
@@ -445,7 +489,11 @@ impl ShellService {
                             Some(cmd) = rx.recv() => {
                                 match cmd {
                                     ShellCommand::Input(data) => {
-                                        if let Err(e) = input.write_all(data.as_bytes()).await {
+                                        if stdin_closed {
+                                            warn!("Dropping {} bytes of input for shell session {}: stdin is closed", data.len(), session_id);
+                                            continue;
+                                        }
+                                        if let Err(e) = input.write_all(&data).await {
                                             error!("Failed to write to shell {}: {}", session_id, e);
                                             let duration_secs = session_start.elapsed().as_secs_f64();
                                             crate::metrics::shell::record_session_error(duration_secs);
@@ -474,6 +522,15 @@ impl ShellService {
                                         }
                                         if let Err(e) = input.flush().await {
                                             error!("Failed to flush shell input {}: {}", session_id, e);
+                                        }
+                                    }
+                                    ShellCommand::CloseStdin => {
+                                        if !stdin_closed {
+                                            stdin_closed = true;
+                                            info!("Closing stdin of shell session {}", session_id);
+                                            if let Err(e) = input.shutdown().await {
+                                                warn!("Failed to close stdin of shell session {}: {}", session_id, e);
+                                            }
                                         }
                                     }
                                     ShellCommand::Resize { width, height } => {
@@ -517,38 +574,39 @@ impl ShellService {
                             }
 
                             // Read output from shell stream
-                            Some(result) = output.next() => {
+                            result = output.next() => {
                                 match result {
-                                    Ok(log_output) => {
+                                    Some(Ok(log_output)) => {
                                         use bollard::container::LogOutput;
-                                        let output_data = match log_output {
-                                            LogOutput::StdOut { message } => {
-                                                String::from_utf8_lossy(&message).to_string()
-                                            }
-                                            LogOutput::StdErr { message } => {
-                                                String::from_utf8_lossy(&message).to_string()
-                                            }
-                                            LogOutput::Console { message } => {
-                                                // TTY mode sends output as Console
-                                                String::from_utf8_lossy(&message).to_string()
-                                            }
+                                        let (data_type, message) = match log_output {
+                                            LogOutput::StdOut { message } => (ShellDataType::Output, message),
+                                            LogOutput::StdErr { message } => (ShellDataType::Stderr, message),
+                                            // TTY mode sends output as Console
+                                            LogOutput::Console { message } => (ShellDataType::Output, message),
                                             LogOutput::StdIn { .. } => continue, // Skip stdin
+                                        };
+                                        // With a TTY, keep plain text for existing clients.
+                                        // Without one, send the exact bytes.
+                                        let data = if tty {
+                                            ShellSessionData::text(
+                                                session_id,
+                                                data_type,
+                                                String::from_utf8_lossy(&message),
+                                            )
+                                        } else {
+                                            ShellSessionData::binary(session_id, data_type, &message)
                                         };
 
                                         // If we can't send output, client is gone - terminate session
                                         if let Err(e) = app_state.messenger.send_to_client(
                                             client_id,
-                                            WebSocketMessage::ShellSessionData(ShellSessionData {
-                                                session_id,
-                                                data_type: ShellDataType::Output,
-                                                data: output_data,
-                                            }),
+                                            WebSocketMessage::ShellSessionData(data),
                                         ).await {
                                             warn!("Failed to send output to client {}: {} - terminating session", client_id, e);
                                             break;
                                         }
                                     }
-                                    Err(e) => {
+                                    Some(Err(e)) => {
                                         error!("Failed to read from shell stream {}: {}", session_id, e);
                                         let duration_secs = session_start.elapsed().as_secs_f64();
                                         crate::metrics::shell::record_session_error(duration_secs);
@@ -563,24 +621,37 @@ impl ShellService {
                                         }
                                         break;
                                     }
+                                    // Stream closed: the process exited and all of
+                                    // its output has been forwarded.
+                                    None => {
+                                        info!("Shell session {} ended (stream closed)", session_id);
+                                        let exit_code = wait_for_exit_code(&docker, &exec_id).await;
+                                        let duration_secs = session_start.elapsed().as_secs_f64();
+                                        crate::metrics::shell::record_session_ended(duration_secs);
+
+                                        audit_log_session_ended(
+                                            session_id,
+                                            client_id,
+                                            &app_name_clone,
+                                            &service_name_clone,
+                                            duration_secs,
+                                            "Shell exited",
+                                            exit_code,
+                                        );
+
+                                        if let Err(e) = app_state.messenger.send_to_client(
+                                            client_id,
+                                            WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
+                                                session_id,
+                                                exit_code,
+                                                reason: "Shell exited".to_string(),
+                                            }),
+                                        ).await {
+                                            warn!("Failed to send session end message to client {}: {}", client_id, e);
+                                        }
+                                        break;
+                                    }
                                 }
-                            }
-                            // Stream ended
-                            else => {
-                                info!("Shell session {} ended (stream closed)", session_id);
-                                let duration_secs = session_start.elapsed().as_secs_f64();
-                                crate::metrics::shell::record_session_ended(duration_secs);
-                                if let Err(e) = app_state.messenger.send_to_client(
-                                    client_id,
-                                    WebSocketMessage::ShellSessionEnded(ShellSessionEnd {
-                                        session_id,
-                                        exit_code: Some(0),
-                                        reason: "Shell exited".to_string(),
-                                    }),
-                                ).await {
-                                    warn!("Failed to send session end message to client {}: {}", client_id, e);
-                                }
-                                break;
                             }
                         }
                     }
@@ -637,7 +708,7 @@ impl ShellService {
         &self,
         session_id: Uuid,
         client_id: Uuid,
-        input: String,
+        input: Vec<u8>,
     ) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
         Self::owned_session(&sessions, session_id, client_id)?
@@ -645,7 +716,9 @@ impl ShellService {
             .await
     }
 
-    /// Resize the TTY of a shell session owned by `client_id`
+    /// Resize the TTY of a shell session owned by `client_id`.
+    ///
+    /// Sessions without a TTY have nothing to resize; the request is ignored.
     pub async fn resize_tty(
         &self,
         session_id: Uuid,
@@ -654,8 +727,21 @@ impl ShellService {
         height: u16,
     ) -> ShellServiceResult<()> {
         let sessions = self.active_sessions.read().await;
-        Self::owned_session(&sessions, session_id, client_id)?
+        let session = Self::owned_session(&sessions, session_id, client_id)?;
+        if !session.tty {
+            return Ok(());
+        }
+        session
             .send_command(ShellCommand::Resize { width, height })
+            .await
+    }
+
+    /// Close the stdin of a shell session owned by `client_id`, so the
+    /// process reads end-of-file. Output keeps flowing until it exits.
+    pub async fn close_stdin(&self, session_id: Uuid, client_id: Uuid) -> ShellServiceResult<()> {
+        let sessions = self.active_sessions.read().await;
+        Self::owned_session(&sessions, session_id, client_id)?
+            .send_command(ShellCommand::CloseStdin)
             .await
     }
 
@@ -703,6 +789,28 @@ impl ShellService {
         app_name: &str,
         client_id: Uuid,
     ) -> (Uuid, mpsc::Receiver<ShellCommand>) {
+        self.insert_test_session_with_tty(app_name, client_id, true)
+            .await
+    }
+
+    /// Like [`Self::insert_test_session`], for a session without a TTY.
+    #[cfg(test)]
+    pub(crate) async fn insert_test_session_without_tty(
+        &self,
+        app_name: &str,
+        client_id: Uuid,
+    ) -> (Uuid, mpsc::Receiver<ShellCommand>) {
+        self.insert_test_session_with_tty(app_name, client_id, false)
+            .await
+    }
+
+    #[cfg(test)]
+    async fn insert_test_session_with_tty(
+        &self,
+        app_name: &str,
+        client_id: Uuid,
+        tty: bool,
+    ) -> (Uuid, mpsc::Receiver<ShellCommand>) {
         let (sender, receiver) = mpsc::channel(16);
         let session_id = Uuid::new_v4();
         let session = ShellSession {
@@ -713,6 +821,7 @@ impl ShellService {
             exec_id: "test-exec".to_string(),
             sender,
             client_id,
+            tty,
             created_at: chrono::Utc::now(),
         };
         self.active_sessions
