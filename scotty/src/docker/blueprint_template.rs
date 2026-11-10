@@ -197,6 +197,16 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
     if let Some(schema) = &t.parameters {
         jsonschema::validator_for(schema).map_err(|e| format!("invalid parameter schema: {e}"))?;
     }
+    if let Some(Value::Array(required)) = t.parameters.as_ref().and_then(|s| s.get("required")) {
+        for r in required {
+            if !r
+                .as_str()
+                .is_some_and(|r| properties(t).is_some_and(|p| p.contains_key(r)))
+            {
+                return Err(format!("required {r} is not a declared property"));
+            }
+        }
+    }
     for (key, prop) in properties(t).into_iter().flatten() {
         // Parameters end up as environment variables, so only scalars.
         if !prop
@@ -299,8 +309,13 @@ pub fn apply(
     Ok((settings, merged))
 }
 
-/// `compose.*.yml`, `docker-compose.override.yaml` and the like: override files
-/// Compose merges, or Scotty writes itself.
+/// A compose file or a variant such as `docker-compose.override.yml`, which
+/// Compose merges or Scotty writes itself, in any directory. Used both by
+/// the `create:<blueprint>` check and by `merge_files`.
+pub fn is_compose_file(name: &str) -> bool {
+    is_valid_config_file(name) || is_compose_variant(std::path::Path::new(name))
+}
+
 fn is_compose_variant(path: &std::path::Path) -> bool {
     let name = path
         .file_name()
@@ -336,7 +351,7 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
             .any(|c| c == std::path::Component::ParentDir)
         {
             Some("path contains ..")
-        } else if is_valid_config_file(name) || is_compose_variant(path) {
+        } else if is_compose_file(name) {
             Some("compose files are supplied by the blueprint")
         } else if t.files.iter().any(|b| b.name.eq_ignore_ascii_case(name)) {
             Some("would replace a blueprint file")
@@ -563,6 +578,11 @@ mod tests {
                 json!({"type": "object", "properties": {"X": {"enum": ["a"]}}}),
                 vec![],
                 "type must be",
+            ),
+            (
+                json!({"type": "object", "required": ["Y"], "properties": {}}),
+                vec![],
+                "not a declared property",
             ),
             (
                 json!({"type": "object"}),

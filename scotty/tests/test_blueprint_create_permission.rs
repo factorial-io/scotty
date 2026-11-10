@@ -118,6 +118,13 @@ async fn restricted_user_is_forbidden_elsewhere() {
     for (case, body) in [
         ("caller compose", request(Some("demo-template"), &[COMPOSE])),
         (
+            "caller override file",
+            request(
+                Some("demo-template"),
+                &[("./html/compose.override.yml", "services: {}")],
+            ),
+        ),
+        (
             "other blueprint",
             request(Some("test-blueprint"), &[COMPOSE]),
         ),

@@ -13,4 +13,5 @@ source = "**"
 [advanced.headers.headers]
 Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 X-Content-Type-Options = "nosniff"
+Referrer-Policy = "no-referrer"
 X-Robots-Tag = "noindex"

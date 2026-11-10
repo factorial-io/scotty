@@ -40,7 +40,7 @@ Granular actions users can perform on applications and the system:
 
 Scotty refuses to start when a role lists an unknown or malformed permission (e.g. `create:` without a blueprint name). Scotty versions before templated blueprints read any unknown permission, including `create:<blueprint>`, as `*`. Don't use a policy with `create:<blueprint>` on an older Scotty.
 
-Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with `create:<blueprint>`: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes.
+Creating an app that already exists updates it. That also requires create rights in the existing app's scopes (with `create:<blueprint>`: only for apps created from that blueprint), and the requested scopes must equal the app's current scopes. As for every app permission, rights in one of a multi-scope app's scopes are enough.
 
 **Custom Action Permissions** (for per-app custom actions):
 - `action_read` - Execute read-only custom actions (no side effects)

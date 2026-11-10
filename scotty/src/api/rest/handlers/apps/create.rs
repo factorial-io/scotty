@@ -102,7 +102,7 @@ pub async fn create_app_handler(
                 .files
                 .files
                 .iter()
-                .any(|f| scotty_core::utils::compose::is_valid_config_file(&f.name))
+                .any(|f| crate::docker::blueprint_template::is_compose_file(&f.name))
         });
     let allowed = auth_service
         .check_create_in_scopes(&user_id, &payload.requested_scopes, templated_blueprint)
@@ -246,7 +246,10 @@ pub async fn create_app_handler(
     let file_list = FileList { files };
 
     // Set the default settings for the app.
-    let settings = payload.settings.clone();
+    let mut settings = payload.settings.clone();
+    // Scotty records these for templated blueprints; never from the caller.
+    settings.blueprint_hash = None;
+    settings.generated_parameters.clear();
     let settings = settings.merge_with_global_settings(&state.settings.apps, &payload.app_name);
 
     // Apply blueprint settings, if any.
