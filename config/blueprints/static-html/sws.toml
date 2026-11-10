@@ -1,0 +1,17 @@
+# static-web-server config, see https://static-web-server.net/configuration/config-file/
+[general]
+root = "/public"
+port = 80
+directory-listing = false
+
+[advanced]
+
+# Untrusted HTML: no plugins, no framing, no form posts or <base> elsewhere.
+# Inline scripts and https: CDNs stay allowed, since generated artifacts use them.
+[[advanced.headers]]
+source = "**"
+[advanced.headers.headers]
+Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "no-referrer"
+X-Robots-Tag = "noindex"

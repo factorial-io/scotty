@@ -1,0 +1,13 @@
+name: Static HTML
+description: Serves the uploaded html/ folder as a static site (e.g. HTML artifacts)
+required_services: [web]
+public_services:
+  web: 80
+actions: {}
+template:
+  images:
+    - joseluisq/static-web-server:2.44.1-alpine
+  payload:
+    - "html/**"
+  # ponytail: set per deployment via apps.blueprint_domain_suffixes.static-html,
+  # ideally a separate registrable domain with a wildcard certificate.

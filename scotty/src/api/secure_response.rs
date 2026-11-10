@@ -19,6 +19,16 @@ use scotty_core::{
 #[derive(Debug, Clone)]
 pub struct SecureJson<T>(pub T);
 
+/// Masks sensitive values and drops Scotty-generated blueprint parameters
+/// entirely: masking only covers keys that look sensitive by name.
+fn sanitize(settings: &mut AppSettings) {
+    let mut env = settings.environment.to_masked_hashmap();
+    for key in &settings.generated_parameters {
+        env.remove(key);
+    }
+    settings.environment = SecretHashMap::from_hashmap(env);
+}
+
 /// Implementation for AppData
 impl IntoResponse for SecureJson<AppData> {
     fn into_response(self) -> axum::response::Response {
@@ -26,8 +36,7 @@ impl IntoResponse for SecureJson<AppData> {
 
         // Mask sensitive environment variables if settings exist
         if let Some(settings) = app_data.settings.as_mut() {
-            let masked_env = settings.environment.to_masked_hashmap();
-            settings.environment = SecretHashMap::from_hashmap(masked_env);
+            sanitize(settings);
         }
 
         Json(app_data).into_response()
@@ -42,8 +51,7 @@ impl IntoResponse for SecureJson<AppDataVec> {
         // Process each app in the vector
         for app in &mut apps_vec.apps {
             if let Some(settings) = app.settings.as_mut() {
-                let masked_env = settings.environment.to_masked_hashmap();
-                settings.environment = SecretHashMap::from_hashmap(masked_env);
+                sanitize(settings);
             }
         }
 
@@ -55,8 +63,7 @@ impl IntoResponse for SecureJson<AppDataVec> {
 impl IntoResponse for SecureJson<AppSettings> {
     fn into_response(self) -> axum::response::Response {
         let mut settings = self.0;
-        let masked_env = settings.environment.to_masked_hashmap();
-        settings.environment = SecretHashMap::from_hashmap(masked_env);
+        sanitize(&mut settings);
 
         Json(settings).into_response()
     }
@@ -69,8 +76,7 @@ impl IntoResponse for SecureJson<RunningAppContext> {
 
         // Mask sensitive environment variables if settings exist
         if let Some(settings) = running_context.app_data.settings.as_mut() {
-            let masked_env = settings.environment.to_masked_hashmap();
-            settings.environment = SecretHashMap::from_hashmap(masked_env);
+            sanitize(settings);
         }
 
         Json(running_context).into_response()

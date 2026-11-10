@@ -71,6 +71,43 @@ pub struct AppState {
     pub session_server: Option<oauth::server::SessionServer>,
     /// The grantry mcp server (D2), over the same database and secret.
     pub mcp_server: Option<oauth::server::McpServer>,
+    /// Apps with a create in flight.
+    pub create_locks: CreateLocks,
+}
+
+/// Apps (by directory name) with a create in flight.
+///
+/// Create is create-or-update: it reads the existing app from disk, checks
+/// rights against it and keeps its generated secrets. Two creates of the
+/// same app running at once would both decide on the same old state and
+/// each generate their own secrets, the last one winning.
+#[derive(Debug, Clone, Default)]
+pub struct CreateLocks(Arc<std::sync::Mutex<std::collections::HashSet<String>>>);
+
+impl CreateLocks {
+    /// Lock `app_dir`, or `None` if a create of it is already running.
+    /// The lock is released when the returned guard is dropped.
+    pub fn try_lock(&self, app_dir: &str) -> Option<CreateLock> {
+        let mut locked = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        locked.insert(app_dir.to_string()).then(|| CreateLock {
+            locks: self.clone(),
+            app_dir: app_dir.to_string(),
+        })
+    }
+}
+
+/// Holds the create lock of one app; see [`CreateLocks`].
+#[derive(Debug)]
+pub struct CreateLock {
+    locks: CreateLocks,
+    app_dir: String,
+}
+
+impl Drop for CreateLock {
+    fn drop(&mut self) {
+        let mut locked = self.locks.0.lock().unwrap_or_else(|e| e.into_inner());
+        locked.remove(&self.app_dir);
+    }
 }
 
 pub type SharedAppState = Arc<AppState>;
@@ -185,6 +222,7 @@ impl AppState {
             oauth_db,
             session_server,
             mcp_server,
+            create_locks: CreateLocks::default(),
         });
 
         Ok(state)
@@ -212,8 +250,27 @@ impl AppState {
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db: None,
+            create_locks: CreateLocks::default(),
             session_server: None,
             mcp_server: None,
         }))
+    }
+}
+
+#[cfg(test)]
+mod create_lock_tests {
+    use super::CreateLocks;
+
+    #[test]
+    fn one_create_per_app_at_a_time() {
+        let locks = CreateLocks::default();
+        let first = locks.try_lock("demo").expect("free");
+        assert!(locks.try_lock("demo").is_none(), "second create must wait");
+        assert!(
+            locks.try_lock("other").is_some(),
+            "other apps are independent"
+        );
+        drop(first);
+        assert!(locks.try_lock("demo").is_some(), "released on drop");
     }
 }

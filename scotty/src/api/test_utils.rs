@@ -131,6 +131,7 @@ pub async fn create_test_app_state_with_policy_dir(
         task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
         settings,
         next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
+        create_locks: Default::default(),
         oauth_db,
         session_server,
         mcp_server,

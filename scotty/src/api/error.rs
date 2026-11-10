@@ -92,6 +92,9 @@ pub enum AppError {
     #[error("Action already exists: {0}")]
     ActionAlreadyExists(String),
 
+    #[error("App {0} is already being created; try again when that finished")]
+    CreateInProgress(String),
+
     #[error("{0}")]
     ActionInvalidState(String),
 
@@ -145,6 +148,7 @@ impl AppError {
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             AppError::ActionNotExecutable(_) => StatusCode::FORBIDDEN,
             AppError::ActionAlreadyExists(_) => StatusCode::CONFLICT,
+            AppError::CreateInProgress(_) => StatusCode::CONFLICT,
             AppError::ActionInvalidState(_) => StatusCode::BAD_REQUEST,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,

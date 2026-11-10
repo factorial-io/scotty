@@ -2,7 +2,7 @@ use anyhow::Context;
 use owo_colors::OwoColorize;
 
 use crate::{
-    api::{get_or_post, wait_for_task},
+    api::{get, get_or_post, wait_for_task},
     cli::CreateCommand,
     context::AppContext,
     utils::{files::collect_files, parsers::parse_env_file},
@@ -15,6 +15,7 @@ use scotty_core::{
         create_app_request::CreateAppRequest,
         file_list::{File, FileList},
     },
+    settings::app_blueprint::AppBlueprintList,
     tasks::running_app_context::RunningAppContext,
     utils::secret::SecretHashMap,
 };
@@ -22,13 +23,58 @@ use std::io::Write;
 
 use super::{format_app_info, get_app_info};
 
+/// Turns `--param KEY=VALUE` strings into JSON values typed by the
+/// blueprint's schema (`integer`, `number`, `boolean`; anything else stays a
+/// string). The server validates the result against the same schema.
+fn typed_parameters(
+    params: &[(String, String)],
+    schema: Option<&serde_json::Value>,
+) -> anyhow::Result<serde_json::Map<String, serde_json::Value>> {
+    use serde_json::Value;
+    params
+        .iter()
+        .map(|(key, raw)| {
+            let ty = schema
+                .and_then(|s| s.pointer(&format!("/properties/{key}/type")))
+                .and_then(Value::as_str);
+            let value = match ty {
+                Some("integer" | "number" | "boolean") => serde_json::from_str(raw)
+                    .with_context(|| format!("--param {key}: {raw:?} is not a {}", ty.unwrap()))?,
+                _ => Value::String(raw.clone()),
+            };
+            Ok((key.clone(), value))
+        })
+        .collect()
+}
+
 /// Create a new app
 pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Result<()> {
     let ui = context.ui();
     ui.new_status_line(format!("Creating app {}...", cmd.app_name.yellow()));
     ui.run(async || {
         ui.new_status_line("Collecting files...");
-        let file_list = collect_files(&cmd.docker_compose_path)?;
+        // ponytail: a templated blueprint may take no files at all; whether a
+        // compose file is required or forbidden is the server's call.
+        let file_list = match &cmd.folder {
+            Some(folder) => collect_files(std::path::Path::new(folder))?,
+            None => FileList { files: vec![] },
+        };
+        let blueprint_parameters = match &cmd.app_blueprint {
+            Some(bp) if !cmd.param.is_empty() => {
+                let result = get(context.server(), "blueprints").await?;
+                let blueprints: AppBlueprintList = serde_json::from_value(result)?;
+                let schema = blueprints
+                    .blueprints
+                    .get(bp)
+                    .and_then(|b| b.template.as_ref())
+                    .and_then(|t| t.parameters.as_ref());
+                typed_parameters(&cmd.param, schema)?
+            }
+            _ if !cmd.param.is_empty() => {
+                anyhow::bail!("--param needs --app-blueprint naming a templated blueprint")
+            }
+            _ => Default::default(),
+        };
 
         // Compress and encode files
         let mut total_original_size = 0;
@@ -127,6 +173,8 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             },
             files: file_list,
             requested_scopes,
+            blueprint_parameters,
+            image: cmd.image.clone(),
         };
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
@@ -167,4 +215,28 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
         format_app_info(&app_data)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::typed_parameters;
+    use serde_json::json;
+
+    #[test]
+    fn params_are_typed_by_schema() {
+        let schema = json!({"properties": {
+            "N": {"type": "integer"}, "B": {"type": "boolean"}, "S": {"type": "string"}
+        }});
+        let p = |k: &str, v: &str| (k.to_string(), v.to_string());
+        let out = typed_parameters(
+            &[p("N", "3"), p("B", "true"), p("S", "42"), p("X", "x")],
+            Some(&schema),
+        )
+        .unwrap();
+        assert_eq!(out["N"], json!(3));
+        assert_eq!(out["B"], json!(true));
+        assert_eq!(out["S"], json!("42"));
+        assert_eq!(out["X"], json!("x"));
+        assert!(typed_parameters(&[p("N", "abc")], Some(&schema)).is_err());
+    }
 }

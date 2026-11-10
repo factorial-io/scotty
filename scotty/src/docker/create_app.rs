@@ -11,6 +11,7 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
+use super::blueprint_template::TemplateInputs;
 use super::helper::run_operation_requested_by;
 use super::rebuild_app::rebuild_steps;
 use super::steps::compose::update_app_data;
@@ -34,8 +35,9 @@ pub async fn create_steps(
     rebuild_steps(ctx, false)
         .await
         .context("Docker compose rebuild failed")?;
-    run_post_actions(ctx, &ActionName::PostCreate).await?;
-    update_app_data(ctx).await
+    // Inspect first, so post_create sees the services and their public URLs.
+    update_app_data(ctx).await?;
+    run_post_actions(ctx, &ActionName::PostCreate).await
 }
 
 async fn validate_app(
@@ -114,6 +116,18 @@ async fn validate_app(
     Ok(docker_compose_file.unwrap().clone())
 }
 
+/// A create request: the app, its settings and files, the inputs for a
+/// templated blueprint, and who asked.
+pub struct CreateRequest<'a> {
+    pub app_name: &'a str,
+    pub settings: &'a AppSettings,
+    pub files: &'a FileList,
+    pub template: TemplateInputs<'a>,
+    pub requested_by: Option<String>,
+    /// Holds the app's create lock until the create finished, if given.
+    pub lock: Option<crate::app_state::CreateLock>,
+}
+
 /// Asynchronously creates a new application by validating input files, preparing application data, and running the creation steps.
 ///
 /// This function validates the provided Docker Compose files and settings, constructs the necessary application directories and metadata, and executes the stepwise creation workflow. Returns a context representing the running application upon successful creation.
@@ -125,23 +139,43 @@ async fn validate_app(
 /// # Examples
 ///
 /// ```no_run
-/// # use scotty::docker::create_app::create_app;
+/// # use scotty::docker::create_app::{create_app, CreateRequest};
 /// # async fn example() {
 /// # let app_state = todo!();
 /// # let settings = todo!();
 /// # let files = todo!();
-/// let result = create_app(app_state, "my-app", &settings, &files, None).await;
+/// let request = CreateRequest {
+///     app_name: "my-app",
+///     settings: &settings,
+///     files: &files,
+///     template: Default::default(),
+///     requested_by: None,
+///     lock: None,
+/// };
+/// let result = create_app(app_state, request).await;
 /// assert!(result.is_ok());
 /// # }
 /// ```
 pub async fn create_app(
     app_state: SharedAppState,
-    app_name: &str,
-    settings: &AppSettings,
-    files: &FileList,
-    requested_by: Option<String>,
+    request: CreateRequest<'_>,
 ) -> anyhow::Result<RunningAppContext> {
+    let CreateRequest {
+        app_name,
+        settings,
+        files,
+        template,
+        requested_by,
+        lock,
+    } = request;
     info!("Creating app: {}", app_name);
+    let blueprint = settings
+        .app_blueprint
+        .as_ref()
+        .and_then(|b| app_state.settings.apps.blueprints.get(b));
+    let (settings, files) =
+        super::blueprint_template::apply(blueprint, &template, app_name, settings, files)?;
+    let (settings, files) = (&settings, &files);
     let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
@@ -170,7 +204,11 @@ pub async fn create_app(
         &app_data,
         requested_by,
         Some(notification),
-        move |ctx| async move { create_steps(&ctx, &settings, &files).await },
+        move |ctx| async move {
+            // Released once the app's settings and files are written.
+            let _lock = lock;
+            create_steps(&ctx, &settings, &files).await
+        },
     )
     .await
 }

@@ -73,7 +73,7 @@ cd apps/traefik && docker compose up -d
 
 Uses Casbin for RBAC. Config: `config/casbin/policy.yaml`. Implementation: `scotty/src/services/authorization/casbin.rs`. Tests: `scotty/tests/authorization_domain_test.rs`.
 
-**Permissions**: `view`, `manage`, `create`, `destroy`, `shell`, `logs`, `admin_read`, `admin_write`, `action_read`, `action_write`, `action_manage`, `action_approve`
+**Permissions**: `view`, `manage`, `create`, `create:<blueprint>` (only that blueprint, no own compose), `destroy`, `shell`, `logs`, `admin_read`, `admin_write`, `action_read`, `action_write`, `action_manage`, `action_approve`
 
 **Assignment matching** (by precedence): exact email (`user@factorial.io`) > domain pattern (`@factorial.io`) > wildcard (`*`). Wildcard is always additive. Domain patterns prevent subdomain attacks. Case-insensitive per RFC 5321.
 
