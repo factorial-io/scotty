@@ -130,7 +130,7 @@ async fn validate_app(
 /// # let app_state = todo!();
 /// # let settings = todo!();
 /// # let files = todo!();
-/// let result = create_app(app_state, "my-app", &settings, &files).await;
+/// let result = create_app(app_state, "my-app", &settings, &files, None).await;
 /// assert!(result.is_ok());
 /// # }
 /// ```
