@@ -7,9 +7,17 @@
   "cargo": {
     "rangeStrategy": "update-lockfile"
   },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 5am on monday"
+    ]
+  },
   "packageRules": [
     {
-      "matchManagers": ["cargo"],
+      "matchManagers": [
+        "cargo"
+      ],
       "rangeStrategy": "update-lockfile",
       "enabled": true
     },
