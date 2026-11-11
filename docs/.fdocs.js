@@ -2,7 +2,7 @@ import config from "@factorial/docs/config.js";
 
 export default function (defaultConfig) {
     // Factorial design layer (content/assets/theme.css), loaded after the fdocs CSS.
-    defaultConfig.addPassthroughCopy({ "content/assets/theme.css": "assets/theme.css" });
+    defaultConfig.addPassthroughCopy("content/assets/**/*.css");
     defaultConfig.addTransform("fac_theme", (content, outputPath) =>
         outputPath?.endsWith(".html")
             ? content.replace("</head>", '<link rel="stylesheet" href="/assets/theme.css"></head>')
