@@ -285,7 +285,7 @@ fn sorted<V>(map: &HashMap<String, V>) -> BTreeMap<&String, &V> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     pub(super) const POLICY: &str = r#"
@@ -305,7 +305,7 @@ assignments:
     - { role: publisher, scopes: [] }
 "#;
 
-    pub(super) fn config(yaml: &str) -> AuthConfig {
+    pub(crate) fn config(yaml: &str) -> AuthConfig {
         serde_norway::from_str(yaml).unwrap()
     }
 
