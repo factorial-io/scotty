@@ -1,6 +1,5 @@
 use super::service::AuthorizationService;
 use super::types::{Permission, PermissionOrWildcard};
-use casbin::{CoreApi, MgmtApi};
 use tempfile::tempdir;
 
 async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {
@@ -681,39 +680,6 @@ async fn test_live_policy_file_app_filtering() {
         .get_user_scopes_with_permissions(hello_world_user)
         .await;
     println!("hello-world scopes: {:?}", hello_world_scopes);
-
-    // Debug Casbin internal state
-    let enforcer = service.get_enforcer_for_testing().await;
-    let enforcer = enforcer.read().await;
-    println!("\nCasbin policies:");
-    let policies = enforcer.get_policy();
-    for policy in policies {
-        println!("  Policy: {:?}", policy);
-    }
-
-    println!("\nCasbin grouping policies (g):");
-    let g_policies = enforcer.get_grouping_policy();
-    for policy in g_policies {
-        println!("  G-Policy: {:?}", policy);
-    }
-
-    // Test raw Casbin enforce calls
-    println!("\nRaw Casbin enforce tests:");
-    let cd_with_db_enforce = enforcer
-        .enforce(("bearer:client-a", "cd-with-db", "view"))
-        .unwrap_or(false);
-    println!(
-        "  Raw enforce(bearer:client-a, cd-with-db, view): {}",
-        cd_with_db_enforce
-    );
-
-    let simple_nginx_enforce = enforcer
-        .enforce(("bearer:client-a", "simple_nginx", "view"))
-        .unwrap_or(false);
-    println!(
-        "  Raw enforce(bearer:client-a, simple_nginx, view): {}",
-        simple_nginx_enforce
-    );
 
     // Don't run the failing assertions for now - just collect debug info
     println!("✅ Live policy file debug test completed");

@@ -6,9 +6,6 @@
 //! against the scope list. Compiling is the only place the policy is
 //! validated, so startup and runtime changes cannot disagree.
 
-// Not wired into `AuthorizationService` yet; the binary sees it unused.
-#![allow(dead_code)]
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use super::types::{AuthConfig, Permission, PermissionOrWildcard};
@@ -53,6 +50,7 @@ impl PermSet {
         Self(self.0 | other.0)
     }
 
+    #[allow(dead_code)] // used by the session recheck once it moves here
     pub fn is_empty(self) -> bool {
         self.0 == 0
     }
@@ -221,6 +219,7 @@ impl ScopeGrant {
         }
     }
 
+    #[allow(dead_code)] // used by the session recheck once it moves here
     fn is_empty(&self) -> bool {
         self.permissions.is_empty() && self.blueprints.is_empty()
     }
@@ -239,6 +238,7 @@ impl Grants {
     }
 
     /// Whether the user holds no permission in any scope.
+    #[allow(dead_code)] // used by the session recheck once it moves here
     pub fn is_empty(&self) -> bool {
         self.scopes.values().all(ScopeGrant::is_empty)
     }

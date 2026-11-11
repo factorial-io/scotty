@@ -1,9 +1,6 @@
 //! The single authorization decision: may a user perform an action on a
 //! target? Every check and enforcement point goes through [`Grants::decide`].
 
-// Not wired into `AuthorizationService` yet; the binary sees it unused.
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 
 use super::policy::{Grants, Policy, ScopeGrant};

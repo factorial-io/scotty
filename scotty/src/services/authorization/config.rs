@@ -54,9 +54,16 @@ impl ConfigManager {
         };
 
         let yaml = serde_norway::to_string(&save_config)?;
-        tokio::fs::write(config_path, yaml)
+        // Write a sibling file and rename it over the policy, so a crash or a
+        // failed write never leaves a half-written policy.yaml behind.
+        let tmp_path = format!("{config_path}.tmp");
+        tokio::fs::write(&tmp_path, yaml)
             .await
             .context("Failed to save authorization config")?;
+        if let Err(e) = tokio::fs::rename(&tmp_path, config_path).await {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return Err(e).context("Failed to save authorization config");
+        }
         Ok(())
     }
 

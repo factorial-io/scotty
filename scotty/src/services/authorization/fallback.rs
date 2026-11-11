@@ -1,11 +1,7 @@
-use casbin::prelude::*;
 use chrono::Utc;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::info;
 
-use super::casbin::{register_user_match_function, CasbinManager};
 use super::service::AuthorizationService;
 use super::types::{
     Assignment, AuthConfig, Permission, PermissionOrWildcard, RoleConfig, ScopeConfig,
@@ -19,38 +15,6 @@ impl FallbackService {
     pub async fn create_fallback_service(
         legacy_access_token: Option<String>,
     ) -> AuthorizationService {
-        // Create a minimal Casbin model in memory
-        // Uses user_match() custom function for domain/wildcard matching
-        let model_text = r#"
-[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, scope, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
-"#;
-
-        let m = DefaultModel::from_str(model_text)
-            .await
-            .expect("Failed to create fallback Casbin model");
-
-        let a = MemoryAdapter::default();
-        let mut enforcer = CachedEnforcer::new(m, a)
-            .await
-            .expect("Failed to create fallback Casbin enforcer");
-
-        // Register custom user_match function for domain/wildcard matching
-        register_user_match_function(&mut enforcer);
-
         // Create default configuration with everyone having access to "default" scope
         let mut config = Self::create_minimal_config();
 
@@ -74,18 +38,11 @@ m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
             );
         }
 
-        // Assign all apps to default scope and sync policies
-        CasbinManager::sync_policies_to_casbin(&mut enforcer, &config)
-            .await
-            .expect("Failed to sync fallback policies to Casbin");
-
         info!("Fallback authorization service created with default configuration");
 
-        AuthorizationService::new_from_components(
-            Arc::new(RwLock::new(enforcer)),
-            Arc::new(RwLock::new(config)),
-            "fallback/policy.yaml".to_string(), // Placeholder path for fallback
-        )
+        // Placeholder path: the fallback service is never saved.
+        AuthorizationService::from_config(config, "fallback/policy.yaml".to_string())
+            .expect("fallback authorization config compiles")
     }
 
     /// Create minimal configuration for fallback service

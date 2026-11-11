@@ -1,3 +1,6 @@
+// Unused since decisions moved to `policy`/`decision`; deleted with Casbin.
+#![allow(dead_code)]
+
 use anyhow::Result;
 use casbin::prelude::*;
 use casbin::rhai::Dynamic;
