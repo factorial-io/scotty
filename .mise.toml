@@ -12,5 +12,11 @@ run = [
 [tasks.dev]
 description = "Run the scotty server in dev mode (no auth)"
 depends = ["traefik"]
-env = { SCOTTY__API__AUTH_MODE = "dev" }
+# Dev mode skips authentication, not authorization: run as the admin from
+# config/casbin/policy.yaml.example so all blueprints and actions are allowed.
+env = { SCOTTY__API__AUTH_MODE = "dev", SCOTTY__API__DEV_USER_EMAIL = "admin@example.com" }
 run = "cargo run --bin scotty"
+
+[tasks.test]
+description = "Run the Rust test suite (as in CI)"
+run = "cargo test --all-targets"
