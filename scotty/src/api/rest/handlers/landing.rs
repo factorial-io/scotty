@@ -6,9 +6,10 @@ use axum::http::{HeaderMap, Response, StatusCode, Uri};
 use url::Url;
 
 use crate::app_state::SharedAppState;
+use crate::docker::loadbalancer::{ROBOTS_HEADER_VALUE, ROBOTS_TXT};
 use crate::static_files::serve_embedded_file;
 
-use scotty_core::apps::app_data::AppStatus;
+use scotty_core::apps::app_data::{AppData, AppStatus};
 
 /// Build a Response with no-cache headers to prevent browsers and proxies
 /// from caching redirect or error responses for stopped apps.
@@ -17,6 +18,25 @@ fn no_cache_response() -> axum::http::response::Builder {
         .header("Cache-Control", "no-store, no-cache, must-revalidate")
         .header("Pragma", "no-cache")
         .header("Expires", "0")
+}
+
+/// Whether crawlers should be kept away from the app. Apps without settings
+/// (not created by Scotty) get no robots header while running, so their
+/// fallback gets none either.
+fn app_disallows_robots(app: &AppData) -> bool {
+    app.settings.as_ref().is_some_and(|s| s.disallow_robots)
+}
+
+/// [`no_cache_response`] for a hosted app's domain: adds the app's
+/// `X-Robots-Tag` when it disallows robots, as its load balancer route would
+/// while the app runs.
+fn app_fallback_response(app: &AppData) -> axum::http::response::Builder {
+    let builder = no_cache_response();
+    if app_disallows_robots(app) {
+        builder.header("X-Robots-Tag", ROBOTS_HEADER_VALUE)
+    } else {
+        builder
+    }
 }
 
 /// Extract the hostname from the request's Host header.
@@ -94,11 +114,23 @@ pub async fn landing_or_frontend_handler(
                      Please refresh in a few seconds.</p>"
                 }
             };
-            return no_cache_response()
+            return app_fallback_response(&app)
                 .status(StatusCode::SERVICE_UNAVAILABLE)
                 .header("content-type", "text/html; charset=utf-8")
                 .header("Retry-After", "5")
                 .body(Body::from(message))
+                .expect("BUG: response builder failed");
+        }
+
+        // Answer robots.txt directly instead of redirecting crawlers to the
+        // HTML landing page. no-cache, so a crawler doesn't keep it once the
+        // app runs again with its own robots.txt.
+        // Only GET/HEAD get here: `/robots.txt` is a GET route, so axum answers
+        // other methods with 405 before the fallback.
+        if uri.path() == "/robots.txt" && app_disallows_robots(&app) {
+            return app_fallback_response(&app)
+                .header("content-type", "text/plain; charset=utf-8")
+                .body(Body::from(ROBOTS_TXT))
                 .expect("BUG: response builder failed");
         }
 
@@ -126,7 +158,7 @@ pub async fn landing_or_frontend_handler(
                 urlencoding::encode(&return_url),
             );
 
-            return no_cache_response()
+            return app_fallback_response(&app)
                 .status(StatusCode::FOUND)
                 .header("Location", redirect_url)
                 .body(Body::empty())

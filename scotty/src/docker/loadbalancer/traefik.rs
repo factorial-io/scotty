@@ -6,15 +6,11 @@ use regex::Regex;
 use crate::settings::config::Settings;
 use scotty_core::apps::app_data::AppSettings;
 
-use super::app_proxy_network_name;
 use super::types::{
     DockerComposeConfig, DockerComposeNetworkConfig, DockerComposeServiceConfig, LoadBalancerImpl,
     LoadBalancerInfo, ServiceNetworkAttachment,
 };
-
-/// Value of the `X-Robots-Tag` header injected when `disallow_robots` is set.
-/// Kept as a single constant so production code and tests cannot drift apart.
-const ROBOTS_HEADER_VALUE: &str = "none, noarchive, nosnippet, notranslate, noimageindex";
+use super::{app_proxy_network_name, ROBOTS_HEADER_VALUE};
 
 pub struct TraefikLoadBalancer;
 
