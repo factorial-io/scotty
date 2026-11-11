@@ -168,6 +168,80 @@ impl Policy {
     pub fn config(&self) -> &AuthConfig {
         &self.config
     }
+
+    /// Everything `user` holds: the union of the assignments of their own
+    /// key (email or identifier), their `@domain` and `*`. No match hides
+    /// another.
+    pub fn grants_for(&self, user: &str) -> Grants {
+        let user = normalize_user(user);
+        let mut keys = vec![user.as_str()];
+        // `@domain` matches exactly that domain, never a subdomain.
+        if let Some(at) = user.find('@') {
+            keys.push(&user[at..]);
+        }
+        keys.push("*");
+        keys.dedup();
+
+        let mut grants = Grants::default();
+        let matching = keys
+            .iter()
+            .filter_map(|key| self.assignments.get(*key))
+            .flatten();
+        for assignment in matching {
+            // Compile guarantees the role exists.
+            let Some(role) = self.roles.get(&assignment.role) else {
+                continue;
+            };
+            for scope in &assignment.scopes {
+                grants.scopes.entry(scope.clone()).or_default().add(role);
+            }
+        }
+        grants
+    }
+}
+
+/// What a user holds in one scope.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScopeGrant {
+    pub permissions: PermSet,
+    /// Blueprints the user may create from without plain `create`.
+    pub blueprints: BTreeSet<String>,
+    /// The permissions as written in the user's roles, for listings.
+    pub listed: Vec<String>,
+}
+
+impl ScopeGrant {
+    fn add(&mut self, role: &RoleGrant) {
+        self.permissions = self.permissions.union(role.permissions);
+        self.blueprints.extend(role.blueprints.iter().cloned());
+        for permission in &role.listed {
+            if !self.listed.contains(permission) {
+                self.listed.push(permission.clone());
+            }
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.permissions.is_empty() && self.blueprints.is_empty()
+    }
+}
+
+/// Everything one user holds, by scope. See [`Policy::grants_for`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Grants {
+    scopes: BTreeMap<String, ScopeGrant>,
+}
+
+impl Grants {
+    /// The user's grants by scope, scopes in name order.
+    pub fn scopes(&self) -> &BTreeMap<String, ScopeGrant> {
+        &self.scopes
+    }
+
+    /// Whether the user holds no permission in any scope.
+    pub fn is_empty(&self) -> bool {
+        self.scopes.values().all(ScopeGrant::is_empty)
+    }
 }
 
 /// Scopes of an assignment with `*` replaced by every defined scope; every
@@ -351,5 +425,144 @@ assignments:
         assert!(Permission::all()
             .into_iter()
             .all(|p| PermSet::all().contains(p)));
+    }
+}
+
+#[cfg(test)]
+mod grants_tests {
+    use super::tests::config;
+    use super::*;
+
+    const POLICY: &str = r#"
+scopes:
+  alpha: { description: Alpha, created_at: 2024-01-01T00:00:00Z }
+  beta: { description: Beta, created_at: 2024-01-01T00:00:00Z }
+  gamma: { description: Gamma, created_at: 2024-01-01T00:00:00Z }
+roles:
+  admin: { permissions: ['*'], description: all }
+  dev: { permissions: [view, manage, create], description: list }
+  viewer: { permissions: [view], description: view }
+  publisher: { permissions: ['create:static-html'], description: blueprint }
+  nothing: { permissions: [], description: empty }
+assignments:
+  carol@example.com:
+    - { role: viewer, scopes: [alpha] }
+  '@example.com':
+    - { role: dev, scopes: [beta] }
+  identifier:ci:
+    - { role: publisher, scopes: [alpha] }
+  ghost@other.test:
+    - { role: admin, scopes: [] }
+  empty@other.test:
+    - { role: nothing, scopes: [alpha] }
+  '*':
+    - { role: viewer, scopes: [gamma] }
+"#;
+
+    fn policy() -> Policy {
+        Policy::compile(config(POLICY)).unwrap()
+    }
+
+    /// Scope -> listed permissions of `user`.
+    fn listing(user: &str) -> Vec<(String, Vec<String>)> {
+        policy()
+            .grants_for(user)
+            .scopes()
+            .iter()
+            .map(|(scope, grant)| (scope.clone(), grant.listed.clone()))
+            .collect()
+    }
+
+    fn row(scope: &str, listed: &[&str]) -> (String, Vec<String>) {
+        (
+            scope.to_string(),
+            listed.iter().map(|p| p.to_string()).collect(),
+        )
+    }
+
+    #[test]
+    fn exact_entry_matches_in_any_case_and_adds_domain_and_wildcard() {
+        let expected = vec![
+            row("alpha", &["view"]),
+            row("beta", &["view", "manage", "create"]),
+            row("gamma", &["view"]),
+        ];
+        assert_eq!(listing("carol@example.com"), expected);
+        assert_eq!(listing("Carol@Example.COM"), expected);
+    }
+
+    #[test]
+    fn domain_entry_matches_its_domain_in_any_case() {
+        let expected = vec![
+            row("beta", &["view", "manage", "create"]),
+            row("gamma", &["view"]),
+        ];
+        assert_eq!(listing("erin@example.com"), expected);
+        assert_eq!(listing("Erin@EXAMPLE.com"), expected);
+    }
+
+    #[test]
+    fn domain_entry_does_not_match_a_subdomain() {
+        assert_eq!(
+            listing("frank@sub.example.com"),
+            vec![row("gamma", &["view"])]
+        );
+    }
+
+    #[test]
+    fn identifier_matches_case_sensitively() {
+        assert_eq!(
+            listing("identifier:ci"),
+            vec![
+                row("alpha", &["create:static-html"]),
+                row("gamma", &["view"])
+            ]
+        );
+        assert_eq!(listing("identifier:CI"), vec![row("gamma", &["view"])]);
+    }
+
+    #[test]
+    fn wildcard_matches_everyone() {
+        assert_eq!(listing("zed@nowhere.test"), vec![row("gamma", &["view"])]);
+        assert_eq!(listing("not-an-email"), vec![row("gamma", &["view"])]);
+    }
+
+    #[test]
+    fn exact_and_domain_permissions_add_up_in_a_shared_scope() {
+        let grants = policy().grants_for("carol@example.com");
+        let beta = &grants.scopes()["beta"];
+        assert!(beta.permissions.contains(Permission::Manage));
+        assert!(grants.scopes()["alpha"]
+            .permissions
+            .contains(Permission::View));
+        assert!(!grants.scopes()["alpha"]
+            .permissions
+            .contains(Permission::Manage));
+    }
+
+    #[test]
+    fn assignment_without_scopes_grants_nothing() {
+        assert_eq!(listing("ghost@other.test"), vec![row("gamma", &["view"])]);
+    }
+
+    #[test]
+    fn blueprint_grants_are_kept_per_scope() {
+        let grants = policy().grants_for("identifier:ci");
+        let alpha = &grants.scopes()["alpha"];
+        assert!(alpha.permissions.is_empty());
+        assert!(alpha.blueprints.contains("static-html"));
+    }
+
+    #[test]
+    fn grants_are_empty_without_any_permission() {
+        let mut config = config(POLICY);
+        config.assignments.remove("*");
+        let policy = Policy::compile(config).unwrap();
+        assert!(policy.grants_for("nobody@other.test").is_empty());
+        // A role without permissions is listed but grants nothing.
+        let empty = policy.grants_for("empty@other.test");
+        assert_eq!(empty.scopes().len(), 1);
+        assert!(empty.is_empty());
+        assert!(!policy.grants_for("identifier:ci").is_empty());
     }
 }
