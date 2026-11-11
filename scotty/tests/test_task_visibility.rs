@@ -21,20 +21,7 @@ struct Tasks {
     started_by_a: Uuid,
 }
 
-/// Creating tasks records metrics; outside of `cfg(test)` the recorder must
-/// be initialised first.
-fn init_metrics_once() {
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    {
-        static INIT: std::sync::Once = std::sync::Once::new();
-        INIT.call_once(|| {
-            scotty::metrics::init_metrics().expect("failed to initialise metrics");
-        });
-    }
-}
-
 async fn setup() -> (TestServer, Tasks, tempfile::TempDir) {
-    init_metrics_once();
     let policy_dir = tempfile::tempdir().unwrap();
     for file in ["model.conf", "policy.yaml"] {
         std::fs::copy(

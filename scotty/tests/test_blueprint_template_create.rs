@@ -21,8 +21,6 @@ async fn templated_create_writes_merged_files_and_rebuild_keeps_snapshot() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .try_init();
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    scotty::metrics::init_metrics().expect("failed to initialise metrics");
     let root = std::env::temp_dir().join(format!("scotty-bp-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&root).unwrap();
     // Settings::new canonicalizes root_folder; on macOS temp_dir is a symlink.

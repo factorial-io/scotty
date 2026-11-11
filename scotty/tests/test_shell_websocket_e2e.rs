@@ -14,18 +14,154 @@
 //!
 //! Run locally with: cargo test --test test_shell_websocket_e2e -- --ignored --nocapture
 
+use std::path::Path;
+use std::process::Command;
+use std::time::Duration;
+
 use futures_util::{SinkExt, StreamExt};
+use scotty_core::apps::app_data::{AppData, ContainerState, ContainerStatus};
 use scotty_core::websocket::message::WebSocketMessage;
 use scotty_types::{ShellDataType, ShellSessionRequest};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
 
-/// Helper to create WebSocket URL from HTTP server
-fn ws_url(base_url: &reqwest::Url) -> String {
-    let mut url = base_url.clone();
+const APP: &str = "shell-ws-e2e";
+const IMAGE: &str = "alpine:3.20";
+/// `identifier:admin` in tests/test_bearer_auth.yaml.
+const ADMIN_TOKEN: &str = "test-bearer-token-123";
+const TIMEOUT: Duration = Duration::from_secs(30);
+
+type WsStream =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+type WsWrite = futures_util::stream::SplitSink<WsStream, Message>;
+/// Incoming messages; panics instead of waiting forever when none arrives.
+type WsRead = std::pin::Pin<
+    Box<dyn futures_util::Stream<Item = tokio_tungstenite::tungstenite::Result<Message>> + Send>,
+>;
+
+/// A throwaway container, removed on drop.
+struct TestContainer(String);
+
+impl Drop for TestContainer {
+    fn drop(&mut self) {
+        let _ = Command::new("docker").args(["rm", "-f", &self.0]).output();
+    }
+}
+
+/// Keeps the server, container and policy copy alive for one test.
+struct Fixture {
+    _server: axum_test::TestServer,
+    _container: TestContainer,
+    _policy_dir: tempfile::TempDir,
+}
+
+/// Start a real HTTP server with app `APP` backed by a running container,
+/// open a WebSocket on `/ws` and authenticate it as admin.
+async fn connect() -> (Fixture, WsWrite, WsRead) {
+    let out = Command::new("docker")
+        .args(["run", "-d", "--rm", IMAGE, "sleep", "600"])
+        .output()
+        .expect("docker must be installed");
+    assert!(
+        out.status.success(),
+        "docker run failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let container = TestContainer(String::from_utf8(out.stdout).unwrap().trim().to_string());
+
+    // Work on a copy of the fixture policy: assigning app scopes writes the
+    // policy file.
+    let policy_dir = tempfile::tempdir().unwrap();
+    for file in ["model.conf", "policy.yaml"] {
+        std::fs::copy(
+            Path::new("tests/fixtures/casbin").join(file),
+            policy_dir.path().join(file),
+        )
+        .unwrap();
+    }
+    let settings: scotty::settings::config::Settings = config::Config::builder()
+        .add_source(config::File::with_name("tests/test_bearer_auth"))
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
+    let app_state = scotty::api::test_utils::create_test_app_state_with_policy_dir(
+        settings,
+        None,
+        policy_dir.path().to_str().unwrap(),
+    )
+    .await;
+    let web = ContainerState {
+        status: ContainerStatus::Running,
+        id: Some(container.0.clone()),
+        service: "web".to_string(),
+        ..Default::default()
+    };
+    app_state
+        .apps
+        .add_app(AppData::new(
+            APP,
+            "/tmp/shell-ws-e2e",
+            "/tmp/shell-ws-e2e/docker-compose.yml",
+            vec![web],
+            None,
+        ))
+        .await
+        .unwrap();
+    app_state
+        .auth_service
+        .set_app_scopes(APP, vec!["default".to_string()])
+        .await
+        .unwrap();
+
+    // A real socket: the default mock transport has no address to connect to.
+    let server = axum_test::TestServer::builder()
+        .http_transport()
+        .build(scotty::api::router::ApiRoutes::create(app_state));
+    let mut url = server.server_address().expect("Server should have address");
     url.set_scheme("ws").unwrap();
-    url.set_path("/api/v1/ws");
-    url.to_string()
+    url.set_path("/ws");
+    let (ws_stream, _) = connect_async(url.as_str())
+        .await
+        .expect("Failed to connect to WebSocket");
+    let (mut write, mut read) = ws_stream.split();
+
+    let auth = WebSocketMessage::Authenticate {
+        token: ADMIN_TOKEN.to_string(),
+    };
+    write
+        .send(Message::Text(serde_json::to_string(&auth).unwrap().into()))
+        .await
+        .expect("Failed to send authentication");
+    loop {
+        let msg = tokio::time::timeout(TIMEOUT, read.next())
+            .await
+            .expect("timed out waiting for authentication")
+            .expect("WebSocket closed before authentication")
+            .expect("WebSocket error");
+        if let Message::Text(text) = msg {
+            match serde_json::from_str(&text) {
+                Ok(WebSocketMessage::AuthenticationSuccess) => break,
+                Ok(WebSocketMessage::AuthenticationFailed { reason }) => {
+                    panic!("authentication failed: {reason}")
+                }
+                _ => continue,
+            }
+        }
+    }
+
+    let read: WsRead = Box::pin(futures_util::stream::unfold(read, |mut read| async {
+        tokio::time::timeout(TIMEOUT, read.next())
+            .await
+            .expect("timed out waiting for a WebSocket message")
+            .map(|msg| (msg, read))
+    }));
+    let fixture = Fixture {
+        _server: server,
+        _container: container,
+        _policy_dir: policy_dir,
+    };
+    (fixture, write, read)
 }
 
 /// Test basic shell session creation and termination flow
@@ -40,25 +176,11 @@ fn ws_url(base_url: &reqwest::Url) -> String {
 #[tokio::test]
 #[ignore]
 async fn test_shell_session_creation_and_termination() {
-    // Start test server
-    let app_state =
-        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
-            .await;
-    let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router);
-
-    // Connect to WebSocket
-    let server_addr = server.server_address().expect("Server should have address");
-    let url = ws_url(&server_addr);
-    let (ws_stream, _) = connect_async(&url)
-        .await
-        .expect("Failed to connect to WebSocket");
-
-    let (mut write, mut read) = ws_stream.split();
+    let (_fixture, mut write, mut read) = connect().await;
 
     // Create shell session request
     let session_request = ShellSessionRequest {
-        app_name: "test-app".to_string(),
+        app_name: APP.to_string(),
         service_name: "web".to_string(),
         shell_command: Some("/bin/sh".to_string()),
         tty: true,
@@ -147,25 +269,11 @@ async fn test_shell_session_creation_and_termination() {
 #[tokio::test]
 #[ignore]
 async fn test_shell_command_execution_with_exit_code() {
-    // Start test server
-    let app_state =
-        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
-            .await;
-    let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router);
-
-    // Connect to WebSocket
-    let server_addr = server.server_address().expect("Server should have address");
-    let url = ws_url(&server_addr);
-    let (ws_stream, _) = connect_async(&url)
-        .await
-        .expect("Failed to connect to WebSocket");
-
-    let (mut write, mut read) = ws_stream.split();
+    let (_fixture, mut write, mut read) = connect().await;
 
     // Create shell session with command that will exit with code 42
     let session_request = ShellSessionRequest {
-        app_name: "test-app".to_string(),
+        app_name: APP.to_string(),
         service_name: "web".to_string(),
         shell_command: Some("exit 42".to_string()),
         tty: true,
@@ -230,25 +338,11 @@ async fn test_shell_command_execution_with_exit_code() {
 #[tokio::test]
 #[ignore]
 async fn test_shell_bidirectional_io() {
-    // Start test server
-    let app_state =
-        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
-            .await;
-    let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router);
-
-    // Connect to WebSocket
-    let server_addr = server.server_address().expect("Server should have address");
-    let url = ws_url(&server_addr);
-    let (ws_stream, _) = connect_async(&url)
-        .await
-        .expect("Failed to connect to WebSocket");
-
-    let (mut write, mut read) = ws_stream.split();
+    let (_fixture, mut write, mut read) = connect().await;
 
     // Create interactive shell session
     let session_request = ShellSessionRequest {
-        app_name: "test-app".to_string(),
+        app_name: APP.to_string(),
         service_name: "web".to_string(),
         shell_command: None, // Interactive mode
         tty: true,
@@ -284,7 +378,7 @@ async fn test_shell_bidirectional_io() {
     let echo_input = WebSocketMessage::ShellSessionData(scotty_types::ShellSessionData {
         session_id,
         data_type: ShellDataType::Input,
-        data: "echo 'Hello from shell test'\n".to_string(),
+        data: "echo hello-$((40+2))\n".to_string(),
         encoding: None,
     });
 
@@ -294,37 +388,25 @@ async fn test_shell_bidirectional_io() {
         .await
         .expect("Failed to send echo command");
 
-    // Collect output
+    // Collect output until the command's result arrives. The tty echoes the
+    // input too, but only the shell's arithmetic produces "hello-42".
     let mut received_output = String::new();
-    let mut output_count = 0;
-    const MAX_OUTPUTS: usize = 10;
-
-    while let Some(msg) = read.next().await {
-        if output_count >= MAX_OUTPUTS {
-            break;
-        }
-
+    while !received_output.contains("hello-42") {
+        let msg = read
+            .next()
+            .await
+            .expect("WebSocket closed before the output arrived");
         if let Ok(Message::Text(text)) = msg {
-            if let Ok(ws_msg) = serde_json::from_str::<WebSocketMessage>(&text) {
-                match ws_msg {
-                    WebSocketMessage::ShellSessionData(data) => {
-                        if matches!(data.data_type, ShellDataType::Output) {
-                            received_output.push_str(&data.data);
-                            output_count += 1;
-                            println!("Output chunk {}: {}", output_count, data.data);
-                        }
-                    }
-                    _ => continue,
+            if let Ok(WebSocketMessage::ShellSessionData(data)) =
+                serde_json::from_str::<WebSocketMessage>(&text)
+            {
+                if matches!(data.data_type, ShellDataType::Output) {
+                    received_output.push_str(&data.data);
                 }
             }
         }
     }
 
-    // Verify we received some output (exact match depends on shell prompt)
-    assert!(
-        !received_output.is_empty(),
-        "Should have received output from echo command"
-    );
     println!("Total output received: {}", received_output);
 }
 
@@ -338,25 +420,11 @@ async fn test_shell_bidirectional_io() {
 #[tokio::test]
 #[ignore]
 async fn test_shell_tty_resize() {
-    // Start test server
-    let app_state =
-        scotty::api::test_utils::create_test_app_state_with_config("tests/test_bearer_auth", None)
-            .await;
-    let router = scotty::api::router::ApiRoutes::create(app_state.clone());
-    let server = axum_test::TestServer::new(router);
-
-    // Connect to WebSocket
-    let server_addr = server.server_address().expect("Server should have address");
-    let url = ws_url(&server_addr);
-    let (ws_stream, _) = connect_async(&url)
-        .await
-        .expect("Failed to connect to WebSocket");
-
-    let (mut write, mut read) = ws_stream.split();
+    let (_fixture, mut write, mut read) = connect().await;
 
     // Create shell session
     let session_request = ShellSessionRequest {
-        app_name: "test-app".to_string(),
+        app_name: APP.to_string(),
         service_name: "web".to_string(),
         shell_command: None,
         tty: true,
@@ -398,10 +466,22 @@ async fn test_shell_tty_resize() {
         .await
         .expect("Failed to send resize message");
 
-    // Just verify we don't get an error back
-    // (resize is fire-and-forget, but errors would be sent)
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    // If we got here without errors, resize was accepted
-    println!("TTY resize command accepted");
+    // Resize is fire-and-forget; errors would come back as messages.
+    let quiet = tokio::time::sleep(Duration::from_millis(500));
+    tokio::pin!(quiet);
+    loop {
+        tokio::select! {
+            _ = &mut quiet => break,
+            msg = read.next() => {
+                let Some(Ok(Message::Text(text))) = msg else { continue };
+                match serde_json::from_str::<WebSocketMessage>(&text) {
+                    Ok(WebSocketMessage::Error(err)) => panic!("resize failed: {err}"),
+                    Ok(WebSocketMessage::ShellSessionError(err)) => {
+                        panic!("resize failed: {}", err.error)
+                    }
+                    _ => continue,
+                }
+            }
+        }
+    }
 }

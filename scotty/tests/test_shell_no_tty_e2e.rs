@@ -102,8 +102,6 @@ impl Harness {
     /// `client_buffer` is the per-client message buffer, as in the real
     /// WebSocket handler.
     async fn with_client_buffer(client_buffer: usize) -> Self {
-        init_metrics_once();
-
         // Work on a copy of the fixture policy: assigning app scopes writes
         // the policy file.
         let policy_dir = tempfile::tempdir().unwrap();
@@ -287,16 +285,6 @@ impl Harness {
             );
         }
         outcome.stdout
-    }
-}
-
-fn init_metrics_once() {
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    {
-        static INIT: std::sync::Once = std::sync::Once::new();
-        INIT.call_once(|| {
-            scotty::metrics::init_metrics().expect("failed to initialise metrics");
-        });
     }
 }
 

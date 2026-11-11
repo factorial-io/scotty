@@ -439,21 +439,8 @@ fn websocket_message(name: &str) -> WebSocketMessage {
     }
 }
 
-/// Allowed WebSocket requests reach code that records metrics; outside of
-/// `cfg(test)` the recorder must be initialised first.
-fn init_metrics_once() {
-    #[cfg(any(feature = "telemetry-grpc", feature = "telemetry-http"))]
-    {
-        static INIT: std::sync::Once = std::sync::Once::new();
-        INIT.call_once(|| {
-            scotty::metrics::init_metrics().expect("failed to initialise metrics");
-        });
-    }
-}
-
 #[tokio::test]
 async fn websocket_messages_match_the_matrix() {
-    init_metrics_once();
     let matrix = load_matrix();
     let policy = load_policy();
     let (state, _dir) = matrix_state(&policy).await;

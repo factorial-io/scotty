@@ -6,14 +6,14 @@
 //! # Migration from anyhow::Error
 //!
 //! Before:
-//! ```ignore
+//! ```text
 //! let result: Result<T, anyhow::Error> = client.get_json(url).await;
 //! // Had to parse error strings to get status codes
 //! if err.to_string().contains("401") { ... }
 //! ```
 //!
 //! After:
-//! ```ignore
+//! ```text
 //! let result: Result<T, RetryError> = client.get_json(url).await;
 //! if let Err(RetryError::NonRetriable(http_err)) = result {
 //!     if http_err.is_auth_error() { ... }
