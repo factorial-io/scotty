@@ -7,6 +7,7 @@
 pub mod casbin;
 pub mod config;
 pub mod fallback;
+pub mod policy;
 pub mod service;
 pub mod types;
 

@@ -86,6 +86,7 @@ uuid.workspace = true
 tokio-stream.workspace = true
 clokwerk.workspace = true
 casbin.workspace = true
+arc-swap.workspace = true
 bcrypt.workspace = true
 sysinfo.workspace = true
 once_cell.workspace = true
