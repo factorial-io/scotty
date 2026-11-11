@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::api::middleware::authorization::AuthorizationContext;
 use crate::app_state::SharedAppState;
+use crate::services::authorization::decision::{Action, Target};
 use crate::services::AuthorizationService;
 
 /// Lists the blueprints the user may create apps from. A templated
@@ -26,7 +27,6 @@ pub async fn blueprints_handler(
     Extension(auth_context): Extension<AuthorizationContext>,
 ) -> impl IntoResponse {
     let user = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
-    let scopes = state.auth_service.get_scopes().await;
 
     let mut blueprints = std::collections::HashMap::new();
     for (name, blueprint) in &state.settings.apps.blueprints {
@@ -35,8 +35,8 @@ pub async fn blueprints_handler(
         let candidate = blueprint.templated.then_some(name.as_str());
         if state
             .auth_service
-            .check_create_in_scopes(&user, &scopes, candidate)
-            .await
+            .decide(&user, Action::create(candidate), Target::Global)
+            .is_allowed()
         {
             blueprints.insert(name.clone(), for_listing(blueprint));
         }

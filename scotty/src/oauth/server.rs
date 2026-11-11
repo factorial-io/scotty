@@ -84,14 +84,13 @@ pub fn mcp_server(
     )
 }
 
-/// A user keeps a session while Casbin gives them any permission in any scope.
+/// A user keeps a session while they hold any permission in any scope.
 struct CasbinSubjects(Arc<AuthorizationService>);
 
 #[async_trait]
 impl Subjects<String> for CasbinSubjects {
     async fn recheck(&self, grant: &Grant<String>) -> Result<Recheck, BackendError> {
-        let permissions = self.0.get_user_permissions(&grant.subject).await;
-        if permissions.values().all(Vec::is_empty) {
+        if self.0.grants_for(&grant.subject).is_empty() {
             return Ok(Recheck::Revoke("no_role".into()));
         }
         let mut claims = serde_json::Map::new();

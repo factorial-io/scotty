@@ -118,60 +118,14 @@ impl AuthorizationService {
         }
     }
 
+    /// The current app -> scopes snapshot.
+    pub fn app_scopes(&self) -> Arc<AppScopes> {
+        self.app_scopes.load_full()
+    }
+
     /// Everything `user` holds, by scope.
     pub fn grants_for(&self, user: &str) -> Grants {
         self.policy.load().grants_for(user)
-    }
-
-    /// Check if a user has permission to perform an action on an app
-    pub async fn check_permission(&self, user: &str, app: &str, action: &Permission) -> bool {
-        self.decide(user, (*action).into(), Target::App(app))
-            .is_allowed()
-    }
-
-    /// Check if a user has a permission in any of their scopes (not tied to
-    /// a specific app).
-    pub async fn check_global_permission(&self, user: &str, action: &Permission) -> bool {
-        self.decide(user, (*action).into(), Target::Global)
-            .is_allowed()
-    }
-
-    /// Check if a user has permission in any of the specified scopes
-    pub async fn check_permission_in_scopes(
-        &self,
-        user: &str,
-        scopes: &[String],
-        action: &Permission,
-    ) -> bool {
-        self.decide(user, (*action).into(), Target::AnyOf(scopes))
-            .is_allowed()
-    }
-
-    /// Check whether a user may create an app in any of `scopes`.
-    ///
-    /// Plain `create` allows everything. `create:<blueprint>` allows only
-    /// `blueprint`, which the caller passes as `Some` only when the request
-    /// uses a templated blueprint and carries no compose file of its own.
-    pub async fn check_create_in_scopes(
-        &self,
-        user: &str,
-        scopes: &[String],
-        blueprint: Option<&str>,
-    ) -> bool {
-        self.decide(user, create_action(blueprint), Target::AnyOf(scopes))
-            .is_allowed()
-    }
-
-    /// Like [`Self::check_create_in_scopes`], but the user needs the right
-    /// in every one of `scopes`, not just one. No scopes means no right.
-    pub async fn check_create_in_every_scope(
-        &self,
-        user: &str,
-        scopes: &[String],
-        blueprint: Option<&str>,
-    ) -> bool {
-        self.decide(user, create_action(blueprint), Target::EveryOf(scopes))
-            .is_allowed()
     }
 
     /// Whether `user` may see `task` (its details, updates and output).
@@ -276,11 +230,6 @@ impl AuthorizationService {
             .assignments
             .contains_key(identifier_user_id)
             .then(|| identifier_user_id.to_string())
-    }
-
-    /// Get all available scopes defined in the authorization configuration
-    pub async fn get_scopes(&self) -> Vec<String> {
-        self.policy.load().config().scopes.keys().cloned().collect()
     }
 
     /// Validate that all specified scopes exist in the authorization system
@@ -461,9 +410,65 @@ impl AuthorizationService {
     }
 }
 
-/// `create`, or creating from `blueprint` when the request qualifies for it.
-fn create_action(blueprint: Option<&str>) -> Action<'_> {
-    blueprint.map_or(Action::Permission(Permission::Create), Action::CreateFrom)
+/// Boolean shorthands over [`AuthorizationService::decide`]. The server
+/// itself calls `require`/`decide`; these remain for tests.
+#[allow(dead_code)]
+impl AuthorizationService {
+    /// Check if a user has permission to perform an action on an app
+    pub async fn check_permission(&self, user: &str, app: &str, action: &Permission) -> bool {
+        self.decide(user, (*action).into(), Target::App(app))
+            .is_allowed()
+    }
+
+    /// Check if a user has a permission in any of their scopes (not tied to
+    /// a specific app).
+    pub async fn check_global_permission(&self, user: &str, action: &Permission) -> bool {
+        self.decide(user, (*action).into(), Target::Global)
+            .is_allowed()
+    }
+
+    /// Check if a user has permission in any of the specified scopes
+    pub async fn check_permission_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        action: &Permission,
+    ) -> bool {
+        self.decide(user, (*action).into(), Target::AnyOf(scopes))
+            .is_allowed()
+    }
+
+    /// Check whether a user may create an app in any of `scopes`.
+    ///
+    /// Plain `create` allows everything. `create:<blueprint>` allows only
+    /// `blueprint`, which the caller passes as `Some` only when the request
+    /// uses a templated blueprint and carries no compose file of its own.
+    pub async fn check_create_in_scopes(
+        &self,
+        user: &str,
+        scopes: &[String],
+        blueprint: Option<&str>,
+    ) -> bool {
+        self.decide(user, Action::create(blueprint), Target::AnyOf(scopes))
+            .is_allowed()
+    }
+
+    /// Like [`Self::check_create_in_scopes`], but the user needs the right
+    /// in every one of `scopes`, not just one. No scopes means no right.
+    pub async fn check_create_in_every_scope(
+        &self,
+        user: &str,
+        scopes: &[String],
+        blueprint: Option<&str>,
+    ) -> bool {
+        self.decide(user, Action::create(blueprint), Target::EveryOf(scopes))
+            .is_allowed()
+    }
+
+    /// Get all available scopes defined in the authorization configuration
+    pub async fn get_scopes(&self) -> Vec<String> {
+        self.policy.load().config().scopes.keys().cloned().collect()
+    }
 }
 
 impl std::fmt::Debug for AuthorizationService {

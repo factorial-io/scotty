@@ -5,7 +5,13 @@ use crate::{
     app_state::SharedAppState,
     docker::blueprint_template::TemplateInputs,
     docker::create_app::{create_app, CreateRequest},
-    services::AuthorizationService,
+    services::{
+        authorization::{
+            decision::{Action, Target},
+            Permission,
+        },
+        AuthorizationService,
+    },
 };
 use axum::{
     debug_handler,
@@ -145,23 +151,11 @@ pub async fn create_app_handler(
                 .iter()
                 .any(|f| crate::docker::blueprint_template::is_compose_file(&f.name))
         });
-    let allowed = auth_service
-        .check_create_in_scopes(&user_id, &payload.requested_scopes, templated_blueprint)
-        .await;
-
-    if !allowed {
-        return Err(AppError::ScopeAccessDenied(format!(
-            "User {} lacks create permission in scopes {:?}{}",
-            auth_context.user.email,
-            payload.requested_scopes,
-            payload
-                .settings
-                .app_blueprint
-                .as_deref()
-                .map(|bp| format!(" for blueprint {bp}"))
-                .unwrap_or_default()
-        )));
-    }
+    auth_service.require(
+        &user_id,
+        Action::create(templated_blueprint),
+        Target::AnyOf(&payload.requested_scopes),
+    )?;
 
     // `create:<blueprint>` covers parameters, image and payload files; the
     // blueprint decides everything else that reaches the load balancer, the
@@ -170,8 +164,12 @@ pub async fn create_app_handler(
         let fields = blueprint_only_violations(&payload);
         if !fields.is_empty()
             && !auth_service
-                .check_create_in_scopes(&user_id, &payload.requested_scopes, None)
-                .await
+                .decide(
+                    &user_id,
+                    Permission::Create.into(),
+                    Target::AnyOf(&payload.requested_scopes),
+                )
+                .is_allowed()
         {
             return Err(AppError::ScopeAccessDenied(format!(
                 "setting {} needs the create permission",
@@ -212,21 +210,11 @@ pub async fn create_app_handler(
         let candidate =
             templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
         // Rights in every scope of the app being replaced, not just one.
-        if !auth_service
-            .check_create_in_every_scope(&user_id, &existing.scopes, candidate)
-            .await
-        {
-            return Err(AppError::ScopeAccessDenied(format!(
-                "User {} may not replace existing app {}{}",
-                auth_context.user.email,
-                payload.app_name,
-                existing
-                    .app_blueprint
-                    .as_deref()
-                    .map(|bp| format!(" (blueprint {bp})"))
-                    .unwrap_or_default()
-            )));
-        }
+        auth_service.require(
+            &user_id,
+            Action::create(candidate),
+            Target::EveryOf(&existing.scopes),
+        )?;
     }
 
     // Copy validated scopes to settings

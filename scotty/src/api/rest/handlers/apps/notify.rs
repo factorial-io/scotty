@@ -4,7 +4,6 @@ use scotty_core::{
     authorization::Permission,
     notification_types::{AddNotificationRequest, NotificationReceiver, RemoveNotificationRequest},
 };
-use tracing::warn;
 
 use crate::{
     api::{
@@ -12,7 +11,7 @@ use crate::{
         secure_response::SecureJson,
     },
     app_state::SharedAppState,
-    services::AuthorizationService,
+    services::{authorization::decision::Target, AuthorizationService},
 };
 
 /// Changing an app's notifications requires `manage` on that app.
@@ -26,21 +25,9 @@ async fn require_manage(
     app_name: &str,
 ) -> Result<(), AppError> {
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
-    if state
+    state
         .auth_service
-        .check_permission(&user_id, app_name, &Permission::Manage)
-        .await
-    {
-        Ok(())
-    } else {
-        warn!(
-            "Access denied: user {} lacks manage permission for notifications of app '{}'",
-            auth_context.user.email, app_name
-        );
-        Err(AppError::ScopeAccessDenied(
-            "user lacks manage permission".to_string(),
-        ))
-    }
+        .require(&user_id, Permission::Manage.into(), Target::App(app_name))
 }
 
 #[utoipa::path(

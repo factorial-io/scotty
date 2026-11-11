@@ -22,6 +22,7 @@ use uuid::Uuid;
 use super::server::{mcp_resource, McpServer};
 use crate::api::rate_limiting::create_register_limiter;
 use crate::app_state::{AppState, SharedAppState};
+use crate::services::authorization::decision::Target;
 
 pub const AUTHORIZE_PATH: &str = "/oauth/mcp/authorize";
 pub const TOKEN_PATH: &str = "/oauth/mcp/token";
@@ -164,14 +165,14 @@ impl McpPrincipal {
         if !scope.covers(&permission) || !self.scopes.iter().any(|s| s == scope.as_str()) {
             return false;
         }
-        let auth = &state.auth_service;
-        match target {
-            McpTarget::App(app) => auth.check_permission(&self.email, app, &permission).await,
-            McpTarget::Scopes(scopes) => {
-                auth.check_permission_in_scopes(&self.email, scopes, &permission)
-                    .await
-            }
-        }
+        let target = match target {
+            McpTarget::App(app) => Target::App(app),
+            McpTarget::Scopes(scopes) => Target::AnyOf(scopes),
+        };
+        state
+            .auth_service
+            .decide(&self.email, permission.into(), target)
+            .is_allowed()
     }
 }
 

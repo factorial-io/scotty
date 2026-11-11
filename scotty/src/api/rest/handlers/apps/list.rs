@@ -6,7 +6,10 @@ use crate::{
     api::error::AppError,
     api::secure_response::SecureJson,
     app_state::SharedAppState,
-    services::{authorization::Permission, AuthorizationService},
+    services::{
+        authorization::{decision::Target, Permission},
+        AuthorizationService,
+    },
 };
 #[utoipa::path(
     get,
@@ -55,12 +58,15 @@ pub async fn list_apps_handler(
         user.access_token
     );
 
+    // Hidden on purpose: apps the user may not view are left out, not refused.
+    let grants = auth_service.grants_for(&user_id);
+    let app_scopes = auth_service.app_scopes();
     let mut filtered_apps = Vec::new();
 
     for app in all_apps.apps {
-        let has_permission = auth_service
-            .check_permission(&user_id, &app.name, &Permission::View)
-            .await;
+        let has_permission = grants
+            .decide(&app_scopes, Permission::View.into(), Target::App(&app.name))
+            .is_allowed();
         tracing::info!(
             "App '{}' permission check for user '{}': {}",
             app.name,

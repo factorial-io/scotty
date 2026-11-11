@@ -24,7 +24,13 @@ impl From<Permission> for Action<'_> {
     }
 }
 
-impl Action<'_> {
+impl<'a> Action<'a> {
+    /// `create`, or creating from `blueprint` when the request qualifies for
+    /// `create:<blueprint>`.
+    pub fn create(blueprint: Option<&'a str>) -> Self {
+        blueprint.map_or(Self::Permission(Permission::Create), Self::CreateFrom)
+    }
+
     /// The one refusal reason every enforcement point reports.
     fn denial(self) -> String {
         match self {

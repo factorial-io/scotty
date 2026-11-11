@@ -2,7 +2,10 @@ use crate::api::basic_auth::CurrentUser;
 use crate::{
     api::error::AppError,
     app_state::SharedAppState,
-    services::authorization::{AuthorizationService, Permission},
+    services::authorization::{
+        decision::{Decision, Target},
+        AuthorizationService, Permission,
+    },
 };
 use axum::{extract::State, response::IntoResponse, Extension, Json};
 use serde::{Deserialize, Serialize};
@@ -77,19 +80,20 @@ pub async fn test_permission_handler(
     };
 
     // Test the permission
-    let allowed = auth_service
-        .check_permission(&test_user_id, &request.app_name, &permission)
-        .await;
+    let decision = auth_service.decide(
+        &test_user_id,
+        permission.into(),
+        Target::App(&request.app_name),
+    );
 
     let response = TestPermissionResponse {
         user_id: test_user_id,
         app_name: request.app_name,
         permission: request.permission,
-        allowed,
-        reason: if allowed {
-            None
-        } else {
-            Some("Permission denied".to_string())
+        allowed: decision.is_allowed(),
+        reason: match decision {
+            Decision::Allow => None,
+            Decision::Deny(reason) => Some(reason),
         },
     };
 

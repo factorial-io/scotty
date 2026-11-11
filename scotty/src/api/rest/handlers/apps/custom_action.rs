@@ -12,7 +12,7 @@ use crate::{
     api::{error::AppError, middleware::authorization::AuthorizationContext},
     app_state::SharedAppState,
     docker::run_app_custom_action::run_app_custom_action,
-    services::AuthorizationService,
+    services::{authorization::decision::Target, AuthorizationService},
 };
 use scotty_core::{
     authorization::Permission,
@@ -65,17 +65,14 @@ pub async fn run_custom_action_handler(
     // their approval status) in scopes they have no access to. The exact
     // permission the action requires is checked below.
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
-    let mut may_run_actions = false;
-    for permission in [Permission::ActionRead, Permission::ActionWrite] {
-        if state
-            .auth_service
-            .check_permission(&user_id, &app_name, &permission)
-            .await
-        {
-            may_run_actions = true;
-            break;
-        }
-    }
+    let may_run_actions = [Permission::ActionRead, Permission::ActionWrite]
+        .into_iter()
+        .any(|permission| {
+            state
+                .auth_service
+                .decide(&user_id, permission.into(), Target::App(&app_name))
+                .is_allowed()
+        });
     if !may_run_actions {
         warn!(
             "Access denied: user {} has no action permission on app '{}'",
@@ -132,25 +129,9 @@ pub async fn run_custom_action_handler(
     };
 
     // Check if user has the required permission for this action
-    let has_permission = state
+    state
         .auth_service
-        .check_permission(&user_id, &app_name, &required_permission)
-        .await;
-
-    if !has_permission {
-        warn!(
-            "Access denied: user {} lacks {} permission for action '{}' on app '{}'",
-            auth_context.user.email,
-            required_permission.as_str(),
-            payload.action_name,
-            app_name
-        );
-        return Err(AppError::ScopeAccessDenied(format!(
-            "Insufficient permission ({}) to run action '{}'",
-            required_permission.as_str(),
-            payload.action_name
-        )));
-    }
+        .require(&user_id, required_permission.into(), Target::App(&app_name))?;
 
     info!(
         "Access granted: user {} has {} permission for action '{}' on app '{}'",

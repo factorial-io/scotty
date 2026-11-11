@@ -19,6 +19,7 @@ use super::server::WEB_CLIENT_ID;
 use super::store::{active_grants, REALM_MCP};
 use crate::api::basic_auth::CurrentUser;
 use crate::app_state::SharedAppState;
+use crate::services::authorization::decision::Target;
 
 /// One active connection.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -70,8 +71,8 @@ fn backend_error(e: impl std::fmt::Display) -> StatusCode {
 async fn is_admin(state: &SharedAppState, user: &CurrentUser) -> bool {
     state
         .auth_service
-        .check_global_permission(&user.email, &Permission::AdminWrite)
-        .await
+        .decide(&user.email, Permission::AdminWrite.into(), Target::Global)
+        .is_allowed()
 }
 
 /// The person's database, or 403/404.
