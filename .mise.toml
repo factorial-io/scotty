@@ -1,2 +1,16 @@
 [tools]
 node = "26"
+
+[tasks.traefik]
+description = "Start the local Traefik load balancer"
+dir = "apps/traefik"
+run = [
+  "docker network inspect proxy >/dev/null 2>&1 || docker network create proxy",
+  "docker compose up -d",
+]
+
+[tasks.dev]
+description = "Run the scotty server in dev mode (no auth)"
+depends = ["traefik"]
+env = { SCOTTY__API__AUTH_MODE = "dev" }
+run = "cargo run --bin scotty"
