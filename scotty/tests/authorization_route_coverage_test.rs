@@ -100,15 +100,6 @@ const ROUTES: &[(&str, Gate)] = &[
     ("POST /api/v1/authenticated/apps/{app_name}/actions", Handler("action_read|action_write")),
 ];
 
-/// BUG: these handlers extract `Extension<String>`, which no layer inserts,
-/// so they answer 500 to every caller that passes the permission check.
-const BROKEN_FOR_EVERYONE: &[&str] = &[
-    "POST /api/v1/authenticated/apps/{app_name}/custom-actions",
-    "POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/approve",
-    "POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/reject",
-    "POST /api/v1/authenticated/admin/actions/{app_name}/{action_name}/revoke",
-];
-
 /// `require_permission(` calls in router.rs. Three of them guard two methods
 /// each (custom-actions, custom-actions/{action_name}, admin/assignments),
 /// hence 28 middleware operations.
@@ -306,14 +297,9 @@ async fn holder_of_exactly_the_permission_gets_past_the_check() {
             }
             let response = call(&servers[permission].0, op).await;
             let status = response.status_code().as_u16();
-            // 5xx would hide a check that fails for everyone.
-            let known_500 = BROKEN_FOR_EVERYONE.contains(&op) && status == 500;
-            if BROKEN_FOR_EVERYONE.contains(&op) && status != 500 {
-                failures.push(format!(
-                    "{op}: {status}, fixed? Remove it from BROKEN_FOR_EVERYONE"
-                ));
-            }
-            if status == 401 || status == 403 || (status >= 500 && !known_500) {
+            // 5xx would hide a check that fails for everyone. CHANGED: custom
+            // action create/approve/reject/revoke answered 500 to everyone.
+            if status == 401 || status == 403 || status >= 500 {
                 failures.push(format!(
                     "{op} as holder of {permission}: {status} {}",
                     response.text()

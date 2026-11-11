@@ -6,19 +6,19 @@ use std::collections::HashMap;
 
 /// Test domain assignment resolution with exact email match
 #[tokio::test]
-async fn test_exact_email_takes_precedence_over_domain() {
+async fn test_exact_email_and_domain_add_up() {
     let config = create_test_config_with_domain_assignments();
     let service = create_test_service(config).await;
 
-    // User with exact email assignment should get exact + wildcard (NOT domain)
+    // User with exact email assignment gets exact + domain + wildcard
     let assignments = service.get_user_permissions("admin@factorial.io").await;
 
-    // Should have permissions from "admin" role (exact match) and "viewer" role (wildcard)
+    // Permissions from "admin" role (exact match) and "viewer" role (wildcard)
     assert!(assignments.contains_key("admin-scope"));
     assert!(assignments.contains_key("default"));
 
-    // Should NOT have permissions from domain match
-    assert!(!assignments.contains_key("dev-scope"));
+    // CHANGED: the domain entry is added too; the exact entry used to hide it
+    assert!(assignments.contains_key("dev-scope"));
 }
 
 /// Test domain assignment resolution for users without exact match

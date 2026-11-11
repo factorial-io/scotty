@@ -1,9 +1,9 @@
-//! Characterization of policy changes at runtime (admin API calls and app
-//! scopes) and of loading the policy at startup, as they behave today.
+//! Policy changes at runtime (admin API calls and app scopes) and loading the
+//! policy at startup.
 //!
 //! Each test works on its own temp policy directory. Assertions marked
-//! `// CHANGES:` pin behavior that is expected to change in a planned rewrite
-//! of the authorization code; the marker says to what.
+//! `// CHANGED:` differ from the behavior before the single decision point;
+//! the marker says how.
 
 use std::path::Path;
 
@@ -27,7 +27,8 @@ assignments:
     - { role: dev, scopes: [beta] }
 "#;
 
-/// A directory holding the shipped `model.conf` and, if given, `policy.yaml`.
+/// A directory holding the shipped `model.conf` (ignored) and, if given,
+/// `policy.yaml`.
 fn policy_dir(policy: Option<&str>) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::copy("../config/casbin/model.conf", dir.path().join("model.conf")).unwrap();
@@ -56,14 +57,13 @@ async fn new_scope_and_wildcard_scope_assignment() {
         .await
         .unwrap();
 
-    // CHANGES: per-app checks miss the new scope for `*` assignments until a
-    // restart (the casbin index expanded `*` at load time) -> allowed.
+    // CHANGED: per-app checks used to miss the new scope for `*` assignments
+    // until a restart.
     assert!(
-        !auth
-            .check_permission("root@example.com", "qa-app", &Permission::Manage)
+        auth.check_permission("root@example.com", "qa-app", &Permission::Manage)
             .await
     );
-    // Scope checks and listings expand `*` on every call and see it at once.
+    // Scope checks and listings see it at once, too.
     assert!(
         auth.check_permission_in_scopes("root@example.com", &scopes(&["qa"]), &Permission::Manage)
             .await
@@ -140,11 +140,13 @@ async fn assign_role_takes_effect_at_once() {
         .unwrap_err();
     assert!(err.to_string().contains("devloper"), "{err}");
 
-    // CHANGES: an undefined scope is accepted today -> refused, naming it.
-    auth.assign_user_role(user, "dev", scopes(&["stagin"]))
+    // CHANGED: an undefined scope was accepted; now refused, naming it.
+    let err = auth
+        .assign_user_role(user, "dev", scopes(&["stagin"]))
         .await
-        .unwrap();
-    assert!(auth.list_assignments().await[user]
+        .unwrap_err();
+    assert!(err.to_string().contains("stagin"), "{err}");
+    assert!(!auth.list_assignments().await[user]
         .iter()
         .any(|a| a.scopes == ["stagin"]));
 }
@@ -243,7 +245,7 @@ async fn set_app_scopes_moves_the_app() {
 }
 
 #[tokio::test]
-async fn failed_save_keeps_the_change_in_memory() {
+async fn failed_save_changes_nothing() {
     let dir = policy_dir(Some(POLICY));
     let auth = load(dir.path()).await.unwrap();
     auth.set_app_scopes("app-a", scopes(&["alpha"]))
@@ -255,17 +257,18 @@ async fn failed_save_keeps_the_change_in_memory() {
     std::fs::create_dir(&path).unwrap();
 
     assert!(auth.create_scope("qa", "QA").await.is_err());
-    // CHANGES: the scope exists although the request failed -> unchanged.
-    assert!(auth.get_scopes().await.contains(&"qa".to_string()));
+    // CHANGED: the scope used to exist although the request failed.
+    assert!(!auth.get_scopes().await.contains(&"qa".to_string()));
 
     let user = "sam@other.test";
     assert!(auth
         .assign_user_role(user, "dev", scopes(&["alpha"]))
         .await
         .is_err());
-    // CHANGES: the failed assignment is in effect -> not allowed.
+    // CHANGED: the failed assignment used to be in effect.
     assert!(
-        auth.check_permission(user, "app-a", &Permission::Manage)
+        !auth
+            .check_permission(user, "app-a", &Permission::Manage)
             .await
     );
 }
@@ -327,32 +330,35 @@ async fn broken_policies_fail_to_load() {
 }
 
 #[tokio::test]
-async fn undefined_role_or_scope_in_an_assignment_loads() {
-    // CHANGES: both load today -> fail, naming the user pattern and the key.
-    let policy = POLICY.replace(
+async fn undefined_role_or_scope_in_an_assignment_fails_to_load() {
+    // CHANGED: both used to load; now they fail, naming the user pattern and
+    // the key.
+    let err = load_error(&POLICY.replace(
         "  bob@example.com:\n    - { role: dev, scopes: [beta] }",
-        "  bob@example.com:\n    - { role: devloper, scopes: [beta] }\n    - { role: dev, scopes: [stagin] }",
-    );
-    let dir = policy_dir(Some(&policy));
-    let auth = load(dir.path()).await.unwrap();
-    // The undefined role grants nothing; the undefined scope is listed.
-    auth.set_app_scopes("app-b", scopes(&["beta"]))
-        .await
-        .unwrap();
+        "  bob@example.com:\n    - { role: devloper, scopes: [beta] }",
+    ))
+    .await;
     assert!(
-        !auth
-            .check_permission("bob@example.com", "app-b", &Permission::View)
-            .await
+        err.contains("bob@example.com") && err.contains("devloper"),
+        "{err}"
     );
-    let listed = auth.get_user_permissions("bob@example.com").await;
-    assert_eq!(listed.keys().collect::<Vec<_>>(), ["stagin"]);
+
+    let err = load_error(&POLICY.replace(
+        "  bob@example.com:\n    - { role: dev, scopes: [beta] }",
+        "  bob@example.com:\n    - { role: dev, scopes: [stagin] }",
+    ))
+    .await;
+    assert!(
+        err.contains("bob@example.com") && err.contains("stagin"),
+        "{err}"
+    );
 }
 
 #[tokio::test]
-async fn missing_model_fails_to_load() {
+async fn missing_model_is_not_needed() {
     let dir = policy_dir(Some(POLICY));
     std::fs::remove_file(dir.path().join("model.conf")).unwrap();
-    // CHANGES: no model file is read any more -> loads.
-    let err = format!("{:#}", load(dir.path()).await.unwrap_err());
-    assert!(err.contains("Failed to load Casbin model"), "{err}");
+    // CHANGED: loading used to fail with "Failed to load Casbin model".
+    let auth = load(dir.path()).await.unwrap();
+    assert!(auth.is_enabled().await);
 }
