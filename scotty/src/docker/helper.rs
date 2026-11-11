@@ -12,7 +12,7 @@ use scotty_core::notification_types::Message;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use tracing::error;
 
-use super::steps::context::Context;
+use super::steps::context::{Context, TaskAccess};
 
 /// Run an app operation in the background and own its task.
 ///
@@ -32,7 +32,7 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    run_operation_requested_by(app_state, app, None, None, notification, op).await
+    run_operation_requested_by(app_state, app, TaskAccess::default(), notification, op).await
 }
 
 /// Like [`run_operation`], but records who started the task, so that user can
@@ -41,8 +41,7 @@ where
 pub async fn run_operation_requested_by<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
-    requested_by: Option<String>,
-    action_permission: Option<String>,
+    access: TaskAccess,
     notification: Option<Message>,
     op: F,
 ) -> anyhow::Result<RunningAppContext>
@@ -50,7 +49,7 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let ctx = Context::create(app_state, app, requested_by, action_permission).await;
+    let ctx = Context::create(app_state, app, access).await;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))

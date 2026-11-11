@@ -7,7 +7,7 @@ use crate::{
         helper::run_operation_requested_by,
         steps::{
             compose::{docker_login, update_app_data},
-            context::Context,
+            context::{Context, TaskAccess},
             post_actions::run_post_actions,
         },
     },
@@ -114,8 +114,10 @@ pub async fn run_app_custom_action(
     run_operation_requested_by(
         app_state,
         app,
-        Some(requested_by),
-        Some(permission.as_str().to_string()),
+        TaskAccess {
+            requested_by: Some(requested_by),
+            action_permission: Some(permission.as_str().to_string()),
+        },
         Some(notification),
         move |ctx| async move { custom_action_steps(&ctx, &action).await },
     )
