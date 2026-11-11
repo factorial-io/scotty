@@ -1,0 +1,168 @@
+/*
+ * Scotty docs: Factorial design system layer on top of @factorial/docs.
+ * Values come from the factorial-design tokens (colors_and_type.css), read
+ * at this theme's 16px root: 1 design-system rem (10px) = 0.625rem here.
+ */
+
+html {
+  /* brand palette */
+  --color-orange: #cf451c;              /* --color-primary */
+  --color-grey-900: #111827;            /* --color-blue-dark */
+  --color-grey-100: #f5f7fa;            /* light grey surface */
+  --color-background: #fff;             /* white page, always */
+  --color-footer: #111827;
+
+  /* shape + motion */
+  --border-radius: 0.1171875rem;        /* 0.1875rem @ 10px root = 1.875px */
+  --fac-transition: 250ms ease-out;
+  --fac-shadow: 0 10px 60px rgba(202, 213, 224, 0.4);
+
+  /* type scale (u-fontH1..H4, desktop) */
+  --typo-h1-font-size: 3.375rem;        /* 54px */
+  --typo-h2-font-size: 2.5rem;          /* 40px */
+  --typo-h3-font-size: 1.875rem;        /* 30px */
+  --typo-h4-font-size: 1.5rem;          /* 24px */
+  --typo-h1-font-weight: 400;
+  --typo-h2-font-weight: 400;
+  --typo-h3-font-weight: 400;
+  --typo-h4-font-weight: 400;
+
+  background-color: #fff;
+  color-scheme: light;
+}
+
+body {
+  background-color: #fff;
+}
+
+/* ---------- header: white, sticky, no border, no shadow ---------- */
+.Header {
+  border-block-end: 0;
+}
+
+/* ---------- focus: 3px primary, always visible (BITV) ---------- */
+:where(.Header, main, .Footer) :where(a, button):focus-visible {
+  outline: 3px solid var(--color-orange);
+  outline-offset: 3px;
+}
+
+/* ---------- links: animated underline (u-linkHover) ---------- */
+.RichText a:not([class]) {
+  text-decoration-color: transparent;
+  text-decoration-thickness: 0.09375em;
+  text-underline-offset: 0.4em;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 0.09375em;
+  transition: background-size var(--fac-transition), color var(--fac-transition);
+  text-decoration: none;
+  padding-block-end: 0.15em;
+}
+
+.RichText a:not([class]):hover {
+  color: var(--color-orange);
+  background-size: 0 0.09375em;
+}
+
+/* ---------- homepage hero ---------- */
+.Hero {
+  background-color: #fff;
+}
+
+.Hero-titleProject {
+  color: var(--color-orange);           /* top-label */
+  font-weight: 600;
+}
+
+.Hero-titleTagline {
+  font-weight: 400;
+}
+
+/* MainButton, filled primary */
+.Hero-link {
+  background-color: var(--color-orange);
+  border: 1.5px solid var(--color-orange);
+  border-radius: var(--border-radius);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.75em 1.5em;
+  transition: filter var(--fac-transition);
+}
+
+.Hero-link:hover {
+  filter: brightness(1.25);
+}
+
+/* ---------- feature list: ServiceCard-style panels ---------- */
+.Features-entry {
+  background-color: #fff;
+  box-shadow: var(--fac-shadow);
+  padding: 1.875rem;                    /* 3rem @ 10px root */
+}
+
+.Features-icon {
+  block-size: 3.5rem;
+  inline-size: auto;
+}
+
+.Features-title {
+  font-weight: 400;
+}
+
+/* ---------- docs nav ---------- */
+.Nav-listItemLink {
+  transition: color var(--fac-transition);
+}
+
+.Nav-listItemLink:hover {
+  color: var(--color-orange);
+}
+
+/* ---------- code ---------- */
+:not(pre) > code,
+pre {
+  background: var(--color-grey-100);
+  border-radius: var(--border-radius);
+}
+
+pre {
+  padding: 1.25rem;                     /* --static-spacing-small */
+}
+
+code,
+pre {
+  text-shadow: none;
+}
+
+/* ---------- tables ---------- */
+.RichText table {
+  border-collapse: collapse;
+  inline-size: 100%;
+}
+
+.RichText :is(th, td) {
+  border-block-end: 1px solid var(--color-grey-200);
+  padding: 0.625rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+}
+
+.RichText th {
+  font-weight: 600;
+}
+
+/* ---------- blockquote: orange rule ---------- */
+.RichText blockquote {
+  border-inline-start: 3px solid var(--color-orange);
+  padding-inline-start: 1.25rem;
+}
+
+/* ---------- pagination: ghost buttons ---------- */
+.Pagination-link {
+  transition: filter var(--fac-transition);
+}
+
+.Pagination-link:hover {
+  filter: brightness(0.7);
+}
