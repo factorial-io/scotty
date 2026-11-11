@@ -2,7 +2,10 @@
  * Scotty docs: Factorial design system layer on top of @factorial/docs.
  * Values come from the factorial-design tokens (colors_and_type.css), read
  * at this theme's 16px root: 1 design-system rem (10px) = 0.625rem here.
+ * Homepage hero + Benefits follow the phabalicious docs; they use ./styles/tokens.css
+ * (factorial-design tokens, @font-face stripped since fdocs serves SuisseIntl).
  */
+@import url("./styles/tokens.css");
 
 html {
   /* brand palette */
@@ -15,7 +18,6 @@ html {
   /* shape + motion */
   --border-radius: 0.1171875rem;        /* 0.1875rem @ 10px root = 1.875px */
   --fac-transition: 250ms ease-out;
-  --fac-shadow: 0 10px 60px rgba(202, 213, 224, 0.4);
 
   /* type scale (u-fontH1..H4, desktop) */
   --typo-h1-font-size: 3.375rem;        /* 54px */
@@ -65,49 +67,111 @@ body {
   background-size: 0 0.09375em;
 }
 
-/* ---------- homepage hero ---------- */
+/* ---------- homepage hero: dark band, copy column bottom-aligned ---------- */
 .Hero {
-  background-color: #fff;
+  background: var(--color-bg-dark);
+  color: var(--color-copy-primary-dark);
 }
-
+.Hero-container {
+  display: grid;
+  grid-template-columns: var(--layout-grid);
+  max-width: none;
+}
+.Hero-contentContainer {
+  grid-column: span var(--span-hero-copy);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-16) var(--layout-gutter);
+}
+.Hero-imageContainer {
+  grid-column: span var(--span-hero-media);
+  background: var(--color-bg-dark);
+}
+.Hero-image {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  max-block-size: 600px;
+  object-fit: contain;
+}
+.Hero-title {
+  font: var(--text-h2);
+  letter-spacing: 0;
+  max-inline-size: var(--measure-hero-title);
+}
 .Hero-titleProject {
-  color: var(--color-orange);           /* top-label */
-  font-weight: 600;
+  font: var(--text-eyebrow);              /* top-label */
+  color: var(--color-primary-light);
+  margin-block-end: var(--space-4);
 }
-
 .Hero-titleTagline {
-  font-weight: 400;
+  font: inherit;
 }
-
-/* MainButton, filled primary */
+/* ghost button on dark */
 .Hero-link {
-  background-color: var(--color-orange);
-  border: 1.5px solid var(--color-orange);
+  align-self: flex-start;
+  margin-block-start: var(--space-10);
+  font: var(--text-copy-small);
+  color: var(--color-copy-primary-dark);
+  background: transparent;
+  border: var(--border-width) solid currentColor;
   border-radius: var(--border-radius);
-  color: #fff;
-  font-weight: 600;
-  padding: 0.75em 1.5em;
+  padding: calc(0.75em - var(--border-width)) calc(1.5em - var(--border-width));
+  text-decoration: none;
   transition: filter var(--fac-transition);
 }
-
 .Hero-link:hover {
-  filter: brightness(1.25);
+  background: transparent;
+  color: var(--color-copy-primary-dark);
+  filter: brightness(0.7);
+}
+@media (max-width: 1023px) {
+  .Hero-contentContainer,
+  .Hero-imageContainer { grid-column: 1 / -1; }
 }
 
-/* ---------- feature list: ServiceCard-style panels ---------- */
+/* ---------- features as "Benefits": index number + column dividers ---------- */
+.Features {
+  counter-reset: feature;
+  max-width: var(--layout-container-max);
+  padding: var(--space-24) var(--layout-gutter);
+  gap: var(--layout-gap-y) 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .Features-entry {
-  background-color: #fff;
-  box-shadow: var(--fac-shadow);
-  padding: 1.875rem;                    /* 3rem @ 10px root */
+  counter-increment: feature;
+  padding-inline: var(--space-8);
+  border-inline-start: var(--divider-width) solid currentColor;
 }
-
-.Features-icon {
-  block-size: 3.5rem;
-  inline-size: auto;
+.Features-entry:nth-child(3n + 1) {
+  border-inline-start: 0;
+  padding-inline-start: 0;
 }
-
-.Features-title {
-  font-weight: 400;
+/* Benefits carry an index number, not icons (factorial-design web §4). */
+.Features-icon { display: none; }
+.Features-entry::before {
+  content: counter(feature, decimal-leading-zero);
+  display: block;
+  font: var(--text-mono-small);
+  letter-spacing: var(--tracking-mono-small);
+  color: var(--color-primary);
+  margin-block-end: var(--space-4);
+}
+.Features-title,
+.Features-icon + .Features-title {
+  font: var(--text-h4);
+  margin-block-start: 0;
+}
+.Features-details {
+  font: var(--text-copy-small);
+  color: var(--color-copy-secondary);
+  margin-block-start: var(--space-4);
+}
+@media (max-width: 1023px) {
+  .Features { grid-template-columns: minmax(0, 1fr); padding-block: var(--space-16); }
+  .Features-entry,
+  .Features-entry:nth-child(3n + 1) { border: 0; padding-inline: 0; }
 }
 
 /* ---------- docs nav ---------- */
