@@ -6,13 +6,14 @@ use std::{
     },
 };
 
+use anyhow::Context;
 use bollard::Docker;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::settings::docker::DockerConnectOptions;
 use secrecy::ExposeSecret;
 use tokio::sync::{broadcast, Mutex};
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::api::basic_auth::CurrentUser;
 use crate::api::websocket::WebSocketMessenger;
@@ -20,7 +21,7 @@ use crate::docker::services::logs::LogStreamingService;
 use crate::docker::services::shell::ShellService;
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{self, create_oauth_session_store, create_web_flow_store};
-use crate::services::{authorization::fallback::FallbackService, AuthorizationService};
+use crate::services::AuthorizationService;
 use crate::settings::config::Settings;
 use crate::stop_flag;
 use crate::tasks::manager;
@@ -112,6 +113,18 @@ impl Drop for CreateLock {
 
 pub type SharedAppState = Arc<AppState>;
 
+/// Loads the authorization service from `config_dir`. Any error stops
+/// startup: a policy that doesn't load (e.g. an unknown permission) must never
+/// be silently replaced by a fallback. A missing `policy.yaml` is not an error;
+/// `ConfigManager::load_config` seeds or defaults it.
+async fn load_auth_service(config_dir: &str) -> anyhow::Result<AuthorizationService> {
+    let service = AuthorizationService::new(config_dir)
+        .await
+        .with_context(|| format!("Failed to load authorization config from '{config_dir}'"))?;
+    info!("Authorization service loaded successfully from config");
+    Ok(service)
+}
+
 impl AppState {
     /// Records when the next scheduled app-state sweep is due.
     pub fn set_next_app_check(&self, at: chrono::DateTime<chrono::Local>) {
@@ -170,20 +183,7 @@ impl AppState {
             _ => None,
         };
 
-        // Initialize authorization service (always available with fallback)
-        let auth_service = Arc::new(match AuthorizationService::new("config/casbin").await {
-            Ok(service) => {
-                info!("Authorization service loaded successfully from config");
-                service
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to load authorization config from 'config/casbin': {}. Falling back to default configuration with view-only permissions.",
-                    e
-                );
-                FallbackService::create_fallback_service(settings.api.access_token.clone()).await
-            }
-        });
+        let auth_service = Arc::new(load_auth_service("config/casbin").await?);
 
         let (session_server, mcp_server) = match (&oauth_db, &settings.api.jwt_secret) {
             (Some(pool), Some(secret)) => (
@@ -272,5 +272,30 @@ mod create_lock_tests {
         );
         drop(first);
         assert!(locks.try_lock("demo").is_some(), "released on drop");
+    }
+}
+
+#[cfg(test)]
+mod load_auth_service_tests {
+    use super::load_auth_service;
+
+    #[tokio::test]
+    async fn unknown_permission_stops_startup_naming_role_and_string() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::copy(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../config/casbin/model.conf"),
+            dir.path().join("model.conf"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("policy.yaml"),
+            "scopes: {}\nroles:\n  viewer:\n    permissions: [veiw]\n    description: d\nassignments: {}\n",
+        )
+        .unwrap();
+        let Err(err) = load_auth_service(dir.path().to_str().unwrap()).await else {
+            panic!("a policy with an unknown permission must not load");
+        };
+        let msg = format!("{err:#}");
+        assert!(msg.contains("viewer") && msg.contains("veiw"), "{msg}");
     }
 }
