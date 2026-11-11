@@ -71,25 +71,26 @@ cd apps/traefik && docker compose up -d
 
 ### Authorization System
 
-Uses Casbin for RBAC. Config: `config/casbin/policy.yaml`. Implementation: `scotty/src/services/authorization/casbin.rs`. Tests: `scotty/tests/authorization_domain_test.rs`.
+RBAC with one decision point. Config: `config/casbin/policy.yaml` (validated at load: undefined roles or scopes in assignments stop startup). Implementation: `scotty/src/services/authorization/` — `policy.rs` (compile, `grants_for`), `decision.rs` (`decide`), `service.rs` (snapshots, `require`). Enforce with `auth_service.require(user, action, target)` or `decide`; never evaluate permissions elsewhere. Tests: `scotty/tests/authorization_*_test.rs`.
 
 **Permissions**: `view`, `manage`, `create`, `create:<blueprint>` (only that blueprint, no own compose), `destroy`, `shell`, `logs`, `admin_read`, `admin_write`, `action_read`, `action_write`, `action_manage`, `action_approve`
 
-**Assignment matching** (by precedence): exact email (`user@factorial.io`) > domain pattern (`@factorial.io`) > wildcard (`*`). Wildcard is always additive. Domain patterns prevent subdomain attacks. Case-insensitive per RFC 5321.
+**Assignment matching** (union): a user holds everything from their exact email or identifier entry, their domain pattern (`@factorial.io`) and the wildcard (`*`); no entry hides another. Domain patterns match only that domain, not subdomains. Emails are case-insensitive, identifiers case-sensitive. An app in no scope and an assignment with `scopes: []` grant nothing.
 
 ```yaml
 # config/casbin/policy.yaml
 scopes:
   client-a: { description: "Client A Production" }
   qa: { description: "QA Environment" }
+  default: { description: "Default" }
 roles:
   admin: { permissions: ['*'], description: "Full access" }
   developer: { permissions: ['view', 'manage', 'create', 'shell', 'logs'], description: "Dev access" }
   viewer: { permissions: ['view'], description: "Read-only" }
 assignments:
-  stephan@factorial.io:                     # Exact match (highest priority)
+  stephan@factorial.io:                     # Exact match (adds to the domain entry)
     - { role: admin, scopes: ['*'] }
-  '@factorial.io':                          # Domain match (fallback)
+  '@factorial.io':                          # Domain match
     - { role: developer, scopes: ['client-a', 'qa'] }
   '*':                                      # Wildcard (always additive)
     - { role: viewer, scopes: ['default'] }
