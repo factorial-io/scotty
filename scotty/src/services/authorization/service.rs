@@ -81,6 +81,11 @@ impl AuthorizationService {
         Self::from_config(config, config_path).expect("authorization config compiles")
     }
 
+    /// The `policy.yaml` changes are saved to.
+    pub fn config_path(&self) -> &str {
+        &self.config_path
+    }
+
     /// The decision for `user` doing `action` on `target`.
     pub fn decide(&self, user: &str, action: Action<'_>, target: Target<'_>) -> Decision {
         let decision = self
@@ -432,7 +437,7 @@ impl AuthorizationService {
         let policy = Policy::compile(config)?;
         // The fallback service lives in memory only.
         if !self.config_path.starts_with("fallback/") {
-            ConfigManager::save_config(policy.config(), &self.config_path).await?;
+            ConfigManager::save_config(policy.config(), self.config_path()).await?;
         }
         self.policy.store(Arc::new(policy));
         Ok(())

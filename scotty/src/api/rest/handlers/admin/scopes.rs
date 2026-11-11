@@ -70,53 +70,28 @@ pub async fn create_scope_handler(
         request.name, user.email
     );
 
-    // Validate input
     if request.name.trim().is_empty() {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: "Scope name cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Scope name cannot be empty".to_string(),
+        ));
     }
-
     if request.description.trim().is_empty() {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: "Scope description cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Scope description cannot be empty".to_string(),
+        ));
     }
 
-    // Check if scope already exists
-    let existing_scopes = auth_service.list_scopes().await;
-    if existing_scopes
-        .iter()
-        .any(|(name, _)| name == &request.name)
-    {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: format!("Scope '{}' already exists", request.name),
-        }));
-    }
-
-    // Create the scope
-    match auth_service
+    // A duplicate name is refused with 409; nothing changes on any error.
+    auth_service
         .create_scope(&request.name, &request.description)
         .await
-    {
-        Ok(_) => {
-            info!("Successfully created scope '{}'", request.name);
-            Ok(Json(CreateScopeResponse {
-                success: true,
-                message: format!("Scope '{}' created successfully", request.name),
-            }))
-        }
-        Err(e) => {
-            tracing::error!("Failed to create scope '{}': {}", request.name, e);
-            Ok(Json(CreateScopeResponse {
-                success: false,
-                message: format!("Failed to create scope: {}", e),
-            }))
-        }
-    }
+        .inspect_err(|e| tracing::error!("Failed to create scope '{}': {:#}", request.name, e))?;
+
+    info!("Successfully created scope '{}'", request.name);
+    Ok(Json(CreateScopeResponse {
+        success: true,
+        message: format!("Scope '{}' created successfully", request.name),
+    }))
 }
 
 #[cfg(test)]
