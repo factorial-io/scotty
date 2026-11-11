@@ -11,6 +11,14 @@ use crate::{
     tasks::actor::{Snapshot, TaskHandle},
 };
 
+/// Who started a task and, for an action run, the permission the action
+/// required. Both decide who may see the task (`can_view_task`).
+#[derive(Debug, Default)]
+pub struct TaskAccess {
+    pub requested_by: Option<String>,
+    pub action_permission: Option<String>,
+}
+
 /// Shared by every step of one operation, including nested operations.
 /// The context owns the task: when the last reference goes away (normal end,
 /// error, or panic) without `task.terminate`, the task is failed automatically.
@@ -25,15 +33,14 @@ impl Context {
     pub async fn create(
         app_state: SharedAppState,
         app_data: &AppData,
-        requested_by: Option<String>,
-        action_permission: Option<String>,
+        access: TaskAccess,
     ) -> Arc<Self> {
         let (task, task_snapshot) = app_state
             .task_manager
             .create_task(TaskDetails {
                 app_name: Some(app_data.name.clone()),
-                requested_by,
-                action_permission,
+                requested_by: access.requested_by,
+                action_permission: access.action_permission,
                 ..TaskDetails::default()
             })
             .await;

@@ -15,7 +15,7 @@ use super::blueprint_template::TemplateInputs;
 use super::helper::run_operation_requested_by;
 use super::rebuild_app::rebuild_steps;
 use super::steps::compose::update_app_data;
-use super::steps::context::Context;
+use super::steps::context::{Context, TaskAccess};
 use super::steps::files::{create_directory, save_files, save_settings};
 use super::steps::load_balancer::create_load_balancer_config;
 use super::steps::post_actions::run_post_actions;
@@ -202,8 +202,10 @@ pub async fn create_app(
     run_operation_requested_by(
         app_state,
         &app_data,
-        requested_by,
-        None,
+        TaskAccess {
+            requested_by,
+            ..TaskAccess::default()
+        },
         Some(notification),
         move |ctx| async move {
             // Released once the app's settings and files are written.
