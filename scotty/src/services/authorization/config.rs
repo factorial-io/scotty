@@ -54,15 +54,25 @@ impl ConfigManager {
         };
 
         let yaml = serde_norway::to_string(&save_config)?;
-        // Write a sibling file and rename it over the policy, so a crash or a
-        // failed write never leaves a half-written policy.yaml behind.
-        let tmp_path = format!("{config_path}.tmp");
-        tokio::fs::write(&tmp_path, yaml)
+        // Write a sibling of the real file (through symlinks) and rename it
+        // over the policy, so a crash never leaves a half-written policy.yaml.
+        let target = tokio::fs::canonicalize(config_path)
+            .await
+            .unwrap_or_else(|_| config_path.into());
+        let tmp_path = target.with_extension("yaml.tmp");
+        tokio::fs::write(&tmp_path, &yaml)
             .await
             .context("Failed to save authorization config")?;
-        if let Err(e) = tokio::fs::rename(&tmp_path, config_path).await {
+        if let Err(e) = tokio::fs::rename(&tmp_path, &target).await {
             let _ = tokio::fs::remove_file(&tmp_path).await;
-            return Err(e).context("Failed to save authorization config");
+            // A file bind-mounted on its own can't be replaced; write in place.
+            warn!(
+                "Can't replace {}: {e}; writing it in place",
+                target.display()
+            );
+            tokio::fs::write(&target, yaml)
+                .await
+                .context("Failed to save authorization config")?;
         }
         Ok(())
     }
@@ -141,5 +151,25 @@ mod tests {
                 "static-html".into()
             )));
         assert!(!role.permissions.contains(&PermissionOrWildcard::Wildcard));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn save_keeps_a_symlinked_policy_a_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real.yaml");
+        let link = dir.path().join("policy.yaml");
+        std::fs::write(&real, "old").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+
+        let config = ConfigManager::default_config();
+        ConfigManager::save_config(&config, link.to_str().unwrap())
+            .await
+            .unwrap();
+        assert!(std::fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(std::fs::read_to_string(&real).unwrap().contains("default"));
     }
 }

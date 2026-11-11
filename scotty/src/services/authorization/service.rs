@@ -24,7 +24,11 @@ pub struct AuthorizationService {
     policy: ArcSwap<Policy>,
     /// App -> scopes, maintained by the app scan; never written to disk.
     app_scopes: ArcSwap<AppScopes>,
+    /// Serializes policy changes (held across saving policy.yaml).
     write: Mutex<()>,
+    /// Serializes app-scope changes; separate so the app scan never waits
+    /// on a policy save.
+    app_write: Mutex<()>,
     config_path: String,
 }
 
@@ -53,6 +57,7 @@ impl AuthorizationService {
             policy: ArcSwap::from_pointee(policy),
             app_scopes: ArcSwap::from_pointee(apps),
             write: Mutex::new(()),
+            app_write: Mutex::new(()),
             config_path,
         })
     }
@@ -286,7 +291,9 @@ impl AuthorizationService {
     /// Assign an app to scopes. Takes effect for every following check.
     /// Note: Caller should validate scopes exist using validate_scopes() before calling this
     pub async fn set_app_scopes(&self, app: &str, scopes: Vec<String>) -> Result<()> {
-        let _write = self.write.lock().await;
+        // ponytail: clones the map per app (cheap for tens of apps); swap the
+        // whole scan result at once if app counts grow large.
+        let _write = self.app_write.lock().await;
         let mut apps = AppScopes::clone(&self.app_scopes.load());
         apps.insert(app.to_string(), scopes);
         self.app_scopes.store(Arc::new(apps));
