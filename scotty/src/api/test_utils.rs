@@ -19,6 +19,26 @@ pub fn create_test_docker_client() -> bollard::Docker {
         .unwrap()
 }
 
+/// Initialise the global metrics recorder once per test process.
+///
+/// Production does this in `init_telemetry_and_tracing`. Integration tests
+/// link the crate without `cfg(test)`, so `metrics()` has no no-op fallback
+/// there and panics on the first task or log stream unless this ran. Unit
+/// tests keep the no-op fallback and skip this.
+fn init_test_metrics() {
+    #[cfg(all(any(feature = "telemetry-grpc", feature = "telemetry-http"), not(test)))]
+    {
+        static INIT: std::sync::Once = std::sync::Once::new();
+        INIT.call_once(|| {
+            // Warn like production does; panicking here would poison the Once
+            // and hide the cause behind "previously poisoned" in later tests.
+            if let Err(e) = crate::metrics::init_metrics() {
+                tracing::warn!("Failed to initialize metrics: {e}");
+            }
+        });
+    }
+}
+
 /// Create test WebSocket messenger
 ///
 /// Creates a WebSocketMessenger with an empty client map for use in tests.
@@ -79,6 +99,7 @@ pub async fn create_test_app_state_with_policy_dir(
     oauth_state: Option<crate::oauth::handlers::OAuthState>,
     policy_dir: &str,
 ) -> Arc<AppState> {
+    init_test_metrics();
     let docker = create_test_docker_client();
     let auth_service = Arc::new(
         crate::services::AuthorizationService::new(policy_dir)
