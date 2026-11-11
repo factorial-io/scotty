@@ -88,6 +88,10 @@
             <a aria-current="page" href="/changelog.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Changelog</span>
       </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#0.5.0-(2026-11-11)" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> 0.5.0 (2026-11-11)</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
             <a href="/changelog.html#0.4.0-(2026-11-07)" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> 0.4.0 (2026-11-07)</span>
       </a></li>
@@ -319,18 +323,66 @@
         <span aria-hidden="true">#</span>
       </a> Changelog</h1>
 <p>All notable changes to this project will be documented in this file.</p>
+<h2 id="0.5.0-(2026-11-11)" tabindex="-1"><a class="header-anchor" href="#0.5.0-(2026-11-11)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <a href="https://github.com/factorial-io/scotty/compare/v0.4.0...v0.5.0">0.5.0</a> (2026-11-11)</h2>
+<h3 id="%E2%9A%A0-breaking-changes" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> ⚠ BREAKING CHANGES</h3>
+<ul>
+<li><strong>blueprints:</strong> a re-create that changes the app's scopes gets 403, and replacing an existing app needs create rights in every one of its scopes. Roles with an unknown or malformed permission string fail the server start instead of being read as "*". Payload patterns with a single * no longer match nested paths.</li>
+<li><strong>shell:</strong> app:shell --command no longer allocates a remote tty unless -t is given. Its output has no CRLF line endings or terminal control sequences, and remote stderr goes to local stderr.</li>
+<li><strong>oauth:</strong> api.jwt_secret needs at least 64 bytes.</li>
+<li><strong>oauth:</strong> provider access tokens are rejected by the API; users log in again. scottyctl login is restored by the following device-grant change.</li>
+</ul>
+<h3 id="features" tabindex="-1"><a class="header-anchor" href="#features">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li><strong>api:</strong> disallow robots on the scotty server (<a href="https://github.com/factorial-io/scotty/commit/81111ae028ce8bf7fbed8175d954197d3f9047a2">81111ae</a>)</li>
+<li><strong>blueprints:</strong> templated blueprints with parameters, images and payload (<a href="https://github.com/factorial-io/scotty/commit/5fc076848e698d175ab384e193db32c17e952697">5fc0768</a>)</li>
+<li><strong>oauth:</strong> broker the device grant through grantry (<a href="https://github.com/factorial-io/scotty/commit/73f61513a54f60cc7c93c153dff7e40e3e1bc09e">73f6151</a>)</li>
+<li><strong>oauth:</strong> MCP authorization server via grantry (<a href="https://github.com/factorial-io/scotty/commit/54081bff83bdb6efba2ea55c9b16b9582129f192">54081bf</a>)</li>
+<li><strong>oauth:</strong> Scotty-issued session tokens and ID token verification (<a href="https://github.com/factorial-io/scotty/commit/d179375c21a8ddfdaa12617abfc173acf63e3075">d179375</a>)</li>
+<li><strong>oauth:</strong> SQLite store for grantry (<a href="https://github.com/factorial-io/scotty/commit/4b75d92e0c0c1375b162f4237050273d6d9ee081">4b75d92</a>)</li>
+<li><strong>shell:</strong> support stdin without a tty in app:shell (<a href="https://github.com/factorial-io/scotty/commit/bf5cb803841eb6f5d78123c6512ed2b92dfc2601">bf5cb80</a>), closes <a href="https://github.com/factorial-io/scotty/issues/954">#954</a></li>
+</ul>
+<h3 id="bug-fixes" tabindex="-1"><a class="header-anchor" href="#bug-fixes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li><strong>api:</strong> keep robots handling to Scotty's own host (<a href="https://github.com/factorial-io/scotty/commit/12430d97a97a3796ec671d850c0c0404b0fa3e90">12430d9</a>)</li>
+<li><strong>api:</strong> keep stopped apps out of search engines when robots are disallowed (<a href="https://github.com/factorial-io/scotty/commit/afb42e0084ed08d24e5ff6e69aa13915f1e1dda1">afb42e0</a>), closes <a href="https://github.com/factorial-io/scotty/issues/962">#962</a></li>
+<li><strong>deps:</strong> sync Cargo.lock with Cargo.toml (<a href="https://github.com/factorial-io/scotty/commit/4c8ec3dead57e854927745626c3eb51af6f469b0">4c8ec3d</a>)</li>
+<li><strong>docs:</strong> pass requested_by in the create_app doctest (<a href="https://github.com/factorial-io/scotty/commit/6b84321402a4976131be5317c1837ea0270c81db">6b84321</a>), closes <a href="https://github.com/factorial-io/scotty/issues/939">#939</a></li>
+<li><strong>oauth:</strong> address review findings (<a href="https://github.com/factorial-io/scotty/commit/25b8b5a01a8e967c61a22fb90277627f1cf1f688">25b8b5a</a>)</li>
+<li><strong>scottyctl:</strong> auth:logout revokes the session on the server (<a href="https://github.com/factorial-io/scotty/commit/60fddf71df371379f3c1eff128096ba8b06a103b">60fddf7</a>)</li>
+<li><strong>shell:</strong> keep output flowing while the process does not read stdin (<a href="https://github.com/factorial-io/scotty/commit/fbb0f3c6047e568f086bdd334bfc40b861b1b3a4">fbb0f3c</a>)</li>
+<li><strong>shell:</strong> no lost output, no leftover processes, concurrent client I/O (<a href="https://github.com/factorial-io/scotty/commit/15ee058da8ef0680f83c98a30d85436f1fa67d2c">15ee058</a>)</li>
+</ul>
+<h3 id="documentation" tabindex="-1"><a class="header-anchor" href="#documentation">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Documentation</h3>
+<ul>
+<li>Scotty-issued tokens, device login and MCP connections (<a href="https://github.com/factorial-io/scotty/commit/04f0783a92f72393f2217bbd44e2f00466bacf38">04f0783</a>)</li>
+</ul>
 <h2 id="0.4.0-(2026-11-07)" tabindex="-1"><a class="header-anchor" href="#0.4.0-(2026-11-07)">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.4...v0.4.0">0.4.0</a> (2026-11-07)</h2>
-<h3 id="features" tabindex="-1"><a class="header-anchor" href="#features">
+<h3 id="features-1" tabindex="-1"><a class="header-anchor" href="#features-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
 <ul>
 <li><strong>frontend:</strong> show next app-state update instead of last update (<a href="https://github.com/factorial-io/scotty/commit/e58ea3695d1e103e9c6cf9436cda0c5aeedb40da">e58ea36</a>)</li>
 </ul>
-<h3 id="bug-fixes" tabindex="-1"><a class="header-anchor" href="#bug-fixes">
+<h3 id="bug-fixes-1" tabindex="-1"><a class="header-anchor" href="#bug-fixes-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -367,7 +419,7 @@
 <li><strong>tasks:</strong> own task state in a per-task actor (<a href="https://github.com/factorial-io/scotty/commit/174ad741bb400bf69c1f8956ec1969d81f9f3d63">174ad74</a>), closes <a href="https://github.com/factorial-io/scotty/issues/894">#894</a></li>
 <li><strong>tasks:</strong> own task state in a per-task actor (<a href="https://github.com/factorial-io/scotty/commit/bf2b22def4686225b75c2b34c0df5a4703d60dac">bf2b22d</a>), closes <a href="https://github.com/factorial-io/scotty/issues/894">#894</a></li>
 </ul>
-<h3 id="documentation" tabindex="-1"><a class="header-anchor" href="#documentation">
+<h3 id="documentation-1" tabindex="-1"><a class="header-anchor" href="#documentation-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -411,7 +463,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4">0.3.4</a> (2026-07-27)</h2>
-<h3 id="bug-fixes-1" tabindex="-1"><a class="header-anchor" href="#bug-fixes-1">
+<h3 id="bug-fixes-2" tabindex="-1"><a class="header-anchor" href="#bug-fixes-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -425,7 +477,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.2...v0.3.3">0.3.3</a> (2026-07-06)</h2>
-<h3 id="bug-fixes-2" tabindex="-1"><a class="header-anchor" href="#bug-fixes-2">
+<h3 id="bug-fixes-3" tabindex="-1"><a class="header-anchor" href="#bug-fixes-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -438,7 +490,7 @@
 <li>handle malformed api.base_url and dedupe post-login redirect (<a href="https://github.com/factorial-io/scotty/commit/018db4feb84be321250b12b1a118bff2cf66f85d">018db4f</a>)</li>
 <li><strong>local-dev:</strong> wire up landing-page default backend for local dev (<a href="https://github.com/factorial-io/scotty/commit/56a0de0fbaee46469d5d25c344de55bd50a6736f">56a0de0</a>)</li>
 </ul>
-<h3 id="documentation-1" tabindex="-1"><a class="header-anchor" href="#documentation-1">
+<h3 id="documentation-2" tabindex="-1"><a class="header-anchor" href="#documentation-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -450,7 +502,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.1...v0.3.2">0.3.2</a> (2026-06-29)</h2>
-<h3 id="bug-fixes-3" tabindex="-1"><a class="header-anchor" href="#bug-fixes-3">
+<h3 id="bug-fixes-4" tabindex="-1"><a class="header-anchor" href="#bug-fixes-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -462,7 +514,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.0...v0.3.1">0.3.1</a> (2026-06-09)</h2>
-<h3 id="bug-fixes-4" tabindex="-1"><a class="header-anchor" href="#bug-fixes-4">
+<h3 id="bug-fixes-5" tabindex="-1"><a class="header-anchor" href="#bug-fixes-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -473,14 +525,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0">0.3.0</a> (2026-06-07)</h2>
-<h3 id="%E2%9A%A0-breaking-changes" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes">
+<h3 id="%E2%9A%A0-breaking-changes-1" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
 <ul>
 <li><strong>deps:</strong> requires oauth2 5.x; minimum reqwest is now 0.12.</li>
 </ul>
-<h3 id="features-1" tabindex="-1"><a class="header-anchor" href="#features-1">
+<h3 id="features-2" tabindex="-1"><a class="header-anchor" href="#features-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -494,7 +546,7 @@
 <li>propose app-file-transfer openspec change (<a href="https://github.com/factorial-io/scotty/commit/f9c1e60d73a91e9a9bcdb63872118a8974101268">f9c1e60</a>)</li>
 <li><strong>scottyctl:</strong> add app:cp command for file transfer (<a href="https://github.com/factorial-io/scotty/commit/1e9747cb0811edea4e09dbb05b95831352e33191">1e9747c</a>)</li>
 </ul>
-<h3 id="bug-fixes-5" tabindex="-1"><a class="header-anchor" href="#bug-fixes-5">
+<h3 id="bug-fixes-6" tabindex="-1"><a class="header-anchor" href="#bug-fixes-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -548,7 +600,7 @@
 <li>extract get_domains() on ServicePortMapping to eliminate auto-domain coupling (<a href="https://github.com/factorial-io/scotty/commit/40e255124133ff238cc86d8b2c9f41dfbddd2283">40e2551</a>)</li>
 <li>extract test Docker client creation into shared helper (<a href="https://github.com/factorial-io/scotty/commit/87960628cf39f52b13fe8d9a06b3d61fc1ffee42">8796062</a>)</li>
 </ul>
-<h3 id="documentation-2" tabindex="-1"><a class="header-anchor" href="#documentation-2">
+<h3 id="documentation-3" tabindex="-1"><a class="header-anchor" href="#documentation-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -596,14 +648,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0">0.3.0</a> (2026-06-05)</h2>
-<h3 id="%E2%9A%A0-breaking-changes-1" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-1">
+<h3 id="%E2%9A%A0-breaking-changes-2" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
 <ul>
 <li><strong>deps:</strong> requires oauth2 5.x; minimum reqwest is now 0.12.</li>
 </ul>
-<h3 id="features-2" tabindex="-1"><a class="header-anchor" href="#features-2">
+<h3 id="features-3" tabindex="-1"><a class="header-anchor" href="#features-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -617,7 +669,7 @@
 <li>propose app-file-transfer openspec change (<a href="https://github.com/factorial-io/scotty/commit/f9c1e60d73a91e9a9bcdb63872118a8974101268">f9c1e60</a>)</li>
 <li><strong>scottyctl:</strong> add app:cp command for file transfer (<a href="https://github.com/factorial-io/scotty/commit/1e9747cb0811edea4e09dbb05b95831352e33191">1e9747c</a>)</li>
 </ul>
-<h3 id="bug-fixes-6" tabindex="-1"><a class="header-anchor" href="#bug-fixes-6">
+<h3 id="bug-fixes-7" tabindex="-1"><a class="header-anchor" href="#bug-fixes-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -670,7 +722,7 @@
 <li>extract get_domains() on ServicePortMapping to eliminate auto-domain coupling (<a href="https://github.com/factorial-io/scotty/commit/40e255124133ff238cc86d8b2c9f41dfbddd2283">40e2551</a>)</li>
 <li>extract test Docker client creation into shared helper (<a href="https://github.com/factorial-io/scotty/commit/87960628cf39f52b13fe8d9a06b3d61fc1ffee42">8796062</a>)</li>
 </ul>
-<h3 id="documentation-3" tabindex="-1"><a class="header-anchor" href="#documentation-3">
+<h3 id="documentation-4" tabindex="-1"><a class="header-anchor" href="#documentation-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -717,7 +769,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.9]</h2>
-<h3 id="bug-fixes-7" tabindex="-1"><a class="header-anchor" href="#bug-fixes-7">
+<h3 id="bug-fixes-8" tabindex="-1"><a class="header-anchor" href="#bug-fixes-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -728,7 +780,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.8]</h2>
-<h3 id="bug-fixes-8" tabindex="-1"><a class="header-anchor" href="#bug-fixes-8">
+<h3 id="bug-fixes-9" tabindex="-1"><a class="header-anchor" href="#bug-fixes-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -755,7 +807,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.7]</h2>
-<h3 id="bug-fixes-9" tabindex="-1"><a class="header-anchor" href="#bug-fixes-9">
+<h3 id="bug-fixes-10" tabindex="-1"><a class="header-anchor" href="#bug-fixes-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -831,7 +883,7 @@
 <li>Update dependency svelte to v5.46.0 ✔️</li>
 <li>Update dependency eslint to v9.39.2 ✔️</li>
 </ul>
-<h3 id="documentation-4" tabindex="-1"><a class="header-anchor" href="#documentation-4">
+<h3 id="documentation-5" tabindex="-1"><a class="header-anchor" href="#documentation-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -842,7 +894,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.6]</h2>
-<h3 id="bug-fixes-10" tabindex="-1"><a class="header-anchor" href="#bug-fixes-10">
+<h3 id="bug-fixes-11" tabindex="-1"><a class="header-anchor" href="#bug-fixes-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -864,7 +916,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.5]</h2>
-<h3 id="bug-fixes-11" tabindex="-1"><a class="header-anchor" href="#bug-fixes-11">
+<h3 id="bug-fixes-12" tabindex="-1"><a class="header-anchor" href="#bug-fixes-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -883,7 +935,7 @@
 <li>Update rust crate tower-http to v0.6.8 ✔️</li>
 <li>Update dependency typescript-eslint to v8.49.0 ✔️</li>
 </ul>
-<h3 id="documentation-5" tabindex="-1"><a class="header-anchor" href="#documentation-5">
+<h3 id="documentation-6" tabindex="-1"><a class="header-anchor" href="#documentation-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -894,7 +946,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.4]</h2>
-<h3 id="bug-fixes-12" tabindex="-1"><a class="header-anchor" href="#bug-fixes-12">
+<h3 id="bug-fixes-13" tabindex="-1"><a class="header-anchor" href="#bug-fixes-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -934,7 +986,7 @@
 <li>Update rust dependencies auto-merge (patch) (#597) ✔️</li>
 <li>Update dependency prettier to v3.7.2 ✔️</li>
 </ul>
-<h3 id="documentation-6" tabindex="-1"><a class="header-anchor" href="#documentation-6">
+<h3 id="documentation-7" tabindex="-1"><a class="header-anchor" href="#documentation-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -945,7 +997,7 @@
 <li>Update AGENTS.md to clarify both telemetry transports can be enabled ✔️</li>
 <li>Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️</li>
 </ul>
-<h3 id="features-3" tabindex="-1"><a class="header-anchor" href="#features-3">
+<h3 id="features-4" tabindex="-1"><a class="header-anchor" href="#features-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -986,7 +1038,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.3]</h2>
-<h3 id="bug-fixes-13" tabindex="-1"><a class="header-anchor" href="#bug-fixes-13">
+<h3 id="bug-fixes-14" tabindex="-1"><a class="header-anchor" href="#bug-fixes-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1007,7 +1059,7 @@
 <li>Update rust crate once_cell to v1.21.3 ✔️</li>
 <li>Update rust crate tokio-metrics to 0.4 ✔️</li>
 </ul>
-<h3 id="documentation-7" tabindex="-1"><a class="header-anchor" href="#documentation-7">
+<h3 id="documentation-8" tabindex="-1"><a class="header-anchor" href="#documentation-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -1018,7 +1070,7 @@
 <li>Add comprehensive documentation for domain-based assignments ✔️</li>
 <li>Track documentation tasks for domain-based authorization ✔️</li>
 </ul>
-<h3 id="features-4" tabindex="-1"><a class="header-anchor" href="#features-4">
+<h3 id="features-5" tabindex="-1"><a class="header-anchor" href="#features-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1040,14 +1092,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.1]</h2>
-<h3 id="bug-fixes-14" tabindex="-1"><a class="header-anchor" href="#bug-fixes-14">
+<h3 id="bug-fixes-15" tabindex="-1"><a class="header-anchor" href="#bug-fixes-15">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
 <ul>
 <li>Scope rust dependency to HEAD builds only ✔️</li>
 </ul>
-<h3 id="documentation-8" tabindex="-1"><a class="header-anchor" href="#documentation-8">
+<h3 id="documentation-9" tabindex="-1"><a class="header-anchor" href="#documentation-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -1065,7 +1117,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.0]</h2>
-<h3 id="bug-fixes-15" tabindex="-1"><a class="header-anchor" href="#bug-fixes-15">
+<h3 id="bug-fixes-16" tabindex="-1"><a class="header-anchor" href="#bug-fixes-16">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1174,7 +1226,7 @@
 <li>Update rust crate clap to v4.5.46 (#439) ✔️</li>
 <li>Update dependency typescript-eslint to v8.41.0 ✔️</li>
 </ul>
-<h3 id="documentation-9" tabindex="-1"><a class="header-anchor" href="#documentation-9">
+<h3 id="documentation-10" tabindex="-1"><a class="header-anchor" href="#documentation-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -1217,7 +1269,7 @@
 <li>Fix CLI command format throughout documentation ✔️</li>
 <li>Add OAuth authentication documentation and update configuration ✔️</li>
 </ul>
-<h3 id="features-5" tabindex="-1"><a class="header-anchor" href="#features-5">
+<h3 id="features-6" tabindex="-1"><a class="header-anchor" href="#features-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1368,7 +1420,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0]</h2>
-<h3 id="bug-fixes-16" tabindex="-1"><a class="header-anchor" href="#bug-fixes-16">
+<h3 id="bug-fixes-17" tabindex="-1"><a class="header-anchor" href="#bug-fixes-17">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1435,7 +1487,7 @@
 <li>Update rust crate tokio to v1.48.0 ✔️</li>
 <li>Update rust crate tempfile to v3.23.0 ✔️</li>
 </ul>
-<h3 id="documentation-10" tabindex="-1"><a class="header-anchor" href="#documentation-10">
+<h3 id="documentation-11" tabindex="-1"><a class="header-anchor" href="#documentation-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -1446,7 +1498,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.38]</h2>
-<h3 id="bug-fixes-17" tabindex="-1"><a class="header-anchor" href="#bug-fixes-17">
+<h3 id="bug-fixes-18" tabindex="-1"><a class="header-anchor" href="#bug-fixes-18">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1616,7 +1668,7 @@
 <li>Update rust crate bollard to 0.19.0 ✔️</li>
 <li>Update dependency @sveltejs/kit to v2.21.3 (#347) ✔️</li>
 </ul>
-<h3 id="documentation-11" tabindex="-1"><a class="header-anchor" href="#documentation-11">
+<h3 id="documentation-12" tabindex="-1"><a class="header-anchor" href="#documentation-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -1626,7 +1678,7 @@
 <li>Update CLI documentation with new installation instructions and options ✔️</li>
 <li>Update preferred CLI installation method ✔️</li>
 </ul>
-<h3 id="features-6" tabindex="-1"><a class="header-anchor" href="#features-6">
+<h3 id="features-7" tabindex="-1"><a class="header-anchor" href="#features-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1671,7 +1723,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.37]</h2>
-<h3 id="bug-fixes-18" tabindex="-1"><a class="header-anchor" href="#bug-fixes-18">
+<h3 id="bug-fixes-19" tabindex="-1"><a class="header-anchor" href="#bug-fixes-19">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1682,7 +1734,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.36]</h2>
-<h3 id="bug-fixes-19" tabindex="-1"><a class="header-anchor" href="#bug-fixes-19">
+<h3 id="bug-fixes-20" tabindex="-1"><a class="header-anchor" href="#bug-fixes-20">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1693,7 +1745,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.35]</h2>
-<h3 id="bug-fixes-20" tabindex="-1"><a class="header-anchor" href="#bug-fixes-20">
+<h3 id="bug-fixes-21" tabindex="-1"><a class="header-anchor" href="#bug-fixes-21">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1723,7 +1775,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.33]</h2>
-<h3 id="bug-fixes-21" tabindex="-1"><a class="header-anchor" href="#bug-fixes-21">
+<h3 id="bug-fixes-22" tabindex="-1"><a class="header-anchor" href="#bug-fixes-22">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1745,7 +1797,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.32]</h2>
-<h3 id="bug-fixes-22" tabindex="-1"><a class="header-anchor" href="#bug-fixes-22">
+<h3 id="bug-fixes-23" tabindex="-1"><a class="header-anchor" href="#bug-fixes-23">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1770,14 +1822,14 @@
 <li>Update dependency typescript-eslint to v8.33.0 ✔️</li>
 <li>Update dependency daisyui to v5.0.43 ✔️</li>
 </ul>
-<h3 id="documentation-12" tabindex="-1"><a class="header-anchor" href="#documentation-12">
+<h3 id="documentation-13" tabindex="-1"><a class="header-anchor" href="#documentation-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>Clarify install instructions ✔️</li>
 </ul>
-<h3 id="features-7" tabindex="-1"><a class="header-anchor" href="#features-7">
+<h3 id="features-8" tabindex="-1"><a class="header-anchor" href="#features-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1796,7 +1848,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.31]</h2>
-<h3 id="features-8" tabindex="-1"><a class="header-anchor" href="#features-8">
+<h3 id="features-9" tabindex="-1"><a class="header-anchor" href="#features-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1807,7 +1859,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.30]</h2>
-<h3 id="bug-fixes-23" tabindex="-1"><a class="header-anchor" href="#bug-fixes-23">
+<h3 id="bug-fixes-24" tabindex="-1"><a class="header-anchor" href="#bug-fixes-24">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1846,7 +1898,7 @@
 <li>Update dependency eslint-plugin-svelte to v3.6.0 ✔️</li>
 <li>Update npm dependencies auto-merge (patch) (#307) ✔️</li>
 </ul>
-<h3 id="features-9" tabindex="-1"><a class="header-anchor" href="#features-9">
+<h3 id="features-10" tabindex="-1"><a class="header-anchor" href="#features-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1866,7 +1918,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.29]</h2>
-<h3 id="bug-fixes-24" tabindex="-1"><a class="header-anchor" href="#bug-fixes-24">
+<h3 id="bug-fixes-25" tabindex="-1"><a class="header-anchor" href="#bug-fixes-25">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1902,14 +1954,14 @@ stdout ❌</li>
 <li>Update rust crate config to 0.15.0 ✔️</li>
 <li>Update dependency daisyui to v5 ✔️</li>
 </ul>
-<h3 id="documentation-13" tabindex="-1"><a class="header-anchor" href="#documentation-13">
+<h3 id="documentation-14" tabindex="-1"><a class="header-anchor" href="#documentation-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>Improve examples in AppData documentation ✔️</li>
 </ul>
-<h3 id="features-10" tabindex="-1"><a class="header-anchor" href="#features-10">
+<h3 id="features-11" tabindex="-1"><a class="header-anchor" href="#features-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1934,7 +1986,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.28]</h2>
-<h3 id="features-11" tabindex="-1"><a class="header-anchor" href="#features-11">
+<h3 id="features-12" tabindex="-1"><a class="header-anchor" href="#features-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1954,7 +2006,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.27]</h2>
-<h3 id="bug-fixes-25" tabindex="-1"><a class="header-anchor" href="#bug-fixes-25">
+<h3 id="bug-fixes-26" tabindex="-1"><a class="header-anchor" href="#bug-fixes-26">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1994,7 +2046,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.24]</h2>
-<h3 id="bug-fixes-26" tabindex="-1"><a class="header-anchor" href="#bug-fixes-26">
+<h3 id="bug-fixes-27" tabindex="-1"><a class="header-anchor" href="#bug-fixes-27">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2015,14 +2067,14 @@ stdout ❌</li>
 <li>Update rust crate clap to v4.5.37 (#280) ✔️</li>
 <li>Update dependency eslint to v9.25.0 ✔️</li>
 </ul>
-<h3 id="documentation-14" tabindex="-1"><a class="header-anchor" href="#documentation-14">
+<h3 id="documentation-15" tabindex="-1"><a class="header-anchor" href="#documentation-15">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>Document bearer token authentication with utoipa ✔️</li>
 </ul>
-<h3 id="features-12" tabindex="-1"><a class="header-anchor" href="#features-12">
+<h3 id="features-13" tabindex="-1"><a class="header-anchor" href="#features-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2068,7 +2120,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.22]</h2>
-<h3 id="bug-fixes-27" tabindex="-1"><a class="header-anchor" href="#bug-fixes-27">
+<h3 id="bug-fixes-28" tabindex="-1"><a class="header-anchor" href="#bug-fixes-28">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2159,14 +2211,14 @@ stdout ❌</li>
 <li>Update rust crate bcrypt to 0.17.0 ✔️</li>
 <li>Update rust crate tabled to 0.18.0 ✔️</li>
 </ul>
-<h3 id="documentation-15" tabindex="-1"><a class="header-anchor" href="#documentation-15">
+<h3 id="documentation-16" tabindex="-1"><a class="header-anchor" href="#documentation-16">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>Clarify usage, and prevent some frustration when trying to get things running ✔️</li>
 </ul>
-<h3 id="features-13" tabindex="-1"><a class="header-anchor" href="#features-13">
+<h3 id="features-14" tabindex="-1"><a class="header-anchor" href="#features-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2179,7 +2231,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.21]</h2>
-<h3 id="bug-fixes-28" tabindex="-1"><a class="header-anchor" href="#bug-fixes-28">
+<h3 id="bug-fixes-29" tabindex="-1"><a class="header-anchor" href="#bug-fixes-29">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2202,7 +2254,7 @@ stdout ❌</li>
 <li>Update dependency @sveltejs/kit to v2.17.1 ✔️</li>
 <li>Bump openssl from 0.10.68 to 0.10.70 ✔️</li>
 </ul>
-<h3 id="documentation-16" tabindex="-1"><a class="header-anchor" href="#documentation-16">
+<h3 id="documentation-17" tabindex="-1"><a class="header-anchor" href="#documentation-17">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -2214,7 +2266,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.20]</h2>
-<h3 id="bug-fixes-29" tabindex="-1"><a class="header-anchor" href="#bug-fixes-29">
+<h3 id="bug-fixes-30" tabindex="-1"><a class="header-anchor" href="#bug-fixes-30">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2243,7 +2295,7 @@ stdout ❌</li>
 <li>Update traefik docker tag to v3.3 ✔️</li>
 <li>Update dependency typescript-eslint to v8.19.1 ✔️</li>
 </ul>
-<h3 id="documentation-17" tabindex="-1"><a class="header-anchor" href="#documentation-17">
+<h3 id="documentation-18" tabindex="-1"><a class="header-anchor" href="#documentation-18">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -2261,7 +2313,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.19]</h2>
-<h3 id="bug-fixes-30" tabindex="-1"><a class="header-anchor" href="#bug-fixes-30">
+<h3 id="bug-fixes-31" tabindex="-1"><a class="header-anchor" href="#bug-fixes-31">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2272,7 +2324,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.18]</h2>
-<h3 id="bug-fixes-31" tabindex="-1"><a class="header-anchor" href="#bug-fixes-31">
+<h3 id="bug-fixes-32" tabindex="-1"><a class="header-anchor" href="#bug-fixes-32">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2283,7 +2335,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.17]</h2>
-<h3 id="bug-fixes-32" tabindex="-1"><a class="header-anchor" href="#bug-fixes-32">
+<h3 id="bug-fixes-33" tabindex="-1"><a class="header-anchor" href="#bug-fixes-33">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2298,7 +2350,7 @@ stdout ❌</li>
 <li>Update rust crate async-trait to v0.1.84 (#156) ✔️</li>
 <li>Update rust dependencies auto-merge (patch) (#154) ✔️</li>
 </ul>
-<h3 id="documentation-18" tabindex="-1"><a class="header-anchor" href="#documentation-18">
+<h3 id="documentation-19" tabindex="-1"><a class="header-anchor" href="#documentation-19">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -2309,7 +2361,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.16]</h2>
-<h3 id="bug-fixes-33" tabindex="-1"><a class="header-anchor" href="#bug-fixes-33">
+<h3 id="bug-fixes-34" tabindex="-1"><a class="header-anchor" href="#bug-fixes-34">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2324,7 +2376,7 @@ stdout ❌</li>
 <li>Update dependency typescript-eslint to v8.19.0 (#150) ✔️</li>
 <li>Update rust crate serde to v1.0.217 (#153) ✔️</li>
 </ul>
-<h3 id="documentation-19" tabindex="-1"><a class="header-anchor" href="#documentation-19">
+<h3 id="documentation-20" tabindex="-1"><a class="header-anchor" href="#documentation-20">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -2336,7 +2388,7 @@ stdout ❌</li>
 <li>Update the readme and remove redundancy ✔️</li>
 <li>Add documentation for shell autocompletion ✔️</li>
 </ul>
-<h3 id="features-14" tabindex="-1"><a class="header-anchor" href="#features-14">
+<h3 id="features-15" tabindex="-1"><a class="header-anchor" href="#features-15">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2359,7 +2411,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.14]</h2>
-<h3 id="bug-fixes-34" tabindex="-1"><a class="header-anchor" href="#bug-fixes-34">
+<h3 id="bug-fixes-35" tabindex="-1"><a class="header-anchor" href="#bug-fixes-35">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2386,14 +2438,14 @@ stdout ❌</li>
 <li>Update dependency typescript-eslint to v8.18.1 (#136) ✔️</li>
 <li>Update dependency eslint to v9.17.0 ✔️</li>
 </ul>
-<h3 id="documentation-20" tabindex="-1"><a class="header-anchor" href="#documentation-20">
+<h3 id="documentation-21" tabindex="-1"><a class="header-anchor" href="#documentation-21">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>First version of the documentation ✔️</li>
 </ul>
-<h3 id="features-15" tabindex="-1"><a class="header-anchor" href="#features-15">
+<h3 id="features-16" tabindex="-1"><a class="header-anchor" href="#features-16">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2404,7 +2456,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.13]</h2>
-<h3 id="bug-fixes-35" tabindex="-1"><a class="header-anchor" href="#bug-fixes-35">
+<h3 id="bug-fixes-36" tabindex="-1"><a class="header-anchor" href="#bug-fixes-36">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2429,7 +2481,7 @@ stdout ❌</li>
 <li>Update dependency daisyui to v4.12.21 (#131) ✔️</li>
 <li>Update dependency @sveltejs/kit to v2.10.1 ✔️</li>
 </ul>
-<h3 id="features-16" tabindex="-1"><a class="header-anchor" href="#features-16">
+<h3 id="features-17" tabindex="-1"><a class="header-anchor" href="#features-17">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2446,7 +2498,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.12]</h2>
-<h3 id="bug-fixes-36" tabindex="-1"><a class="header-anchor" href="#bug-fixes-36">
+<h3 id="bug-fixes-37" tabindex="-1"><a class="header-anchor" href="#bug-fixes-37">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2470,7 +2522,7 @@ stdout ❌</li>
 <li>Update dependency prettier to v3.4.2 (#113) ✔️</li>
 <li>Update npm dependencies auto-merge (patch) (#110) ✔️</li>
 </ul>
-<h3 id="features-17" tabindex="-1"><a class="header-anchor" href="#features-17">
+<h3 id="features-18" tabindex="-1"><a class="header-anchor" href="#features-18">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2481,7 +2533,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.11]</h2>
-<h3 id="bug-fixes-37" tabindex="-1"><a class="header-anchor" href="#bug-fixes-37">
+<h3 id="bug-fixes-38" tabindex="-1"><a class="header-anchor" href="#bug-fixes-38">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2551,14 +2603,14 @@ stdout ❌</li>
 <li>Update dependency @sveltejs/kit to v2.7.5 ✔️</li>
 <li>Update dependency typescript-eslint to v8.12.2 ✔️</li>
 </ul>
-<h3 id="documentation-21" tabindex="-1"><a class="header-anchor" href="#documentation-21">
+<h3 id="documentation-22" tabindex="-1"><a class="header-anchor" href="#documentation-22">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
 <ul>
 <li>Update readme and section about notifications ✔️</li>
 </ul>
-<h3 id="features-18" tabindex="-1"><a class="header-anchor" href="#features-18">
+<h3 id="features-19" tabindex="-1"><a class="header-anchor" href="#features-19">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2579,7 +2631,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.10]</h2>
-<h3 id="bug-fixes-38" tabindex="-1"><a class="header-anchor" href="#bug-fixes-38">
+<h3 id="bug-fixes-39" tabindex="-1"><a class="header-anchor" href="#bug-fixes-39">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2601,7 +2653,7 @@ stdout ❌</li>
 <li>Update dependency typescript-eslint to v8.12.0 ✔️</li>
 <li>Update dependency daisyui to v4.12.14 (#39) ✔️</li>
 </ul>
-<h3 id="documentation-22" tabindex="-1"><a class="header-anchor" href="#documentation-22">
+<h3 id="documentation-23" tabindex="-1"><a class="header-anchor" href="#documentation-23">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
@@ -2609,7 +2661,7 @@ stdout ❌</li>
 <li>Better help texts ✔️</li>
 <li>Add clarifying comment on how to map the apps folder into the docker-container ✔️</li>
 </ul>
-<h3 id="features-19" tabindex="-1"><a class="header-anchor" href="#features-19">
+<h3 id="features-20" tabindex="-1"><a class="header-anchor" href="#features-20">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2623,7 +2675,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.9]</h2>
-<h3 id="bug-fixes-39" tabindex="-1"><a class="header-anchor" href="#bug-fixes-39">
+<h3 id="bug-fixes-40" tabindex="-1"><a class="header-anchor" href="#bug-fixes-40">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2644,7 +2696,7 @@ stdout ❌</li>
 <li>Update dependency @sveltejs/kit to v2.7.3 ✔️</li>
 <li>Update dependency vite to v5.4.10 ✔️</li>
 </ul>
-<h3 id="features-20" tabindex="-1"><a class="header-anchor" href="#features-20">
+<h3 id="features-21" tabindex="-1"><a class="header-anchor" href="#features-21">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2679,7 +2731,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.6]</h2>
-<h3 id="bug-fixes-40" tabindex="-1"><a class="header-anchor" href="#bug-fixes-40">
+<h3 id="bug-fixes-41" tabindex="-1"><a class="header-anchor" href="#bug-fixes-41">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2718,7 +2770,7 @@ stdout ❌</li>
 <li>Update actions/checkout action to v4 ✔️</li>
 <li>Update dependency typescript-eslint to v8.10.0 ✔️</li>
 </ul>
-<h3 id="features-21" tabindex="-1"><a class="header-anchor" href="#features-21">
+<h3 id="features-22" tabindex="-1"><a class="header-anchor" href="#features-22">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2736,7 +2788,7 @@ stdout ❌</li>
 <ul>
 <li>Add openssl to dependencies to fix problem with cross-compilation in ci ✔️</li>
 </ul>
-<h3 id="documentation-23" tabindex="-1"><a class="header-anchor" href="#documentation-23">
+<h3 id="documentation-24" tabindex="-1"><a class="header-anchor" href="#documentation-24">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Documentation</h3>
