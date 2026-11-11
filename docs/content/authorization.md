@@ -49,7 +49,7 @@ Creating an app that already exists updates it. That also requires create rights
 - `action_approve` - Approve, reject, or revoke pending custom actions (admin-level)
 
 **Global Permissions** (not tied to specific apps):
-- `admin_read` - Read authorization configuration (scopes, roles, assignments, permissions). Also shows tasks without an app, and all tasks of the apps in the scopes where you hold it
+- `admin_read` - Read authorization configuration (scopes, roles, assignments, permissions). Also shows tasks without an app or of apps not yet in any scope (such as a failed create), and all tasks of the apps in the scopes where you hold it
 - `admin_write` - Modify authorization configuration (create/update scopes, roles, assignments)
 
 ### Roles
@@ -201,7 +201,7 @@ All API endpoints are protected by permission checks:
 **App Management Endpoints:**
 - **App List**: `/api/v1/authenticated/apps/list` - Requires `view` permission, shows only accessible apps
 - **App Management**: Start/stop/restart operations - Requires `manage` permission
-- **Tasks**: `/api/v1/authenticated/tasks`, `/api/v1/authenticated/task/{uuid}`, task output streams and task update messages - You see a task of an app if you hold `admin_read` in one of the app's scopes, or the permission the task needs there: `view`, or for a custom action run the permission the action requires (`view` alone is not enough). Tasks without an app need `admin_read`. You always see tasks you started yourself (so you can follow an app you are creating before it is assigned to a scope). Other tasks answer like missing ones (404)
+- **Tasks**: `/api/v1/authenticated/tasks`, `/api/v1/authenticated/task/{uuid}`, task output streams and task update messages - You see a task of an app if you hold `admin_read` in one of the app's scopes, or the permission the task needs there: `view`, or for a custom action run the permission the action requires (`view` alone is not enough). Tasks without an app, or of an app not yet in any scope, need `admin_read` in any scope. You always see tasks you started yourself (so you can follow an app you are creating before it is assigned to a scope). Other tasks answer like missing ones (404)
 - **App Creation**: `/api/v1/authenticated/apps` (POST) - Requires `create` permission
 - **Shell Access**: WebSocket shell sessions - Requires `shell` permission
 - **Notifications**: `/api/v1/authenticated/apps/notify/add` and `/remove` - Require `manage` permission on the app
