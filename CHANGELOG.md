@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0](https://github.com/factorial-io/scotty/compare/v0.4.0...v0.5.0) (2026-11-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **blueprints:** a re-create that changes the app's scopes gets 403, and replacing an existing app needs create rights in every one of its scopes. Roles with an unknown or malformed permission string fail the server start instead of being read as "*". Payload patterns with a single * no longer match nested paths.
+* **shell:** app:shell --command no longer allocates a remote tty unless -t is given. Its output has no CRLF line endings or terminal control sequences, and remote stderr goes to local stderr.
+* **oauth:** api.jwt_secret needs at least 64 bytes.
+* **oauth:** provider access tokens are rejected by the API; users log in again. scottyctl login is restored by the following device-grant change.
+
+### Features
+
+* **api:** disallow robots on the scotty server ([81111ae](https://github.com/factorial-io/scotty/commit/81111ae028ce8bf7fbed8175d954197d3f9047a2))
+* **blueprints:** templated blueprints with parameters, images and payload ([5fc0768](https://github.com/factorial-io/scotty/commit/5fc076848e698d175ab384e193db32c17e952697))
+* **oauth:** broker the device grant through grantry ([73f6151](https://github.com/factorial-io/scotty/commit/73f61513a54f60cc7c93c153dff7e40e3e1bc09e))
+* **oauth:** MCP authorization server via grantry ([54081bf](https://github.com/factorial-io/scotty/commit/54081bff83bdb6efba2ea55c9b16b9582129f192))
+* **oauth:** Scotty-issued session tokens and ID token verification ([d179375](https://github.com/factorial-io/scotty/commit/d179375c21a8ddfdaa12617abfc173acf63e3075))
+* **oauth:** SQLite store for grantry ([4b75d92](https://github.com/factorial-io/scotty/commit/4b75d92e0c0c1375b162f4237050273d6d9ee081))
+* **shell:** support stdin without a tty in app:shell ([bf5cb80](https://github.com/factorial-io/scotty/commit/bf5cb803841eb6f5d78123c6512ed2b92dfc2601)), closes [#954](https://github.com/factorial-io/scotty/issues/954)
+
+
+### Bug Fixes
+
+* **api:** keep robots handling to Scotty's own host ([12430d9](https://github.com/factorial-io/scotty/commit/12430d97a97a3796ec671d850c0c0404b0fa3e90))
+* **api:** keep stopped apps out of search engines when robots are disallowed ([afb42e0](https://github.com/factorial-io/scotty/commit/afb42e0084ed08d24e5ff6e69aa13915f1e1dda1)), closes [#962](https://github.com/factorial-io/scotty/issues/962)
+* **deps:** sync Cargo.lock with Cargo.toml ([4c8ec3d](https://github.com/factorial-io/scotty/commit/4c8ec3dead57e854927745626c3eb51af6f469b0))
+* **docs:** pass requested_by in the create_app doctest ([6b84321](https://github.com/factorial-io/scotty/commit/6b84321402a4976131be5317c1837ea0270c81db)), closes [#939](https://github.com/factorial-io/scotty/issues/939)
+* **oauth:** address review findings ([25b8b5a](https://github.com/factorial-io/scotty/commit/25b8b5a01a8e967c61a22fb90277627f1cf1f688))
+* **scottyctl:** auth:logout revokes the session on the server ([60fddf7](https://github.com/factorial-io/scotty/commit/60fddf71df371379f3c1eff128096ba8b06a103b))
+* **shell:** keep output flowing while the process does not read stdin ([fbb0f3c](https://github.com/factorial-io/scotty/commit/fbb0f3c6047e568f086bdd334bfc40b861b1b3a4))
+* **shell:** no lost output, no leftover processes, concurrent client I/O ([15ee058](https://github.com/factorial-io/scotty/commit/15ee058da8ef0680f83c98a30d85436f1fa67d2c))
+
+
+### Documentation
+
+* Scotty-issued tokens, device login and MCP connections ([04f0783](https://github.com/factorial-io/scotty/commit/04f0783a92f72393f2217bbd44e2f00466bacf38))
+
 ## [0.4.0](https://github.com/factorial-io/scotty/compare/v0.3.4...v0.4.0) (2026-11-07)
 
 
