@@ -134,7 +134,7 @@ body {
 /* ---------- features as "Benefits": index number + column dividers ---------- */
 .Features {
   counter-reset: feature;
-  max-width: var(--layout-container-max);
+  max-width: none;                        /* full width, so columns line up with the hero copy */
   padding: var(--space-24) var(--layout-gutter);
   gap: var(--layout-gap-y) 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
