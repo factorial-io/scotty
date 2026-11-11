@@ -213,6 +213,11 @@ async fn action_tasks_need_the_action_permission() {
         assert!(!can(AUDITOR, id).await, "auditor should not see {id}");
     }
     assert!(can(AUDITOR, t.no_app).await);
+    // An app without scopes yet (e.g. a failed create) falls back to the
+    // global `admin_read` check.
+    assert!(can(AUDITOR, t.started_by_a).await);
+    assert!(can(AUDITOR_A, t.started_by_a).await);
+    assert!(!can("identifier:no-rbac", t.started_by_a).await);
     // `admin_read` in the app's scope reveals all of the app's tasks.
     for id in [
         t.in_a,

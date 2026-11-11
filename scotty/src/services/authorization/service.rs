@@ -382,10 +382,27 @@ impl AuthorizationService {
                 None => false,
             },
         };
-        has_required
-            || self
-                .check_permission(user, app, &Permission::AdminRead)
-                .await
+        if has_required {
+            return true;
+        }
+        // An app without scopes (e.g. a create that failed before its scope
+        // was written) is in no one's scope; admins see it globally.
+        if self.app_has_no_scopes(app).await {
+            return self
+                .check_global_permission(user, &Permission::AdminRead)
+                .await;
+        }
+        self.check_permission(user, app, &Permission::AdminRead)
+            .await
+    }
+
+    async fn app_has_no_scopes(&self, app: &str) -> bool {
+        self.config
+            .read()
+            .await
+            .apps
+            .get(app)
+            .is_none_or(|scopes| scopes.is_empty())
     }
 
     /// Format user identifier for authorization checks
