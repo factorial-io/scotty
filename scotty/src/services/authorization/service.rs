@@ -355,24 +355,35 @@ impl AuthorizationService {
 
     /// Whether `user` may see `task` (its details, updates and output).
     ///
-    /// The user who started the task always may, which covers app creation
-    /// before the new app is assigned to a scope. Otherwise a task of an app
-    /// needs `view` on that app, and a task without an app needs `admin_read`.
+    /// `admin_read` sees every task. The user who started the task always may,
+    /// which covers app creation before the new app is assigned to a scope.
+    /// An action run needs the permission the action required, so `view`
+    /// alone doesn't reveal its output. Any other task of an app needs `view`
+    /// on that app, and a task without an app needs `admin_read`.
     pub async fn can_view_task(
         &self,
         user: &str,
         task: &scotty_core::tasks::task_details::TaskDetails,
     ) -> bool {
-        if task.requested_by.as_deref() == Some(user) {
+        if task.requested_by.as_deref() == Some(user)
+            || self
+                .check_global_permission(user, &Permission::AdminRead)
+                .await
+        {
             return true;
         }
-        match &task.app_name {
-            Some(app) => self.check_permission(user, app, &Permission::View).await,
-            None => {
-                self.check_global_permission(user, &Permission::AdminRead)
-                    .await
-            }
-        }
+        let Some(app) = &task.app_name else {
+            return false;
+        };
+        let required = match task.action_permission.as_deref() {
+            // Fail closed: an unknown permission hides the task.
+            Some(name) => match Permission::from_str(name) {
+                Some(permission) => permission,
+                None => return false,
+            },
+            None => Permission::View,
+        };
+        self.check_permission(user, app, &required).await
     }
 
     /// Format user identifier for authorization checks

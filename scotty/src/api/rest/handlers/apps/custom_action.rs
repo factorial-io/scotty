@@ -161,7 +161,8 @@ pub async fn run_custom_action_handler(
     );
 
     // Create a task for running the custom action
-    let app_data = run_app_custom_action(state, &app, action_name).await?;
+    let app_data =
+        run_app_custom_action(state, &app, action_name, user_id, required_permission).await?;
 
     Ok(Json(app_data))
 }

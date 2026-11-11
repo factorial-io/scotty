@@ -26,12 +26,14 @@ impl Context {
         app_state: SharedAppState,
         app_data: &AppData,
         requested_by: Option<String>,
+        action_permission: Option<String>,
     ) -> Arc<Self> {
         let (task, task_snapshot) = app_state
             .task_manager
             .create_task(TaskDetails {
                 app_name: Some(app_data.name.clone()),
                 requested_by,
+                action_permission,
                 ..TaskDetails::default()
             })
             .await;
