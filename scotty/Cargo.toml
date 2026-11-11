@@ -98,7 +98,7 @@ grantry.workspace = true
 sqlx.workspace = true
 jsonschema = { version = "0.61.0", default-features = false }
 globset = "0.4.21"
-getrandom = "0.3"
+getrandom = "0.4"
 
 [dev-dependencies]
 axum-test = "21.0.0"
