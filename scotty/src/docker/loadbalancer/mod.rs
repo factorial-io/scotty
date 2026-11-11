@@ -9,6 +9,17 @@ use scotty_core::settings::loadbalancer::LoadBalancerType;
 
 use crate::settings::config::Settings;
 
+/// Value of the `X-Robots-Tag` header for apps with `disallow_robots` set:
+/// injected by Traefik while the app runs (HAProxy can't inject it), and by
+/// Scotty's fallback for the app's domains. One constant so the two cannot
+/// drift apart.
+pub(crate) const ROBOTS_HEADER_VALUE: &str =
+    "none, noarchive, nosnippet, notranslate, noimageindex";
+
+/// Body of `/robots.txt` that disallows all crawlers: served for Scotty's own
+/// host, and for stopped apps that disallow robots.
+pub(crate) const ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
+
 /// Where per-app proxy networks live and which container has to be attached to
 /// them.
 ///

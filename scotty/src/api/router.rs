@@ -106,6 +106,7 @@ use crate::api::rest::handlers::tasks::__path_task_list_handler;
 use crate::api::rest::handlers::tasks::TaskList;
 use crate::api::websocket::client::ws_handler;
 use crate::app_state::SharedAppState;
+use crate::docker::loadbalancer::ROBOTS_TXT;
 use scotty_core::tasks::task_details::TaskDetails;
 
 use super::basic_auth::auth;
@@ -649,12 +650,9 @@ impl ApiRoutes {
     }
 }
 
-/// Body of `/robots.txt`: disallow all crawlers on the Scotty server.
-const ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
-
-/// `/robots.txt` for Scotty's own host. A stopped app's domain also reaches
+/// `/robots.txt` for Scotty's own host. A hosted app's domain also reaches
 /// Scotty through the load balancer's fallback; those requests go to the
-/// landing handler, so a crawler never caches Scotty's `Disallow` for an app.
+/// landing handler, which answers according to the app's robots setting.
 async fn robots_txt_handler(
     State(state): State<SharedAppState>,
     headers: HeaderMap,
@@ -673,7 +671,8 @@ async fn robots_txt_handler(
 }
 
 /// Marks Scotty's own responses `noindex`. Responses for hosted apps' domains
-/// (landing redirects, 503s) keep the app's own robots setting.
+/// (landing redirects, 503s, `/robots.txt`) get the app's own robots setting
+/// from the landing handler instead.
 async fn add_noindex_header(
     State(state): State<SharedAppState>,
     req: Request,
@@ -695,20 +694,26 @@ mod robots_tests {
     use crate::api::router::ApiRoutes;
     use crate::api::test_utils::create_test_app_state_with_settings;
     use axum_test::TestServer;
+    use scotty_core::apps::app_data::{
+        AppData, AppSettings, AppStatus, ContainerState, ServicePortMapping,
+    };
 
     const SCOTTY: &str = "scotty.example.com";
 
-    async fn server() -> TestServer {
-        let settings: crate::settings::config::Settings = config::Config::builder()
+    fn settings() -> crate::settings::config::Settings {
+        config::Config::builder()
             .add_source(config::File::with_name("tests/test_bearer_auth"))
             .set_override("api.base_url", format!("http://{SCOTTY}"))
             .unwrap()
             .build()
             .unwrap()
             .try_deserialize()
-            .unwrap();
+            .unwrap()
+    }
+
+    async fn server() -> TestServer {
         TestServer::new(ApiRoutes::create(
-            create_test_app_state_with_settings(settings, None).await,
+            create_test_app_state_with_settings(settings(), None).await,
         ))
     }
 
@@ -734,6 +739,141 @@ mod robots_tests {
             let res = server.get(path).add_header("host", SCOTTY).await;
             assert!(noindex(&res), "{path}: {}", res.status_code());
         }
+    }
+
+    use crate::docker::loadbalancer::ROBOTS_HEADER_VALUE as APP_ROBOTS;
+
+    /// Server with two apps: `closed` disallows robots, `open` allows them.
+    async fn server_with_apps(status: AppStatus) -> TestServer {
+        let state = create_test_app_state_with_settings(settings(), None).await;
+        for (name, disallow_robots) in [("closed", true), ("open", false)] {
+            state
+                .apps
+                .add_app(AppData {
+                    name: name.to_string(),
+                    status: status.clone(),
+                    settings: Some(AppSettings {
+                        domain: format!("{name}.apps.example.com"),
+                        disallow_robots,
+                        public_services: vec![ServicePortMapping {
+                            service: "web".to_string(),
+                            port: 80,
+                            domains: vec![],
+                        }],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+        }
+        // An app Scotty didn't create: no settings, domain from its container.
+        state
+            .apps
+            .add_app(AppData {
+                name: "unmanaged".to_string(),
+                status: status.clone(),
+                services: vec![ContainerState {
+                    service: "web".to_string(),
+                    domains: vec!["unmanaged.apps.example.com".to_string()],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        TestServer::new(ApiRoutes::create(state))
+    }
+
+    fn robots_header(res: &axum_test::TestResponse) -> Option<String> {
+        res.maybe_header("x-robots-tag")
+            .map(|v| v.to_str().unwrap().to_string())
+    }
+
+    #[tokio::test]
+    async fn stopped_app_follows_its_robots_setting() {
+        let server = server_with_apps(AppStatus::Stopped).await;
+
+        let res = server
+            .get("/")
+            .add_header("host", "web.closed.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::FOUND);
+        assert_eq!(robots_header(&res).as_deref(), Some(APP_ROBOTS));
+
+        let res = server
+            .get("/robots.txt")
+            .add_header("host", "web.closed.apps.example.com")
+            .await;
+        res.assert_status_ok();
+        res.assert_text("User-agent: *\nDisallow: /\n");
+        assert_eq!(robots_header(&res).as_deref(), Some(APP_ROBOTS));
+        assert!(res
+            .header("cache-control")
+            .to_str()
+            .unwrap()
+            .contains("no-store"));
+        assert!(!noindex(&res));
+
+        // Other methods never reach the fallback: the route answers 405.
+        let res = server
+            .post("/robots.txt")
+            .add_header("host", "web.closed.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::METHOD_NOT_ALLOWED);
+
+        let res = server
+            .get("/")
+            .add_header("host", "web.open.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::FOUND);
+        assert_eq!(robots_header(&res), None);
+
+        let res = server
+            .get("/robots.txt")
+            .add_header("host", "web.open.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::FOUND);
+        assert_eq!(robots_header(&res), None);
+    }
+
+    #[tokio::test]
+    async fn unmanaged_app_gets_no_robots_signal() {
+        let server = server_with_apps(AppStatus::Stopped).await;
+        for path in ["/", "/robots.txt"] {
+            let res = server
+                .get(path)
+                .add_header("host", "unmanaged.apps.example.com")
+                .await;
+            res.assert_status(axum::http::StatusCode::FOUND);
+            assert_eq!(robots_header(&res), None, "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn starting_app_503_follows_its_robots_setting() {
+        let server = server_with_apps(AppStatus::Running).await;
+        let res = server
+            .get("/")
+            .add_header("host", "web.closed.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(robots_header(&res).as_deref(), Some(APP_ROBOTS));
+
+        // robots.txt is only answered directly for stopped apps.
+        let res = server
+            .get("/robots.txt")
+            .add_header("host", "web.closed.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(robots_header(&res).as_deref(), Some(APP_ROBOTS));
+
+        let res = server
+            .get("/")
+            .add_header("host", "web.open.apps.example.com")
+            .await;
+        res.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(robots_header(&res), None);
     }
 
     #[tokio::test]
