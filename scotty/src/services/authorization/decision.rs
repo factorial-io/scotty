@@ -242,11 +242,13 @@ assignments:
             deny(MANAGE),
             Decision::Deny("user lacks manage permission".into())
         );
-        let Decision::Deny(reason) = deny(Action::CreateFrom("static-html")) else {
-            panic!("allowed");
-        };
-        assert!(reason.contains("lacks create permission"), "{reason}");
-        assert!(reason.contains("create:static-html"), "{reason}");
+        let decision = deny(Action::CreateFrom("static-html"));
+        assert!(
+            matches!(&decision, Decision::Deny(reason)
+                if reason.contains("lacks create permission")
+                    && reason.contains("create:static-html")),
+            "{decision:?}"
+        );
     }
 
     #[test]

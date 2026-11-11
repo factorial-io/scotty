@@ -180,15 +180,13 @@ impl Policy {
         keys.dedup();
 
         let mut grants = Grants::default();
+        // Compile guarantees every assigned role exists.
         let matching = keys
             .iter()
             .filter_map(|key| self.assignments.get(*key))
-            .flatten();
-        for assignment in matching {
-            // Compile guarantees the role exists.
-            let Some(role) = self.roles.get(&assignment.role) else {
-                continue;
-            };
+            .flatten()
+            .filter_map(|a| Some((a, self.roles.get(&a.role)?)));
+        for (assignment, role) in matching {
             for scope in &assignment.scopes {
                 grants.scopes.entry(scope.clone()).or_default().add(role);
             }

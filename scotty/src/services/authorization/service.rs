@@ -647,4 +647,28 @@ assignments:
                 if reason == "user lacks manage permission"
         ));
     }
+
+    #[tokio::test]
+    async fn validate_scopes_names_the_missing_ones() {
+        let (auth, dir) = service().await;
+        assert_eq!(auth.validate_scopes(&["alpha".into()]).await, Ok(()));
+        assert_eq!(
+            auth.validate_scopes(&["alpha".into(), "nope".into()]).await,
+            Err(vec!["nope".to_string()])
+        );
+        let debug = format!("{auth:?}");
+        assert!(debug.contains(dir.path().to_str().unwrap()), "{debug}");
+    }
+
+    #[test]
+    fn user_ids_for_tokens_and_emails() {
+        assert_eq!(
+            AuthorizationService::format_user_id("a@example.com", None),
+            "a@example.com"
+        );
+        assert_eq!(
+            AuthorizationService::format_user_id("", Some("t")),
+            "bearer:t"
+        );
+    }
 }
