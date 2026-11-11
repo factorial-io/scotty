@@ -462,8 +462,8 @@ mod tests {
             .count()
     }
 
-    #[tokio::test]
-    async fn task_updates_reach_only_clients_allowed_to_see_the_task() {
+    /// Authorization from the test fixture, with `app-a` in scope `client-a`.
+    async fn fixture_auth() -> (Arc<AuthorizationService>, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
         for file in ["model.conf", "policy.yaml"] {
             std::fs::copy(
@@ -480,6 +480,21 @@ mod tests {
         auth.set_app_scopes("app-a", vec!["client-a".to_string()])
             .await
             .unwrap();
+        (auth, dir)
+    }
+
+    /// Waits until `client` receives a `TaskInfoUpdated`.
+    async fn expect_task_update(client: &mut broadcast::Receiver<Message>, who: &str) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !matches!(client.recv().await.unwrap(), Message::Text(t) if t.contains("TaskInfoUpdated")) {}
+        })
+        .await
+        .unwrap_or_else(|_| panic!("{who} got no task update"));
+    }
+
+    #[tokio::test]
+    async fn task_updates_reach_only_clients_allowed_to_see_the_task() {
+        let (auth, _dir) = fixture_auth().await;
 
         let messenger = create_test_websocket_messenger();
         let mut anonymous = connect(&messenger, None).await;
@@ -495,12 +510,33 @@ mod tests {
         settled(&mut rx, |t| t.state != State::Running).await;
 
         // The snapshot is published before the WebSocket send, so wait for it.
-        tokio::time::timeout(Duration::from_secs(2), async {
-            while !matches!(allowed.recv().await.unwrap(), Message::Text(t) if t.contains("TaskInfoUpdated")) {}
-        })
-        .await
-        .expect("allowed client got no task update");
+        expect_task_update(&mut allowed, "allowed client").await;
         assert_eq!(task_updates(&mut anonymous), 0);
         assert_eq!(task_updates(&mut other), 0);
+    }
+
+    #[tokio::test]
+    async fn action_updates_reach_only_requester_and_action_holders() {
+        let (auth, _dir) = fixture_auth().await;
+
+        let messenger = create_test_websocket_messenger();
+        let mut requester = connect(&messenger, Some("identifier:requester")).await;
+        let mut admin = connect(&messenger, Some("identifier:admin")).await;
+        // `view` on app-a, but not `action_write`.
+        let mut viewer = connect(&messenger, Some("identifier:client-a")).await;
+
+        let details = TaskDetails {
+            app_name: Some("app-a".to_string()),
+            requested_by: Some("identifier:requester".to_string()),
+            action_permission: Some("action_write".to_string()),
+            ..TaskDetails::default()
+        };
+        let (handle, mut rx) = spawn(details, messenger, auth);
+        handle.terminate(Outcome::finished("done")).await;
+        settled(&mut rx, |t| t.state != State::Running).await;
+
+        expect_task_update(&mut requester, "requester").await;
+        expect_task_update(&mut admin, "admin").await;
+        assert_eq!(task_updates(&mut viewer), 0);
     }
 }

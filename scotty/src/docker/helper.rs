@@ -32,15 +32,17 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    run_operation_requested_by(app_state, app, None, notification, op).await
+    run_operation_requested_by(app_state, app, None, None, notification, op).await
 }
 
 /// Like [`run_operation`], but records who started the task, so that user can
-/// follow it before the app is assigned to a scope (app creation).
+/// follow it before the app is assigned to a scope (app creation), and for
+/// action runs the permission the action required (task visibility).
 pub async fn run_operation_requested_by<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
     requested_by: Option<String>,
+    action_permission: Option<String>,
     notification: Option<Message>,
     op: F,
 ) -> anyhow::Result<RunningAppContext>
@@ -48,7 +50,7 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let ctx = Context::create(app_state, app, requested_by).await;
+    let ctx = Context::create(app_state, app, requested_by, action_permission).await;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))

@@ -255,6 +255,12 @@ pub struct TaskDetails {
     #[serde(skip)]
     #[ts(skip)]
     pub requested_by: Option<String>,
+    /// For an action run: the permission the action required when it was
+    /// started (`Permission::as_str`). Only users holding it on the app may
+    /// see the task. Server-side only, never sent to clients.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub action_permission: Option<String>,
 }
 
 impl Default for TaskDetails {
@@ -270,6 +276,7 @@ impl Default for TaskDetails {
             output_collection_active: true,
             output: TaskOutput::default(),
             requested_by: None,
+            action_permission: None,
         }
     }
 }
@@ -288,6 +295,7 @@ impl TaskDetails {
             output_collection_active: true,
             output: TaskOutput::default(),
             requested_by: None,
+            action_permission: None,
         }
     }
 
@@ -310,6 +318,7 @@ impl TaskDetails {
             output_collection_active: true,
             output: TaskOutput::new_with_limits(max_lines, max_line_length),
             requested_by: None,
+            action_permission: None,
         }
     }
 }

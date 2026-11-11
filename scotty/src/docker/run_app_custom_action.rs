@@ -4,7 +4,7 @@ use crate::{
     api::error::AppError,
     app_state::SharedAppState,
     docker::{
-        helper::run_operation,
+        helper::run_operation_requested_by,
         steps::{
             compose::{docker_login, update_app_data},
             context::Context,
@@ -13,6 +13,7 @@ use crate::{
     },
 };
 use scotty_core::{
+    authorization::Permission,
     notification_types::{Message, MessageType},
     settings::app_blueprint::ActionName,
     tasks::running_app_context::RunningAppContext,
@@ -86,11 +87,15 @@ pub async fn custom_action_steps(ctx: &Context, action: &ActionName) -> anyhow::
     update_app_data(ctx).await
 }
 
+/// Runs `action` as a task started by `requested_by`. The task is visible only
+/// to that user and to holders of `permission` on the app (task visibility).
 #[instrument(skip(app_state))]
 pub async fn run_app_custom_action(
     app_state: SharedAppState,
     app: &AppData,
     action: ActionName,
+    requested_by: String,
+    permission: Permission,
 ) -> anyhow::Result<RunningAppContext> {
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
@@ -106,8 +111,69 @@ pub async fn run_app_custom_action(
         "Starting custom action execution"
     );
     let notification = Message::new(MessageType::AppCustomActionCompleted(action.clone()), app);
-    run_operation(app_state, app, Some(notification), move |ctx| async move {
-        custom_action_steps(&ctx, &action).await
-    })
+    run_operation_requested_by(
+        app_state,
+        app,
+        Some(requested_by),
+        Some(permission.as_str().to_string()),
+        Some(notification),
+        move |ctx| async move { custom_action_steps(&ctx, &action).await },
+    )
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::test_utils::create_test_app_state_with_settings;
+    use scotty_core::apps::app_data::AppSettings;
+    use scotty_core::settings::custom_action::CustomAction;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn action_task_records_requester_and_permission() {
+        let settings: crate::settings::config::Settings = config::Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        let state = create_test_app_state_with_settings(settings, None).await;
+
+        let action = CustomAction::new(
+            "uli".to_string(),
+            "login link".to_string(),
+            HashMap::from([("web".to_string(), vec!["true".to_string()])]),
+            Permission::ActionWrite,
+            "someone".to_string(),
+        );
+        let app = AppData {
+            name: "app-a".to_string(),
+            status: AppStatus::Running,
+            settings: Some(AppSettings {
+                custom_actions: HashMap::from([("uli".to_string(), action)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let running = run_app_custom_action(
+            state,
+            &app,
+            ActionName::Custom("uli".to_string()),
+            "identifier:requester".to_string(),
+            Permission::ActionWrite,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            running.task.requested_by.as_deref(),
+            Some("identifier:requester")
+        );
+        assert_eq!(
+            running.task.action_permission.as_deref(),
+            Some("action_write")
+        );
+    }
 }
