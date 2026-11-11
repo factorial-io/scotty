@@ -11,7 +11,10 @@ use tracing::{info, warn};
 use crate::{
     api::{basic_auth::CurrentUser, error::AppError},
     app_state::SharedAppState,
-    services::{authorization::Permission, AuthorizationService},
+    services::{
+        authorization::{decision::Target, Permission},
+        AuthorizationService,
+    },
 };
 
 /// Authorization context added to request extensions
@@ -78,61 +81,31 @@ pub fn require_permission(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            let auth_service = &state.auth_service;
-
             let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
 
-            // Check if this is a global permission (AdminRead/AdminWrite) or app-specific
+            // Admin permissions are global. Routes without an app in the path
+            // (e.g. pending custom actions across all apps) need the
+            // permission in at least one of the user's scopes.
             let is_global_permission =
                 matches!(permission, Permission::AdminRead | Permission::AdminWrite);
+            let app_name = (!is_global_permission)
+                .then(|| extract_app_name_from_request(&req))
+                .flatten();
+            let target = app_name.as_deref().map_or(Target::Global, Target::App);
 
-            let allowed = if is_global_permission {
-                // Use global permission check for admin permissions
-                auth_service
-                    .check_global_permission(&user_id, &permission)
-                    .await
-            } else {
-                // Extract app name for app-specific permissions
-                let app_name = extract_app_name_from_request(&req);
-                if let Some(app_name) = app_name {
-                    auth_service
-                        .check_permission(&user_id, &app_name, &permission)
-                        .await
-                } else {
-                    // No app name in the path: this is a cross-app/global operation
-                    // (e.g. listing pending custom actions across all apps). Fall back
-                    // to a global permission check so the user only needs the permission
-                    // in at least one of their scopes rather than being denied outright.
-                    auth_service
-                        .check_global_permission(&user_id, &permission)
-                        .await
-                }
-            };
-
-            if !allowed {
-                let reason = format!(
-                    "user lacks {}{} permission",
-                    if is_global_permission { "global " } else { "" },
-                    permission.as_str()
-                );
-                warn!("Access denied: {} {}", auth_context.user.email, reason);
-                // Return a JSON body so clients can show why the action was refused.
-                return Ok(AppError::ScopeAccessDenied(reason).into_response());
+            if let Err(denied) = state
+                .auth_service
+                .require(&user_id, permission.into(), target)
+            {
+                // A JSON body, so clients can show why the action was refused.
+                return Ok(denied.into_response());
             }
 
-            if is_global_permission {
-                info!(
-                    "Access granted: user {} has global {} permission",
-                    auth_context.user.email,
-                    permission.as_str()
-                );
-            } else {
-                info!(
-                    "Access granted: user {} has {} permission",
-                    auth_context.user.email,
-                    permission.as_str()
-                );
-            }
+            info!(
+                "Access granted: user {} has {} permission",
+                auth_context.user.email,
+                permission.as_str()
+            );
 
             Ok(next.run(req).await)
         })

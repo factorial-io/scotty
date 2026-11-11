@@ -4,7 +4,7 @@ use casbin::CachedEnforcer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::config::ConfigManager;
 use super::decision::{Action, AppScopes, Decision, Target};
@@ -99,6 +99,23 @@ impl AuthorizationService {
             "Authorization decision for {user}"
         );
         decision
+    }
+
+    /// The one enforcement call: `Ok` if allowed, otherwise 403 with the
+    /// decision's reason.
+    pub fn require(
+        &self,
+        user: &str,
+        action: Action<'_>,
+        target: Target<'_>,
+    ) -> Result<(), crate::api::error::AppError> {
+        match self.decide(user, action, target) {
+            Decision::Allow => Ok(()),
+            Decision::Deny(reason) => {
+                warn!(?action, ?target, "Access denied for {user}: {reason}");
+                Err(crate::api::error::AppError::ScopeAccessDenied(reason))
+            }
+        }
     }
 
     /// Everything `user` holds, by scope.
@@ -600,5 +617,29 @@ assignments:
         auth.create_scope("qa", "QA").await.unwrap();
         assert!(!before.config().scopes.contains_key("qa"));
         assert!(auth.policy.load().config().scopes.contains_key("qa"));
+    }
+
+    #[tokio::test]
+    async fn require_maps_a_deny_to_403_with_the_reason() {
+        let (auth, _dir) = service().await;
+        assert!(auth
+            .require(
+                "root@example.com",
+                Permission::Manage.into(),
+                Target::Global
+            )
+            .is_ok());
+        let err = auth
+            .require(
+                "nobody@example.com",
+                Permission::Manage.into(),
+                Target::Global,
+            )
+            .unwrap_err();
+        assert!(matches!(
+            &err,
+            crate::api::error::AppError::ScopeAccessDenied(reason)
+                if reason == "user lacks manage permission"
+        ));
     }
 }
