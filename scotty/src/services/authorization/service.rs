@@ -355,35 +355,37 @@ impl AuthorizationService {
 
     /// Whether `user` may see `task` (its details, updates and output).
     ///
-    /// `admin_read` sees every task. The user who started the task always may,
-    /// which covers app creation before the new app is assigned to a scope.
-    /// An action run needs the permission the action required, so `view`
-    /// alone doesn't reveal its output. Any other task of an app needs `view`
-    /// on that app, and a task without an app needs `admin_read`.
+    /// The user who started the task always may, which covers app creation
+    /// before the new app is assigned to a scope. A task without an app needs
+    /// `admin_read`. A task of an app needs `admin_read` on that app (in one
+    /// of its scopes), or the permission the task requires: for an action run
+    /// the permission the action required, so `view` alone doesn't reveal its
+    /// output, and `view` for any other task.
     pub async fn can_view_task(
         &self,
         user: &str,
         task: &scotty_core::tasks::task_details::TaskDetails,
     ) -> bool {
-        if task.requested_by.as_deref() == Some(user)
-            || self
-                .check_global_permission(user, &Permission::AdminRead)
-                .await
-        {
+        if task.requested_by.as_deref() == Some(user) {
             return true;
         }
         let Some(app) = &task.app_name else {
-            return false;
+            return self
+                .check_global_permission(user, &Permission::AdminRead)
+                .await;
         };
-        let required = match task.action_permission.as_deref() {
-            // Fail closed: an unknown permission hides the task.
+        let has_required = match task.action_permission.as_deref() {
+            None => self.check_permission(user, app, &Permission::View).await,
             Some(name) => match Permission::from_str(name) {
-                Some(permission) => permission,
-                None => return false,
+                Some(permission) => self.check_permission(user, app, &permission).await,
+                // Fail closed: an unknown permission is never granted.
+                None => false,
             },
-            None => Permission::View,
         };
-        self.check_permission(user, app, &required).await
+        has_required
+            || self
+                .check_permission(user, app, &Permission::AdminRead)
+                .await
     }
 
     /// Format user identifier for authorization checks

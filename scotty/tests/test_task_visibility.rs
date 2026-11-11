@@ -1,6 +1,7 @@
-//! Task list and task detail only return tasks the caller may see: everything
-//! for `admin_read`; otherwise the user who started the task, the action's own
-//! permission for action runs, `view` on the task's app for other tasks.
+//! Task list and task detail only return tasks the caller may see: the user
+//! who started the task; for a task of an app, `admin_read` on that app, the
+//! action's own permission for action runs, `view` for other tasks; for a task
+//! without an app, `admin_read`.
 
 use std::path::Path;
 
@@ -21,6 +22,8 @@ const CLIENT_A_TOKEN: &str = "client-a-secure-token-456";
 const ACTION_READER_TOKEN: &str = "token-without-rbac-assignments";
 /// Has only `admin_read` (in `default`), no role in `client-a` or `client-b`.
 const AUDITOR: &str = "auditor@example.com";
+/// Has only `admin_read`, in `client-a`.
+const AUDITOR_A: &str = "auditor-a@example.com";
 
 struct Tasks {
     in_a: Uuid,
@@ -84,6 +87,9 @@ async fn setup() -> (TestServer, SharedAppState, Tasks, tempfile::TempDir) {
             .await
             .unwrap();
     }
+    auth.assign_user_role(AUDITOR_A, "auditor", vec!["client-a".to_string()])
+        .await
+        .unwrap();
 
     let create = |app: Option<&str>, requested_by: Option<&str>, action: Option<&str>| {
         let state = state.clone();
@@ -201,10 +207,23 @@ async fn action_tasks_need_the_action_permission() {
     // An unknown permission hides the task (fail closed), except for admins.
     assert!(!can("identifier:client-a", t.bogus_action_in_a).await);
     assert!(can("identifier:admin", t.bogus_action_in_a).await);
-    // `admin_read` without any role in the app's scope sees everything.
-    for id in [t.write_action_in_a, t.in_b, t.no_app, t.bogus_action_in_a] {
-        assert!(can(AUDITOR, id).await, "auditor should see {id}");
+    // `admin_read` outside the app's scopes doesn't reveal the app's tasks,
+    // only tasks without an app.
+    for id in [t.in_a, t.write_action_in_a, t.in_b, t.bogus_action_in_a] {
+        assert!(!can(AUDITOR, id).await, "auditor should not see {id}");
     }
+    assert!(can(AUDITOR, t.no_app).await);
+    // `admin_read` in the app's scope reveals all of the app's tasks.
+    for id in [
+        t.in_a,
+        t.write_action_in_a,
+        t.read_action_in_a,
+        t.bogus_action_in_a,
+        t.no_app,
+    ] {
+        assert!(can(AUDITOR_A, id).await, "auditor-a should see {id}");
+    }
+    assert!(!can(AUDITOR_A, t.in_b).await);
 }
 
 #[tokio::test]
