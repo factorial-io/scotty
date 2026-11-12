@@ -83,6 +83,15 @@ fn drop_scotty_managed_settings(settings: &mut AppSettings, existing: Option<&Ap
         .unwrap_or_default();
 }
 
+/// What [`create`] does when the app already exists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnExisting {
+    /// Update it in place (REST: create is create-or-update).
+    Update,
+    /// Refuse with a conflict (MCP `create_app` never overwrites, D6).
+    Refuse,
+}
+
 /// Create or update an app (app-create spec). Checks `create` (or
 /// `create:<blueprint>` for a templated blueprint without caller compose) in
 /// the requested scopes, and for an existing app rights in all its scopes.
@@ -90,6 +99,7 @@ pub async fn create(
     state: &SharedAppState,
     user_id: &str,
     mut payload: CreateAppRequest,
+    on_existing: OnExisting,
 ) -> Result<RunningAppContext, AppError> {
     let auth_service = &state.auth_service;
 
@@ -161,6 +171,12 @@ pub async fn create(
                 payload.app_name
             ))
         })?;
+    if existing.is_some() && on_existing == OnExisting::Refuse {
+        return Err(AppError::Conflict(format!(
+            "App {} already exists; choose another name",
+            payload.app_name
+        )));
+    }
     if let Some(existing) = &existing {
         let as_set = |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
         if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {

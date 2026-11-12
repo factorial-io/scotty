@@ -60,5 +60,7 @@ pub async fn create_app_handler(
     })?;
 
     let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
-    Ok(SecureJson(apps::create(&state, &user_id, payload).await?))
+    Ok(SecureJson(
+        apps::create(&state, &user_id, payload, apps::OnExisting::Update).await?,
+    ))
 }

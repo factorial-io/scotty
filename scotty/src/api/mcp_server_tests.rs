@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use axum::http::header;
 use axum_test::{TestResponse, TestServer};
+use base64::prelude::*;
 use scotty_core::apps::app_data::{AppData, AppSettings, ContainerState};
 use scotty_core::utils::secret::SecretHashMap;
 use serde_json::{json, Value};
@@ -24,16 +25,24 @@ const RESTRICTED_TOKEN: &str = "restricted-token-789";
 /// oauth mode with the shipped blueprints, apps under a temp root, the
 /// `restricted` bearer token and `admin@example.com` an admin in `default`.
 async fn scotty() -> (TestServer, Arc<AppState>) {
+    scotty_with(&[]).await
+}
+
+async fn scotty_with(overrides: &[(&str, &str)]) -> (TestServer, Arc<AppState>) {
     let root = std::fs::canonicalize(tempfile::tempdir().unwrap().keep()).unwrap();
-    let mut settings = settings(&[
+    let mut overrides = overrides.to_vec();
+    overrides.extend([
         ("api.bearer_tokens.restricted", RESTRICTED_TOKEN),
         ("apps.root_folder", root.to_str().unwrap()),
     ]);
-    scotty_core::settings::app_blueprint::load_blueprint_dirs(
-        std::path::Path::new("../config/blueprints"),
-        &mut settings.apps.blueprints,
-    )
-    .unwrap();
+    let mut settings = settings(&overrides);
+    for dir in ["../config/blueprints", "tests/fixtures/blueprints"] {
+        scotty_core::settings::app_blueprint::load_blueprint_dirs(
+            std::path::Path::new(dir),
+            &mut settings.apps.blueprints,
+        )
+        .unwrap();
+    }
 
     let dir = tempfile::tempdir().unwrap().keep();
     let policy = std::fs::read_to_string("tests/fixtures/policy/policy.yaml")
@@ -233,7 +242,11 @@ async fn restricted_user_sees_only_static_html() {
 
     // Validation-only blueprints are not offered: create_app can't use them.
     let admin = call(&server, ADMIN_TOKEN, "list_blueprints", json!({})).await;
-    assert_eq!(names(&admin), ["atelier", "static-html"], "{admin}");
+    assert_eq!(
+        names(&admin),
+        ["atelier", "demo-template", "static-html"],
+        "{admin}"
+    );
 }
 
 #[tokio::test]
@@ -323,4 +336,133 @@ async fn read_tools_need_the_read_scope() {
         assert!(is_error(&result), "{result}");
         assert!(text(&result).contains("`read` scope"), "{result}");
     }
+}
+
+// --- 3.3 create_app ----------------------------------------------------------------
+
+/// The app directories under the apps root.
+fn app_dirs(state: &AppState) -> Vec<String> {
+    std::fs::read_dir(&state.settings.apps.root_folder)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect()
+}
+
+#[tokio::test]
+async fn read_only_connection_cannot_create() {
+    let (server, state) = scotty().await;
+    let (_client, tokens) = connect(&server, &state, ADMIN, "read", &["read"]).await;
+    let read_only = tokens["access_token"].as_str().unwrap();
+    let result = call(
+        &server,
+        read_only,
+        "create_app",
+        json!({"blueprint": "static-html", "files": [{"path": "html/index.html", "content": "hi"}]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("`create` scope"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn validation_only_blueprint_is_refused() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "test-oauth-blueprint", "app_name": "x"}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("templated"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn missing_parameter_is_named() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "demo-template", "app_name": "demo"}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("GREETING"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn oversized_payload_states_the_limit() {
+    let (server, state) = scotty_with(&[("api.create_app_max_size", "1K")]).await;
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "files": [
+            {"path": "html/a.html", "content": "a".repeat(600)},
+            // 600 bytes once decoded, 800 as base64.
+            {"path": "html/b.bin", "content": BASE64_STANDARD.encode([0u8; 600]), "encoding": "base64"},
+        ]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("limit of 1"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn restricted_user_cannot_create_from_other_blueprints() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "create_app",
+        json!({"blueprint": "atelier"}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("Access denied"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn existing_name_is_refused_not_overwritten() {
+    let (server, state) = scotty().await;
+    let dir = std::path::Path::new(&state.settings.apps.root_folder).join("taken");
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::write(dir.join("marker"), "keep").unwrap();
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "app_name": "taken",
+               "files": [{"path": "html/index.html", "content": "hi"}]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("already exists"), "{result}");
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+}
+
+#[test]
+fn generated_names_are_prefixed_and_random() {
+    let names: Vec<String> = (0..20)
+        .map(|_| crate::api::mcp::generated_name("static-html").unwrap())
+        .collect();
+    for name in &names {
+        let suffix = name.strip_prefix("static-html-").unwrap();
+        assert_eq!(suffix.len(), 10, "{name}");
+        assert!(
+            suffix
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()),
+            "{name}"
+        );
+    }
+    let unique: std::collections::HashSet<_> = names.iter().collect();
+    assert_eq!(unique.len(), names.len());
 }

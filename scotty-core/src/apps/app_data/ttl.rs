@@ -8,6 +8,22 @@ pub enum AppTtl {
     Forever,
 }
 
+/// `<days>d`, `<hours>h` or `forever` (any case), as scottyctl's `--ttl`.
+impl std::str::FromStr for AppTtl {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("forever") {
+            return Ok(AppTtl::Forever);
+        }
+        let number = |suffix| s.strip_suffix(suffix)?.parse::<u32>().ok();
+        number('d')
+            .map(AppTtl::Days)
+            .or_else(|| number('h').map(AppTtl::Hours))
+            .ok_or_else(|| format!("Invalid TTL format: {s}"))
+    }
+}
+
 impl From<AppTtl> for u32 {
     fn from(val: AppTtl) -> Self {
         match val {
@@ -43,6 +59,17 @@ impl Serialize for AppTtl {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn parses_days_hours_and_forever() {
+        use super::AppTtl;
+        assert_eq!("7d".parse(), Ok(AppTtl::Days(7)));
+        assert_eq!("12h".parse(), Ok(AppTtl::Hours(12)));
+        assert_eq!("FOREVER".parse(), Ok(AppTtl::Forever));
+        for bad in ["", "d", "7", "7m", "-1d", "1.5h"] {
+            assert!(bad.parse::<AppTtl>().is_err(), "{bad}");
+        }
+    }
+
     use super::*;
     use serde_norway;
 

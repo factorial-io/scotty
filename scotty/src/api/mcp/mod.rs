@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 
+use base64::prelude::*;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
     schemars::JsonSchema,
@@ -19,7 +20,13 @@ use rmcp::{
     },
     RoleServer, ServerHandler,
 };
-use scotty_core::apps::app_data::{AppData, AppSettings};
+use scotty_core::apps::{
+    app_data::{AppData, AppSettings, AppTtl},
+    create_app_request::CreateAppRequest,
+    file_list::{File, FileList},
+};
+use scotty_core::settings::loadbalancer::LoadBalancerType;
+use scotty_core::utils::{format::format_bytes, slugify::slugify};
 use serde::{Deserialize, Serialize};
 
 use crate::app_state::SharedAppState;
@@ -119,6 +126,69 @@ pub struct AppList {
     pub apps: Vec<AppSummary>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema, Default, Clone, Copy, PartialEq, Eq)]
+#[schemars(crate = "rmcp::schemars")]
+#[serde(rename_all = "lowercase")]
+pub enum Encoding {
+    /// The content is the file's text.
+    #[default]
+    Utf8,
+    /// The content is the file's bytes, base64-encoded (for binary files).
+    Base64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct PayloadFile {
+    /// Path inside the app, matching one of the blueprint's payload
+    /// patterns, e.g. `html/index.html`.
+    pub path: String,
+    pub content: String,
+    #[serde(default)]
+    pub encoding: Encoding,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct BasicAuth {
+    pub user: String,
+    pub password: String,
+}
+
+/// `create_app` input (design D5).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct CreateAppInput {
+    /// A templated blueprint from `list_blueprints`.
+    pub blueprint: String,
+    /// The app name. Omit it to get an unguessable generated name
+    /// (`<blueprint>-<10 random characters>`). An existing name is refused.
+    pub app_name: Option<String>,
+    /// Values for the blueprint's parameter schema.
+    #[serde(default)]
+    pub parameters: serde_json::Map<String, serde_json::Value>,
+    /// One of the blueprint's images; defaults to the first.
+    pub image: Option<String>,
+    /// Payload files, as text or base64.
+    #[serde(default)]
+    pub files: Vec<PayloadFile>,
+    /// How long the app lives: `<days>d`, `<hours>h` or `forever`.
+    /// Defaults to 7 days.
+    pub ttl: Option<String>,
+    /// Put the app behind basic auth.
+    pub basic_auth: Option<BasicAuth>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct CreatedApp {
+    /// Poll this with `get_task` until its state is `Finished` or `Failed`.
+    pub task_id: String,
+    pub app_name: String,
+    /// The app's public URLs, reachable once the task finished.
+    pub urls: Vec<String>,
+}
+
 #[tool_router]
 impl ScottyMcp {
     #[tool(
@@ -177,6 +247,161 @@ impl ScottyMcp {
             .map_err(|e| e.to_string())?;
         Ok(Json(AppSummary::new(&app)))
     }
+
+    #[tool(
+        description = "Create an app from a templated blueprint, e.g. publish an HTML page \
+                       with blueprint `static-html` and file `html/index.html`. Returns \
+                       immediately with a task id to poll with get_task, and the app's URLs.",
+        annotations(
+            title = "Create app",
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn create_app(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(input): Parameters<CreateAppInput>,
+    ) -> ToolResult<CreatedApp> {
+        let caller = caller(&ctx, McpScope::Create)?;
+        let request = create_request(&self.state, input)?;
+        let created = apps::create(
+            &self.state,
+            &caller.email,
+            request,
+            apps::OnExisting::Refuse,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+        let urls = created
+            .app_data
+            .settings
+            .as_ref()
+            .map(|s| expected_urls(&self.state, s))
+            .unwrap_or_default();
+        Ok(Json(CreatedApp {
+            task_id: created.task.id.to_string(),
+            app_name: created.app_data.name,
+            urls,
+        }))
+    }
+}
+
+/// The create request for `input` (D5): only templated blueprints, payload
+/// decoded and capped by `api.create_app_max_size`, a generated name (D6)
+/// when none is given.
+fn create_request(
+    state: &SharedAppState,
+    input: CreateAppInput,
+) -> Result<CreateAppRequest, String> {
+    let blueprint = state
+        .settings
+        .apps
+        .blueprints
+        .get(&input.blueprint)
+        .ok_or_else(|| format!("Unknown blueprint {}; see list_blueprints", input.blueprint))?;
+    if blueprint.template.is_none() {
+        return Err(format!(
+            "Blueprint {} needs a compose file; create_app accepts only templated blueprints \
+             (see list_blueprints)",
+            input.blueprint
+        ));
+    }
+
+    let limit = state.settings.api.create_app_max_size;
+    let mut total = 0usize;
+    let mut files = Vec::with_capacity(input.files.len());
+    for file in input.files {
+        let bytes = match file.encoding {
+            Encoding::Utf8 => file.content.into_bytes(),
+            Encoding::Base64 => BASE64_STANDARD
+                .decode(file.content.trim())
+                .map_err(|e| format!("files: {} is not valid base64: {e}", file.path))?,
+        };
+        total = total.saturating_add(bytes.len());
+        if total > limit {
+            return Err(format!(
+                "files: the payload exceeds the limit of {} (api.create_app_max_size)",
+                format_bytes(limit)
+            ));
+        }
+        files.push(File {
+            name: file.path,
+            content: bytes.into(),
+            compressed: false,
+        });
+    }
+
+    let app_name = match input.app_name {
+        Some(name) => {
+            let slug = slugify(&name);
+            if slug.is_empty() {
+                return Err(format!("app_name: {name:?} is not a valid app name"));
+            }
+            slug
+        }
+        None => generated_name(&input.blueprint)?,
+    };
+    let time_to_live = match input.ttl {
+        Some(ttl) => ttl
+            .parse::<AppTtl>()
+            .map_err(|e| format!("ttl: {e}; use <days>d, <hours>h or forever"))?,
+        None => AppSettings::default().time_to_live,
+    };
+    Ok(CreateAppRequest {
+        app_name,
+        settings: AppSettings {
+            app_blueprint: Some(input.blueprint),
+            time_to_live,
+            basic_auth: input.basic_auth.map(|b| (b.user, b.password)),
+            ..AppSettings::default()
+        },
+        files: FileList { files },
+        custom_domains: vec![],
+        // ponytail: D5 has no scopes, so MCP apps land in `default` like a
+        // REST create without `requested_scopes`.
+        requested_scopes: AppSettings::default().scopes,
+        blueprint_parameters: input.parameters,
+        image: input.image,
+    })
+}
+
+/// `<blueprint>-<10 random [a-z0-9]>` (D6): about 51 bits, so artifact URLs
+/// can't be guessed.
+pub(crate) fn generated_name(blueprint: &str) -> Result<String, String> {
+    const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut suffix = String::with_capacity(10);
+    while suffix.len() < 10 {
+        let mut bytes = [0u8; 16];
+        getrandom::fill(&mut bytes).map_err(|e| format!("can't generate a name: {e}"))?;
+        // Rejection sampling: 252 is the largest multiple of 36 below 256.
+        suffix.extend(
+            bytes
+                .iter()
+                .filter(|b| **b < 252)
+                .map(|b| ALPHABET[usize::from(*b) % ALPHABET.len()] as char)
+                .take(10 - suffix.len()),
+        );
+    }
+    Ok(slugify(format!("{blueprint}-{suffix}")))
+}
+
+/// The URLs the app will be served at, from its settings after the
+/// blueprint was applied (the containers don't exist yet).
+fn expected_urls(state: &SharedAppState, settings: &AppSettings) -> Vec<String> {
+    let tls = match state.settings.load_balancer_type {
+        LoadBalancerType::Traefik => state.settings.traefik.use_tls,
+        LoadBalancerType::HaproxyConfig => state.settings.haproxy.use_tls,
+    };
+    let scheme = if tls { "https" } else { "http" };
+    settings
+        .public_services
+        .iter()
+        .flat_map(|s| s.get_domains(&settings.domain))
+        .map(|domain| format!("{scheme}://{domain}"))
+        .collect()
 }
 
 #[tool_handler(

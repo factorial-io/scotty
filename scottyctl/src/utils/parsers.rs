@@ -59,20 +59,7 @@ pub fn parse_service_ids(s: &str) -> Result<NotificationReceiver, String> {
 }
 
 pub fn parse_app_ttl(s: &str) -> Result<AppTtl, String> {
-    if s.eq_ignore_ascii_case("forever") {
-        return Ok(AppTtl::Forever);
-    }
-    if let Some(days) = s.strip_suffix("d") {
-        if let Ok(num_days) = days.parse::<u32>() {
-            return Ok(AppTtl::Days(num_days));
-        }
-    }
-    if let Some(hours) = s.strip_suffix("h") {
-        if let Ok(num_hours) = hours.parse::<u32>() {
-            return Ok(AppTtl::Hours(num_hours)); // Assuming AppTtl has a variant called `Hours`
-        }
-    }
-    Err(format!("Invalid TTL format: {s}"))
+    s.parse()
 }
 
 pub fn parse_folder(s: &str) -> Result<String, String> {
