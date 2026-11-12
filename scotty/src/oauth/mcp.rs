@@ -104,8 +104,10 @@ fn authorization_server(state: &SharedAppState) -> Option<Router> {
 }
 
 /// Who an MCP request acts for: the grant's user and the approved scopes,
-/// or a configured bearer token's service account with every scope (its
-/// policy permissions are its only limit).
+/// or a configured bearer token's service account. A bearer token passes
+/// every tool's MCP scope check (`read`, `create`, `destroy`); its
+/// `identifier:<name>` assignment decides which Scotty scopes and apps it
+/// reaches.
 #[derive(Debug, Clone)]
 pub struct McpPrincipal {
     /// The user id for authorization: an email, or `identifier:<name>`.

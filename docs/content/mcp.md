@@ -74,14 +74,15 @@ Example: Claude publishes a page with blueprint `static-html` and the file
   [MCP connections](oauth-authentication.md#mcp-connections) for the flow,
   the consent page and how to revoke connections.
 - **Configured bearer tokens** (`api.bearer_tokens`), in every auth mode. They
-  act as their `identifier:<name>` service account and hold every scope; only
-  their permissions in the [authorization policy](authorization.md) limit
-  them.
+  act as their `identifier:<name>` service account. They pass the MCP scope
+  check of every tool (`read`, `create`, `destroy`), but reach only the
+  Scotty scopes and apps their `identifier:<name>` assignment in the
+  [authorization policy](authorization.md) grants.
 
 > [!WARNING]
-> A bearer token given to an MCP client can create and destroy everything its
-> policy assignment allows; the consent page's scope choice applies to MCP
-> tokens only. Give LLM clients their own token with a narrow
+> A bearer token given to an MCP client can do everything its assignment
+> allows in its Scotty scopes, through any tool; unticking MCP scopes on the
+> consent page applies to MCP tokens only. Give LLM clients their own token with a narrow
 > `identifier:<name>` assignment, not a CI token.
 
 Tool calls count against the authenticated rate limit tier when rate limiting
