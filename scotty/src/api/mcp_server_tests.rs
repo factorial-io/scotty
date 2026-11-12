@@ -1,15 +1,122 @@
 //! The MCP endpoint: transport, authentication, tool scopes and tools.
 
+use std::sync::Arc;
+
 use axum::http::header;
 use axum_test::{TestResponse, TestServer};
+use scotty_core::apps::app_data::{AppData, AppSettings, ContainerState};
+use scotty_core::utils::secret::SecretHashMap;
 use serde_json::{json, Value};
 
-use super::mcp_oauth_tests::{app, assert_challenge, connect, session};
+use super::mcp_oauth_tests::{app, assert_challenge, connect, session, settings, ADMIN};
 use crate::api::router::ApiRoutes;
-use crate::api::test_utils::create_test_app_state_with_settings;
+use crate::api::test_utils::{
+    create_test_app_state_with_policy_dir, create_test_app_state_with_settings,
+};
+use crate::app_state::AppState;
 
 /// Configured bearer token of `identifier:admin` (admin in every scope).
 const ADMIN_TOKEN: &str = "test-bearer-token-123";
+/// Configured bearer token of `identifier:restricted`, who may only view
+/// and create from `static-html`, in scope `default`.
+const RESTRICTED_TOKEN: &str = "restricted-token-789";
+
+/// oauth mode with the shipped blueprints, apps under a temp root, the
+/// `restricted` bearer token and `admin@example.com` an admin in `default`.
+async fn scotty() -> (TestServer, Arc<AppState>) {
+    let root = std::fs::canonicalize(tempfile::tempdir().unwrap().keep()).unwrap();
+    let mut settings = settings(&[
+        ("api.bearer_tokens.restricted", RESTRICTED_TOKEN),
+        ("apps.root_folder", root.to_str().unwrap()),
+    ]);
+    scotty_core::settings::app_blueprint::load_blueprint_dirs(
+        std::path::Path::new("../config/blueprints"),
+        &mut settings.apps.blueprints,
+    )
+    .unwrap();
+
+    let dir = tempfile::tempdir().unwrap().keep();
+    let policy = std::fs::read_to_string("tests/fixtures/policy/policy.yaml")
+        .unwrap()
+        .replace(
+            "roles:\n",
+            "roles:\n  artifacts:\n    permissions: [view, 'create:static-html']\n    description: Artifacts only\n",
+        )
+        .replace(
+            "assignments:\n",
+            &format!(
+                "assignments:\n  {ADMIN}:\n    - role: admin\n      scopes: [default]\n  \
+                 identifier:restricted:\n    - role: artifacts\n      scopes: [default]\n"
+            ),
+        );
+    std::fs::write(dir.join("policy.yaml"), policy).unwrap();
+    let state = create_test_app_state_with_policy_dir(settings, None, dir.to_str().unwrap()).await;
+    (TestServer::new(ApiRoutes::create(state.clone())), state)
+}
+
+/// `tools/call`; the result (with `isError` set for tool errors).
+async fn call(server: &TestServer, token: &str, tool: &str, arguments: Value) -> Value {
+    rpc(
+        server,
+        token,
+        "tools/call",
+        json!({"name": tool, "arguments": arguments}),
+    )
+    .await
+}
+
+fn is_error(result: &Value) -> bool {
+    result["isError"] == true
+}
+
+/// The text of a tool result's first content block.
+fn text(result: &Value) -> String {
+    result["content"][0]["text"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// A running atelier app in `default` whose settings hold secrets.
+async fn add_atelier_app(state: &AppState) {
+    let settings = AppSettings {
+        app_blueprint: Some("atelier".into()),
+        scopes: vec!["default".into()],
+        environment: SecretHashMap::from_hashmap(
+            [
+                ("HASH_SALT".to_string(), "salt-0123456789abcdef".to_string()),
+                (
+                    "SITE_NAME".to_string(),
+                    "visible-only-to-compose".to_string(),
+                ),
+            ]
+            .into(),
+        ),
+        generated_parameters: vec!["HASH_SALT".into()],
+        basic_auth: Some(("user".into(), "basic-auth-pw".into())),
+        ..Default::default()
+    };
+    state
+        .apps
+        .add_app(AppData {
+            name: "atelier-demo".into(),
+            settings: Some(settings),
+            services: vec![ContainerState {
+                service: "edge".into(),
+                domains: vec!["edge.atelier-demo.test.local".into()],
+                basic_auth: Some(("user".into(), "basic-auth-pw".into())),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    state
+        .auth_service
+        .set_app_scopes("atelier-demo", vec!["default".into()])
+        .await
+        .unwrap();
+}
 
 async fn post(server: &TestServer, token: Option<&str>, body: Value) -> TestResponse {
     let mut request = server
@@ -102,4 +209,118 @@ async fn missing_invalid_and_session_tokens_get_the_challenge() {
     assert_challenge(&post(&server, Some("garbage"), list.clone()).await);
     let alice_session = session(&state, "alice@example.com").await;
     assert_challenge(&post(&server, Some(&alice_session), list).await);
+}
+
+// --- 3.2 list_blueprints, list_apps, get_app ------------------------------------
+
+#[tokio::test]
+async fn restricted_user_sees_only_static_html() {
+    let (server, _state) = scotty().await;
+    let names = |result: &Value| -> Vec<String> {
+        result["structuredContent"]["blueprints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+
+    let restricted = call(&server, RESTRICTED_TOKEN, "list_blueprints", json!({})).await;
+    assert_eq!(names(&restricted), ["static-html"], "{restricted}");
+    let bp = &restricted["structuredContent"]["blueprints"][0];
+    assert_eq!(bp["payload"], json!(["html/**"]));
+    assert!(bp["images"].as_array().is_some_and(|i| !i.is_empty()));
+
+    // Validation-only blueprints are not offered: create_app can't use them.
+    let admin = call(&server, ADMIN_TOKEN, "list_blueprints", json!({})).await;
+    assert_eq!(names(&admin), ["atelier", "static-html"], "{admin}");
+}
+
+#[tokio::test]
+async fn get_and_list_apps_show_no_environment_values() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+
+    let app = call(
+        &server,
+        ADMIN_TOKEN,
+        "get_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert!(!is_error(&app), "{app}");
+    assert_eq!(app["structuredContent"]["blueprint"], "atelier");
+    assert_eq!(
+        app["structuredContent"]["urls"],
+        json!(["http://edge.atelier-demo.test.local"])
+    );
+    let listed = call(&server, ADMIN_TOKEN, "list_apps", json!({})).await;
+    assert_eq!(
+        listed["structuredContent"]["apps"][0]["name"],
+        "atelier-demo"
+    );
+    for result in [&app, &listed] {
+        let raw = result.to_string();
+        for secret in [
+            "salt-0123456789abcdef",
+            "HASH_SALT",
+            "visible-only-to-compose",
+            "basic-auth-pw",
+        ] {
+            assert!(!raw.contains(secret), "{secret} leaked: {raw}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn apps_outside_the_callers_scopes_are_hidden() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+    state
+        .auth_service
+        .set_app_scopes("atelier-demo", vec!["client-b".into()])
+        .await
+        .unwrap();
+
+    let listed = call(&server, RESTRICTED_TOKEN, "list_apps", json!({})).await;
+    assert_eq!(listed["structuredContent"]["apps"], json!([]), "{listed}");
+    let app = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "get_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert!(is_error(&app), "{app}");
+    assert!(text(&app).contains("Access denied"), "{app}");
+}
+
+#[tokio::test]
+async fn read_tools_are_annotated_read_only() {
+    let (server, _state) = scotty().await;
+    let list = rpc(&server, ADMIN_TOKEN, "tools/list", json!({})).await;
+    for name in ["list_blueprints", "list_apps", "get_app"] {
+        let tool = list["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == name)
+            .unwrap_or_else(|| panic!("{name} missing: {list}"));
+        assert_eq!(tool["annotations"]["readOnlyHint"], true, "{tool}");
+        assert!(tool["inputSchema"].is_object(), "{tool}");
+    }
+}
+
+// --- 2.2 Per-tool scopes ---------------------------------------------------------
+
+#[tokio::test]
+async fn read_tools_need_the_read_scope() {
+    let (server, state) = scotty().await;
+    let (_client, tokens) = connect(&server, &state, ADMIN, "create", &["create"]).await;
+    let create_only = tokens["access_token"].as_str().unwrap();
+    for tool in ["list_blueprints", "list_apps"] {
+        let result = call(&server, create_only, tool, json!({})).await;
+        assert!(is_error(&result), "{result}");
+        assert!(text(&result).contains("`read` scope"), "{result}");
+    }
 }

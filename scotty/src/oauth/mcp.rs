@@ -107,7 +107,6 @@ pub struct McpPrincipal {
 }
 
 /// An MCP scope a tool requires (D6).
-#[allow(dead_code)] // read by the `mcp-server` tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpScope {
     /// View apps, blueprints and tasks; read logs.
@@ -118,7 +117,6 @@ pub enum McpScope {
     Destroy,
 }
 
-#[allow(dead_code)] // read by the `mcp-server` tools
 impl McpScope {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -141,17 +139,32 @@ impl McpScope {
 
 /// Where a permission is checked: on an app, or in any of some scopes (app
 /// creation, where the app does not exist yet).
-#[allow(dead_code)] // read by the `mcp-server` tools
+#[allow(dead_code)] // see `McpPrincipal::allow`
 #[derive(Debug, Clone, Copy)]
 pub enum McpTarget<'a> {
     App(&'a str),
     Scopes(&'a [String]),
 }
 
-#[allow(dead_code)] // read by the `mcp-server` tools
 impl McpPrincipal {
+    /// The per-tool scope check: `Err` names the missing scope, so the
+    /// client can tell the user which permission to grant when reconnecting.
+    pub fn require_scope(&self, scope: McpScope) -> Result<(), String> {
+        if self.scopes.iter().any(|s| s == scope.as_str()) {
+            Ok(())
+        } else {
+            Err(format!(
+                "Access denied: this connection lacks the `{}` scope; reconnect and approve it",
+                scope.as_str()
+            ))
+        }
+    }
+
     /// D6: allowed only if the token carries `scope`, `scope` stands for
     /// `permission`, and the policy gives the user `permission` on `target`.
+    /// The tools call [`Self::require_scope`] and leave the policy check to
+    /// `services::apps`, which also serves REST.
+    #[allow(dead_code)]
     pub async fn allow(
         &self,
         state: &AppState,
@@ -159,7 +172,7 @@ impl McpPrincipal {
         permission: Permission,
         target: McpTarget<'_>,
     ) -> bool {
-        if !scope.covers(&permission) || !self.scopes.iter().any(|s| s == scope.as_str()) {
+        if !scope.covers(&permission) || self.require_scope(scope).is_err() {
             return false;
         }
         let target = match target {
