@@ -373,6 +373,38 @@ pub async fn tasks(state: &SharedAppState, user_id: &str) -> Vec<TaskDetails> {
     tasks
 }
 
+/// A lifecycle operation on an app (`manage` permission).
+#[derive(Debug, Clone, Copy)]
+pub enum Lifecycle {
+    Start,
+    Stop,
+    Rebuild,
+}
+
+/// Start, stop or rebuild an app, if `user_id` holds `manage` on it.
+pub async fn lifecycle(
+    state: &SharedAppState,
+    user_id: &str,
+    app: &str,
+    op: Lifecycle,
+) -> Result<RunningAppContext, AppError> {
+    let app = slugify(app);
+    state
+        .auth_service
+        .require(user_id, Permission::Manage.into(), Target::App(&app))?;
+    let app_data = state
+        .apps
+        .get_app(&app)
+        .await
+        .ok_or_else(|| AppError::AppNotFound(app.clone()))?;
+    let state = state.clone();
+    Ok(match op {
+        Lifecycle::Start => crate::docker::run_app::run_app(state, &app_data).await?,
+        Lifecycle::Stop => crate::docker::stop_app::stop_app(state, &app_data).await?,
+        Lifecycle::Rebuild => crate::docker::rebuild_app::rebuild_app(state, &app_data).await?,
+    })
+}
+
 /// Destroy a managed app, if `user_id` holds `destroy` on it.
 pub async fn destroy(
     state: &SharedAppState,

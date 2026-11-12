@@ -285,6 +285,14 @@ pub struct DestroyedApp {
     pub app_name: String,
 }
 
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct AppOperation {
+    /// Poll this with `get_task` until its state is `Finished` or `Failed`.
+    pub task_id: String,
+    pub app_name: String,
+}
+
 #[tool_router]
 impl ScottyMcp {
     #[tool(
@@ -446,6 +454,82 @@ impl ScottyMcp {
             app_name: destroyed.app_data.name,
         }))
     }
+
+    #[tool(
+        description = "Stop an app's containers; its files and volumes stay. Returns a task id \
+                       to poll with get_task.",
+        annotations(
+            title = "Stop app",
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn stop_app(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(AppRef { app_name }): Parameters<AppRef>,
+    ) -> ToolResult<AppOperation> {
+        self.lifecycle(&ctx, &app_name, apps::Lifecycle::Stop).await
+    }
+
+    #[tool(
+        description = "Start a stopped app. Returns a task id to poll with get_task.",
+        annotations(
+            title = "Start app",
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn start_app(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(AppRef { app_name }): Parameters<AppRef>,
+    ) -> ToolResult<AppOperation> {
+        self.lifecycle(&ctx, &app_name, apps::Lifecycle::Start)
+            .await
+    }
+
+    #[tool(
+        description = "Rebuild an app: pull its images, rebuild and restart its containers; \
+                       files and volumes stay. Returns a task id to poll with get_task.",
+        annotations(
+            title = "Rebuild app",
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn rebuild_app(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(AppRef { app_name }): Parameters<AppRef>,
+    ) -> ToolResult<AppOperation> {
+        self.lifecycle(&ctx, &app_name, apps::Lifecycle::Rebuild)
+            .await
+    }
+}
+
+impl ScottyMcp {
+    async fn lifecycle(
+        &self,
+        ctx: &RequestContext<RoleServer>,
+        app_name: &str,
+        op: apps::Lifecycle,
+    ) -> ToolResult<AppOperation> {
+        let caller = caller(ctx, McpScope::Manage)?;
+        let running = apps::lifecycle(&self.state, &caller.email, app_name, op)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(Json(AppOperation {
+            task_id: running.task.id.to_string(),
+            app_name: running.app_data.name,
+        }))
+    }
 }
 
 /// The create request for `input`: only templated blueprints, payload
@@ -589,7 +673,8 @@ fn expected_urls(state: &SharedAppState, settings: &AppSettings) -> Vec<String> 
     name = "scotty",
     instructions = "Scotty runs Docker Compose apps. Create apps from blueprints \
                     (list_blueprints, create_app), poll the returned task with get_task, \
-                    inspect apps with list_apps/get_app and remove them with destroy_app."
+                    inspect apps with list_apps/get_app, stop, start or rebuild them with \
+                    stop_app/start_app/rebuild_app and remove them with destroy_app."
 )]
 impl ServerHandler for ScottyMcp {
     /// The tools, with `create_app`'s `scope` offering the caller's create

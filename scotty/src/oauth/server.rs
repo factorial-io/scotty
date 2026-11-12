@@ -24,7 +24,7 @@ const GRANT_LIFETIME_DAYS: i64 = 30;
 
 pub const MCP_KIND: &str = "mcp";
 /// The MCP scopes (spec: Scopes narrow the user's permissions).
-pub const MCP_SCOPES: [&str; 4] = ["read", "create", "destroy", "offline_access"];
+pub const MCP_SCOPES: [&str; 5] = ["read", "create", "manage", "destroy", "offline_access"];
 
 /// The session server.
 pub type SessionServer = Server<String>;
@@ -71,7 +71,7 @@ pub fn mcp_server(
     let mut config = Config::new(
         mcp_resource(base),
         MCP_KIND,
-        ScopeSpec::new(&MCP_SCOPES, &["read", "create"], "offline_access"),
+        ScopeSpec::new(&MCP_SCOPES, &["read", "create", "manage"], "offline_access"),
         Signer::hmac(Algorithm::HS512, jwt_secret),
     );
     config.grant_lifetime = Duration::days(GRANT_LIFETIME_DAYS);

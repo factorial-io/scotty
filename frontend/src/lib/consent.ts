@@ -25,6 +25,7 @@ export type ConsentState =
 export const SCOPE_DESCRIPTIONS: Record<string, string> = {
 	read: 'View apps, blueprints and tasks',
 	create: 'Create apps',
+	manage: 'Stop, start and rebuild apps',
 	destroy: 'Destroy apps',
 	offline_access: 'Stay connected without asking again'
 };

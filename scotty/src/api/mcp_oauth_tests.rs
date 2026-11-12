@@ -251,7 +251,7 @@ async fn metadata_documents_come_from_the_base_url() {
     assert_eq!(doc["client_id_metadata_document_supported"], true);
     assert_eq!(
         doc["scopes_supported"],
-        json!(["read", "create", "destroy", "offline_access"])
+        json!(["read", "create", "manage", "destroy", "offline_access"])
     );
 
     for path in [
@@ -695,4 +695,20 @@ async fn admins_revoke_any_connection_and_refresh_works_until_then() {
     )
     .await;
     assert_eq!(after.status_code(), 400);
+}
+
+#[tokio::test]
+async fn a_request_without_scopes_gets_read_create_manage() {
+    let (server, state) = app().await;
+    let client_id = client(&server).await;
+    let query = authorize_query(&client_id, LOOPBACK, "", true).replace("scope=&", "");
+    let to = location(&authorize(&server, &query).await);
+    let id = to.rsplit('/').next().unwrap();
+    let alice = session(&state, "alice@example.com").await;
+    let info: Value = server
+        .get(&format!("/api/v1/authenticated/oauth/consent/{id}"))
+        .add_header(header::AUTHORIZATION, bearer(&alice))
+        .await
+        .json();
+    assert_eq!(info["scopes"], json!(["read", "create", "manage"]));
 }
