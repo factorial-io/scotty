@@ -37,7 +37,7 @@ Keep these properties in mind when deploying Scotty:
   everyone logs in again.
 - **MCP connections never exceed the user.** A connected client gets only the
   scopes the user approved (`read`, `create`, `destroy`, `offline_access`),
-  and each call is also checked against the user's Casbin permissions. Users
+  and each call is also checked against the user's permissions. Users
   can revoke connections on the `/connections` page.
 - **The registration limit trusts `X-Forwarded-For`.** MCP client
   registration is rate limited per client address taken from

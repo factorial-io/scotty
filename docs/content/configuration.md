@@ -285,13 +285,12 @@ Scotty includes a scope-based authorization system for controlling access to app
 
 #### Configuration Files
 
-Authorization uses two configuration files in the `config/casbin/` directory:
+Authorization uses one configuration file, `policy.yaml`, in the `config/casbin/` directory (the folder name is historical):
 
 ```
 config/
 ├── casbin/
-│   ├── model.conf       # Casbin RBAC model (shipped with Scotty, do not edit)
-│   └── policy.yaml      # Groups, roles, and assignments
+│   └── policy.yaml      # Scopes, roles, and assignments
 └── default.yaml         # Main configuration
 ```
 
@@ -310,6 +309,9 @@ scopes:
     created_at: "2023-12-01T00:00:00Z"
   production:
     description: "Production environment"
+    created_at: "2023-12-01T00:00:00Z"
+  staging:
+    description: "Staging environment"
     created_at: "2023-12-01T00:00:00Z"
 
 # Role definitions with permissions

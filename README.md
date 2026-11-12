@@ -84,7 +84,7 @@ scottyctl --server https://localhost:21342 --access-token your_secure_bearer_tok
 
 ### Quick Start with Docker
 
-The Docker image includes only the binaries and non-sensitive configuration files (Casbin model, blueprints). Configuration with secrets must be provided at runtime.
+The Docker image includes only the binaries and non-sensitive configuration files (blueprints). Configuration with secrets must be provided at runtime.
 
 **Option 1: Mount configuration directory (recommended)**
 ```bash
