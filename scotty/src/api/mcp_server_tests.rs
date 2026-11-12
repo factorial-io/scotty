@@ -595,7 +595,7 @@ async fn hidden_and_unknown_tasks_answer_alike() {
 }
 
 #[tokio::test]
-async fn tools_list_has_the_six_tools_with_annotations() {
+async fn tools_list_has_the_nine_tools_with_annotations() {
     let (server, _state) = scotty().await;
     let list = rpc(&server, ADMIN_TOKEN, "tools/list", json!({})).await;
     assert_eq!(
@@ -606,7 +606,10 @@ async fn tools_list_has_the_six_tools_with_annotations() {
             "get_app",
             "get_task",
             "list_apps",
-            "list_blueprints"
+            "list_blueprints",
+            "rebuild_app",
+            "start_app",
+            "stop_app"
         ]
     );
     let tool = |name: &str| {
@@ -625,6 +628,15 @@ async fn tools_list_has_the_six_tools_with_annotations() {
         "boolean"
     );
     assert_eq!(tool("create_app")["annotations"]["destructiveHint"], false);
+    for name in ["stop_app", "start_app", "rebuild_app"] {
+        assert_eq!(
+            tool(name)["annotations"]["destructiveHint"],
+            false,
+            "{name}"
+        );
+    }
+    assert_eq!(tool("stop_app")["annotations"]["idempotentHint"], true);
+    assert_eq!(tool("rebuild_app")["annotations"]["idempotentHint"], false);
 }
 
 /// Publish a static page through MCP, poll it to `Finished`, check the files
@@ -893,4 +905,60 @@ async fn get_task_summarizes_unless_full_output_is_asked_for() {
         json!(["Starting app 'atelier-demo'", "layer Downloading 1MB"])
     );
     assert_eq!(full["output_lines_omitted"], 0);
+}
+
+// --- Lifecycle tools ---------------------------------------------------------------
+
+#[tokio::test]
+async fn lifecycle_tools_need_the_manage_scope_and_permission() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+
+    // The token refuses: the admin's connection lacks `manage`.
+    let (_client, tokens) =
+        connect(&server, &state, ADMIN, "read create", &["read", "create"]).await;
+    let no_manage = tokens["access_token"].as_str().unwrap();
+    for tool in ["stop_app", "start_app", "rebuild_app"] {
+        let result = call(
+            &server,
+            no_manage,
+            tool,
+            json!({"app_name": "atelier-demo"}),
+        )
+        .await;
+        assert!(is_error(&result), "{tool}: {result}");
+        assert!(text(&result).contains("`manage` scope"), "{tool}: {result}");
+    }
+
+    // The policy refuses: `restricted` may only view in `default`.
+    for tool in ["stop_app", "start_app", "rebuild_app"] {
+        let result = call(
+            &server,
+            RESTRICTED_TOKEN,
+            tool,
+            json!({"app_name": "atelier-demo"}),
+        )
+        .await;
+        assert!(is_error(&result), "{tool}: {result}");
+        assert!(text(&result).contains("Access denied"), "{tool}: {result}");
+    }
+    assert!(state.task_manager.get_task_list().await.is_empty());
+}
+
+#[tokio::test]
+async fn lifecycle_tools_refuse_an_unknown_app_like_a_hidden_one() {
+    let (server, state) = scotty().await;
+    for tool in ["stop_app", "start_app", "rebuild_app"] {
+        let result = call(
+            &server,
+            ADMIN_TOKEN,
+            tool,
+            json!({"app_name": "no-such-app"}),
+        )
+        .await;
+        assert!(is_error(&result), "{tool}: {result}");
+        // Like a hidden app: an app in no scope grants nothing.
+        assert!(text(&result).contains("Access denied"), "{tool}: {result}");
+    }
+    assert!(state.task_manager.get_task_list().await.is_empty());
 }

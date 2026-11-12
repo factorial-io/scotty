@@ -90,7 +90,7 @@
 			<fieldset class="mt-2">
 				<legend class="text-sm mb-2">Allow it to:</legend>
 				{#each request.scopes as scope (scope)}
-					<label class="label cursor-pointer justify-start gap-3">
+					<label class="label flex cursor-pointer justify-start gap-3 py-1">
 						<input
 							type="checkbox"
 							class="checkbox checkbox-sm"

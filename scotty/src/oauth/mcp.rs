@@ -122,6 +122,8 @@ pub enum McpScope {
     Read,
     /// Create apps.
     Create,
+    /// Stop, start and rebuild apps.
+    Manage,
     /// Destroy apps.
     Destroy,
 }
@@ -131,6 +133,7 @@ impl McpScope {
         match self {
             Self::Read => "read",
             Self::Create => "create",
+            Self::Manage => "manage",
             Self::Destroy => "destroy",
         }
     }
@@ -178,9 +181,12 @@ pub async fn mcp_auth(
     if let Some(user) = authorize_bearer_user(state.clone(), &token, false).await {
         req.extensions_mut().insert(McpPrincipal {
             email: user.email,
-            scopes: [McpScope::Read, McpScope::Create, McpScope::Destroy]
-                .map(|s| s.as_str().to_owned())
-                .into(),
+            // Every MCP scope but the refresh one: the policy still decides.
+            scopes: super::server::MCP_SCOPES
+                .iter()
+                .filter(|s| **s != "offline_access")
+                .map(|s| (*s).to_owned())
+                .collect(),
         });
         return next.run(req).await;
     }
