@@ -293,7 +293,7 @@ interface.</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Role check</h3>
-<p>Scotty checks Casbin every time it issues or refreshes a token. A user who no
+<p>Scotty checks the authorization policy every time it issues or refreshes a token. A user who no
 longer has any role loses the session at the next refresh, and the grant is
 revoked.</p>
 <h3 id="route-protection" tabindex="-1"><a class="header-anchor" href="#route-protection">
@@ -555,7 +555,7 @@ The connection lasts at most 30 days.</li>
 </tr>
 </tbody>
 </table>
-<p>A tool runs only if the token has the scope <strong>and</strong> Casbin gives you the
+<p>A tool runs only if the token has the scope <strong>and</strong> the policy gives you the
 permission for that app. A connection never gets more than you have.</p>
 <h3 id="connections-page" tabindex="-1"><a class="header-anchor" href="#connections-page">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -738,13 +738,20 @@ can set the header themselves and pick their own rate-limit key.</p>
 <span class="token key atrule">scopes</span><span class="token punctuation">:</span>
   <span class="token key atrule">production</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> Production environment
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
   <span class="token key atrule">staging</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> Staging environment
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
 
 <span class="token key atrule">roles</span><span class="token punctuation">:</span>
+  <span class="token key atrule">admin</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Full access
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"*"</span><span class="token punctuation">]</span>
   <span class="token key atrule">deployer</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Deploys apps
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>view<span class="token punctuation">,</span> manage<span class="token punctuation">,</span> create<span class="token punctuation">]</span>
   <span class="token key atrule">monitor</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> Read<span class="token punctuation">-</span>only monitoring
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>view<span class="token punctuation">,</span> logs<span class="token punctuation">]</span>
 
 <span class="token comment"># Authorization assignments</span>

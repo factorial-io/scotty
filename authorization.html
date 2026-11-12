@@ -143,7 +143,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Overview</h2>
-<p>The authorization system is built on <strong>Casbin RBAC</strong> and provides:</p>
+<p>Authorization is role-based and driven by one file, <code>policy.yaml</code>. Scotty has no separate model file. It provides:</p>
 <ul>
 <li><strong>Scope-based access control</strong>: Organize apps into logical scopes</li>
 <li><strong>Role-based permissions</strong>: Define what actions users can perform</li>
@@ -213,7 +213,9 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Assignments</h3>
-<p>Map users or bearer tokens to roles within specific scopes:</p>
+<p>Map users or bearer tokens to roles within specific scopes. The assignment examples in this page show only the <code>assignments:</code> section; every role and scope they name must be defined in the same <code>policy.yaml</code>.</p>
+<p><strong>A user's rights are the union of every entry that matches them:</strong> their own entry (email, or <code>identifier:&lt;name&gt;</code>), the entry for their domain (<code>@factorial.io</code>) and the wildcard entry (<code>*</code>). No entry hides another, so a user's own entry adds to the domain entry instead of replacing it. A domain entry matches only that exact domain, not its subdomains. Emails match case-insensitively; <code>identifier:</code> keys are case-sensitive.</p>
+<p>An app that is in no scope grants nothing, and neither does an assignment with <code>scopes: []</code>.</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">assignments</span><span class="token punctuation">:</span>
   <span class="token key atrule">"frontend-dev@example.com"</span><span class="token punctuation">:</span>
     <span class="token punctuation">-</span> <span class="token key atrule">role</span><span class="token punctuation">:</span> <span class="token string">"developer"</span>
@@ -229,7 +231,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Authorization Setup</h3>
-<p>Create <code>/config/casbin/policy.yaml</code>:</p>
+<p>Create <code>/config/casbin/policy.yaml</code> (the folder name is historical; there is no <code>model.conf</code>):</p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token comment"># Scope definitions</span>
 <span class="token key atrule">scopes</span><span class="token punctuation">:</span>
   <span class="token key atrule">frontend</span><span class="token punctuation">:</span>
@@ -253,6 +255,9 @@
   <span class="token key atrule">operator</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Operations access without shell"</span>
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"manage"</span><span class="token punctuation">,</span> <span class="token string">"logs"</span><span class="token punctuation">,</span> <span class="token string">"action_read"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">viewer</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Read-only access"</span>
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">]</span>
   <span class="token key atrule">action_approver</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Can approve/reject custom actions"</span>
     <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"view"</span><span class="token punctuation">,</span> <span class="token string">"action_approve"</span><span class="token punctuation">]</span>
@@ -283,6 +288,17 @@
   <span class="token key atrule">"my-frontend-app"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">]</span>
   <span class="token key atrule">"my-backend-api"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"backend"</span><span class="token punctuation">]</span>
   <span class="token key atrule">"shared-service"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"frontend"</span><span class="token punctuation">,</span> <span class="token string">"backend"</span><span class="token punctuation">]</span></code></pre>
+<h3 id="validation-at-startup" tabindex="-1"><a class="header-anchor" href="#validation-at-startup">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Validation at startup</h3>
+<p>Scotty checks <code>policy.yaml</code> when it loads and refuses to start, with an error naming the offending entry, if:</p>
+<ul>
+<li>an assignment names a role that is not defined (<code>assignment for 'bob@example.com' names undefined role 'devloper'</code>)</li>
+<li>an assignment names a scope that is not defined (<code>... names undefined scope 'stagin'</code>; <code>*</code> is always valid)</li>
+<li>a role lists an unknown or malformed permission (<code>role 'viewer' has invalid permission 'veiw'</code>)</li>
+</ul>
+<p>The admin API applies the same checks to every change. A change that would make the policy invalid is refused with <code>400 Bad Request</code> (unknown role, scope or permission, empty fields) or <code>409 Conflict</code> (a scope or role that already exists) and leaves the policy unchanged. A new scope is usable at once, without a restart.</p>
 <h3 id="app-scope-assignment" tabindex="-1"><a class="header-anchor" href="#app-scope-assignment">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -397,7 +413,7 @@ stays accurate.</p>
 <p>When access is denied, users receive:</p>
 <ul>
 <li><strong>HTTP 403 Forbidden</strong> responses</li>
-<li><strong>Clear error messages</strong> explaining required permissions</li>
+<li><strong>Clear error messages</strong> naming the missing permission, for example <code>user lacks manage permission</code></li>
 <li><strong>Empty results</strong> for list operations (apps they cannot access are hidden)</li>
 </ul>
 <h2 id="examples" tabindex="-1"><a class="header-anchor" href="#examples">
@@ -412,10 +428,15 @@ stays accurate.</p>
 <span class="token key atrule">scopes</span><span class="token punctuation">:</span>
   <span class="token key atrule">team-alpha</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Team Alpha applications"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
   <span class="token key atrule">team-beta</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Team Beta applications"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
   <span class="token key atrule">production</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Production environment"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+
+<span class="token comment"># Roles `developer`, `viewer`, `operator` and `admin` as defined above</span>
 
 <span class="token key atrule">assignments</span><span class="token punctuation">:</span>
   <span class="token comment"># Team Alpha developer</span>
@@ -532,12 +553,23 @@ stays accurate.</p>
 <li><strong>App Discovery</strong>: Existing apps are assigned to <code>default</code> scope automatically</li>
 <li><strong>OAuth Compatibility</strong>: OAuth authentication continues to work unchanged</li>
 </ol>
+<h3 id="upgrading-from-the-model-file-based-authorization" tabindex="-1"><a class="header-anchor" href="#upgrading-from-the-model-file-based-authorization">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Upgrading from the model-file based authorization</h3>
+<ul>
+<li><code>model.conf</code> is no longer used or shipped; you can delete your copy. Keep <code>config/casbin/policy.yaml</code> where it is.</li>
+<li><strong>Breaking:</strong> an assignment that names an undefined role or scope, or a role with an unknown permission, now stops startup with an error naming it. Before, such entries were ignored.</li>
+<li><strong>Breaking:</strong> a user's own entry no longer overrides their domain entry; the rights of all matching entries add up.</li>
+<li><strong>Breaking:</strong> an app that is in no scope grants nothing, and an assignment with <code>scopes: []</code> grants nothing.</li>
+<li><strong>Breaking:</strong> the admin API answers <code>400</code>/<code>409</code> and leaves the policy unchanged for invalid changes (before: empty fields answered <code>200</code> with <code>success: false</code>).</li>
+</ul>
 <h3 id="enabling-authorization" tabindex="-1"><a class="header-anchor" href="#enabling-authorization">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Enabling Authorization</h3>
 <ol>
-<li>Create <code>/config/casbin/policy.yaml</code> (<code>model.conf</code> ships with the repository and the Docker image; a missing <code>policy.yaml</code> is seeded from <code>policy.yaml.example</code>)</li>
+<li>Create <code>/config/casbin/policy.yaml</code> (a missing <code>policy.yaml</code> is seeded from <code>policy.yaml.example</code>)</li>
 <li>Define initial scopes, roles, and assignments</li>
 <li><strong>Add existing bearer tokens to assignments</strong> (if using bearer authentication)</li>
 <li>Apps will automatically sync their scope memberships</li>

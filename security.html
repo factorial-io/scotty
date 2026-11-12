@@ -157,7 +157,7 @@ a secret manager. If it leaks, change it and restart: all sessions end and
 everyone logs in again.</li>
 <li><strong>MCP connections never exceed the user.</strong> A connected client gets only the
 scopes the user approved (<code>read</code>, <code>create</code>, <code>destroy</code>, <code>offline_access</code>),
-and each call is also checked against the user's Casbin permissions. Users
+and each call is also checked against the user's permissions. Users
 can revoke connections on the <code>/connections</code> page.</li>
 <li><strong>The registration limit trusts <code>X-Forwarded-For</code>.</strong> MCP client
 registration is rate limited per client address taken from

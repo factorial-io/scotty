@@ -451,11 +451,10 @@ they can choose their own key. The rate-limit metrics do not count this limit.</
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Configuration Files</h4>
-<p>Authorization uses two configuration files in the <code>config/casbin/</code> directory:</p>
+<p>Authorization uses one configuration file, <code>policy.yaml</code>, in the <code>config/casbin/</code> directory (the folder name is historical):</p>
 <pre><code>config/
 ├── casbin/
-│   ├── model.conf       # Casbin RBAC model (shipped with Scotty, do not edit)
-│   └── policy.yaml      # Groups, roles, and assignments
+│   └── policy.yaml      # Scopes, roles, and assignments
 └── default.yaml         # Main configuration
 </code></pre>
 <h4 id="example-authorization-configuration" tabindex="-1"><a class="header-anchor" href="#example-authorization-configuration">
@@ -473,6 +472,9 @@ they can choose their own key. The rate-limit metrics do not count this limit.</
     <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
   <span class="token key atrule">production</span><span class="token punctuation">:</span>
     <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Production environment"</span>
+    <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
+  <span class="token key atrule">staging</span><span class="token punctuation">:</span>
+    <span class="token key atrule">description</span><span class="token punctuation">:</span> <span class="token string">"Staging environment"</span>
     <span class="token key atrule">created_at</span><span class="token punctuation">:</span> <span class="token string">"2023-12-01T00:00:00Z"</span>
 
 <span class="token comment"># Role definitions with permissions</span>
