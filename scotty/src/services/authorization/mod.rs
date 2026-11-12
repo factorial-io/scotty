@@ -1,8 +1,8 @@
 //! Authorization module for Scotty
 //!
 //! This module provides a comprehensive RBAC (Role-Based Access Control) system
-//! with a single decision point over compiled policy snapshots. It manages users, roles, groups, and
-//! permissions for application access control.
+//! with a single decision point over compiled policy snapshots. It manages
+//! users, roles, scopes, and permissions for application access control.
 
 pub mod config;
 pub mod decision;

@@ -80,7 +80,7 @@ RUN groupadd $APP_USER \
 COPY --from=builder /app/target/release/scotty ${APP}/scotty
 COPY --from=builder /app/target/release/scottyctl ${APP}/scottyctl
 
-# Only copy non-sensitive config files (model and blueprints)
+# Only copy non-sensitive config files (blueprints)
 # DO NOT copy default.yaml or policy.yaml - these should be mounted at runtime
 # to avoid baking secrets or deployment-specific configs into the image
 COPY --from=builder /app/config/blueprints ${APP}/config/blueprints

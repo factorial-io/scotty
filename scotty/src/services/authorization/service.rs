@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use super::config::ConfigManager;
@@ -70,13 +70,9 @@ impl AuthorizationService {
     ///
     /// # Panics
     ///
-    /// If `config` is locked or does not compile.
+    /// If `config` does not compile.
     #[allow(dead_code)] // the binary doesn't use it; integration tests do
-    pub fn new_from_components(config: Arc<RwLock<AuthConfig>>, config_path: String) -> Self {
-        let config = config
-            .try_read()
-            .expect("authorization config is not locked")
-            .clone();
+    pub fn new_from_components(config: AuthConfig, config_path: String) -> Self {
         Self::from_config(config, config_path).expect("authorization config compiles")
     }
 

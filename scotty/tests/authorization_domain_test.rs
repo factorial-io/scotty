@@ -270,11 +270,5 @@ fn create_test_config_with_domain_assignments() -> AuthConfig {
 }
 
 async fn create_test_service(config: AuthConfig) -> AuthorizationService {
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
-
-    AuthorizationService::new_from_components(
-        Arc::new(RwLock::new(config)),
-        "test-config".to_string(),
-    )
+    AuthorizationService::new_from_components(config, "test-config".to_string())
 }

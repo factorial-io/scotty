@@ -355,7 +355,8 @@ async fn undefined_role_or_scope_in_an_assignment_fails_to_load() {
 #[tokio::test]
 async fn loads_without_a_model_file() {
     let dir = policy_dir(Some(POLICY));
-    // There is no model file any more; only `policy.yaml` is read.
+    // A leftover model file from an older install is ignored, even if garbage.
+    std::fs::write(dir.path().join("model.conf"), "not a model").unwrap();
     let auth = load(dir.path()).await.unwrap();
     assert!(auth.is_enabled().await);
 }
