@@ -29,7 +29,9 @@ use scotty_core::apps::{
     create_app_request::CreateAppRequest,
     file_list::{File, FileList},
 };
+use scotty_core::output::{OutputLine, OutputStreamType};
 use scotty_core::settings::loadbalancer::LoadBalancerType;
+use scotty_core::tasks::task_details::State;
 use scotty_core::utils::{format::format_bytes, slugify::slugify};
 use serde::{Deserialize, Serialize};
 
@@ -220,10 +222,43 @@ pub struct CreatedApp {
 pub struct TaskRef {
     /// The task id returned by `create_app` or `destroy_app`.
     pub task_id: String,
+    /// Return the raw output of all commands (last 100 lines) instead of the
+    /// task's step summary.
+    #[serde(default)]
+    pub full_output: bool,
 }
 
-/// How many output lines `get_task` returns, from the end.
+/// How many output lines `get_task` returns with `full_output`, from the end.
 const TASK_OUTPUT_LINES: usize = 100;
+/// How many raw command lines a failed task's summary adds, from the end.
+const FAILED_TASK_RAW_LINES: usize = 20;
+
+/// The lines `get_task` returns: Scotty's own step lines, plus the raw tail
+/// when the task failed; or, with `full`, the last lines of every stream.
+fn task_output(lines: &[OutputLine], failed: bool, full: bool) -> Vec<&OutputLine> {
+    if full {
+        return lines[lines.len().saturating_sub(TASK_OUTPUT_LINES)..]
+            .iter()
+            .collect();
+    }
+    let raw = |l: &&OutputLine| {
+        matches!(
+            l.stream,
+            OutputStreamType::Stdout | OutputStreamType::Stderr
+        )
+    };
+    let raw_tail: Vec<_> = if failed {
+        let raw_lines: Vec<_> = lines.iter().filter(raw).collect();
+        raw_lines[raw_lines.len().saturating_sub(FAILED_TASK_RAW_LINES)..].to_vec()
+    } else {
+        Vec::new()
+    };
+    // Keep the original order, so the raw tail sits next to the step it came from.
+    lines
+        .iter()
+        .filter(|l| !raw(l) || raw_tail.iter().any(|t| t.sequence == l.sequence))
+        .collect()
+}
 
 #[derive(Debug, Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
@@ -235,9 +270,10 @@ pub struct TaskInfo {
     pub last_exit_code: Option<i32>,
     pub started: String,
     pub finished: Option<String>,
-    /// The last output lines (at most 100).
+    /// The task's steps (plus the last command output if it failed), or the
+    /// last 100 lines of all output with `full_output`.
     pub output: Vec<String>,
-    /// Lines left out at the start of `output`.
+    /// Output lines left out of `output`; pass `full_output` to see them.
     pub output_lines_omitted: u64,
 }
 
@@ -350,14 +386,18 @@ impl ScottyMcp {
     }
 
     #[tool(
-        description = "Show a task's state (Running, Finished or Failed) and its last output \
-                       lines. Poll it after create_app or destroy_app.",
+        description = "Show a task's state (Running, Finished or Failed) and a summary of its \
+                       steps; a failed task also shows its last command output. Pass \
+                       full_output for the raw output. Poll it after create_app or destroy_app.",
         annotations(title = "Get task", read_only_hint = true, open_world_hint = false)
     )]
     async fn get_task(
         &self,
         ctx: RequestContext<RoleServer>,
-        Parameters(TaskRef { task_id }): Parameters<TaskRef>,
+        Parameters(TaskRef {
+            task_id,
+            full_output,
+        }): Parameters<TaskRef>,
     ) -> ToolResult<TaskInfo> {
         let caller = caller(&ctx, McpScope::Read)?;
         let id = uuid::Uuid::parse_str(&task_id)
@@ -365,8 +405,7 @@ impl ScottyMcp {
         let task = apps::task(&self.state, &caller.email, &id)
             .await
             .map_err(|e| e.to_string())?;
-        let lines = &task.output.lines;
-        let shown = &lines[lines.len().saturating_sub(TASK_OUTPUT_LINES)..];
+        let shown = task_output(&task.output.lines, task.state == State::Failed, full_output);
         Ok(Json(TaskInfo {
             task_id: task.id.to_string(),
             state: wire_name(&task.state),
@@ -648,4 +687,83 @@ pub fn service(state: &SharedAppState) -> StreamableHttpService<ScottyMcp, Never
         Arc::new(NeverSessionManager::default()),
         config,
     )
+}
+
+#[cfg(test)]
+mod task_output_tests {
+    use super::*;
+
+    fn lines() -> Vec<OutputLine> {
+        let mut seq = 0;
+        let mut line = |stream, text: &str| {
+            seq += 1;
+            OutputLine::new(stream, text.into(), seq)
+        };
+        let mut out = vec![line(OutputStreamType::Status, "Starting app 'a'")];
+        out.extend(
+            (0..30).map(|i| line(OutputStreamType::Stdout, &format!("layer {i} Downloading"))),
+        );
+        out.push(line(
+            OutputStreamType::Status,
+            "Completed: docker-compose pull",
+        ));
+        out.push(line(OutputStreamType::Stderr, "boom"));
+        out.push(line(OutputStreamType::StatusError, "Failed"));
+        out
+    }
+
+    fn texts(shown: Vec<&OutputLine>) -> Vec<&str> {
+        shown.iter().map(|l| l.content.as_str()).collect()
+    }
+
+    #[test]
+    fn a_finished_task_shows_only_its_steps() {
+        let lines = lines();
+        assert_eq!(
+            texts(task_output(&lines, false, false)),
+            [
+                "Starting app 'a'",
+                "Completed: docker-compose pull",
+                "Failed"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_failed_task_adds_the_last_raw_lines_in_order() {
+        let lines = lines();
+        let shown = texts(task_output(&lines, true, false));
+        assert_eq!(shown.len(), 3 + FAILED_TASK_RAW_LINES);
+        assert_eq!(shown[0], "Starting app 'a'");
+        assert_eq!(shown[1], "layer 11 Downloading");
+        assert_eq!(
+            &shown[shown.len() - 3..],
+            ["Completed: docker-compose pull", "boom", "Failed"]
+        );
+    }
+
+    #[test]
+    fn short_and_empty_outputs() {
+        assert!(task_output(&[], true, false).is_empty());
+        let lines = [
+            OutputLine::new(OutputStreamType::Status, "Starting".into(), 1),
+            OutputLine::stdout("pulled".into(), 2),
+            OutputLine::stderr("boom".into(), 3),
+            OutputLine::new(OutputStreamType::StatusError, "Failed".into(), 4),
+        ];
+        assert_eq!(
+            texts(task_output(&lines, true, false)),
+            ["Starting", "pulled", "boom", "Failed"]
+        );
+    }
+
+    #[test]
+    fn full_output_is_the_raw_tail() {
+        let lines: Vec<_> = (0..150)
+            .map(|i| OutputLine::stdout(format!("line {i}"), i))
+            .collect();
+        let shown = texts(task_output(&lines, false, true));
+        assert_eq!(shown.len(), TASK_OUTPUT_LINES);
+        assert_eq!(shown[0], "line 50");
+    }
 }

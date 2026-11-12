@@ -27,3 +27,6 @@ config/production.yaml
 config/*.local.yaml
 config/casbin/policy.yaml
 scotty/test-config
+
+# OAuth server state (api.database_path)
+/data/

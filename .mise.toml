@@ -17,6 +17,12 @@ depends = ["traefik"]
 env = { SCOTTY__API__AUTH_MODE = "dev", SCOTTY__API__DEV_USER_EMAIL = "admin@example.com" }
 run = "cargo run --bin scotty"
 
+[tasks."dev:op"]
+description = "Run the scotty server in oauth mode with secrets from 1Password (.env.1password)"
+depends = ["traefik"]
+env = { SCOTTY__API__AUTH_MODE = "oauth" }
+run = "op run --env-file .env.1password -- cargo run --bin scotty"
+
 [tasks.test]
 description = "Run the Rust test suite (as in CI)"
 run = "cargo test --all-targets"

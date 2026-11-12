@@ -563,6 +563,14 @@ async fn hidden_and_unknown_tasks_answer_alike() {
     .await;
     assert!(!is_error(&admin), "{admin}");
     assert_eq!(admin["structuredContent"]["state"], "Running", "{admin}");
+    let full = call(
+        &server,
+        ADMIN_TOKEN,
+        "get_task",
+        json!({"task_id": id.to_string(), "full_output": true}),
+    )
+    .await;
+    assert!(!is_error(&full), "{full}");
 
     let hidden = call(
         &server,
@@ -612,6 +620,10 @@ async fn tools_list_has_the_six_tools_with_annotations() {
     };
     assert_eq!(tool("destroy_app")["annotations"]["destructiveHint"], true);
     assert_eq!(tool("get_task")["annotations"]["readOnlyHint"], true);
+    assert_eq!(
+        tool("get_task")["inputSchema"]["properties"]["full_output"]["type"],
+        "boolean"
+    );
     assert_eq!(tool("create_app")["annotations"]["destructiveHint"], false);
 }
 
@@ -833,4 +845,52 @@ fn omitted_scope_resolves_to_the_only_or_default_scope() {
     assert!(default_scope(v(&[])).unwrap_err().contains("any scope"));
     let err = default_scope(v(&["client-a", "client-b"])).unwrap_err();
     assert!(err.contains("client-a, client-b"), "{err}");
+}
+
+#[tokio::test]
+async fn get_task_summarizes_unless_full_output_is_asked_for() {
+    use scotty_core::output::OutputStreamType;
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+    let (handle, rx) = state
+        .task_manager
+        .create_task(scotty_core::tasks::task_details::TaskDetails {
+            app_name: Some("atelier-demo".into()),
+            ..Default::default()
+        })
+        .await;
+    let id = rx.borrow().id;
+    handle.writer().status("Starting app 'atelier-demo'").await;
+    handle
+        .writer()
+        .output(OutputStreamType::Stdout, "layer Downloading 1MB")
+        .await;
+    rx.clone()
+        .wait_for(|t| t.output.lines.len() == 2)
+        .await
+        .unwrap();
+
+    let get = |full: bool| {
+        let server = &server;
+        async move {
+            let result = call(
+                server,
+                ADMIN_TOKEN,
+                "get_task",
+                json!({"task_id": id.to_string(), "full_output": full}),
+            )
+            .await;
+            assert!(!is_error(&result), "{result}");
+            result["structuredContent"].clone()
+        }
+    };
+    let summary = get(false).await;
+    assert_eq!(summary["output"], json!(["Starting app 'atelier-demo'"]));
+    assert_eq!(summary["output_lines_omitted"], 1);
+    let full = get(true).await;
+    assert_eq!(
+        full["output"],
+        json!(["Starting app 'atelier-demo'", "layer Downloading 1MB"])
+    );
+    assert_eq!(full["output_lines_omitted"], 0);
 }
