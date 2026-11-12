@@ -30,7 +30,7 @@ parameters, basic auth credentials or tokens.
 | Field | Required | Meaning |
 |---|---|---|
 | `blueprint` | yes | A templated blueprint from `list_blueprints` |
-| `app_name` | no | The app name. Without it Scotty generates `<blueprint>-<10 random characters>`, so the URL can't be guessed |
+| `app_name` | no | The app name, slugified (the result returns the final name). Without it Scotty generates `<blueprint>-<10 random characters>`, so the URL can't be guessed |
 | `parameters` | no | Values for the blueprint's parameter schema |
 | `image` | no | One of the blueprint's images; the first is the default |
 | `files` | no | Payload files: `{path, content, encoding}` with `encoding` `utf8` (default) or `base64` |
@@ -52,6 +52,14 @@ Rules:
 - The call returns at once. Poll `get_task` with the returned task id until
   the state is `Finished` or `Failed`.
 
+> [!WARNING]
+> Everything a tool receives or returns passes through the MCP client, its
+> transcript and its model provider. That includes the `basic_auth` password
+> you pass to `create_app` and the task output `get_task` returns. Scotty
+> never adds env values to results, but a compose or build step can print
+> them. Use throwaway basic auth credentials, and keep secrets out of
+> blueprint output.
+
 Example: Claude publishes a page with blueprint `static-html` and the file
 `html/index.html`, polls the task, and gives you the URL, for example
 `https://web.static-html-k3v9x0q2mz.artifacts.example.net`.
@@ -69,6 +77,12 @@ Example: Claude publishes a page with blueprint `static-html` and the file
   act as their `identifier:<name>` service account and hold every scope; only
   their permissions in the [authorization policy](authorization.md) limit
   them.
+
+> [!WARNING]
+> A bearer token given to an MCP client can create and destroy everything its
+> policy assignment allows; the consent page's scope choice applies to MCP
+> tokens only. Give LLM clients their own token with a narrow
+> `identifier:<name>` assignment, not a CI token.
 
 Tool calls count against the authenticated rate limit tier when rate limiting
 is enabled.

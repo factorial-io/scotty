@@ -104,6 +104,15 @@ pub struct AppSummary {
     pub basic_auth: bool,
 }
 
+/// A unit enum's serde name, the same string the REST API sends, so a Rust
+/// rename can't silently change the tool contract.
+fn wire_name(value: &impl Serialize) -> String {
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::String(name)) => name,
+        other => unreachable!("not a unit enum: {other:?}"),
+    }
+}
+
 impl AppSummary {
     fn new(app: &AppData) -> Self {
         let settings = app.settings.as_ref();
@@ -116,7 +125,7 @@ impl AppSummary {
                 .iter()
                 .map(|s| ServiceSummary {
                     service: s.service.clone(),
-                    status: format!("{:?}", s.status),
+                    status: wire_name(&s.status),
                     urls: s.get_urls(),
                 })
                 .collect(),
@@ -169,7 +178,8 @@ pub struct BasicAuth {
 pub struct CreateAppInput {
     /// A templated blueprint from `list_blueprints`.
     pub blueprint: String,
-    /// The app name. Omit it to get an unguessable generated name
+    /// The app name; it is slugified, the result returns the final name.
+    /// Omit it to get an unguessable generated name
     /// (`<blueprint>-<10 random characters>`). An existing name is refused.
     pub app_name: Option<String>,
     /// Values for the blueprint's parameter schema.
@@ -357,7 +367,7 @@ impl ScottyMcp {
         let shown = &lines[lines.len().saturating_sub(TASK_OUTPUT_LINES)..];
         Ok(Json(TaskInfo {
             task_id: task.id.to_string(),
-            state: format!("{:?}", task.state),
+            state: wire_name(&task.state),
             app_name: task.app_name.clone(),
             last_exit_code: task.last_exit_code,
             started: task.start_time.to_rfc3339(),
@@ -439,6 +449,7 @@ fn create_request(
         files.push(File {
             name: file.path,
             content: bytes.into(),
+            // Already decoded above; `apps::create` must not decode again.
             compressed: false,
         });
     }
@@ -611,7 +622,8 @@ pub fn service(state: &SharedAppState) -> StreamableHttpService<ScottyMcp, Never
         // rmcp's Host allowlist guards unauthenticated local servers against
         // DNS rebinding. Every `/mcp` request here needs a bearer token,
         // which a rebinding page cannot attach, and Scotty is reached under
-        // whatever host its proxy forwards.
+        // whatever host its proxy forwards. If `/mcp` ever accepts cookie or
+        // session auth, re-enable the allowlist: rebinding matters again.
         .disable_allowed_hosts()
         // Inline payloads arrive as JSON text or base64; the create size
         // limit is checked on the decoded bytes in `create_app`, this only

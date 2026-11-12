@@ -27,8 +27,9 @@ impl std::str::FromStr for AppTtl {
 impl From<AppTtl> for u32 {
     fn from(val: AppTtl) -> Self {
         match val {
-            AppTtl::Hours(h) => h * 3600,
-            AppTtl::Days(d) => d * 86400,
+            // ponytail: saturates at ~136 years, which reads as forever.
+            AppTtl::Hours(h) => h.saturating_mul(3600),
+            AppTtl::Days(d) => d.saturating_mul(86400),
             AppTtl::Forever => u32::MAX,
         }
     }
@@ -59,9 +60,11 @@ impl Serialize for AppTtl {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use serde_norway;
+
     #[test]
     fn parses_days_hours_and_forever() {
-        use super::AppTtl;
         assert_eq!("7d".parse(), Ok(AppTtl::Days(7)));
         assert_eq!("12h".parse(), Ok(AppTtl::Hours(12)));
         assert_eq!("FOREVER".parse(), Ok(AppTtl::Forever));
@@ -70,8 +73,11 @@ mod tests {
         }
     }
 
-    use super::*;
-    use serde_norway;
+    #[test]
+    fn huge_ttl_saturates_instead_of_overflowing() {
+        assert_eq!(u32::from(AppTtl::Days(u32::MAX)), u32::MAX);
+        assert_eq!(u32::from(AppTtl::Hours(u32::MAX)), u32::MAX);
+    }
 
     #[test]
     fn test_serialize_hours_to_yaml() {
