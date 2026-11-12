@@ -2,6 +2,7 @@ use crate::api::secure_response::SecureJson;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
+    Extension,
 };
 use scotty_core::{
     apps::app_data::AppData,
@@ -10,16 +11,16 @@ use scotty_core::{
 };
 
 use crate::{
-    api::error::AppError,
+    api::{error::AppError, middleware::authorization::AuthorizationContext},
     app_state::SharedAppState,
     docker::{
-        destroy_app::destroy_app,
         find_apps::{collect_environment_from_app, inspect_app},
         purge_app::purge_app,
         rebuild_app::rebuild_app,
         run_app::run_app,
         stop_app::stop_app,
     },
+    services::{apps, AuthorizationService},
 };
 
 #[utoipa::path(
@@ -111,14 +112,10 @@ pub async fn purge_app_handler(
 pub async fn info_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slugify(&app_id);
-    let app_data = state.apps.get_app(&app_id).await;
-    if app_data.is_none() {
-        return Err(AppError::AppNotFound(app_id.clone()));
-    }
-    let app_data = app_data.unwrap();
-    Ok(SecureJson(app_data))
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    Ok(SecureJson(apps::get(&state, &user_id, &app_id).await?))
 }
 
 #[utoipa::path(
@@ -161,18 +158,10 @@ pub async fn rebuild_app_handler(
 pub async fn destroy_app_handler(
     Path(app_id): Path<String>,
     State(state): State<SharedAppState>,
+    Extension(auth_context): Extension<AuthorizationContext>,
 ) -> Result<impl IntoResponse, AppError> {
-    let app_id = slugify(&app_id);
-    let app_data = state.apps.get_app(&app_id).await;
-    if app_data.is_none() {
-        return Err(AppError::AppNotFound(app_id.clone()));
-    }
-    let app_data = app_data.unwrap();
-    if app_data.settings.is_none() {
-        return Err(AppError::CantDestroyUnmanagedApp(app_id.clone()));
-    }
-    let app_data = destroy_app(state, &app_data).await?;
-    Ok(SecureJson(app_data))
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
+    Ok(SecureJson(apps::destroy(&state, &user_id, &app_id).await?))
 }
 
 /// Adopts an existing (unsupported) app by creating its Scotty settings so the

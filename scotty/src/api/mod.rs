@@ -1,6 +1,7 @@
 pub mod auth_core;
 pub mod basic_auth;
 pub mod error;
+pub mod mcp;
 pub mod middleware;
 pub mod rate_limiting;
 pub mod rest;
@@ -22,3 +23,6 @@ mod oauth_flow_tests;
 
 #[cfg(test)]
 mod mcp_oauth_tests;
+
+#[cfg(test)]
+mod mcp_server_tests;

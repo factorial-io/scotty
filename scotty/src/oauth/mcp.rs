@@ -1,4 +1,4 @@
-//! The MCP authorization server's HTTP side (design D2, D6): grantry's
+//! The MCP authorization server's HTTP side: grantry's
 //! protocol routes (metadata, authorize, token, register), RFC 9728
 //! protected resource metadata, and the `/mcp` token check with the
 //! scope-plus-policy helper the `mcp-server` tools use.
@@ -10,19 +10,20 @@ use axum::{
     http::{header, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{any, get, post_service},
+    routing::{get, post_service},
     Json, Router,
 };
 use grantry::metadata::{AuthorizationServerMetadata, ProtectedResourceMetadata};
 use grantry::routes::Routes;
-use scotty_core::authorization::Permission;
 use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::server::{mcp_resource, McpServer};
-use crate::api::rate_limiting::create_register_limiter;
+use crate::api::auth_core::authorize_bearer_user;
+use crate::api::error::AppError;
+use crate::api::rate_limiting::middleware::RateLimitMetricsLayer;
+use crate::api::rate_limiting::{create_authenticated_limiter, create_register_limiter};
 use crate::app_state::{AppState, SharedAppState};
-use crate::services::authorization::decision::Target;
 
 pub const AUTHORIZE_PATH: &str = "/oauth/mcp/authorize";
 pub const TOKEN_PATH: &str = "/oauth/mcp/token";
@@ -31,9 +32,27 @@ pub const RESOURCE_METADATA_PATH: &str = "/.well-known/oauth-protected-resource/
 const RESOURCE_METADATA_ROOT: &str = "/.well-known/oauth-protected-resource";
 pub const MCP_PATH: &str = "/mcp";
 
-/// The routes of the mcp server, or `None` when it is not configured (not in
-/// oauth mode, or no `jwt_secret`).
-pub fn router(state: &SharedAppState) -> Option<Router> {
+/// `/mcp`, in every auth mode, plus the authorization server's routes when
+/// it is configured (oauth mode with a `jwt_secret`).
+pub fn router(state: &SharedAppState) -> Router {
+    let mut mcp = Router::new()
+        .route_service(MCP_PATH, crate::api::mcp::service(state))
+        .route_layer(middleware::from_fn_with_state(state.clone(), mcp_auth));
+    // The authenticated tier's limit, keyed by bearer token, as for REST.
+    let limits = &state.settings.api.rate_limiting;
+    if limits.enabled && limits.authenticated.is_enabled() {
+        mcp = mcp
+            .layer(create_authenticated_limiter(&limits.authenticated))
+            .layer(RateLimitMetricsLayer::new("authenticated"));
+    }
+    match authorization_server(state) {
+        Some(protocol) => protocol.merge(mcp),
+        None => mcp,
+    }
+}
+
+/// The authorization server's routes, or `None` when it is not configured.
+fn authorization_server(state: &SharedAppState) -> Option<Router> {
     let server = state.mcp_server.clone()?;
     let base = state.settings.api.public_base_url();
     let frontend = super::frontend_base(state);
@@ -76,41 +95,27 @@ pub fn router(state: &SharedAppState) -> Option<Router> {
         async move { ([(header::CACHE_CONTROL, "public, max-age=300")], doc) }
     };
 
-    let mcp = Router::new()
-        // ponytail: placeholder until the `mcp-server` change mounts the
-        // MCP transport here behind the same middleware.
-        .route(MCP_PATH, any(mcp_placeholder))
-        .route_layer(middleware::from_fn_with_state(state.clone(), mcp_auth))
-        .with_state(state.clone());
-
     Some(
         protocol
             .route(REGISTER_PATH, register)
             .route(RESOURCE_METADATA_PATH, get(metadata.clone()))
-            .route(RESOURCE_METADATA_ROOT, get(metadata))
-            .merge(mcp),
+            .route(RESOURCE_METADATA_ROOT, get(metadata)),
     )
 }
 
-async fn mcp_placeholder() -> Response {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({ "error": "not_implemented" })),
-    )
-        .into_response()
-}
-
-/// Who an MCP request acts for: the grant's user and the approved scopes.
-#[allow(dead_code)] // read by the `mcp-server` tools
+/// Who an MCP request acts for: the grant's user and the approved scopes,
+/// or a configured bearer token's service account. A bearer token passes
+/// every tool's MCP scope check (`read`, `create`, `destroy`); its
+/// `identifier:<name>` assignment decides which Scotty scopes and apps it
+/// reaches.
 #[derive(Debug, Clone)]
 pub struct McpPrincipal {
+    /// The user id for authorization: an email, or `identifier:<name>`.
     pub email: String,
-    pub grant_id: Uuid,
     pub scopes: Vec<String>,
 }
 
-/// An MCP scope a tool requires (D6).
-#[allow(dead_code)] // read by the `mcp-server` tools
+/// An MCP scope a tool requires.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpScope {
     /// View apps, blueprints and tasks; read logs.
@@ -121,7 +126,6 @@ pub enum McpScope {
     Destroy,
 }
 
-#[allow(dead_code)] // read by the `mcp-server` tools
 impl McpScope {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -130,55 +134,27 @@ impl McpScope {
             Self::Destroy => "destroy",
         }
     }
-
-    /// Whether this scope may stand for `permission` at all.
-    fn covers(self, permission: &Permission) -> bool {
-        matches!(
-            (self, permission),
-            (Self::Read, Permission::View | Permission::Logs)
-                | (Self::Create, Permission::Create)
-                | (Self::Destroy, Permission::Destroy)
-        )
-    }
 }
 
-/// Where a permission is checked: on an app, or in any of some scopes (app
-/// creation, where the app does not exist yet).
-#[allow(dead_code)] // read by the `mcp-server` tools
-#[derive(Debug, Clone, Copy)]
-pub enum McpTarget<'a> {
-    App(&'a str),
-    Scopes(&'a [String]),
-}
-
-#[allow(dead_code)] // read by the `mcp-server` tools
 impl McpPrincipal {
-    /// D6: allowed only if the token carries `scope`, `scope` stands for
-    /// `permission`, and the policy gives the user `permission` on `target`.
-    pub async fn allow(
-        &self,
-        state: &AppState,
-        scope: McpScope,
-        permission: Permission,
-        target: McpTarget<'_>,
-    ) -> bool {
-        if !scope.covers(&permission) || !self.scopes.iter().any(|s| s == scope.as_str()) {
-            return false;
+    /// The per-tool scope check: `Err` names the missing scope, so the
+    /// client can tell the user which permission to grant when reconnecting.
+    pub fn require_scope(&self, scope: McpScope) -> Result<(), String> {
+        if self.scopes.iter().any(|s| s == scope.as_str()) {
+            Ok(())
+        } else {
+            Err(format!(
+                "Access denied: this connection lacks the `{}` scope; reconnect and approve it",
+                scope.as_str()
+            ))
         }
-        let target = match target {
-            McpTarget::App(app) => Target::App(app),
-            McpTarget::Scopes(scopes) => Target::AnyOf(scopes),
-        };
-        state
-            .auth_service
-            .decide(&self.email, permission.into(), target)
-            .is_allowed()
     }
 }
 
-/// `/mcp` authentication: an mcp access token (audience `{base}/mcp`, kind
-/// `mcp`) whose grant is still active. Anything else is 401 with the RFC 9728
-/// §5.1 challenge pointing at the protected resource metadata.
+/// `/mcp` authentication: a configured bearer token, or an mcp access token
+/// (audience `{base}/mcp`, kind `mcp`) whose grant is still active. Anything
+/// else, session and identity-provider tokens included, is 401 with the RFC
+/// 9728 §5.1 challenge pointing at the protected resource metadata.
 pub async fn mcp_auth(
     State(state): State<SharedAppState>,
     mut req: Request,
@@ -194,6 +170,20 @@ pub async fn mcp_auth(
     let Some(token) = token else {
         return unauthorized(&state, false);
     };
+    // As the REST authorization middleware: without assignments nobody is
+    // authorized (and the app list would otherwise show every app).
+    if !state.auth_service.is_enabled().await {
+        return AppError::AuthorizationNotConfigured.into_response();
+    }
+    if let Some(user) = authorize_bearer_user(state.clone(), &token, false).await {
+        req.extensions_mut().insert(McpPrincipal {
+            email: user.email,
+            scopes: [McpScope::Read, McpScope::Create, McpScope::Destroy]
+                .map(|s| s.as_str().to_owned())
+                .into(),
+        });
+        return next.run(req).await;
+    }
     let Some(server) = state.mcp_server.as_ref() else {
         return unauthorized(&state, true);
     };
@@ -218,7 +208,6 @@ async fn principal(
         Ok((grant, _claims)) => Ok(Some(McpPrincipal {
             scopes: grant.scope.split_whitespace().map(str::to_owned).collect(),
             email: grant.subject,
-            grant_id: grant.id,
         })),
         Err(grantry::ActiveError::Backend(e)) => Err(e),
         Err(e) => {
@@ -229,16 +218,22 @@ async fn principal(
 }
 
 fn unauthorized(state: &AppState, token_sent: bool) -> Response {
-    let metadata_url = format!(
-        "{}{RESOURCE_METADATA_PATH}",
-        state.settings.api.public_base_url()
-    );
+    // Without the authorization server the metadata document 404s, so don't
+    // point clients at an OAuth flow that doesn't exist.
+    let challenge = match (&state.mcp_server, token_sent) {
+        (Some(_), _) => ProtectedResourceMetadata::challenge(
+            &format!(
+                "{}{RESOURCE_METADATA_PATH}",
+                state.settings.api.public_base_url()
+            ),
+            token_sent,
+        ),
+        (None, true) => r#"Bearer error="invalid_token""#.to_string(),
+        (None, false) => "Bearer".to_string(),
+    };
     (
         StatusCode::UNAUTHORIZED,
-        [(
-            header::WWW_AUTHENTICATE,
-            ProtectedResourceMetadata::challenge(&metadata_url, token_sent),
-        )],
+        [(header::WWW_AUTHENTICATE, challenge)],
     )
         .into_response()
 }

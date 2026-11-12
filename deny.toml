@@ -15,6 +15,7 @@ yanked = "deny"
 ignore = [
     { id = "RUSTSEC-2023-0071", reason = "rsa 0.9 via openidconnect: Marvin affects private-key RSA ops; Scotty only verifies RS256 ID tokens with public keys; no fixed rsa release. expires: 2027-02-28" },
     { id = "RUSTSEC-2026-0459", reason = "bundled SQLite via sqlx-sqlite: only exploitable when opening a db + -wal pair written by a less trusted party; Scotty only opens its own data/scotty.sqlite. No sqlx release allows libsqlite3-sys >= 0.39 yet (0.9.0 caps < 0.38). expires: 2027-02-28" },
+    { id = "RUSTSEC-2026-0462", reason = "rmcp < 3.9.0: unbounded response buffering in the Streamable HTTP *clients*; Scotty only enables the server transport. Pinned to 3.8.0 until 3.9.0 has aged two weeks; drop with the upgrade. expires: 2026-12-31" },
 ]
 
 [licenses]
