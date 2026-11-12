@@ -6,10 +6,7 @@ use crate::{
     api::error::AppError,
     api::secure_response::SecureJson,
     app_state::SharedAppState,
-    services::{
-        authorization::{decision::Target, Permission},
-        AuthorizationService,
-    },
+    services::{apps, AuthorizationService},
 };
 #[utoipa::path(
     get,
@@ -27,61 +24,8 @@ pub async fn list_apps_handler(
     State(state): State<SharedAppState>,
     Extension(user): Extension<CurrentUser>,
 ) -> Result<impl IntoResponse, AppError> {
-    let all_apps = state.apps.get_apps().await;
-
-    tracing::info!("Total apps discovered: {}", all_apps.apps.len());
-    for app in &all_apps.apps {
-        if let Some(settings) = &app.settings {
-            tracing::info!(
-                "Discovered app: {} (groups: {:?})",
-                app.name,
-                settings.scopes
-            );
-        } else {
-            tracing::info!("Discovered app: {} (no settings)", app.name);
-        }
-    }
-
-    let auth_service = &state.auth_service;
-
-    // If authorization is enabled but no assignments exist, return all apps
-    if !auth_service.is_enabled().await {
-        return Ok(SecureJson(all_apps));
-    }
-
-    // Filter apps based on user's view permissions
     let user_id = AuthorizationService::get_user_id_for_authorization(&user);
-    tracing::info!(
-        "Filtering apps for user_id: {}, email: {}, token: {:?}",
-        user_id,
-        user.email,
-        user.access_token
-    );
-
-    // Hidden on purpose: apps the user may not view are left out, not refused.
-    let grants = auth_service.grants_for(&user_id);
-    let app_scopes = auth_service.app_scopes();
-    let mut filtered_apps = Vec::new();
-
-    for app in all_apps.apps {
-        let has_permission = grants
-            .decide(&app_scopes, Permission::View.into(), Target::App(&app.name))
-            .is_allowed();
-        tracing::info!(
-            "App '{}' permission check for user '{}': {}",
-            app.name,
-            user_id,
-            has_permission
-        );
-
-        if has_permission {
-            filtered_apps.push(app);
-        }
-    }
-
-    Ok(SecureJson(AppDataVec {
-        apps: filtered_apps,
-    }))
+    Ok(SecureJson(apps::list(&state, &user_id).await))
 }
 
 #[cfg(test)]
