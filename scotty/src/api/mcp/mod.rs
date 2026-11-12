@@ -12,6 +12,10 @@ use std::sync::Arc;
 use base64::prelude::*;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
+    model::{
+        CacheScope, ErrorData, ListToolsResult, PaginatedRequestParams, ProtocolVersion,
+        ResultType, Tool,
+    },
     schemars::JsonSchema,
     service::RequestContext,
     tool, tool_handler, tool_router,
@@ -63,6 +67,9 @@ pub struct BlueprintInfo {
     /// Glob patterns for payload file paths (`*` within one directory, `**`
     /// across directories). Empty: the blueprint takes no files.
     pub payload: Vec<String>,
+    /// The scopes you may create apps from this blueprint in; pass one as
+    /// `scope` to `create_app`.
+    pub scopes: Vec<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -178,6 +185,12 @@ pub struct CreateAppInput {
     pub ttl: Option<String>,
     /// Put the app behind basic auth.
     pub basic_auth: Option<BasicAuth>,
+    /// The scope to create the app in, one of the scopes you may create in
+    /// (listed per blueprint by `list_blueprints`). Omit it when you have a
+    /// single such scope, or to use `default`.
+    #[serde(default)]
+    #[schemars(with = "String")]
+    pub scope: Option<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -237,23 +250,21 @@ impl ScottyMcp {
     )]
     async fn list_blueprints(&self, ctx: RequestContext<RoleServer>) -> ToolResult<BlueprintList> {
         let caller = caller(&ctx, McpScope::Read)?;
-        // Only what create_app can use: it creates in the MCP scopes.
-        let scopes = mcp_scopes();
-        let mut blueprints: Vec<_> =
-            apps::blueprints(&self.state, &caller.email, Target::AnyOf(&scopes))
-                .into_iter()
-                .filter_map(|(name, bp)| {
-                    let template = bp.template?;
-                    Some(BlueprintInfo {
-                        name,
-                        title: bp.name,
-                        description: bp.description,
-                        parameters: template.parameters,
-                        images: template.images,
-                        payload: template.payload,
-                    })
+        let mut blueprints: Vec<_> = apps::blueprints(&self.state, &caller.email, Target::Global)
+            .into_iter()
+            .filter_map(|(name, bp)| {
+                let template = bp.template?;
+                Some(BlueprintInfo {
+                    scopes: apps::create_scopes(&self.state, &caller.email, Some(&name)),
+                    name,
+                    title: bp.name,
+                    description: bp.description,
+                    parameters: template.parameters,
+                    images: template.images,
+                    payload: template.payload,
                 })
-                .collect();
+            })
+            .collect();
         blueprints.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(Json(BlueprintList { blueprints }))
     }
@@ -304,7 +315,7 @@ impl ScottyMcp {
         Parameters(input): Parameters<CreateAppInput>,
     ) -> ToolResult<CreatedApp> {
         let caller = caller(&ctx, McpScope::Create)?;
-        let request = create_request(&self.state, input)?;
+        let request = create_request(&self.state, &caller.email, input)?;
         let created = apps::create(
             &self.state,
             &caller.email,
@@ -391,6 +402,7 @@ impl ScottyMcp {
 /// when none is given.
 fn create_request(
     state: &SharedAppState,
+    user_id: &str,
     input: CreateAppInput,
 ) -> Result<CreateAppRequest, String> {
     let blueprint = state
@@ -453,6 +465,10 @@ fn create_request(
         },
         None => AppSettings::default().time_to_live,
     };
+    let scope = match input.scope {
+        Some(scope) => scope,
+        None => default_scope(apps::create_scopes(state, user_id, Some(&input.blueprint)))?,
+    };
     Ok(CreateAppRequest {
         app_name,
         settings: AppSettings {
@@ -463,18 +479,23 @@ fn create_request(
         },
         files: FileList { files },
         custom_domains: vec![],
-        requested_scopes: mcp_scopes(),
+        requested_scopes: vec![scope],
         blueprint_parameters: input.parameters,
         image: input.image,
     })
 }
 
-/// The scopes MCP apps are created in. D5 has no scopes field, so they land
-/// in `default`, like a REST create without `requested_scopes`.
-// ponytail: add a `scope` input to create_app if users without create
-// rights in `default` need MCP.
-fn mcp_scopes() -> Vec<String> {
-    AppSettings::default().scopes
+/// The scope for a `create_app` without `scope`: the caller's only create
+/// scope, else `default` (also when they have none, so the create check
+/// reports the refusal); with several and no `default`, the caller chooses.
+pub(crate) fn default_scope(allowed: Vec<String>) -> Result<String, String> {
+    const DEFAULT: &str = "default";
+    match allowed.as_slice() {
+        [only] => Ok(only.clone()),
+        [] => Ok(DEFAULT.to_string()),
+        _ if allowed.iter().any(|s| s == DEFAULT) => Ok(DEFAULT.to_string()),
+        _ => Err(format!("scope: choose one of {}", allowed.join(", "))),
+    }
 }
 
 /// `<blueprint>-<10 random [a-z0-9]>` (D6): about 51 bits, so artifact URLs
@@ -519,7 +540,52 @@ fn expected_urls(state: &SharedAppState, settings: &AppSettings) -> Vec<String> 
                     (list_blueprints, create_app), poll the returned task with get_task, \
                     inspect apps with list_apps/get_app and remove them with destroy_app."
 )]
-impl ServerHandler for ScottyMcp {}
+impl ServerHandler for ScottyMcp {
+    /// The tools, with `create_app`'s `scope` offering the caller's create
+    /// scopes as an enum, so clients can show them as choices. The list is
+    /// per caller, hence not cacheable across users.
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, ErrorData> {
+        let mut tools = Self::tool_router().list_all();
+        if let Ok(caller) = caller(&ctx, McpScope::Create) {
+            let scopes = apps::create_scopes(&self.state, &caller.email, None);
+            if let Some(tool) = tools.iter_mut().find(|t| t.name == "create_app") {
+                offer_scopes(tool, &scopes);
+            }
+        }
+        let cache_hints = ctx
+            .protocol_version()
+            .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+        Ok(ListToolsResult {
+            result_type: Some(ResultType::COMPLETE),
+            tools,
+            meta: None,
+            next_cursor: None,
+            ttl_ms: cache_hints.then_some(0),
+            cache_scope: cache_hints.then_some(CacheScope::Private),
+        })
+    }
+}
+
+/// Restrict `create_app`'s `scope` input to `scopes` (left open when empty:
+/// an empty enum would make the tool uncallable instead of explaining why).
+fn offer_scopes(tool: &mut Tool, scopes: &[String]) {
+    if scopes.is_empty() {
+        return;
+    }
+    let mut schema = (*tool.input_schema).clone();
+    if let Some(scope) = schema
+        .get_mut("properties")
+        .and_then(|p| p.get_mut("scope"))
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        scope.insert("enum".into(), scopes.into());
+        tool.input_schema = Arc::new(schema);
+    }
+}
 
 /// The caller of this tool call, put into the request by the `/mcp` auth
 /// middleware, if its token carries `scope`.

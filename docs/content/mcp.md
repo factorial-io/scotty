@@ -13,7 +13,7 @@ the REST API. A connection never gets more than that user has.
 
 | Tool | Scope | Annotation | What it does |
 |---|---|---|---|
-| `list_blueprints` | `read` | read-only | Templated blueprints you may create from in scope `default`, with their parameter schema, images and payload patterns |
+| `list_blueprints` | `read` | read-only | Templated blueprints you may create from, with their parameter schema, images, payload patterns and the scopes you may create them in |
 | `list_apps` | `read` | read-only | Apps you may view, with status and URLs |
 | `get_app` | `read` | read-only | One app: status, services, URLs, blueprint, scopes |
 | `get_task` | `read` | read-only | A task's state (`Running`, `Finished`, `Failed`) and its last 100 output lines |
@@ -36,6 +36,7 @@ parameters, basic auth credentials or tokens.
 | `files` | no | Payload files: `{path, content, encoding}` with `encoding` `utf8` (default) or `base64` |
 | `ttl` | no | `<days>d`, `<hours>h` or `forever`; default 7 days |
 | `basic_auth` | no | `{user, password}` |
+| `scope` | no | The scope to create the app in. The tool's input schema lists the scopes you may create apps in as choices |
 
 Rules:
 
@@ -44,7 +45,9 @@ Rules:
 - `create_app` never replaces an app. An existing name is an error; to
   republish, destroy the app and create it again.
 - The decoded files together may not exceed `api.create_app_max_size`.
-- Apps are created in scope `default`, so you need create rights there.
+- Without `scope`, the app goes to your only create scope, otherwise to
+  `default`. If you may create in several scopes but not in `default`, pass
+  `scope`.
 - `ttl` must be at least `1h` or `1d`.
 - The call returns at once. Poll `get_task` with the returned task id until
   the state is `Finished` or `Failed`.

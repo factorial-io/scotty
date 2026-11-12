@@ -421,6 +421,45 @@ pub fn blueprints(
         .collect()
 }
 
+/// The scopes `user_id` may create apps in from templated `blueprint`, or
+/// from any templated blueprint when `None`. Sorted, for stable listings.
+pub fn create_scopes(
+    state: &SharedAppState,
+    user_id: &str,
+    blueprint: Option<&str>,
+) -> Vec<String> {
+    let templated: Vec<&str> = match blueprint {
+        Some(bp) => vec![bp],
+        None => state
+            .settings
+            .apps
+            .blueprints
+            .iter()
+            .filter(|(_, b)| b.template.is_some())
+            .map(|(name, _)| name.as_str())
+            .collect(),
+    };
+    let grants = state.auth_service.grants_for(user_id);
+    let apps = state.auth_service.app_scopes();
+    // Only scopes the user holds anything in can allow a create.
+    grants
+        .scopes()
+        .keys()
+        .filter(|scope| {
+            templated.iter().any(|bp| {
+                grants
+                    .decide(
+                        &apps,
+                        Action::create(Some(bp)),
+                        Target::AnyOf(std::slice::from_ref(*scope)),
+                    )
+                    .is_allowed()
+            })
+        })
+        .cloned()
+        .collect()
+}
+
 fn for_listing(blueprint: &AppBlueprint) -> AppBlueprint {
     let mut blueprint = blueprint.clone();
     let props = blueprint

@@ -704,3 +704,99 @@ async fn policy_without_assignments_refuses_mcp() {
     .await;
     assert_eq!(response.status_code(), 503, "{}", response.text());
 }
+
+// --- create_app scope choice ----------------------------------------------------------
+
+fn create_app_schema(list: &Value) -> Value {
+    list["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "create_app")
+        .unwrap()["inputSchema"]
+        .clone()
+}
+
+#[tokio::test]
+async fn create_app_offers_the_callers_create_scopes() {
+    let (server, state) = scotty().await;
+
+    let admin = create_app_schema(&rpc(&server, ADMIN_TOKEN, "tools/list", json!({})).await);
+    assert_eq!(
+        admin["properties"]["scope"]["enum"],
+        json!(["client-a", "client-b", "default"]),
+        "{admin}"
+    );
+    assert_eq!(admin["properties"]["scope"]["type"], "string", "{admin}");
+    assert!(!admin["required"]
+        .as_array()
+        .is_some_and(|r| r.contains(&json!("scope"))));
+
+    let restricted =
+        create_app_schema(&rpc(&server, RESTRICTED_TOKEN, "tools/list", json!({})).await);
+    assert_eq!(
+        restricted["properties"]["scope"]["enum"],
+        json!(["default"])
+    );
+
+    // `client-a` holds plain `create` in client-a only.
+    let client_a = create_app_schema(
+        &rpc(
+            &server,
+            "client-a-secure-token-456",
+            "tools/list",
+            json!({}),
+        )
+        .await,
+    );
+    assert_eq!(client_a["properties"]["scope"]["enum"], json!(["client-a"]));
+
+    // Without the `create` scope there is nothing to offer.
+    let (_client, tokens) = connect(&server, &state, ADMIN, "read", &["read"]).await;
+    let read_only = tokens["access_token"].as_str().unwrap();
+    let schema = create_app_schema(&rpc(&server, read_only, "tools/list", json!({})).await);
+    assert!(
+        schema["properties"]["scope"].get("enum").is_none(),
+        "{schema}"
+    );
+}
+
+#[tokio::test]
+async fn list_blueprints_shows_the_scopes_per_blueprint() {
+    let (server, _state) = scotty().await;
+    let restricted = call(&server, RESTRICTED_TOKEN, "list_blueprints", json!({})).await;
+    assert_eq!(
+        restricted["structuredContent"]["blueprints"][0]["scopes"],
+        json!(["default"])
+    );
+}
+
+#[tokio::test]
+async fn create_in_a_scope_without_rights_is_refused() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "scope": "client-b",
+               "files": [{"path": "html/index.html", "content": "hi"}]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("Access denied"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[test]
+fn omitted_scope_resolves_to_the_only_or_default_scope() {
+    use crate::api::mcp::default_scope;
+    let v = |s: &[&str]| s.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert_eq!(default_scope(v(&["client-a"])).unwrap(), "client-a");
+    assert_eq!(
+        default_scope(v(&["client-a", "default"])).unwrap(),
+        "default"
+    );
+    assert_eq!(default_scope(v(&[])).unwrap(), "default");
+    let err = default_scope(v(&["client-a", "client-b"])).unwrap_err();
+    assert!(err.contains("client-a, client-b"), "{err}");
+}
