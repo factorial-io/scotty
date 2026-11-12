@@ -67,7 +67,9 @@ Named collections of permissions for common access patterns:
 
 Map users or bearer tokens to roles within specific scopes. The assignment examples in this page show only the `assignments:` section; every role and scope they name must be defined in the same `policy.yaml`.
 
-**A user's rights are the union of every entry that matches them:** their own entry (email, or `identifier:<name>`), the entry for their domain (`@factorial.io`) and the wildcard entry (`*`). No entry hides another, so a user's own entry adds to the domain entry instead of replacing it. A domain entry matches only that exact domain, not its subdomains. Emails match case-insensitively; `identifier:` keys are case-sensitive.
+**A user gets the rights of every entry that matches them, added together:** their own entry (email, or `identifier:<name>`), their domain's entry (`@factorial.io`) and the wildcard entry (`*`). A user's own entry adds to their domain's entry; it does not replace it. A domain entry matches only that exact domain, not its subdomains. Emails match case-insensitively; `identifier:` keys are case-sensitive.
+
+Because entries only ever add rights, you cannot give one person less than their domain or `*` grants. Keep the `@domain` and `*` entries to the minimum everyone should have, and grant more through a user's own entry. This is the same additive model as Kubernetes RBAC or GitHub team permissions.
 
 An app that is in no scope grants nothing, and neither does an assignment with `scopes: []`.
 
@@ -389,7 +391,7 @@ For existing Scotty installations:
 
 - `model.conf` is no longer used or shipped; you can delete your copy. Keep `config/casbin/policy.yaml` where it is.
 - **Breaking:** an assignment that names an undefined role or scope, or a role with an unknown permission, now stops startup with an error naming it. Before, such entries were ignored.
-- **Breaking:** a user's own entry no longer overrides their domain entry; the rights of all matching entries add up.
+- **Breaking:** rights from matching entries now add up: a user gets everything granted to their own entry, to their domain and to `*` together. Before, the own entry replaced the domain entry for creating apps, listings and admin checks, while per-app checks already added both up; now every check adds them up. Users who have both an own entry and a domain entry can gain rights. Example: with `jane@example.com` as `viewer` and `@example.com` as `developer` in scope `client-a`, Jane was a viewer and is now a developer there. Before upgrading, look for users with their own entry whose domain entry grants more, and narrow the domain entry if they should keep fewer rights.
 - **Breaking:** an app that is in no scope grants nothing, and an assignment with `scopes: []` grants nothing.
 - **Breaking:** the admin API answers `400`/`409` and leaves the policy unchanged for invalid changes (before: empty fields answered `200` with `success: false`).
 
