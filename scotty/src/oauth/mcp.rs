@@ -1,4 +1,4 @@
-//! The MCP authorization server's HTTP side (design D2, D6): grantry's
+//! The MCP authorization server's HTTP side: grantry's
 //! protocol routes (metadata, authorize, token, register), RFC 9728
 //! protected resource metadata, and the `/mcp` token check with the
 //! scope-plus-policy helper the `mcp-server` tools use.
@@ -115,7 +115,7 @@ pub struct McpPrincipal {
     pub scopes: Vec<String>,
 }
 
-/// An MCP scope a tool requires (D6).
+/// An MCP scope a tool requires.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpScope {
     /// View apps, blueprints and tasks; read logs.
@@ -218,16 +218,22 @@ async fn principal(
 }
 
 fn unauthorized(state: &AppState, token_sent: bool) -> Response {
-    let metadata_url = format!(
-        "{}{RESOURCE_METADATA_PATH}",
-        state.settings.api.public_base_url()
-    );
+    // Without the authorization server the metadata document 404s, so don't
+    // point clients at an OAuth flow that doesn't exist.
+    let challenge = match (&state.mcp_server, token_sent) {
+        (Some(_), _) => ProtectedResourceMetadata::challenge(
+            &format!(
+                "{}{RESOURCE_METADATA_PATH}",
+                state.settings.api.public_base_url()
+            ),
+            token_sent,
+        ),
+        (None, true) => r#"Bearer error="invalid_token""#.to_string(),
+        (None, false) => "Bearer".to_string(),
+    };
     (
         StatusCode::UNAUTHORIZED,
-        [(
-            header::WWW_AUTHENTICATE,
-            ProtectedResourceMetadata::challenge(&metadata_url, token_sent),
-        )],
+        [(header::WWW_AUTHENTICATE, challenge)],
     )
         .into_response()
 }

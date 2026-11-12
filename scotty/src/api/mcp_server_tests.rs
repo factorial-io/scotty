@@ -396,6 +396,22 @@ async fn missing_parameter_is_named() {
 }
 
 #[tokio::test]
+async fn payload_paths_cannot_escape_the_app() {
+    let (server, state) = scotty().await;
+    for path in ["../x", "/etc/x", "html/../../x"] {
+        let result = call(
+            &server,
+            ADMIN_TOKEN,
+            "create_app",
+            json!({"blueprint": "static-html", "files": [{"path": path, "content": "hi"}]}),
+        )
+        .await;
+        assert!(is_error(&result), "{path}: {result}");
+    }
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
 async fn oversized_payload_states_the_limit() {
     let (server, state) = scotty_with(&[("api.create_app_max_size", "1K")]).await;
     let result = call(
@@ -425,7 +441,7 @@ async fn restricted_user_cannot_create_from_other_blueprints() {
     )
     .await;
     assert!(is_error(&result), "{result}");
-    assert!(text(&result).contains("Access denied"), "{result}");
+    assert!(text(&result).contains("any scope"), "{result}");
     assert!(app_dirs(&state).is_empty());
 }
 
@@ -796,7 +812,7 @@ fn omitted_scope_resolves_to_the_only_or_default_scope() {
         default_scope(v(&["client-a", "default"])).unwrap(),
         "default"
     );
-    assert_eq!(default_scope(v(&[])).unwrap(), "default");
+    assert!(default_scope(v(&[])).unwrap_err().contains("any scope"));
     let err = default_scope(v(&["client-a", "client-b"])).unwrap_err();
     assert!(err.contains("client-a, client-b"), "{err}");
 }

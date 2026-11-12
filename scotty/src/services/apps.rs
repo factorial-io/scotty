@@ -88,7 +88,7 @@ fn drop_scotty_managed_settings(settings: &mut AppSettings, existing: Option<&Ap
 pub enum OnExisting {
     /// Update it in place (REST: create is create-or-update).
     Update,
-    /// Refuse with a conflict (MCP `create_app` never overwrites, D6).
+    /// Refuse with a conflict (MCP `create_app` never overwrites).
     Refuse,
 }
 
@@ -104,7 +104,7 @@ pub async fn create(
     let auth_service = &state.auth_service;
 
     // `create:<blueprint>` only covers templated blueprints without a caller
-    // compose file; anything else needs plain `create` (D8).
+    // compose file; anything else needs plain `create`.
     let templated_blueprint = payload
         .settings
         .app_blueprint
@@ -160,7 +160,7 @@ pub async fn create(
 
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
-    // right after a restart (create-existing-app D1-D3).
+    // right after a restart.
     let existing = existing_app_settings(&state.settings.apps.root_folder, &payload.app_name)
         .map_err(|e| {
             // A broken file on disk is a server problem; keep its contents

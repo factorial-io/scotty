@@ -109,7 +109,9 @@ pub struct AppSummary {
 fn wire_name(value: &impl Serialize) -> String {
     match serde_json::to_value(value) {
         Ok(serde_json::Value::String(name)) => name,
-        other => unreachable!("not a unit enum: {other:?}"),
+        // A variant with data: its JSON, rather than a panic in a handler.
+        Ok(other) => other.to_string(),
+        Err(e) => format!("unknown ({e})"),
     }
 }
 
@@ -172,7 +174,7 @@ pub struct BasicAuth {
     pub password: String,
 }
 
-/// `create_app` input (design D5).
+/// `create_app` input.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct CreateAppInput {
@@ -407,8 +409,8 @@ impl ScottyMcp {
     }
 }
 
-/// The create request for `input` (D5): only templated blueprints, payload
-/// decoded and capped by `api.create_app_max_size`, a generated name (D6)
+/// The create request for `input`: only templated blueprints, payload
+/// decoded and capped by `api.create_app_max_size`, a generated name
 /// when none is given.
 fn create_request(
     state: &SharedAppState,
@@ -503,13 +505,13 @@ pub(crate) fn default_scope(allowed: Vec<String>) -> Result<String, String> {
     const DEFAULT: &str = "default";
     match allowed.as_slice() {
         [only] => Ok(only.clone()),
-        [] => Ok(DEFAULT.to_string()),
+        [] => Err("you may not create apps in any scope".to_string()),
         _ if allowed.iter().any(|s| s == DEFAULT) => Ok(DEFAULT.to_string()),
         _ => Err(format!("scope: choose one of {}", allowed.join(", "))),
     }
 }
 
-/// `<blueprint>-<10 random [a-z0-9]>` (D6): about 51 bits, so artifact URLs
+/// `<blueprint>-<10 random [a-z0-9]>`: about 51 bits, so artifact URLs
 /// can't be guessed.
 pub(crate) fn generated_name(blueprint: &str) -> Result<String, String> {
     const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
@@ -612,7 +614,7 @@ fn caller(ctx: &RequestContext<RoleServer>, scope: McpScope) -> Result<McpPrinci
     Ok(principal)
 }
 
-/// The rmcp service behind `/mcp`, stateless (design D2): no
+/// The rmcp service behind `/mcp`, stateless: no
 /// `Mcp-Session-Id`, so restarts and several instances need no affinity.
 pub fn service(state: &SharedAppState) -> StreamableHttpService<ScottyMcp, NeverSessionManager> {
     let config = StreamableHttpServerConfig::default()
