@@ -105,28 +105,6 @@ mod tests {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
 
-        // Create model.conf
-        // Uses user_match() custom function for domain/wildcard matching
-        let model_content = r#"[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, group, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
-"#;
-        tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
-            .await
-            .unwrap();
-
         let service = AuthorizationService::new(config_dir).await.unwrap();
 
         // Create groups

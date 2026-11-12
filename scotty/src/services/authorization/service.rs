@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
-use casbin::CachedEnforcer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -67,18 +66,13 @@ impl AuthorizationService {
         FallbackService::create_fallback_service(legacy_access_token).await
     }
 
-    /// Create a service from a configuration. The enforcer is ignored; the
-    /// signature is kept for existing callers until Casbin is removed.
+    /// Create a service from a configuration.
     ///
     /// # Panics
     ///
     /// If `config` is locked or does not compile.
     #[allow(dead_code)] // the binary doesn't use it; integration tests do
-    pub fn new_from_components(
-        _enforcer: Arc<RwLock<CachedEnforcer>>,
-        config: Arc<RwLock<AuthConfig>>,
-        config_path: String,
-    ) -> Self {
+    pub fn new_from_components(config: Arc<RwLock<AuthConfig>>, config_path: String) -> Self {
         let config = config
             .try_read()
             .expect("authorization config is not locked")

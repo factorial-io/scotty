@@ -34,11 +34,6 @@ assignments:
 
 async fn setup() -> (TestServer, tempfile::TempDir) {
     let policy_dir = tempfile::tempdir().unwrap();
-    std::fs::copy(
-        "tests/fixtures/casbin/model.conf",
-        policy_dir.path().join("model.conf"),
-    )
-    .unwrap();
     std::fs::write(policy_dir.path().join("policy.yaml"), POLICY).unwrap();
 
     let mut settings: scotty::settings::config::Settings = config::Config::builder()

@@ -27,11 +27,9 @@ assignments:
     - { role: dev, scopes: [beta] }
 "#;
 
-/// A directory holding the shipped `model.conf` (ignored) and, if given,
-/// `policy.yaml`.
+/// A directory holding, if given, `policy.yaml`.
 fn policy_dir(policy: Option<&str>) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::copy("../config/casbin/model.conf", dir.path().join("model.conf")).unwrap();
     if let Some(policy) = policy {
         std::fs::write(dir.path().join("policy.yaml"), policy).unwrap();
     }
@@ -355,10 +353,9 @@ async fn undefined_role_or_scope_in_an_assignment_fails_to_load() {
 }
 
 #[tokio::test]
-async fn missing_model_is_not_needed() {
+async fn loads_without_a_model_file() {
     let dir = policy_dir(Some(POLICY));
-    std::fs::remove_file(dir.path().join("model.conf")).unwrap();
-    // CHANGED: loading used to fail with "Failed to load Casbin model".
+    // There is no model file any more; only `policy.yaml` is read.
     let auth = load(dir.path()).await.unwrap();
     assert!(auth.is_enabled().await);
 }

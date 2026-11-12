@@ -130,7 +130,6 @@ fn policy() -> String {
 /// [`policy`], with [`APP`] assigned to [`SCOPE`].
 async fn state_for(user: &str) -> (SharedAppState, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::copy("../config/casbin/model.conf", dir.path().join("model.conf")).unwrap();
     std::fs::write(dir.path().join("policy.yaml"), policy()).unwrap();
 
     let settings: scotty::settings::config::Settings = config::Config::builder()

@@ -282,11 +282,6 @@ mod load_auth_service_tests {
     #[tokio::test]
     async fn unknown_permission_stops_startup_naming_role_and_string() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::copy(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../config/casbin/model.conf"),
-            dir.path().join("model.conf"),
-        )
-        .unwrap();
         std::fs::write(
             dir.path().join("policy.yaml"),
             "scopes: {}\nroles:\n  viewer:\n    permissions: [veiw]\n    description: d\nassignments: {}\n",

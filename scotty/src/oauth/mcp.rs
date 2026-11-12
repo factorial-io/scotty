@@ -1,7 +1,7 @@
 //! The MCP authorization server's HTTP side (design D2, D6): grantry's
 //! protocol routes (metadata, authorize, token, register), RFC 9728
 //! protected resource metadata, and the `/mcp` token check with the
-//! scope-plus-Casbin helper the `mcp-server` tools use.
+//! scope-plus-policy helper the `mcp-server` tools use.
 
 use std::sync::Arc;
 
@@ -154,7 +154,7 @@ pub enum McpTarget<'a> {
 #[allow(dead_code)] // read by the `mcp-server` tools
 impl McpPrincipal {
     /// D6: allowed only if the token carries `scope`, `scope` stands for
-    /// `permission`, and Casbin gives the user `permission` on `target`.
+    /// `permission`, and the policy gives the user `permission` on `target`.
     pub async fn allow(
         &self,
         state: &AppState,

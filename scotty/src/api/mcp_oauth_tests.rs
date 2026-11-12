@@ -37,8 +37,7 @@ fn settings(overrides: &[(&str, &str)]) -> crate::settings::config::Settings {
 /// oauth mode, with `admin@example.com` an admin in a temporary policy copy.
 async fn app() -> (TestServer, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap().keep();
-    std::fs::copy("tests/fixtures/casbin/model.conf", dir.join("model.conf")).unwrap();
-    let policy = std::fs::read_to_string("tests/fixtures/casbin/policy.yaml")
+    let policy = std::fs::read_to_string("tests/fixtures/policy/policy.yaml")
         .unwrap()
         .replace(
             "assignments:\n",
@@ -555,7 +554,7 @@ async fn allow_needs_both_the_scope_and_the_permission() {
             .await
     );
 
-    // Alice (viewer) holds `destroy` in the token but not in Casbin.
+    // Alice (viewer) holds `destroy` in the token but not in the policy.
     let alice = principal("alice@example.com", &["read", "create", "destroy"]);
     assert!(
         alice

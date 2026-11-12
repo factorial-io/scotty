@@ -85,12 +85,12 @@ pub async fn create_test_app_state_with_settings(
     // Use the tracked fixture rather than the runtime config/casbin (which is
     // gitignored and seeded at runtime), so tests have deterministic
     // assignments and never race on seeding.
-    create_test_app_state_with_policy_dir(settings, oauth_state, "tests/fixtures/casbin").await
+    create_test_app_state_with_policy_dir(settings, oauth_state, "tests/fixtures/policy").await
 }
 
-/// Create test AppState with provided settings and a Casbin policy directory
+/// Create test AppState with provided settings and a policy directory
 ///
-/// The directory must contain `model.conf` and `policy.yaml`. It is copied
+/// The directory must contain `policy.yaml`. It is copied
 /// into a fresh temp dir first, so calls that change the policy (for example
 /// `set_app_scopes`) write to the copy and never to the given directory, which
 /// may be a tracked fixture.
@@ -173,7 +173,7 @@ pub async fn create_test_app_state_with_policy_dir(
 mod tests {
     #[tokio::test]
     async fn policy_changes_do_not_touch_the_tracked_fixture() {
-        let fixture = "tests/fixtures/casbin/policy.yaml";
+        let fixture = "tests/fixtures/policy/policy.yaml";
         let before = std::fs::read(fixture).unwrap();
         let state = super::create_test_app_state_with_config("tests/test_bearer_auth", None).await;
         state

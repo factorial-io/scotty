@@ -39,13 +39,11 @@ struct Tasks {
 
 async fn setup() -> (TestServer, SharedAppState, Tasks, tempfile::TempDir) {
     let policy_dir = tempfile::tempdir().unwrap();
-    for file in ["model.conf", "policy.yaml"] {
-        std::fs::copy(
-            Path::new("tests/fixtures/casbin").join(file),
-            policy_dir.path().join(file),
-        )
-        .unwrap();
-    }
+    std::fs::copy(
+        Path::new("tests/fixtures/policy").join("policy.yaml"),
+        policy_dir.path().join("policy.yaml"),
+    )
+    .unwrap();
     let settings: scotty::settings::config::Settings = config::Config::builder()
         .add_source(config::File::with_name("tests/test_bearer_auth"))
         .set_override("api.rate_limiting.enabled", false)

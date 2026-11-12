@@ -53,7 +53,7 @@ pub fn session_server(
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_SESSION)),
-        Arc::new(CasbinSubjects(auth_service)),
+        Arc::new(PolicySubjects(auth_service)),
         Arc::new(TracingEvents(REALM_SESSION)),
         Arc::new(NoFetch),
     )
@@ -78,17 +78,17 @@ pub fn mcp_server(
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_MCP)),
-        Arc::new(CasbinSubjects(auth_service)),
+        Arc::new(PolicySubjects(auth_service)),
         Arc::new(TracingEvents(REALM_MCP)),
         Arc::new(EgressFetcher),
     )
 }
 
 /// A user keeps a session while they hold any permission in any scope.
-struct CasbinSubjects(Arc<AuthorizationService>);
+struct PolicySubjects(Arc<AuthorizationService>);
 
 #[async_trait]
-impl Subjects<String> for CasbinSubjects {
+impl Subjects<String> for PolicySubjects {
     async fn recheck(&self, grant: &Grant<String>) -> Result<Recheck, BackendError> {
         if self.0.grants_for(&grant.subject).is_empty() {
             return Ok(Recheck::Revoke("no_role".into()));

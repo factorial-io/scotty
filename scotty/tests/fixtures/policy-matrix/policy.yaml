@@ -1,4 +1,4 @@
-# Casbin policy fixture for the authorization matrix test ONLY
+# Authorization policy fixture for the authorization matrix test ONLY
 # (scotty/tests/authorization_matrix_test.rs). The test copies this directory
 # to a temporary location before use, because assigning the fixture apps to
 # scopes writes back to policy.yaml.

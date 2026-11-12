@@ -278,10 +278,9 @@ const APPS: &[(&str, &[&str])] = &[
 ];
 
 /// An authorization service over `policy` in a fresh temp dir, with the
-/// matrix apps registered. The copied `model.conf` is ignored.
+/// matrix apps registered.
 async fn service(policy: &str) -> (Arc<AuthorizationService>, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::copy("../config/casbin/model.conf", dir.path().join("model.conf")).unwrap();
     std::fs::write(dir.path().join("policy.yaml"), policy).unwrap();
     let auth = AuthorizationService::new(dir.path().to_str().unwrap())
         .await

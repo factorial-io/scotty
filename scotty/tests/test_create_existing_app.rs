@@ -60,11 +60,6 @@ impl Env {
 async fn setup() -> Env {
     let policy = tempfile::tempdir().unwrap();
     let apps = tempfile::tempdir().unwrap();
-    std::fs::copy(
-        "tests/fixtures/casbin/model.conf",
-        policy.path().join("model.conf"),
-    )
-    .unwrap();
     std::fs::write(policy.path().join("policy.yaml"), POLICY).unwrap();
 
     let mut settings: scotty::settings::config::Settings = config::Config::builder()

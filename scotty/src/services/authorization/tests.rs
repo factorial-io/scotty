@@ -6,28 +6,6 @@ async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {
     let temp_dir = tempdir().expect("Failed to create temp dir");
     let config_dir = temp_dir.path().to_str().unwrap();
 
-    // Create model.conf
-    // Uses user_match() custom function for domain/wildcard matching
-    let model_content = r#"[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, scope, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
-"#;
-    tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
-        .await
-        .unwrap();
-
     let service = AuthorizationService::new(config_dir).await.unwrap();
     (service, temp_dir)
 }

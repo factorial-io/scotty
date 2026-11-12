@@ -54,14 +54,14 @@ cd apps/traefik && docker compose up -d
 - `api/rest/handlers/`: REST endpoints — `apps/` (create, list, run, actions, notifications), `admin/` (assignments, permissions, roles, scopes), `scopes/` (user-facing), `blueprints.rs`, `landing.rs` (Traefik fallback routing), `login.rs`, `tasks.rs`, `health.rs`, `info.rs`
 - `api/websocket/`: Real-time features — `handlers/` (auth, logs, shell, tasks), `messaging.rs` (protocol), `client.rs` (connection mgmt)
 - `api/auth_core.rs`: Core authentication logic
-- `api/middleware/`: Casbin RBAC authorization
+- `api/middleware/`: authorization
 - `api/rate_limiting/`: Per-tier rate limiting
 - `docker/steps/`: App lifecycle steps, run linearly via `run_operation` (no state machine) (create dir, save files, docker login, compose up, load balancer config, post actions, wait for containers, etc.)
 - `docker/services/`: Long-running log streaming and shell sessions
 - `docker/loadbalancer/`: Traefik/HAProxy config generation
 - `onepassword/`: 1Password secrets — resolves `op://` URIs in app env vars (two-pass: 1Password lookup, then env var substitution)
 - `oauth/`: OAuth 2.0 — device flow (CLI) and web flow (`/oauth/authorize`, `/api/oauth/callback`, `/oauth/exchange`)
-- `services/authorization/`: Casbin RBAC (scopes, roles, permissions)
+- `services/authorization/`: RBAC (scopes, roles, permissions)
 - `tasks/`: Task execution and output streaming
 - `notification/`: Log, Webhook, Mattermost, GitLab notifications
 - `static_files.rs`: Embedded frontend serving
