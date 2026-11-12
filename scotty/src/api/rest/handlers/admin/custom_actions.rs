@@ -8,7 +8,11 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::{
+    api::{error::AppError, middleware::authorization::AuthorizationContext},
+    app_state::SharedAppState,
+    services::AuthorizationService,
+};
 use scotty_core::settings::custom_action::{ActionStatus, CustomAction, ReviewActionRequest};
 
 /// Pending action with app context
@@ -141,9 +145,10 @@ pub async fn get_action_details_handler(
 pub async fn approve_action_handler(
     State(state): State<SharedAppState>,
     Path((app_name, action_name)): Path<(String, String)>,
-    axum::Extension(user_id): axum::Extension<String>,
+    axum::Extension(auth_context): axum::Extension<AuthorizationContext>,
     Json(payload): Json<ReviewActionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     info!(
         "Approving action '{}' in app '{}' by '{}'",
         action_name, app_name, user_id
@@ -181,9 +186,10 @@ pub async fn approve_action_handler(
 pub async fn reject_action_handler(
     State(state): State<SharedAppState>,
     Path((app_name, action_name)): Path<(String, String)>,
-    axum::Extension(user_id): axum::Extension<String>,
+    axum::Extension(auth_context): axum::Extension<AuthorizationContext>,
     Json(payload): Json<ReviewActionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     info!(
         "Rejecting action '{}' in app '{}' by '{}'",
         action_name, app_name, user_id
@@ -221,9 +227,10 @@ pub async fn reject_action_handler(
 pub async fn revoke_action_handler(
     State(state): State<SharedAppState>,
     Path((app_name, action_name)): Path<(String, String)>,
-    axum::Extension(user_id): axum::Extension<String>,
+    axum::Extension(auth_context): axum::Extension<AuthorizationContext>,
     Json(payload): Json<ReviewActionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     info!(
         "Revoking action '{}' in app '{}' by '{}'",
         action_name, app_name, user_id

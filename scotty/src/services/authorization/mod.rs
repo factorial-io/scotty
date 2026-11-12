@@ -1,12 +1,13 @@
 //! Authorization module for Scotty
 //!
 //! This module provides a comprehensive RBAC (Role-Based Access Control) system
-//! using Casbin for policy enforcement. It manages users, roles, groups, and
-//! permissions for application access control.
+//! with a single decision point over compiled policy snapshots. It manages
+//! users, roles, scopes, and permissions for application access control.
 
-pub mod casbin;
 pub mod config;
+pub mod decision;
 pub mod fallback;
+pub mod policy;
 pub mod service;
 pub mod types;
 

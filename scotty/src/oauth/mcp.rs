@@ -1,7 +1,7 @@
 //! The MCP authorization server's HTTP side (design D2, D6): grantry's
 //! protocol routes (metadata, authorize, token, register), RFC 9728
 //! protected resource metadata, and the `/mcp` token check with the
-//! scope-plus-Casbin helper the `mcp-server` tools use.
+//! scope-plus-policy helper the `mcp-server` tools use.
 
 use std::sync::Arc;
 
@@ -22,6 +22,7 @@ use uuid::Uuid;
 use super::server::{mcp_resource, McpServer};
 use crate::api::rate_limiting::create_register_limiter;
 use crate::app_state::{AppState, SharedAppState};
+use crate::services::authorization::decision::Target;
 
 pub const AUTHORIZE_PATH: &str = "/oauth/mcp/authorize";
 pub const TOKEN_PATH: &str = "/oauth/mcp/token";
@@ -153,7 +154,7 @@ pub enum McpTarget<'a> {
 #[allow(dead_code)] // read by the `mcp-server` tools
 impl McpPrincipal {
     /// D6: allowed only if the token carries `scope`, `scope` stands for
-    /// `permission`, and Casbin gives the user `permission` on `target`.
+    /// `permission`, and the policy gives the user `permission` on `target`.
     pub async fn allow(
         &self,
         state: &AppState,
@@ -164,14 +165,14 @@ impl McpPrincipal {
         if !scope.covers(&permission) || !self.scopes.iter().any(|s| s == scope.as_str()) {
             return false;
         }
-        let auth = &state.auth_service;
-        match target {
-            McpTarget::App(app) => auth.check_permission(&self.email, app, &permission).await,
-            McpTarget::Scopes(scopes) => {
-                auth.check_permission_in_scopes(&self.email, scopes, &permission)
-                    .await
-            }
-        }
+        let target = match target {
+            McpTarget::App(app) => Target::App(app),
+            McpTarget::Scopes(scopes) => Target::AnyOf(scopes),
+        };
+        state
+            .auth_service
+            .decide(&self.email, permission.into(), target)
+            .is_allowed()
     }
 }
 

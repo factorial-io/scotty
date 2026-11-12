@@ -465,13 +465,11 @@ mod tests {
     /// Authorization from the test fixture, with `app-a` in scope `client-a`.
     async fn fixture_auth() -> (Arc<AuthorizationService>, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
-        for file in ["model.conf", "policy.yaml"] {
-            std::fs::copy(
-                std::path::Path::new("tests/fixtures/casbin").join(file),
-                dir.path().join(file),
-            )
-            .unwrap();
-        }
+        std::fs::copy(
+            std::path::Path::new("tests/fixtures/policy").join("policy.yaml"),
+            dir.path().join("policy.yaml"),
+        )
+        .unwrap();
         let auth = Arc::new(
             AuthorizationService::new(dir.path().to_str().unwrap())
                 .await

@@ -203,7 +203,6 @@ config/
 ├── default.yaml                   # Your configuration (git-ignored)
 ├── local.yaml                     # Local overrides (git-ignored)
 ├── casbin/
-│   ├── model.conf                 # RBAC model (safe to commit)
 │   ├── policy.yaml.example        # Template RBAC policy (commit to git)
 │   └── policy.yaml                # Your RBAC policy (can commit if no secrets)
 └── blueprints/

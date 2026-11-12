@@ -1,21 +1,13 @@
-//! Characterization of today's permission decisions at the service level.
+//! Permission decisions at the service level.
 //!
 //! Every check of `AuthorizationService` is called for a fixed set of user
 //! kinds against the policy below, and the result is compared with the
-//! expectations written out in the tables. The tables pin the current
-//! behavior, quirks included, so a rewrite of the authorization code can be
-//! checked against them.
+//! expectations written out in the tables.
 //!
-//! Two matching rules are in use today:
-//! - per-app checks (`check_permission`) go through Casbin, which adds up every
-//!   assignment key that matches the user (exact email, `@domain`, `*`);
-//! - scope, create, global checks and the listings resolve assignments with
-//!   precedence: an exact entry hides the user's `@domain` entry (`*` is
-//!   always added).
-//!
-//! Rows marked `// CHANGES:` are expected to change when both use the same,
-//! additive rule; the marker says why. Rows marked `// QUIRK:` record
-//! behavior that looks accidental but is what the code does today.
+//! One matching rule applies to every check and listing: a user's
+//! assignments are the union of their exact entry (email or identifier),
+//! their `@domain` entry and `*`. Rows marked `// CHANGED:` differ from the
+//! behavior before that rule; the marker says how.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -137,7 +129,7 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (DORA, APP_AB, ALL),
     (DORA, APP_NONE, NONE),
     (DORA, APP_UNKNOWN, NONE),
-    (DORA, APP_GAMMA, VIEW), // QUIRK: casbin's g2 is reflexive, an app named like a scope is in it. CHANGES: unknown app -> `default` (design D4)
+    (DORA, APP_GAMMA, NONE), // CHANGED: an unknown app named like a scope was in that scope; an app in no scope grants nothing
     (DORA, IN_ALPHA, ALL),
     (DORA, IN_BETA_GAMMA, ALL),
     (DORA, IN_NOTHING, NONE),
@@ -147,7 +139,7 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (ERIN, APP_AB, DEV),
     (ERIN, APP_NONE, NONE),
     (ERIN, APP_UNKNOWN, NONE),
-    (ERIN, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (ERIN, APP_GAMMA, NONE), // CHANGED: was VIEW
     (ERIN, IN_ALPHA, NONE),
     (ERIN, IN_BETA_GAMMA, DEV),
     (ERIN, IN_NOTHING, NONE),
@@ -157,7 +149,7 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (FRANK, APP_AB, NONE),
     (FRANK, APP_NONE, NONE),
     (FRANK, APP_UNKNOWN, NONE),
-    (FRANK, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (FRANK, APP_GAMMA, NONE), // CHANGED: was VIEW
     (FRANK, IN_ALPHA, NONE),
     (FRANK, IN_BETA_GAMMA, VIEW),
     (FRANK, IN_NOTHING, NONE),
@@ -166,8 +158,8 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (CI, APP_A, VIEW),
     (CI, APP_AB, VIEW),
     (CI, APP_NONE, NONE),
-    (CI, APP_UNKNOWN, NONE), // CHANGES: unknown app -> `default` (design D4), where ci has view
-    (CI, APP_GAMMA, VIEW), // QUIRK: reflexive g2
+    (CI, APP_UNKNOWN, NONE),
+    (CI, APP_GAMMA, NONE), // CHANGED: was VIEW
     (CI, IN_ALPHA, VIEW),
     (CI, IN_BETA_GAMMA, VIEW),
     (CI, IN_NOTHING, NONE),
@@ -177,7 +169,7 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (CI_CASE, APP_AB, NONE),
     (CI_CASE, APP_NONE, NONE),
     (CI_CASE, APP_UNKNOWN, NONE),
-    (CI_CASE, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (CI_CASE, APP_GAMMA, NONE), // CHANGED: was VIEW
     (CI_CASE, IN_ALPHA, NONE),
     (CI_CASE, IN_BETA_GAMMA, VIEW),
     (CI_CASE, IN_NOTHING, NONE),
@@ -187,31 +179,31 @@ const PERMISSION_MATRIX: &[(&str, Target, &[&str])] = &[
     (ZED, APP_AB, NONE),
     (ZED, APP_NONE, NONE),
     (ZED, APP_UNKNOWN, NONE),
-    (ZED, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (ZED, APP_GAMMA, NONE), // CHANGED: was VIEW
     (ZED, IN_ALPHA, NONE),
     (ZED, IN_BETA_GAMMA, VIEW),
     (ZED, IN_NOTHING, NONE),
     (ZED, GLOBAL, VIEW),
 
     (CAROL, APP_A, VIEW),
-    (CAROL, APP_AB, DEV), // per-app (casbin) already adds the domain entry
+    (CAROL, APP_AB, DEV),
     (CAROL, APP_NONE, NONE),
     (CAROL, APP_UNKNOWN, NONE),
-    (CAROL, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (CAROL, APP_GAMMA, NONE), // CHANGED: was VIEW
     (CAROL, IN_ALPHA, VIEW),
-    (CAROL, IN_BETA_GAMMA, VIEW), // CHANGES: exact+domain union -> DEV
+    (CAROL, IN_BETA_GAMMA, DEV), // CHANGED: was VIEW, the exact entry hid the domain entry
     (CAROL, IN_NOTHING, NONE),
-    (CAROL, GLOBAL, VIEW), // CHANGES: exact+domain union -> DEV
+    (CAROL, GLOBAL, DEV), // CHANGED: was VIEW, the exact entry hid the domain entry
 
     (GHOST, APP_A, NONE),
     (GHOST, APP_AB, NONE),
     (GHOST, APP_NONE, NONE),
     (GHOST, APP_UNKNOWN, NONE),
-    (GHOST, APP_GAMMA, VIEW), // QUIRK: reflexive g2. CHANGES: unknown app -> `default` (design D4)
+    (GHOST, APP_GAMMA, NONE), // CHANGED: was VIEW
     (GHOST, IN_ALPHA, NONE),
     (GHOST, IN_BETA_GAMMA, VIEW),
     (GHOST, IN_NOTHING, NONE),
-    (GHOST, GLOBAL, ALL), // CHANGES: global ignores the assignment's scopes today; "granted in any scope" -> VIEW
+    (GHOST, GLOBAL, VIEW), // CHANGED: was ALL, the global check ignored that the admin assignment has no scopes
 ];
 
 const C_ALPHA: CreateTarget = CreateTarget::AnyOf(&["alpha"]);
@@ -253,7 +245,7 @@ const CREATE_MATRIX: &[(&str, CreateTarget, &[&str])] = &[
     (ZED, C_EVERY_NOTHING, NONE),
 
     (CAROL, C_ALPHA, NONE),
-    (CAROL, C_BETA_GAMMA, NONE), // CHANGES: exact+domain union -> CREATE_ALL
+    (CAROL, C_BETA_GAMMA, CREATE_ALL), // CHANGED: was NONE, the exact entry hid the domain entry
     (CAROL, C_EVERY_ALPHA_BETA, NONE),
     (CAROL, C_EVERY_NOTHING, NONE),
 
@@ -274,7 +266,7 @@ const LISTINGS: &[(&str, ScopePermissions)] = &[
     (CI, &[("alpha", &["create:static-html", "view"]), ("beta", VIEW), ("gamma", VIEW), ("default", VIEW)]),
     (CI_CASE, &[("gamma", VIEW)]),
     (ZED, &[("gamma", VIEW)]),
-    (CAROL, &[("alpha", VIEW), ("gamma", VIEW)]), // CHANGES: exact+domain union adds ("beta", DEV)
+    (CAROL, &[("alpha", VIEW), ("beta", DEV), ("gamma", VIEW)]), // CHANGED: ("beta", DEV) was hidden by the exact entry
     (GHOST, &[("gamma", VIEW)]),
 ];
 
@@ -286,10 +278,9 @@ const APPS: &[(&str, &[&str])] = &[
 ];
 
 /// An authorization service over `policy` in a fresh temp dir, with the
-/// shipped `model.conf`, and the matrix apps registered.
+/// matrix apps registered.
 async fn service(policy: &str) -> (Arc<AuthorizationService>, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::copy("../config/casbin/model.conf", dir.path().join("model.conf")).unwrap();
     std::fs::write(dir.path().join("policy.yaml"), policy).unwrap();
     let auth = AuthorizationService::new(dir.path().to_str().unwrap())
         .await
@@ -503,34 +494,10 @@ async fn parity_mismatches(auth: &AuthorizationService, user: &str) -> Vec<Strin
     out
 }
 
-fn mismatches(check: &str, actions: &[&str], side: &str) -> Vec<String> {
-    actions
-        .iter()
-        .map(|a| format!("{check} {a}: {side} only"))
-        .collect()
-}
-
-/// Today's disagreements between listings and checks, per user.
-fn expected_parity_mismatches(user: &str) -> Vec<String> {
-    match user {
-        // CHANGES: exact+domain union. Casbin adds the domain entry (dev in
-        // beta) for per-app checks; the listing hides it.
-        CAROL => mismatches(
-            "app app-ab",
-            &["manage", "create", "logs", "admin_read"],
-            "allowed",
-        ),
-        // CHANGES: the global check ignores that the admin role has no scopes.
-        GHOST => mismatches(
-            "global",
-            &ALL.iter()
-                .copied()
-                .filter(|p| *p != "view")
-                .collect::<Vec<_>>(),
-            "allowed",
-        ),
-        _ => vec![],
-    }
+/// Disagreements between listings and checks, per user: none. (CHANGED:
+/// the exact+domain user and the admin without scopes had mismatches.)
+fn expected_parity_mismatches(_user: &str) -> Vec<String> {
+    vec![]
 }
 
 #[tokio::test]
@@ -601,17 +568,14 @@ async fn users_without_assignments() {
         assert!(!session_kept(auth.clone(), user).await, "{user}");
     }
 
-    // CHANGES: the global check grants every permission to an admin role
-    // without scopes, while the listing is empty and the session is revoked.
+    // CHANGED: an admin role without scopes grants nothing, globally too
+    // (the global check used to grant every permission).
     for p in ALL {
-        assert!(allows(&auth, GHOST, GLOBAL, p).await, "{p}");
+        assert!(!allows(&auth, GHOST, GLOBAL, p).await, "{p}");
         assert!(!allows(&auth, GHOST, IN_ALPHA, p).await, "{p}");
         assert!(!allows(&auth, GHOST, APP_A, p).await, "{p}");
     }
     assert!(listing(&auth, GHOST).await.is_empty());
-    assert_eq!(
-        parity_mismatches(&auth, GHOST).await,
-        mismatches("global", ALL, "allowed")
-    );
+    assert_eq!(parity_mismatches(&auth, GHOST).await, Vec::<String>::new());
     assert!(!session_kept(auth.clone(), GHOST).await);
 }

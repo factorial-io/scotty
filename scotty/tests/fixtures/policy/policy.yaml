@@ -1,4 +1,4 @@
-# Casbin RBAC policy fixture for tests ONLY.
+# Authorization policy fixture for tests ONLY.
 #
 # This is a tracked, read-only fixture used by the test harness
 # (scotty/src/api/test_utils.rs) so tests do not depend on the runtime

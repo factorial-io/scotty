@@ -89,7 +89,7 @@ url = { version = "2.5", default-features = false }
 include_dir = "0.7.3"
 mime_guess = { version = "2.0.4", default-features = false }
 semver = { version = "1.0", default-features = false, features = ["std"] }
-casbin = { version = "2.8", default-features = false, features = ["runtime-tokio", "cached"] }
+arc-swap = "1.9.3"
 secrecy = { version = "0.10", default-features = false, features = ["serde"] }
 subtle = { version = "2.6", default-features = false }
 zeroize = { version = "1.8", default-features = false, features = ["alloc"] }

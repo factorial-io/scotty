@@ -70,53 +70,28 @@ pub async fn create_scope_handler(
         request.name, user.email
     );
 
-    // Validate input
     if request.name.trim().is_empty() {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: "Scope name cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Scope name cannot be empty".to_string(),
+        ));
     }
-
     if request.description.trim().is_empty() {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: "Scope description cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Scope description cannot be empty".to_string(),
+        ));
     }
 
-    // Check if scope already exists
-    let existing_scopes = auth_service.list_scopes().await;
-    if existing_scopes
-        .iter()
-        .any(|(name, _)| name == &request.name)
-    {
-        return Ok(Json(CreateScopeResponse {
-            success: false,
-            message: format!("Scope '{}' already exists", request.name),
-        }));
-    }
-
-    // Create the scope
-    match auth_service
+    // A duplicate name is refused with 409; nothing changes on any error.
+    auth_service
         .create_scope(&request.name, &request.description)
         .await
-    {
-        Ok(_) => {
-            info!("Successfully created scope '{}'", request.name);
-            Ok(Json(CreateScopeResponse {
-                success: true,
-                message: format!("Scope '{}' created successfully", request.name),
-            }))
-        }
-        Err(e) => {
-            tracing::error!("Failed to create scope '{}': {}", request.name, e);
-            Ok(Json(CreateScopeResponse {
-                success: false,
-                message: format!("Failed to create scope: {}", e),
-            }))
-        }
-    }
+        .inspect_err(|e| tracing::error!("Failed to create scope '{}': {:#}", request.name, e))?;
+
+    info!("Successfully created scope '{}'", request.name);
+    Ok(Json(CreateScopeResponse {
+        success: true,
+        message: format!("Scope '{}' created successfully", request.name),
+    }))
 }
 
 #[cfg(test)]
@@ -127,27 +102,6 @@ mod tests {
     async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
-
-        // Create model.conf
-        // Uses user_match() custom function for domain/wildcard matching
-        let model_content = r#"[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, scope, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act"#;
-
-        std::fs::write(format!("{}/model.conf", config_dir), model_content)
-            .expect("Failed to write model.conf");
 
         // Create empty policy.yaml
         let policy_content = r#"scopes:

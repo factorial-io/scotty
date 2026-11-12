@@ -1,4 +1,4 @@
-# Casbin RBAC Policy Configuration
+# Authorization policy
 #
 # This file defines scopes, roles, and user/service account assignments
 # for the authorization system.

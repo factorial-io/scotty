@@ -6,7 +6,11 @@ use axum::{
 };
 use tracing::info;
 
-use crate::{api::error::AppError, app_state::SharedAppState};
+use crate::{
+    api::{error::AppError, middleware::authorization::AuthorizationContext},
+    app_state::SharedAppState,
+    services::AuthorizationService,
+};
 use scotty_core::authorization::Permission;
 use scotty_core::settings::custom_action::{
     CreateCustomActionRequest, CustomAction, CustomActionList,
@@ -67,9 +71,10 @@ fn validate_action_name(raw: &str) -> Result<String, AppError> {
 pub async fn create_custom_action_handler(
     State(state): State<SharedAppState>,
     Path(app_name): Path<String>,
-    axum::Extension(user_id): axum::Extension<String>,
+    axum::Extension(auth_context): axum::Extension<AuthorizationContext>,
     Json(payload): Json<CreateCustomActionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    let user_id = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     info!(
         "Creating custom action '{}' for app '{}' by user '{}'",
         payload.name, app_name, user_id

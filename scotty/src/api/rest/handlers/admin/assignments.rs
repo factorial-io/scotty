@@ -184,88 +184,46 @@ pub async fn create_assignment_handler(
         request.user_id, user.email
     );
 
-    // Validate input
     if request.user_id.trim().is_empty() {
-        return Ok(Json(CreateAssignmentResponse {
-            success: false,
-            message: "User ID cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest("User ID cannot be empty".to_string()));
     }
-
-    // Validate domain assignment pattern (if applicable)
-    if let Err(e) = crate::services::authorization::AuthorizationService::validate_domain_assignment(
+    crate::services::authorization::AuthorizationService::validate_domain_assignment(
         &request.user_id,
-    ) {
-        return Ok(Json(CreateAssignmentResponse {
-            success: false,
-            message: format!("Invalid user ID: {}", e),
-        }));
-    }
-
+    )
+    .map_err(|e| AppError::BadRequest(format!("Invalid user ID: {}", e)))?;
     if request.role.trim().is_empty() {
-        return Ok(Json(CreateAssignmentResponse {
-            success: false,
-            message: "Role cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest("Role cannot be empty".to_string()));
     }
-
     if request.scopes.is_empty() {
-        return Ok(Json(CreateAssignmentResponse {
-            success: false,
-            message: "At least one scope must be specified".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "At least one scope must be specified".to_string(),
+        ));
     }
 
-    // Validate that role exists
-    let existing_roles = auth_service.list_roles().await;
-    if !existing_roles.iter().any(|(name, _)| name == &request.role) {
-        return Ok(Json(CreateAssignmentResponse {
-            success: false,
-            message: format!("Role '{}' does not exist", request.role),
-        }));
-    }
-
-    // Validate that scopes exist (unless wildcard)
-    let existing_scopes = auth_service.list_scopes().await;
-    for scope in &request.scopes {
-        if scope != "*" && !existing_scopes.iter().any(|(name, _)| name == scope) {
-            return Ok(Json(CreateAssignmentResponse {
-                success: false,
-                message: format!("Scope '{}' does not exist", scope),
-            }));
-        }
-    }
-
-    // Create the assignment
-    match auth_service
+    // An undefined role or scope is refused with 400 naming it; nothing
+    // changes on any error.
+    auth_service
         .assign_user_role(&request.user_id, &request.role, request.scopes)
         .await
-    {
-        Ok(_) => {
-            info!(
-                "Successfully created assignment for user '{}' with role '{}'",
-                request.user_id, request.role
-            );
-            Ok(Json(CreateAssignmentResponse {
-                success: true,
-                message: format!(
-                    "Assignment created successfully for user '{}'",
-                    request.user_id
-                ),
-            }))
-        }
-        Err(e) => {
+        .inspect_err(|e| {
             tracing::error!(
-                "Failed to create assignment for user '{}': {}",
+                "Failed to create assignment for user '{}': {:#}",
                 request.user_id,
                 e
-            );
-            Ok(Json(CreateAssignmentResponse {
-                success: false,
-                message: format!("Failed to create assignment: {}", e),
-            }))
-        }
-    }
+            )
+        })?;
+
+    info!(
+        "Successfully created assignment for user '{}' with role '{}'",
+        request.user_id, request.role
+    );
+    Ok(Json(CreateAssignmentResponse {
+        success: true,
+        message: format!(
+            "Assignment created successfully for user '{}'",
+            request.user_id
+        ),
+    }))
 }
 
 #[utoipa::path(

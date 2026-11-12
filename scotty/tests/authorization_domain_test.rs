@@ -6,19 +6,19 @@ use std::collections::HashMap;
 
 /// Test domain assignment resolution with exact email match
 #[tokio::test]
-async fn test_exact_email_takes_precedence_over_domain() {
+async fn test_exact_email_and_domain_add_up() {
     let config = create_test_config_with_domain_assignments();
     let service = create_test_service(config).await;
 
-    // User with exact email assignment should get exact + wildcard (NOT domain)
+    // User with exact email assignment gets exact + domain + wildcard
     let assignments = service.get_user_permissions("admin@factorial.io").await;
 
-    // Should have permissions from "admin" role (exact match) and "viewer" role (wildcard)
+    // Permissions from "admin" role (exact match) and "viewer" role (wildcard)
     assert!(assignments.contains_key("admin-scope"));
     assert!(assignments.contains_key("default"));
 
-    // Should NOT have permissions from domain match
-    assert!(!assignments.contains_key("dev-scope"));
+    // CHANGED: the domain entry is added too; the exact entry used to hide it
+    assert!(assignments.contains_key("dev-scope"));
 }
 
 /// Test domain assignment resolution for users without exact match
@@ -270,50 +270,5 @@ fn create_test_config_with_domain_assignments() -> AuthConfig {
 }
 
 async fn create_test_service(config: AuthConfig) -> AuthorizationService {
-    use casbin::prelude::*;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
-
-    // Create a minimal in-memory enforcer with user_match() custom function
-    let m = DefaultModel::from_str(
-        r#"
-[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, scope, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act
-"#,
-    )
-    .await
-    .unwrap();
-
-    let a = MemoryAdapter::default();
-    let mut enforcer = casbin::CachedEnforcer::new(m, a).await.unwrap();
-
-    // Register custom user_match function for domain/wildcard matching
-    scotty::services::authorization::casbin::register_user_match_function(&mut enforcer);
-
-    // Sync policies to Casbin
-    scotty::services::authorization::casbin::CasbinManager::sync_policies_to_casbin(
-        &mut enforcer,
-        &config,
-    )
-    .await
-    .unwrap();
-
-    AuthorizationService::new_from_components(
-        Arc::new(RwLock::new(enforcer)),
-        Arc::new(RwLock::new(config)),
-        "test-config".to_string(),
-    )
+    AuthorizationService::new_from_components(config, "test-config".to_string())
 }

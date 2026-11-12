@@ -6,7 +6,10 @@ use crate::{
     api::error::AppError,
     api::secure_response::SecureJson,
     app_state::SharedAppState,
-    services::{authorization::Permission, AuthorizationService},
+    services::{
+        authorization::{decision::Target, Permission},
+        AuthorizationService,
+    },
 };
 #[utoipa::path(
     get,
@@ -55,12 +58,15 @@ pub async fn list_apps_handler(
         user.access_token
     );
 
+    // Hidden on purpose: apps the user may not view are left out, not refused.
+    let grants = auth_service.grants_for(&user_id);
+    let app_scopes = auth_service.app_scopes();
     let mut filtered_apps = Vec::new();
 
     for app in all_apps.apps {
-        let has_permission = auth_service
-            .check_permission(&user_id, &app.name, &Permission::View)
-            .await;
+        let has_permission = grants
+            .decide(&app_scopes, Permission::View.into(), Target::App(&app.name))
+            .is_allowed();
         tracing::info!(
             "App '{}' permission check for user '{}': {}",
             app.name,
@@ -98,28 +104,6 @@ mod tests {
     async fn create_test_auth_service() -> (Arc<AuthorizationService>, TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
-
-        // Create model.conf
-        // Uses user_match() custom function for domain/wildcard matching
-        let model_content = r#"[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, group, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.group) && r.act == p.act
-"#;
-        tokio::fs::write(format!("{}/model.conf", config_dir), model_content)
-            .await
-            .unwrap();
 
         let service = AuthorizationService::new(config_dir).await.unwrap();
 

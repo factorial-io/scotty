@@ -25,6 +25,8 @@ regexes = [
     '''^(?i)your[-_]token$''',
     '''^dev-token$''',
     '''^traefik\.enable=true$''',
+    # Test fixture directory, flagged by generic-api-key next to `oauth_state`.
+    '''^tests/fixtures/policy$''',
 ]
 # 1Password item and vault IDs (identifiers, not credentials) in the removed
 # .fabfile.yaml.

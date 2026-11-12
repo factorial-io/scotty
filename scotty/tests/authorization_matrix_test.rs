@@ -5,7 +5,7 @@
 //!
 //! Expectations name a permission, not per-role outcomes. Which identity holds
 //! which permission comes from the fixture policy in
-//! `tests/fixtures/casbin-matrix/policy.yaml`, so a role change there is picked
+//! `tests/fixtures/policy-matrix/policy.yaml`, so a role change there is picked
 //! up automatically.
 //!
 //! "Allowed" means the request got past authorization: any status other than
@@ -30,7 +30,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 const MATRIX_FIXTURE: &str = "tests/fixtures/authorization_matrix.yaml";
-const POLICY_FIXTURE_DIR: &str = "tests/fixtures/casbin-matrix";
+const POLICY_FIXTURE_DIR: &str = "tests/fixtures/policy-matrix";
 const APP: &str = "matrix-app";
 const APP_SCOPE: &str = "matrix";
 /// Identity with a configured token but no role assignment. Such tokens are
@@ -149,13 +149,11 @@ fn is_public(exp: &Expectation) -> bool {
 /// one bearer token per identity.
 async fn matrix_state(policy: &Policy) -> (SharedAppState, tempfile::TempDir) {
     let policy_dir = tempfile::tempdir().unwrap();
-    for file in ["model.conf", "policy.yaml"] {
-        std::fs::copy(
-            Path::new(POLICY_FIXTURE_DIR).join(file),
-            policy_dir.path().join(file),
-        )
-        .unwrap();
-    }
+    std::fs::copy(
+        Path::new(POLICY_FIXTURE_DIR).join("policy.yaml"),
+        policy_dir.path().join("policy.yaml"),
+    )
+    .unwrap();
 
     // ApiServer fields are read-only, so tokens and limits go in as config
     // overrides. Keep rate limits from turning the many requests into 429s.

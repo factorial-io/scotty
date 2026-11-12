@@ -108,7 +108,7 @@ interface.
 
 ### Role check
 
-Scotty checks Casbin every time it issues or refreshes a token. A user who no
+Scotty checks the authorization policy every time it issues or refreshes a token. A user who no
 longer has any role loses the session at the next refresh, and the grant is
 revoked.
 
@@ -328,7 +328,7 @@ client and test the login and consent; the tools arrive with that release.
 | `destroy` | destroy apps |
 | `offline_access` | a refresh token, so the connection survives the 15-minute token |
 
-A tool runs only if the token has the scope **and** Casbin gives you the
+A tool runs only if the token has the scope **and** the policy gives you the
 permission for that app. A connection never gets more than you have.
 
 ### Connections page
@@ -516,13 +516,20 @@ Configure authorization for bearer token identifiers in `config/casbin/policy.ya
 scopes:
   production:
     description: Production environment
+    created_at: "2023-12-01T00:00:00Z"
   staging:
     description: Staging environment
+    created_at: "2023-12-01T00:00:00Z"
 
 roles:
+  admin:
+    description: Full access
+    permissions: ["*"]
   deployer:
+    description: Deploys apps
     permissions: [view, manage, create]
   monitor:
+    description: Read-only monitoring
     permissions: [view, logs]
 
 # Authorization assignments

@@ -4,7 +4,7 @@ Scotty includes a powerful scope-based authorization system that controls access
 
 ## Overview
 
-The authorization system is built on **Casbin RBAC** and provides:
+Authorization is role-based and driven by one file, `policy.yaml`. Scotty has no separate model file. It provides:
 
 - **Scope-based access control**: Organize apps into logical scopes
 - **Role-based permissions**: Define what actions users can perform
@@ -65,7 +65,11 @@ Named collections of permissions for common access patterns:
 
 ### Assignments
 
-Map users or bearer tokens to roles within specific scopes:
+Map users or bearer tokens to roles within specific scopes. The assignment examples in this page show only the `assignments:` section; every role and scope they name must be defined in the same `policy.yaml`.
+
+**A user's rights are the union of every entry that matches them:** their own entry (email, or `identifier:<name>`), the entry for their domain (`@factorial.io`) and the wildcard entry (`*`). No entry hides another, so a user's own entry adds to the domain entry instead of replacing it. A domain entry matches only that exact domain, not its subdomains. Emails match case-insensitively; `identifier:` keys are case-sensitive.
+
+An app that is in no scope grants nothing, and neither does an assignment with `scopes: []`.
 
 ```yaml
 assignments:
@@ -81,7 +85,7 @@ assignments:
 
 ### Authorization Setup
 
-Create `/config/casbin/policy.yaml`:
+Create `/config/casbin/policy.yaml` (the folder name is historical; there is no `model.conf`):
 
 ```yaml
 # Scope definitions
@@ -107,6 +111,9 @@ roles:
   operator:
     description: "Operations access without shell"
     permissions: ["view", "manage", "logs", "action_read"]
+  viewer:
+    description: "Read-only access"
+    permissions: ["view"]
   action_approver:
     description: "Can approve/reject custom actions"
     permissions: ["view", "action_approve"]
@@ -138,6 +145,16 @@ apps:
   "my-backend-api": ["backend"]
   "shared-service": ["frontend", "backend"]
 ```
+
+### Validation at startup
+
+Scotty checks `policy.yaml` when it loads and refuses to start, with an error naming the offending entry, if:
+
+- an assignment names a role that is not defined (`assignment for 'bob@example.com' names undefined role 'devloper'`)
+- an assignment names a scope that is not defined (`... names undefined scope 'stagin'`; `*` is always valid)
+- a role lists an unknown or malformed permission (`role 'viewer' has invalid permission 'veiw'`)
+
+The admin API applies the same checks to every change. A change that would make the policy invalid is refused with `400 Bad Request` (unknown role, scope or permission, empty fields) or `409 Conflict` (a scope or role that already exists) and leaves the policy unchanged. A new scope is usable at once, without a restart.
 
 ### App Scope Assignment
 
@@ -237,7 +254,7 @@ stays accurate.
 When access is denied, users receive:
 
 - **HTTP 403 Forbidden** responses
-- **Clear error messages** explaining required permissions
+- **Clear error messages** naming the missing permission, for example `user lacks manage permission`
 - **Empty results** for list operations (apps they cannot access are hidden)
 
 ## Examples
@@ -249,10 +266,15 @@ When access is denied, users receive:
 scopes:
   team-alpha:
     description: "Team Alpha applications"
+    created_at: "2023-12-01T00:00:00Z"
   team-beta:
     description: "Team Beta applications"
+    created_at: "2023-12-01T00:00:00Z"
   production:
     description: "Production environment"
+    created_at: "2023-12-01T00:00:00Z"
+
+# Roles `developer`, `viewer`, `operator` and `admin` as defined above
 
 assignments:
   # Team Alpha developer
@@ -363,9 +385,17 @@ For existing Scotty installations:
 3. **App Discovery**: Existing apps are assigned to `default` scope automatically
 4. **OAuth Compatibility**: OAuth authentication continues to work unchanged
 
+### Upgrading from the model-file based authorization
+
+- `model.conf` is no longer used or shipped; you can delete your copy. Keep `config/casbin/policy.yaml` where it is.
+- **Breaking:** an assignment that names an undefined role or scope, or a role with an unknown permission, now stops startup with an error naming it. Before, such entries were ignored.
+- **Breaking:** a user's own entry no longer overrides their domain entry; the rights of all matching entries add up.
+- **Breaking:** an app that is in no scope grants nothing, and an assignment with `scopes: []` grants nothing.
+- **Breaking:** the admin API answers `400`/`409` and leaves the policy unchanged for invalid changes (before: empty fields answered `200` with `success: false`).
+
 ### Enabling Authorization
 
-1. Create `/config/casbin/policy.yaml` (`model.conf` ships with the repository and the Docker image; a missing `policy.yaml` is seeded from `policy.yaml.example`)
+1. Create `/config/casbin/policy.yaml` (a missing `policy.yaml` is seeded from `policy.yaml.example`)
 2. Define initial scopes, roles, and assignments
 3. **Add existing bearer tokens to assignments** (if using bearer authentication)
 4. Apps will automatically sync their scope memberships

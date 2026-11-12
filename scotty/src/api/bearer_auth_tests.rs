@@ -59,7 +59,7 @@ async fn create_scotty_app_with_rbac_auth() -> axum::Router {
 #[tokio::test]
 async fn test_bearer_auth_with_rbac_assigned_token() {
     // First test that the authorization service loads the assignments correctly
-    let auth_service = crate::services::AuthorizationService::new("tests/fixtures/casbin")
+    let auth_service = crate::services::AuthorizationService::new("tests/fixtures/policy")
         .await
         .expect("Failed to load RBAC config for test");
 

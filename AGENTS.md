@@ -54,14 +54,14 @@ cd apps/traefik && docker compose up -d
 - `api/rest/handlers/`: REST endpoints — `apps/` (create, list, run, actions, notifications), `admin/` (assignments, permissions, roles, scopes), `scopes/` (user-facing), `blueprints.rs`, `landing.rs` (Traefik fallback routing), `login.rs`, `tasks.rs`, `health.rs`, `info.rs`
 - `api/websocket/`: Real-time features — `handlers/` (auth, logs, shell, tasks), `messaging.rs` (protocol), `client.rs` (connection mgmt)
 - `api/auth_core.rs`: Core authentication logic
-- `api/middleware/`: Casbin RBAC authorization
+- `api/middleware/`: authorization
 - `api/rate_limiting/`: Per-tier rate limiting
 - `docker/steps/`: App lifecycle steps, run linearly via `run_operation` (no state machine) (create dir, save files, docker login, compose up, load balancer config, post actions, wait for containers, etc.)
 - `docker/services/`: Long-running log streaming and shell sessions
 - `docker/loadbalancer/`: Traefik/HAProxy config generation
 - `onepassword/`: 1Password secrets — resolves `op://` URIs in app env vars (two-pass: 1Password lookup, then env var substitution)
 - `oauth/`: OAuth 2.0 — device flow (CLI) and web flow (`/oauth/authorize`, `/api/oauth/callback`, `/oauth/exchange`)
-- `services/authorization/`: Casbin RBAC (scopes, roles, permissions)
+- `services/authorization/`: RBAC (scopes, roles, permissions)
 - `tasks/`: Task execution and output streaming
 - `notification/`: Log, Webhook, Mattermost, GitLab notifications
 - `static_files.rs`: Embedded frontend serving
@@ -71,25 +71,26 @@ cd apps/traefik && docker compose up -d
 
 ### Authorization System
 
-Uses Casbin for RBAC. Config: `config/casbin/policy.yaml`. Implementation: `scotty/src/services/authorization/casbin.rs`. Tests: `scotty/tests/authorization_domain_test.rs`.
+RBAC with one decision point. Config: `config/casbin/policy.yaml` (validated at load: undefined roles or scopes in assignments stop startup). Implementation: `scotty/src/services/authorization/` — `policy.rs` (compile, `grants_for`), `decision.rs` (`decide`), `service.rs` (snapshots, `require`). Enforce with `auth_service.require(user, action, target)` or `decide`; never evaluate permissions elsewhere. Tests: `scotty/tests/authorization_*_test.rs`.
 
 **Permissions**: `view`, `manage`, `create`, `create:<blueprint>` (only that blueprint, no own compose), `destroy`, `shell`, `logs`, `admin_read`, `admin_write`, `action_read`, `action_write`, `action_manage`, `action_approve`
 
-**Assignment matching** (by precedence): exact email (`user@factorial.io`) > domain pattern (`@factorial.io`) > wildcard (`*`). Wildcard is always additive. Domain patterns prevent subdomain attacks. Case-insensitive per RFC 5321.
+**Assignment matching** (union): a user holds everything from their exact email or identifier entry, their domain pattern (`@factorial.io`) and the wildcard (`*`); no entry hides another. Domain patterns match only that domain, not subdomains. Emails are case-insensitive, identifiers case-sensitive. An app in no scope and an assignment with `scopes: []` grant nothing.
 
 ```yaml
 # config/casbin/policy.yaml
 scopes:
   client-a: { description: "Client A Production" }
   qa: { description: "QA Environment" }
+  default: { description: "Default" }
 roles:
   admin: { permissions: ['*'], description: "Full access" }
   developer: { permissions: ['view', 'manage', 'create', 'shell', 'logs'], description: "Dev access" }
   viewer: { permissions: ['view'], description: "Read-only" }
 assignments:
-  stephan@factorial.io:                     # Exact match (highest priority)
+  stephan@factorial.io:                     # Exact match (adds to the domain entry)
     - { role: admin, scopes: ['*'] }
-  '@factorial.io':                          # Domain match (fallback)
+  '@factorial.io':                          # Domain match
     - { role: developer, scopes: ['client-a', 'qa'] }
   '*':                                      # Wildcard (always additive)
     - { role: viewer, scopes: ['default'] }

@@ -45,7 +45,7 @@ impl Permission {
         ]
     }
 
-    /// Convert to string for Casbin policy
+    /// Convert to its policy string
     pub fn as_str(&self) -> &'static str {
         match self {
             Permission::View => "view",

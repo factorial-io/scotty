@@ -11,7 +11,13 @@ use uuid::Uuid;
 
 use crate::api::auth_core::CurrentUser;
 use crate::app_state::SharedAppState;
-use crate::services::{authorization::Permission, AuthorizationService};
+use crate::services::{
+    authorization::{
+        decision::{Decision, Target},
+        Permission,
+    },
+    AuthorizationService,
+};
 use scotty_core::websocket::message::WebSocketMessage;
 
 /// Result of WebSocket authorization check
@@ -47,22 +53,15 @@ pub async fn check_websocket_authorization(
     let auth_service = &state.auth_service;
     let user_id = AuthorizationService::get_user_id_for_authorization(&current_user);
 
-    let has_permission = auth_service
-        .check_permission(&user_id, app_name, &permission)
-        .await;
-
-    if !has_permission {
+    if let Decision::Deny(reason) =
+        auth_service.decide(&user_id, permission.into(), Target::App(app_name))
+    {
         warn!(
-            "Access denied: user {} lacks {} permission for app '{}' (operation: {})",
-            current_user.email,
-            permission.as_str(),
-            app_name,
-            operation
+            "Access denied: user {} for app '{}' (operation: {}): {}",
+            current_user.email, app_name, operation, reason
         );
         return WebSocketAuthResult::Unauthorized(format!(
-            "Access denied: insufficient {} permissions for app '{}'",
-            permission.as_str(),
-            app_name
+            "Access denied: {reason} for app '{app_name}'"
         ));
     }
 

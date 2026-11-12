@@ -79,70 +79,42 @@ pub async fn create_role_handler(
         request.name, user.email
     );
 
-    // Validate input
     if request.name.trim().is_empty() {
-        return Ok(Json(CreateRoleResponse {
-            success: false,
-            message: "Role name cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Role name cannot be empty".to_string(),
+        ));
     }
-
     if request.description.trim().is_empty() {
-        return Ok(Json(CreateRoleResponse {
-            success: false,
-            message: "Role description cannot be empty".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Role description cannot be empty".to_string(),
+        ));
     }
-
     if request.permissions.is_empty() {
-        return Ok(Json(CreateRoleResponse {
-            success: false,
-            message: "Role must have at least one permission".to_string(),
-        }));
+        return Err(AppError::BadRequest(
+            "Role must have at least one permission".to_string(),
+        ));
     }
 
-    // Parse and validate permissions
-    let mut parsed_permissions = Vec::new();
-    for perm_str in &request.permissions {
-        if let Some(perm) = PermissionOrWildcard::parse(perm_str) {
-            parsed_permissions.push(perm);
-        } else {
-            return Ok(Json(CreateRoleResponse {
-                success: false,
-                message: format!("Invalid permission: '{}'", perm_str),
-            }));
-        }
-    }
+    let parsed_permissions = request
+        .permissions
+        .iter()
+        .map(|p| {
+            PermissionOrWildcard::parse(p)
+                .ok_or_else(|| AppError::BadRequest(format!("Invalid permission: '{}'", p)))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-    // Check if role already exists
-    let existing_roles = auth_service.list_roles().await;
-    if existing_roles.iter().any(|(name, _)| name == &request.name) {
-        return Ok(Json(CreateRoleResponse {
-            success: false,
-            message: format!("Role '{}' already exists", request.name),
-        }));
-    }
-
-    // Create the role
-    match auth_service
+    // A duplicate name is refused with 409; nothing changes on any error.
+    auth_service
         .create_role(&request.name, parsed_permissions, &request.description)
         .await
-    {
-        Ok(_) => {
-            info!("Successfully created role '{}'", request.name);
-            Ok(Json(CreateRoleResponse {
-                success: true,
-                message: format!("Role '{}' created successfully", request.name),
-            }))
-        }
-        Err(e) => {
-            tracing::error!("Failed to create role '{}': {}", request.name, e);
-            Ok(Json(CreateRoleResponse {
-                success: false,
-                message: format!("Failed to create role: {}", e),
-            }))
-        }
-    }
+        .inspect_err(|e| tracing::error!("Failed to create role '{}': {:#}", request.name, e))?;
+
+    info!("Successfully created role '{}'", request.name);
+    Ok(Json(CreateRoleResponse {
+        success: true,
+        message: format!("Role '{}' created successfully", request.name),
+    }))
 }
 
 #[cfg(test)]
@@ -154,27 +126,6 @@ mod tests {
     async fn create_test_service() -> (AuthorizationService, tempfile::TempDir) {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config_dir = temp_dir.path().to_str().unwrap();
-
-        // Create model.conf
-        // Uses user_match() custom function for domain/wildcard matching
-        let model_content = r#"[request_definition]
-r = sub, app, act
-
-[policy_definition]
-p = sub, scope, act
-
-[role_definition]
-g = _, _
-g2 = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = user_match(r.sub, p.sub) && g2(r.app, p.scope) && r.act == p.act"#;
-
-        std::fs::write(format!("{}/model.conf", config_dir), model_content)
-            .expect("Failed to write model.conf");
 
         // Create empty policy.yaml
         let policy_content = r#"scopes:

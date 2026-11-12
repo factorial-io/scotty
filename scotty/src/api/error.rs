@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::services::authorization::policy::PolicyError;
 use axum::http::StatusCode;
 use axum::{
     response::{IntoResponse, Response},
@@ -25,6 +26,9 @@ pub enum AppError {
 
     #[error("Bad request: {0}")]
     BadRequest(String),
+
+    #[error("Conflict: {0}")]
+    Conflict(String),
 
     #[error("App not found: {0}")]
     AppNotFound(String),
@@ -139,6 +143,7 @@ impl AppError {
             AppError::AppSettingsNotFound(_) => StatusCode::NOT_FOUND,
             AppError::CantCreateAppWithScottyYmlFile => StatusCode::BAD_REQUEST,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::CreateAppPayloadTooLarge(_, _) => StatusCode::PAYLOAD_TOO_LARGE,
             AppError::FileCompressionCorrupted(_, _) => StatusCode::BAD_REQUEST,
             AppError::FileDecompressedSizeExceeded(_, _) => StatusCode::BAD_REQUEST,
@@ -206,7 +211,23 @@ impl From<anyhow::Error> for AppError {
         if let Some(app_error) = e.downcast_ref::<AppError>() {
             return app_error.clone();
         }
+        if let Some(policy_error) = e.downcast_ref::<PolicyError>() {
+            return policy_error.clone().into();
+        }
         AppError::InternalServerError(e.to_string())
+    }
+}
+
+/// A refused policy change: the request names a duplicate (409) or something
+/// the policy does not define or accept (400).
+impl From<PolicyError> for AppError {
+    fn from(e: PolicyError) -> Self {
+        match e {
+            PolicyError::DuplicateScope(_) | PolicyError::DuplicateRole(_) => {
+                AppError::Conflict(e.to_string())
+            }
+            _ => AppError::BadRequest(e.to_string()),
+        }
     }
 }
 
