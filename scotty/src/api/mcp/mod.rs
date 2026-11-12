@@ -189,6 +189,40 @@ pub struct CreatedApp {
     pub urls: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct TaskRef {
+    /// The task id returned by `create_app` or `destroy_app`.
+    pub task_id: String,
+}
+
+/// How many output lines `get_task` returns, from the end.
+const TASK_OUTPUT_LINES: usize = 100;
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct TaskInfo {
+    pub task_id: String,
+    /// `Running`, `Finished` or `Failed`.
+    pub state: String,
+    pub app_name: Option<String>,
+    pub last_exit_code: Option<i32>,
+    pub started: String,
+    pub finished: Option<String>,
+    /// The last output lines (at most 100).
+    pub output: Vec<String>,
+    /// Lines left out at the start of `output`.
+    pub output_lines_omitted: u64,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct DestroyedApp {
+    /// Poll this with `get_task` until the app is gone.
+    pub task_id: String,
+    pub app_name: String,
+}
+
 #[tool_router]
 impl ScottyMcp {
     #[tool(
@@ -285,6 +319,65 @@ impl ScottyMcp {
             task_id: created.task.id.to_string(),
             app_name: created.app_data.name,
             urls,
+        }))
+    }
+
+    #[tool(
+        description = "Show a task's state (Running, Finished or Failed) and its last output \
+                       lines. Poll it after create_app or destroy_app.",
+        annotations(title = "Get task", read_only_hint = true, open_world_hint = false)
+    )]
+    async fn get_task(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(TaskRef { task_id }): Parameters<TaskRef>,
+    ) -> ToolResult<TaskInfo> {
+        let caller = caller(&ctx, McpScope::Read)?;
+        let id = uuid::Uuid::parse_str(&task_id)
+            .map_err(|_| format!("task_id: {task_id:?} is not a task id"))?;
+        let task = apps::task(&self.state, &caller.email, &id)
+            .await
+            .map_err(|e| e.to_string())?;
+        let lines = &task.output.lines;
+        let shown = &lines[lines.len().saturating_sub(TASK_OUTPUT_LINES)..];
+        Ok(Json(TaskInfo {
+            task_id: task.id.to_string(),
+            state: format!("{:?}", task.state),
+            app_name: task.app_name.clone(),
+            last_exit_code: task.last_exit_code,
+            started: task.start_time.to_rfc3339(),
+            finished: task.finish_time.map(|t| t.to_rfc3339()),
+            output: shown.iter().map(|l| l.content.clone()).collect(),
+            output_lines_omitted: task
+                .output
+                .total_lines_processed
+                .saturating_sub(shown.len() as u64),
+        }))
+    }
+
+    #[tool(
+        description = "Destroy an app: stop and remove its containers, volumes and files. \
+                       This cannot be undone.",
+        annotations(
+            title = "Destroy app",
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn destroy_app(
+        &self,
+        ctx: RequestContext<RoleServer>,
+        Parameters(AppRef { app_name }): Parameters<AppRef>,
+    ) -> ToolResult<DestroyedApp> {
+        let caller = caller(&ctx, McpScope::Destroy)?;
+        let destroyed = apps::destroy(&self.state, &caller.email, &app_name)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(Json(DestroyedApp {
+            task_id: destroyed.task.id.to_string(),
+            app_name: destroyed.app_data.name,
         }))
     }
 }

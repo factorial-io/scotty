@@ -466,3 +466,201 @@ fn generated_names_are_prefixed_and_random() {
     let unique: std::collections::HashSet<_> = names.iter().collect();
     assert_eq!(unique.len(), names.len());
 }
+
+// --- 3.4 get_task, destroy_app ---------------------------------------------------------
+
+#[tokio::test]
+async fn destroy_is_denied_without_destroy_and_the_app_stays() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+
+    // The policy refuses: `restricted` may only view in `default`.
+    let result = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "destroy_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("Access denied"), "{result}");
+
+    // The token refuses: the admin's connection lacks `destroy`.
+    let (_client, tokens) =
+        connect(&server, &state, ADMIN, "read create", &["read", "create"]).await;
+    let no_destroy = tokens["access_token"].as_str().unwrap();
+    let result = call(
+        &server,
+        no_destroy,
+        "destroy_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).contains("`destroy` scope"), "{result}");
+
+    assert!(state.apps.get_app("atelier-demo").await.is_some());
+}
+
+#[tokio::test]
+async fn hidden_and_unknown_tasks_answer_alike() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+    state
+        .auth_service
+        .set_app_scopes("atelier-demo", vec!["client-b".into()])
+        .await
+        .unwrap();
+    let (_handle, rx) = state
+        .task_manager
+        .create_task(scotty_core::tasks::task_details::TaskDetails {
+            app_name: Some("atelier-demo".into()),
+            ..Default::default()
+        })
+        .await;
+    let id = rx.borrow().id;
+
+    let admin = call(
+        &server,
+        ADMIN_TOKEN,
+        "get_task",
+        json!({"task_id": id.to_string()}),
+    )
+    .await;
+    assert!(!is_error(&admin), "{admin}");
+    assert_eq!(admin["structuredContent"]["state"], "Running", "{admin}");
+
+    let hidden = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "get_task",
+        json!({"task_id": id.to_string()}),
+    )
+    .await;
+    let unknown = call(
+        &server,
+        RESTRICTED_TOKEN,
+        "get_task",
+        json!({"task_id": uuid::Uuid::new_v4().to_string()}),
+    )
+    .await;
+    assert!(
+        is_error(&hidden) && is_error(&unknown),
+        "{hidden} {unknown}"
+    );
+    assert!(text(&hidden).starts_with("Task not found"), "{hidden}");
+    assert!(text(&unknown).starts_with("Task not found"), "{unknown}");
+}
+
+#[tokio::test]
+async fn tools_list_has_the_six_tools_with_annotations() {
+    let (server, _state) = scotty().await;
+    let list = rpc(&server, ADMIN_TOKEN, "tools/list", json!({})).await;
+    assert_eq!(
+        tool_names(&list),
+        [
+            "create_app",
+            "destroy_app",
+            "get_app",
+            "get_task",
+            "list_apps",
+            "list_blueprints"
+        ]
+    );
+    let tool = |name: &str| {
+        list["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == name)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(tool("destroy_app")["annotations"]["destructiveHint"], true);
+    assert_eq!(tool("get_task")["annotations"]["readOnlyHint"], true);
+    assert_eq!(tool("create_app")["annotations"]["destructiveHint"], false);
+}
+
+/// Publish a static page through MCP, poll it to `Finished`, check the files
+/// and the app, then destroy it. Needs Docker and the `proxy` network.
+/// Run with: cargo test -p scotty --lib publish_poll_and_destroy -- --ignored
+#[tokio::test]
+#[ignore]
+async fn publish_poll_and_destroy_a_static_page() {
+    let (server, state) = scotty().await;
+    let png = [0x89u8, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff];
+    let created = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "files": [
+            {"path": "html/index.html", "content": "<h1>Hällo</h1>"},
+            {"path": "html/logo.png", "content": BASE64_STANDARD.encode(png), "encoding": "base64"},
+        ]}),
+    )
+    .await;
+    assert!(!is_error(&created), "{created}");
+    let created = &created["structuredContent"];
+    let name = created["app_name"].as_str().unwrap().to_string();
+    let suffix = name.strip_prefix("static-html-").unwrap();
+    assert_eq!(suffix.len(), 10, "{name}");
+    assert_eq!(
+        created["urls"],
+        json!([format!("http://web.{name}.test.local")]),
+        "{created}"
+    );
+    let app_dir = std::path::Path::new(&state.settings.apps.root_folder).join(&name);
+    let _cleanup = ComposeDown(app_dir.clone());
+
+    let finished = wait(&server, created["task_id"].as_str().unwrap()).await;
+    assert_eq!(finished["state"], "Finished", "{finished}");
+    assert_eq!(
+        std::fs::read(app_dir.join("html/index.html")).unwrap(),
+        "<h1>Hällo</h1>".as_bytes()
+    );
+    assert_eq!(std::fs::read(app_dir.join("html/logo.png")).unwrap(), png);
+    let app = call(&server, ADMIN_TOKEN, "get_app", json!({"app_name": name})).await;
+    assert_eq!(app["structuredContent"]["status"], "Running", "{app}");
+
+    let destroyed = call(
+        &server,
+        ADMIN_TOKEN,
+        "destroy_app",
+        json!({"app_name": name}),
+    )
+    .await;
+    assert!(!is_error(&destroyed), "{destroyed}");
+    let task_id = destroyed["structuredContent"]["task_id"].as_str().unwrap();
+    assert_eq!(wait(&server, task_id).await["state"], "Finished");
+    assert!(!app_dir.exists());
+}
+
+/// Poll `get_task` until the task left `Running`.
+async fn wait(server: &TestServer, task_id: &str) -> Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(180);
+    loop {
+        let task = call(server, ADMIN_TOKEN, "get_task", json!({"task_id": task_id})).await;
+        let task = task["structuredContent"].clone();
+        if task["state"] != "Running" {
+            return task;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "task did not finish: {task}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
+struct ComposeDown(std::path::PathBuf);
+
+impl Drop for ComposeDown {
+    fn drop(&mut self) {
+        if self.0.exists() {
+            let _ = std::process::Command::new("docker")
+                .args(["compose", "down", "-v", "--remove-orphans"])
+                .current_dir(&self.0)
+                .output();
+        }
+    }
+}
