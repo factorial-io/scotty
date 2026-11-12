@@ -96,7 +96,7 @@
         "bun"
       ],
       "automerge": true,
-      "platformAutomerge": true,
+      "platformAutomerge": false,
       "gitLabIgnoreApprovals": true,
       "matchUpdateTypes": [
         "patch"
@@ -108,7 +108,7 @@
         "cargo"
       ],
       "automerge": true,
-      "platformAutomerge": true,
+      "platformAutomerge": false,
       "gitLabIgnoreApprovals": true,
       "matchUpdateTypes": [
         "patch"
