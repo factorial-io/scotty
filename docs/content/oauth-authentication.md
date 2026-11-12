@@ -26,9 +26,9 @@ grant is still active, so logout and revocation take effect at once. Configured
 bearer tokens keep working next to these (see
 [Hybrid Authentication](#hybrid-authentication-with-bearer-tokens)).
 
-The REST API accepts session tokens and bearer tokens. `/mcp` accepts only
-MCP tokens. Neither accepts provider (GitLab) tokens, and neither accepts the
-other's user tokens.
+The REST API accepts session tokens and bearer tokens. `/mcp` accepts MCP
+tokens and bearer tokens. Neither accepts provider (GitLab) tokens, and
+neither accepts the other's user tokens.
 
 Grants, clients, codes and refresh tokens live in a SQLite database
 (`api.database_path`). Tokens are signed with `api.jwt_secret`.
@@ -116,7 +116,7 @@ revoked.
 
 - **Public**: `/`, `/api/v1/health`, `/api/v1/info`, `/api/v1/login`, `/oauth/*`, `/.well-known/*`, static assets, SPA routes
 - **Session or bearer token**: `/api/v1/authenticated/*`
-- **MCP token**: `/mcp`
+- **MCP or bearer token**: `/mcp`
 
 ## Setup Instructions
 
@@ -292,18 +292,14 @@ api:
 - `GET /oauth/mcp/authorize`: authorization code request (PKCE required).
 - `POST /oauth/mcp/token`: code exchange and refresh.
 - `POST /oauth/mcp/register`: dynamic client registration (RFC 7591), rate limited.
-- `/mcp`: the MCP endpoint.
+- `/mcp`: the MCP endpoint (see [MCP Server](mcp.md)).
 - `GET /api/v1/authenticated/oauth/consent/{id}`, `POST .../approve`, `POST .../deny`: used by the consent page.
 - `GET /api/v1/authenticated/connections`, `DELETE /api/v1/authenticated/connections/{id}`: used by the connections page.
 
 ## MCP connections
 
 MCP clients such as claude.ai and Claude Code connect to `{base_url}/mcp`.
-
-**`/mcp` does not serve tools yet.** This release ships the authorization
-server only. An authorized request to `/mcp` returns `501 Not Implemented`
-until the MCP server lands in a later release. You can already connect a
-client and test the login and consent; the tools arrive with that release.
+The tools it offers are described in [MCP Server](mcp.md).
 
 ### How a client connects
 

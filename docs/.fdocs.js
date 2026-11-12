@@ -40,6 +40,7 @@ export default function (defaultConfig) {
             "observability",
             "cli",
             "oauth-authentication",
+            "mcp",
             "authorization",
             "security",
             "changelog",
