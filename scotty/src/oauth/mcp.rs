@@ -10,7 +10,7 @@ use axum::{
     http::{header, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{any, get, post_service},
+    routing::{get, post_service},
     Json, Router,
 };
 use grantry::metadata::{AuthorizationServerMetadata, ProtectedResourceMetadata};
@@ -20,6 +20,7 @@ use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::server::{mcp_resource, McpServer};
+use crate::api::auth_core::authorize_bearer_user;
 use crate::api::rate_limiting::create_register_limiter;
 use crate::app_state::{AppState, SharedAppState};
 use crate::services::authorization::decision::Target;
@@ -31,9 +32,20 @@ pub const RESOURCE_METADATA_PATH: &str = "/.well-known/oauth-protected-resource/
 const RESOURCE_METADATA_ROOT: &str = "/.well-known/oauth-protected-resource";
 pub const MCP_PATH: &str = "/mcp";
 
-/// The routes of the mcp server, or `None` when it is not configured (not in
-/// oauth mode, or no `jwt_secret`).
-pub fn router(state: &SharedAppState) -> Option<Router> {
+/// `/mcp`, in every auth mode, plus the authorization server's routes when
+/// it is configured (oauth mode with a `jwt_secret`).
+pub fn router(state: &SharedAppState) -> Router {
+    let mcp = Router::new()
+        .route_service(MCP_PATH, crate::api::mcp::service(state))
+        .route_layer(middleware::from_fn_with_state(state.clone(), mcp_auth));
+    match authorization_server(state) {
+        Some(protocol) => protocol.merge(mcp),
+        None => mcp,
+    }
+}
+
+/// The authorization server's routes, or `None` when it is not configured.
+fn authorization_server(state: &SharedAppState) -> Option<Router> {
     let server = state.mcp_server.clone()?;
     let base = state.settings.api.public_base_url();
     let frontend = super::frontend_base(state);
@@ -76,36 +88,21 @@ pub fn router(state: &SharedAppState) -> Option<Router> {
         async move { ([(header::CACHE_CONTROL, "public, max-age=300")], doc) }
     };
 
-    let mcp = Router::new()
-        // ponytail: placeholder until the `mcp-server` change mounts the
-        // MCP transport here behind the same middleware.
-        .route(MCP_PATH, any(mcp_placeholder))
-        .route_layer(middleware::from_fn_with_state(state.clone(), mcp_auth))
-        .with_state(state.clone());
-
     Some(
         protocol
             .route(REGISTER_PATH, register)
             .route(RESOURCE_METADATA_PATH, get(metadata.clone()))
-            .route(RESOURCE_METADATA_ROOT, get(metadata))
-            .merge(mcp),
+            .route(RESOURCE_METADATA_ROOT, get(metadata)),
     )
 }
 
-async fn mcp_placeholder() -> Response {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({ "error": "not_implemented" })),
-    )
-        .into_response()
-}
-
-/// Who an MCP request acts for: the grant's user and the approved scopes.
-#[allow(dead_code)] // read by the `mcp-server` tools
+/// Who an MCP request acts for: the grant's user and the approved scopes,
+/// or a configured bearer token's service account with every scope (its
+/// policy permissions are its only limit).
 #[derive(Debug, Clone)]
 pub struct McpPrincipal {
+    /// The user id for authorization: an email, or `identifier:<name>`.
     pub email: String,
-    pub grant_id: Uuid,
     pub scopes: Vec<String>,
 }
 
@@ -176,9 +173,10 @@ impl McpPrincipal {
     }
 }
 
-/// `/mcp` authentication: an mcp access token (audience `{base}/mcp`, kind
-/// `mcp`) whose grant is still active. Anything else is 401 with the RFC 9728
-/// §5.1 challenge pointing at the protected resource metadata.
+/// `/mcp` authentication: a configured bearer token, or an mcp access token
+/// (audience `{base}/mcp`, kind `mcp`) whose grant is still active. Anything
+/// else, session and identity-provider tokens included, is 401 with the RFC
+/// 9728 §5.1 challenge pointing at the protected resource metadata.
 pub async fn mcp_auth(
     State(state): State<SharedAppState>,
     mut req: Request,
@@ -194,6 +192,15 @@ pub async fn mcp_auth(
     let Some(token) = token else {
         return unauthorized(&state, false);
     };
+    if let Some(user) = authorize_bearer_user(state.clone(), &token, false).await {
+        req.extensions_mut().insert(McpPrincipal {
+            email: user.email,
+            scopes: [McpScope::Read, McpScope::Create, McpScope::Destroy]
+                .map(|s| s.as_str().to_owned())
+                .into(),
+        });
+        return next.run(req).await;
+    }
     let Some(server) = state.mcp_server.as_ref() else {
         return unauthorized(&state, true);
     };
@@ -218,7 +225,6 @@ async fn principal(
         Ok((grant, _claims)) => Ok(Some(McpPrincipal {
             scopes: grant.scope.split_whitespace().map(str::to_owned).collect(),
             email: grant.subject,
-            grant_id: grant.id,
         })),
         Err(grantry::ActiveError::Backend(e)) => Err(e),
         Err(e) => {

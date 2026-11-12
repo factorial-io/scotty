@@ -23,9 +23,9 @@ const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 const LOOPBACK: &str = "http://127.0.0.1:3000/callback";
 const HTTPS_REDIRECT: &str = "https://app.example/cb";
-const ADMIN: &str = "admin@example.com";
+pub(super) const ADMIN: &str = "admin@example.com";
 
-fn settings(overrides: &[(&str, &str)]) -> crate::settings::config::Settings {
+pub(super) fn settings(overrides: &[(&str, &str)]) -> crate::settings::config::Settings {
     let mut builder =
         config::Config::builder().add_source(config::File::with_name("tests/test_oauth_auth"));
     for (key, value) in overrides {
@@ -35,7 +35,7 @@ fn settings(overrides: &[(&str, &str)]) -> crate::settings::config::Settings {
 }
 
 /// oauth mode, with `admin@example.com` an admin in a temporary policy copy.
-async fn app() -> (TestServer, Arc<AppState>) {
+pub(super) async fn app() -> (TestServer, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap().keep();
     let policy = std::fs::read_to_string("tests/fixtures/policy/policy.yaml")
         .unwrap()
@@ -71,7 +71,7 @@ fn query_param(url: &str, key: &str) -> Option<String> {
         .map(|(_, v)| v.into_owned())
 }
 
-async fn session(state: &AppState, email: &str) -> String {
+pub(super) async fn session(state: &AppState, email: &str) -> String {
     state
         .session_server
         .as_ref()
@@ -179,7 +179,7 @@ async fn refresh(server: &TestServer, client_id: &str, refresh_token: &str) -> T
 }
 
 /// Register, authorize, approve as `email` with `kept`, exchange: the tokens.
-async fn connect(
+pub(super) async fn connect(
     server: &TestServer,
     state: &AppState,
     email: &str,
@@ -202,14 +202,17 @@ async fn connect(
 }
 
 async fn mcp(server: &TestServer, token: Option<&str>) -> TestResponse {
-    let mut request = server.post("/mcp").json(&json!({}));
+    let mut request = server
+        .post("/mcp")
+        .add_header(header::ACCEPT, "application/json, text/event-stream")
+        .json(&json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
     if let Some(token) = token {
         request = request.add_header(header::AUTHORIZATION, bearer(token));
     }
     request.await
 }
 
-fn assert_challenge(response: &TestResponse) {
+pub(super) fn assert_challenge(response: &TestResponse) {
     assert_eq!(response.status_code(), 401);
     let challenge = response
         .headers()
@@ -516,7 +519,7 @@ async fn mcp_requires_an_active_mcp_token() {
         .await;
     assert_eq!(api.status_code(), 401);
 
-    assert_eq!(mcp(&server, Some(access)).await.status_code(), 501);
+    assert_eq!(mcp(&server, Some(access)).await.status_code(), 200);
 
     let server_ = state.mcp_server.as_ref().unwrap();
     let (grant, _) = server_.verify_active(access).await.unwrap();
@@ -530,7 +533,6 @@ async fn allow_needs_both_the_scope_and_the_permission() {
     let default = ["default".to_string()];
     let principal = |email: &str, scopes: &[&str]| McpPrincipal {
         email: email.into(),
-        grant_id: uuid::Uuid::new_v4(),
         scopes: scopes.iter().map(|s| s.to_string()).collect(),
     };
     let target = McpTarget::Scopes(&default);
@@ -695,7 +697,7 @@ async fn revoking_a_connection_stops_refresh_and_mcp() {
         404
     );
     assert_eq!(revoke(&server, "test-bearer-token-123", &id).await, 403);
-    assert_eq!(mcp(&server, Some(access)).await.status_code(), 501);
+    assert_eq!(mcp(&server, Some(access)).await.status_code(), 200);
 
     assert_eq!(revoke(&server, &alice, &id).await, 204);
     assert_challenge(&mcp(&server, Some(access)).await);

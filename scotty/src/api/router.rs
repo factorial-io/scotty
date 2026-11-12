@@ -638,12 +638,9 @@ impl ApiRoutes {
             .fallback(landing_or_frontend_handler)
             .with_state(state.clone());
 
-        // The MCP authorization server (metadata, /oauth/mcp/*, /mcp), in
-        // oauth mode only.
-        let router = match crate::oauth::mcp::router(&state) {
-            Some(mcp) => router.merge(mcp),
-            None => router,
-        };
+        // `/mcp`, and the MCP authorization server (metadata, /oauth/mcp/*)
+        // in oauth mode.
+        let router = router.merge(crate::oauth::mcp::router(&state));
 
         // Keep search engines from indexing the Scotty server itself (UI + API).
         router.layer(middleware::from_fn_with_state(state, add_noindex_header))

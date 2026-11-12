@@ -23,3 +23,6 @@ mod oauth_flow_tests;
 
 #[cfg(test)]
 mod mcp_oauth_tests;
+
+#[cfg(test)]
+mod mcp_server_tests;
