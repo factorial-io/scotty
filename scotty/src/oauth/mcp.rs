@@ -218,7 +218,8 @@ async fn principal(
 }
 
 fn unauthorized(state: &AppState, token_sent: bool) -> Response {
-    // Without the authorization server the metadata document 404s, so don't
+    // Without the authorization server the metadata document 404s (see
+    // `static_files::serve_embedded_file`), so don't
     // point clients at an OAuth flow that doesn't exist.
     let challenge = match (&state.mcp_server, token_sent) {
         (Some(_), _) => ProtectedResourceMetadata::challenge(
