@@ -1,0 +1,463 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> MCP Server</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" MCP Server">
+        <meta name="twitter:title" content=" MCP Server">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/mcp.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/theme.css"></head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/default-backend.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Default backend &amp; landing page</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/mcp.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> MCP Server</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/mcp.html#tools" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Tools</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/mcp.html#authentication-and-scopes" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authentication and scopes</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/mcp.html#connect-claude.ai" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Connect claude.ai</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/mcp.html#connect-claude-code" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Connect Claude Code</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/mcp.html#check-the-endpoint-by-hand" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Check the endpoint by hand</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/security.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Security</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="mcp-server" tabindex="-1"><a class="header-anchor" href="#mcp-server">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> MCP Server</h1>
+<p>Scotty serves an <a href="https://modelcontextprotocol.io">MCP</a> endpoint at
+<code>{base_url}/mcp</code>. LLM clients such as claude.ai and Claude Code use it to list
+blueprints, create apps from them (for example to publish an HTML page),
+follow the creation task, inspect apps and destroy them.</p>
+<p>The endpoint speaks Streamable HTTP without sessions and offers tools only.
+Every tool runs as the user who connected, with the same permission checks as
+the REST API. A connection never gets more than that user has.</p>
+<h2 id="tools" tabindex="-1"><a class="header-anchor" href="#tools">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Tools</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Scope</th>
+<th>Annotation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list_blueprints</code></td>
+<td><code>read</code></td>
+<td>read-only</td>
+<td>Templated blueprints you may create from, with their parameter schema, images, payload patterns and the scopes you may create them in</td>
+</tr>
+<tr>
+<td><code>list_apps</code></td>
+<td><code>read</code></td>
+<td>read-only</td>
+<td>Apps you may view, with status and URLs</td>
+</tr>
+<tr>
+<td><code>get_app</code></td>
+<td><code>read</code></td>
+<td>read-only</td>
+<td>One app: status, services, URLs, blueprint, scopes</td>
+</tr>
+<tr>
+<td><code>get_task</code></td>
+<td><code>read</code></td>
+<td>read-only</td>
+<td>A task's state (<code>Running</code>, <code>Finished</code>, <code>Failed</code>) and its last 100 output lines</td>
+</tr>
+<tr>
+<td><code>create_app</code></td>
+<td><code>create</code></td>
+<td>not destructive</td>
+<td>Creates an app from a templated blueprint and returns the task id and the app's URLs</td>
+</tr>
+<tr>
+<td><code>destroy_app</code></td>
+<td><code>destroy</code></td>
+<td>destructive</td>
+<td>Stops and removes an app with its volumes and files</td>
+</tr>
+</tbody>
+</table>
+<p>Tool results never contain environment values, generated blueprint
+parameters, basic auth credentials or tokens.</p>
+<h3 id="create_app" tabindex="-1"><a class="header-anchor" href="#create_app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> create_app</h3>
+<p><code>create_app</code> takes:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>blueprint</code></td>
+<td>yes</td>
+<td>A templated blueprint from <code>list_blueprints</code></td>
+</tr>
+<tr>
+<td><code>app_name</code></td>
+<td>no</td>
+<td>The app name, slugified (the result returns the final name). Without it Scotty generates <code>&lt;blueprint&gt;-&lt;10 random characters&gt;</code>, so the URL can't be guessed</td>
+</tr>
+<tr>
+<td><code>parameters</code></td>
+<td>no</td>
+<td>Values for the blueprint's parameter schema</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>no</td>
+<td>One of the blueprint's images; the first is the default</td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td>no</td>
+<td>Payload files: <code>{path, content, encoding}</code> with <code>encoding</code> <code>utf8</code> (default) or <code>base64</code></td>
+</tr>
+<tr>
+<td><code>ttl</code></td>
+<td>no</td>
+<td><code>&lt;days&gt;d</code>, <code>&lt;hours&gt;h</code> or <code>forever</code>; default 7 days</td>
+</tr>
+<tr>
+<td><code>basic_auth</code></td>
+<td>no</td>
+<td><code>{user, password}</code></td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td>no</td>
+<td>The scope to create the app in. The tool's input schema lists the scopes you may create apps in as choices</td>
+</tr>
+</tbody>
+</table>
+<p>Rules:</p>
+<ul>
+<li>Only templated blueprints. Validation-only blueprints and compose files are
+refused.</li>
+<li><code>create_app</code> never replaces an app. An existing name is an error; to
+republish, destroy the app and create it again.</li>
+<li>The decoded files together may not exceed <code>api.create_app_max_size</code>. A
+request body may be up to about three times that size, because JSON-escaped
+text and base64 take more room than the decoded files; plan memory for
+concurrent creates accordingly.</li>
+<li>Without <code>scope</code>, the app goes to your only create scope, otherwise to
+<code>default</code>. If you may create in several scopes but not in <code>default</code>, pass
+<code>scope</code>.</li>
+<li><code>ttl</code> must be at least <code>1h</code> or <code>1d</code>.</li>
+<li>The call returns at once. Poll <code>get_task</code> with the returned task id until
+the state is <code>Finished</code> or <code>Failed</code>.</li>
+</ul>
+<blockquote>
+<p>[!WARNING]
+Everything a tool receives or returns passes through the MCP client, its
+transcript and its model provider. That includes the <code>basic_auth</code> password
+you pass to <code>create_app</code> and the task output <code>get_task</code> returns. Scotty
+never adds env values to results, but a compose or build step can print
+them. Use throwaway basic auth credentials, and keep secrets out of
+blueprint output.</p>
+</blockquote>
+<p>Example: Claude publishes a page with blueprint <code>static-html</code> and the file
+<code>html/index.html</code>, polls the task, and gives you the URL, for example
+<code>https://web.static-html-k3v9x0q2mz.artifacts.example.net</code>.</p>
+<h2 id="authentication-and-scopes" tabindex="-1"><a class="header-anchor" href="#authentication-and-scopes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Authentication and scopes</h2>
+<p><code>/mcp</code> accepts two kinds of credentials:</p>
+<ul>
+<li><strong>MCP tokens</strong> that Scotty issues as an OAuth authorization server
+(<code>oauth</code> mode). The user approves the connection on Scotty's consent page and
+can untick scopes there. See
+<a href="oauth-authentication.html#mcp-connections">MCP connections</a> for the flow,
+the consent page and how to revoke connections.</li>
+<li><strong>Configured bearer tokens</strong> (<code>api.bearer_tokens</code>), in every auth mode. They
+act as their <code>identifier:&lt;name&gt;</code> service account. They pass the MCP scope
+check of every tool (<code>read</code>, <code>create</code>, <code>destroy</code>), but reach only the
+Scotty scopes and apps their <code>identifier:&lt;name&gt;</code> assignment in the
+<a href="authorization.html">authorization policy</a> grants.</li>
+</ul>
+<blockquote>
+<p>[!WARNING]
+A bearer token given to an MCP client can do everything its assignment
+allows in its Scotty scopes, through any tool; unticking MCP scopes on the
+consent page applies to MCP tokens only. Give LLM clients their own token with a narrow
+<code>identifier:&lt;name&gt;</code> assignment, not a CI token.</p>
+</blockquote>
+<p>Tool calls count against the authenticated rate limit tier when rate limiting
+is enabled.</p>
+<p>Session tokens of the web UI and <code>scottyctl</code>, and identity provider tokens,
+are refused. A request without a valid token gets <code>401</code> with
+<code>WWW-Authenticate: Bearer resource_metadata="{base_url}/.well-known/oauth-protected-resource/mcp"</code>,
+which MCP clients use to start the login.</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read</code></td>
+<td><code>list_blueprints</code>, <code>list_apps</code>, <code>get_app</code>, <code>get_task</code></td>
+</tr>
+<tr>
+<td><code>create</code></td>
+<td><code>create_app</code></td>
+</tr>
+<tr>
+<td><code>destroy</code></td>
+<td><code>destroy_app</code></td>
+</tr>
+<tr>
+<td><code>offline_access</code></td>
+<td>none; lets the client refresh its token</td>
+</tr>
+</tbody>
+</table>
+<p>A tool runs only if the token holds its scope <strong>and</strong> the policy grants the
+permission. For example, <code>create_app</code> needs the <code>create</code> scope and <code>create</code>
+(or <code>create:&lt;blueprint&gt;</code>) in the app's scope; <code>destroy_app</code> needs the
+<code>destroy</code> scope and <code>destroy</code> on the app. If a scope is missing, the error
+names it, so you know what to approve when you reconnect.</p>
+<h2 id="connect-claude.ai" tabindex="-1"><a class="header-anchor" href="#connect-claude.ai">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Connect claude.ai</h2>
+<p>Add a custom connector with the URL <code>https://scotty.example.com/mcp</code> and leave
+the OAuth client fields empty. claude.ai opens Scotty's consent page; approve
+the scopes you want to grant. Details, plan differences and the firewall
+rules claude.ai needs are in
+<a href="oauth-authentication.html#claude.ai">MCP connections</a>.</p>
+<h2 id="connect-claude-code" tabindex="-1"><a class="header-anchor" href="#connect-claude-code">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Connect Claude Code</h2>
+<p>With OAuth (<code>oauth</code> mode):</p>
+<pre class="language-bash"><code class="language-bash">claude mcp <span class="token function">add</span> <span class="token parameter variable">--transport</span> http scotty https://scotty.example.com/mcp</code></pre>
+<p>Then run <code>/mcp</code> in Claude Code and choose to authenticate. Your browser opens
+Scotty's consent page.</p>
+<p>With a configured bearer token, for service accounts and <code>bearer</code> mode:</p>
+<pre class="language-bash"><code class="language-bash">claude mcp <span class="token function">add</span> <span class="token parameter variable">--transport</span> http scotty https://scotty.example.com/mcp <span class="token punctuation">\</span>
+  <span class="token parameter variable">--header</span> <span class="token string">"Authorization: Bearer <span class="token variable">$SCOTTY_ACCESS_TOKEN</span>"</span></code></pre>
+<h2 id="check-the-endpoint-by-hand" tabindex="-1"><a class="header-anchor" href="#check-the-endpoint-by-hand">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Check the endpoint by hand</h2>
+<pre class="language-bash"><code class="language-bash"><span class="token function">curl</span> <span class="token parameter variable">-s</span> https://scotty.example.com/mcp <span class="token punctuation">\</span>
+  <span class="token parameter variable">-H</span> <span class="token string">"Authorization: Bearer <span class="token variable">$SCOTTY_ACCESS_TOKEN</span>"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">-H</span> <span class="token string">"Content-Type: application/json"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">-H</span> <span class="token string">"Accept: application/json, text/event-stream"</span> <span class="token punctuation">\</span>
+  <span class="token parameter variable">-d</span> <span class="token string">'{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</span></code></pre>
+<p>The response lists the six tools with their input schemas.</p>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/oauth-authentication.html"> OAuth Authentication with OIDC</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/authorization.html"> Authorization System</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>

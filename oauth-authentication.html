@@ -131,6 +131,9 @@
         <span class="Nav-listItemLinkLabel"> URLs and Access</span>
       </a></li>
           </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/mcp.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> MCP Server</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
             <a href="/authorization.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Authorization System</span>
       </a></li>            <li class="Nav-listItem" style="--level: 0">
@@ -207,9 +210,9 @@ three kinds of credentials:</p>
 grant is still active, so logout and revocation take effect at once. Configured
 bearer tokens keep working next to these (see
 <a href="#hybrid-authentication-with-bearer-tokens">Hybrid Authentication</a>).</p>
-<p>The REST API accepts session tokens and bearer tokens. <code>/mcp</code> accepts only
-MCP tokens. Neither accepts provider (GitLab) tokens, and neither accepts the
-other's user tokens.</p>
+<p>The REST API accepts session tokens and bearer tokens. <code>/mcp</code> accepts MCP
+tokens and bearer tokens. Neither accepts provider (GitLab) tokens, and
+neither accepts the other's user tokens.</p>
 <p>Grants, clients, codes and refresh tokens live in a SQLite database
 (<code>api.database_path</code>). Tokens are signed with <code>api.jwt_secret</code>.</p>
 <h2 id="upgrading-from-provider-tokens" tabindex="-1"><a class="header-anchor" href="#upgrading-from-provider-tokens">
@@ -303,7 +306,7 @@ revoked.</p>
 <ul>
 <li><strong>Public</strong>: <code>/</code>, <code>/api/v1/health</code>, <code>/api/v1/info</code>, <code>/api/v1/login</code>, <code>/oauth/*</code>, <code>/.well-known/*</code>, static assets, SPA routes</li>
 <li><strong>Session or bearer token</strong>: <code>/api/v1/authenticated/*</code></li>
-<li><strong>MCP token</strong>: <code>/mcp</code></li>
+<li><strong>MCP or bearer token</strong>: <code>/mcp</code></li>
 </ul>
 <h2 id="setup-instructions" tabindex="-1"><a class="header-anchor" href="#setup-instructions">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -495,7 +498,7 @@ periodically.</p>
 <li><code>GET /oauth/mcp/authorize</code>: authorization code request (PKCE required).</li>
 <li><code>POST /oauth/mcp/token</code>: code exchange and refresh.</li>
 <li><code>POST /oauth/mcp/register</code>: dynamic client registration (RFC 7591), rate limited.</li>
-<li><code>/mcp</code>: the MCP endpoint.</li>
+<li><code>/mcp</code>: the MCP endpoint (see <a href="mcp.html">MCP Server</a>).</li>
 <li><code>GET /api/v1/authenticated/oauth/consent/{id}</code>, <code>POST .../approve</code>, <code>POST .../deny</code>: used by the consent page.</li>
 <li><code>GET /api/v1/authenticated/connections</code>, <code>DELETE /api/v1/authenticated/connections/{id}</code>: used by the connections page.</li>
 </ul>
@@ -503,11 +506,8 @@ periodically.</p>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> MCP connections</h2>
-<p>MCP clients such as claude.ai and Claude Code connect to <code>{base_url}/mcp</code>.</p>
-<p><strong><code>/mcp</code> does not serve tools yet.</strong> This release ships the authorization
-server only. An authorized request to <code>/mcp</code> returns <code>501 Not Implemented</code>
-until the MCP server lands in a later release. You can already connect a
-client and test the login and consent; the tools arrive with that release.</p>
+<p>MCP clients such as claude.ai and Claude Code connect to <code>{base_url}/mcp</code>.
+The tools it offers are described in <a href="mcp.html">MCP Server</a>.</p>
 <h3 id="how-a-client-connects" tabindex="-1"><a class="header-anchor" href="#how-a-client-connects">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -1106,7 +1106,7 @@ accounts use a bearer token in <code>SCOTTY_ACCESS_TOKEN</code>.</p>
       <a class="Pagination-link" rel="prev" href="/cli.html"> The command line interface</a>
     </div>
         <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
-      <a class="Pagination-link" rel="next" href="/authorization.html"> Authorization System</a>
+      <a class="Pagination-link" rel="next" href="/mcp.html"> MCP Server</a>
     </div>
   </nav>
       </div>
