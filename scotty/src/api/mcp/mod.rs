@@ -111,7 +111,7 @@ fn wire_name(value: &impl Serialize) -> String {
         Ok(serde_json::Value::String(name)) => name,
         // A variant with data: its JSON, rather than a panic in a handler.
         Ok(other) => other.to_string(),
-        Err(e) => format!("unknown ({e})"),
+        Err(_) => "unknown".to_string(),
     }
 }
 
@@ -468,8 +468,7 @@ fn create_request(
     };
     let time_to_live = match input.ttl {
         Some(ttl) => match ttl.parse::<AppTtl>() {
-            // Zero would have the app stopped right after it started.
-            Ok(AppTtl::Days(0) | AppTtl::Hours(0)) | Err(_) => {
+            Err(_) => {
                 return Err(format!(
                     "ttl: {ttl:?} is invalid; use <days>d or <hours>h (at least 1), or forever"
                 ))

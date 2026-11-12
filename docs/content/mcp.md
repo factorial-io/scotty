@@ -44,7 +44,10 @@ Rules:
   refused.
 - `create_app` never replaces an app. An existing name is an error; to
   republish, destroy the app and create it again.
-- The decoded files together may not exceed `api.create_app_max_size`.
+- The decoded files together may not exceed `api.create_app_max_size`. A
+  request body may be up to about three times that size, because JSON-escaped
+  text and base64 take more room than the decoded files; plan memory for
+  concurrent creates accordingly.
 - Without `scope`, the app goes to your only create scope, otherwise to
   `default`. If you may create in several scopes but not in `default`, pass
   `scope`.

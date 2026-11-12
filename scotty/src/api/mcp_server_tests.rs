@@ -412,6 +412,24 @@ async fn payload_paths_cannot_escape_the_app() {
 }
 
 #[tokio::test]
+async fn invalid_base64_is_named() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "files": [{"path": "html/a.bin", "content": "not base64!", "encoding": "base64"}]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(
+        text(&result).contains("html/a.bin is not valid base64"),
+        "{result}"
+    );
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
 async fn oversized_payload_states_the_limit() {
     let (server, state) = scotty_with(&[("api.create_app_max_size", "1K")]).await;
     let result = call(
