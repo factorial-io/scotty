@@ -664,3 +664,43 @@ impl Drop for ComposeDown {
         }
     }
 }
+
+// --- Review follow-ups -------------------------------------------------------------
+
+#[tokio::test]
+async fn zero_ttl_is_refused() {
+    let (server, state) = scotty().await;
+    let result = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "ttl": "0h",
+               "files": [{"path": "html/index.html", "content": "hi"}]}),
+    )
+    .await;
+    assert!(is_error(&result), "{result}");
+    assert!(text(&result).starts_with("ttl:"), "{result}");
+    assert!(app_dirs(&state).is_empty());
+}
+
+#[tokio::test]
+async fn policy_without_assignments_refuses_mcp() {
+    let dir = tempfile::tempdir().unwrap().keep();
+    let policy = std::fs::read_to_string("tests/fixtures/policy/policy.yaml").unwrap();
+    let policy = &policy[..policy.find("assignments:").unwrap()];
+    std::fs::write(
+        dir.join("policy.yaml"),
+        format!("{policy}assignments: {{}}\n"),
+    )
+    .unwrap();
+    let state =
+        create_test_app_state_with_policy_dir(settings(&[]), None, dir.to_str().unwrap()).await;
+    let server = TestServer::new(ApiRoutes::create(state));
+    let response = post(
+        &server,
+        Some(ADMIN_TOKEN),
+        json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+    )
+    .await;
+    assert_eq!(response.status_code(), 503, "{}", response.text());
+}

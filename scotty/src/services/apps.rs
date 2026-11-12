@@ -394,10 +394,15 @@ pub async fn destroy(
     Ok(crate::docker::destroy_app::destroy_app(state.clone(), &app_data).await?)
 }
 
-/// The blueprints `user_id` may create apps from. A templated blueprint
+/// The blueprints `user_id` may create apps from in `target` (`Global`: in
+/// any scope). A templated blueprint
 /// carries its contract (schema, images, payload); Scotty-filled schema
 /// properties are marked `readOnly` so forms don't ask for them.
-pub fn blueprints(state: &SharedAppState, user_id: &str) -> HashMap<String, AppBlueprint> {
+pub fn blueprints(
+    state: &SharedAppState,
+    user_id: &str,
+    target: Target<'_>,
+) -> HashMap<String, AppBlueprint> {
     state
         .settings
         .apps
@@ -409,7 +414,7 @@ pub fn blueprints(state: &SharedAppState, user_id: &str) -> HashMap<String, AppB
             let candidate = blueprint.templated.then_some(name.as_str());
             state
                 .auth_service
-                .decide(user_id, Action::create(candidate), Target::Global)
+                .decide(user_id, Action::create(candidate), target)
                 .is_allowed()
         })
         .map(|(name, blueprint)| (name.clone(), for_listing(blueprint)))

@@ -3,6 +3,7 @@ use scotty_core::settings::app_blueprint::AppBlueprintList;
 
 use crate::api::middleware::authorization::AuthorizationContext;
 use crate::app_state::SharedAppState;
+use crate::services::authorization::decision::Target;
 use crate::services::{apps, AuthorizationService};
 
 /// Lists the blueprints the user may create apps from. A templated
@@ -26,6 +27,6 @@ pub async fn blueprints_handler(
 ) -> impl IntoResponse {
     let user = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     Json(AppBlueprintList {
-        blueprints: apps::blueprints(&state, &user),
+        blueprints: apps::blueprints(&state, &user, Target::Global),
     })
 }

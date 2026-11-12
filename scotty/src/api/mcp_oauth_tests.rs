@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use axum::http::header;
 use axum_test::{TestResponse, TestServer};
-use scotty_core::authorization::Permission;
 use serde_json::{json, Value};
 
 use crate::api::router::ApiRoutes;
@@ -14,7 +13,7 @@ use crate::api::test_utils::{
     create_test_app_state_with_policy_dir, create_test_app_state_with_settings,
 };
 use crate::app_state::AppState;
-use crate::oauth::mcp::{McpPrincipal, McpScope, McpTarget};
+use crate::oauth::mcp::{McpPrincipal, McpScope};
 
 const BASE: &str = "http://localhost:21342";
 const RESOURCE: &str = "http://localhost:21342/mcp";
@@ -527,64 +526,17 @@ async fn mcp_requires_an_active_mcp_token() {
     assert_challenge(&mcp(&server, Some(access)).await);
 }
 
-#[tokio::test]
-async fn allow_needs_both_the_scope_and_the_permission() {
-    let (_server, state) = app().await;
-    let default = ["default".to_string()];
-    let principal = |email: &str, scopes: &[&str]| McpPrincipal {
-        email: email.into(),
-        scopes: scopes.iter().map(|s| s.to_string()).collect(),
+#[test]
+fn require_scope_names_the_missing_scope() {
+    // The policy half of each tool check lives in services::apps; the
+    // combination is tested per tool in mcp_server_tests.
+    let principal = McpPrincipal {
+        email: ADMIN.into(),
+        scopes: vec!["read".into()],
     };
-    let target = McpTarget::Scopes(&default);
-
-    // The admin may destroy, but the token lacks `destroy`.
-    let admin_read = principal(ADMIN, &["read"]);
-    assert!(
-        admin_read
-            .allow(&state, McpScope::Read, Permission::View, target)
-            .await
-    );
-    assert!(
-        !admin_read
-            .allow(&state, McpScope::Destroy, Permission::Destroy, target)
-            .await
-    );
-    let admin_destroy = principal(ADMIN, &["read", "destroy"]);
-    assert!(
-        admin_destroy
-            .allow(&state, McpScope::Destroy, Permission::Destroy, target)
-            .await
-    );
-
-    // Alice (viewer) holds `destroy` in the token but not in the policy.
-    let alice = principal("alice@example.com", &["read", "create", "destroy"]);
-    assert!(
-        alice
-            .allow(&state, McpScope::Read, Permission::View, target)
-            .await
-    );
-    assert!(
-        !alice
-            .allow(&state, McpScope::Destroy, Permission::Destroy, target)
-            .await
-    );
-    assert!(
-        !alice
-            .allow(&state, McpScope::Create, Permission::Create, target)
-            .await
-    );
-
-    // A scope never stands for a permission outside its mapping.
-    assert!(
-        !admin_destroy
-            .allow(&state, McpScope::Read, Permission::Shell, target)
-            .await
-    );
-    assert!(
-        !admin_destroy
-            .allow(&state, McpScope::Destroy, Permission::Manage, target)
-            .await
-    );
+    assert!(principal.require_scope(McpScope::Read).is_ok());
+    let denied = principal.require_scope(McpScope::Destroy).unwrap_err();
+    assert!(denied.contains("`destroy` scope"), "{denied}");
 }
 
 // --- 4.4 Connections ---------------------------------------------------------------

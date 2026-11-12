@@ -32,6 +32,7 @@ use serde::{Deserialize, Serialize};
 use crate::app_state::SharedAppState;
 use crate::oauth::mcp::{McpPrincipal, McpScope};
 use crate::services::apps;
+use crate::services::authorization::decision::Target;
 
 #[derive(Clone)]
 pub struct ScottyMcp {
@@ -236,20 +237,23 @@ impl ScottyMcp {
     )]
     async fn list_blueprints(&self, ctx: RequestContext<RoleServer>) -> ToolResult<BlueprintList> {
         let caller = caller(&ctx, McpScope::Read)?;
-        let mut blueprints: Vec<_> = apps::blueprints(&self.state, &caller.email)
-            .into_iter()
-            .filter_map(|(name, bp)| {
-                let template = bp.template?;
-                Some(BlueprintInfo {
-                    name,
-                    title: bp.name,
-                    description: bp.description,
-                    parameters: template.parameters,
-                    images: template.images,
-                    payload: template.payload,
+        // Only what create_app can use: it creates in the MCP scopes.
+        let scopes = mcp_scopes();
+        let mut blueprints: Vec<_> =
+            apps::blueprints(&self.state, &caller.email, Target::AnyOf(&scopes))
+                .into_iter()
+                .filter_map(|(name, bp)| {
+                    let template = bp.template?;
+                    Some(BlueprintInfo {
+                        name,
+                        title: bp.name,
+                        description: bp.description,
+                        parameters: template.parameters,
+                        images: template.images,
+                        payload: template.payload,
+                    })
                 })
-            })
-            .collect();
+                .collect();
         blueprints.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(Json(BlueprintList { blueprints }))
     }
@@ -438,9 +442,15 @@ fn create_request(
         None => generated_name(&input.blueprint)?,
     };
     let time_to_live = match input.ttl {
-        Some(ttl) => ttl
-            .parse::<AppTtl>()
-            .map_err(|e| format!("ttl: {e}; use <days>d, <hours>h or forever"))?,
+        Some(ttl) => match ttl.parse::<AppTtl>() {
+            // Zero would have the app stopped right after it started.
+            Ok(AppTtl::Days(0) | AppTtl::Hours(0)) | Err(_) => {
+                return Err(format!(
+                    "ttl: {ttl:?} is invalid; use <days>d or <hours>h (at least 1), or forever"
+                ))
+            }
+            Ok(ttl) => ttl,
+        },
         None => AppSettings::default().time_to_live,
     };
     Ok(CreateAppRequest {
@@ -453,12 +463,18 @@ fn create_request(
         },
         files: FileList { files },
         custom_domains: vec![],
-        // ponytail: D5 has no scopes, so MCP apps land in `default` like a
-        // REST create without `requested_scopes`.
-        requested_scopes: AppSettings::default().scopes,
+        requested_scopes: mcp_scopes(),
         blueprint_parameters: input.parameters,
         image: input.image,
     })
+}
+
+/// The scopes MCP apps are created in. D5 has no scopes field, so they land
+/// in `default`, like a REST create without `requested_scopes`.
+// ponytail: add a `scope` input to create_app if users without create
+// rights in `default` need MCP.
+fn mcp_scopes() -> Vec<String> {
+    AppSettings::default().scopes
 }
 
 /// `<blueprint>-<10 random [a-z0-9]>` (D6): about 51 bits, so artifact URLs
@@ -533,8 +549,16 @@ pub fn service(state: &SharedAppState) -> StreamableHttpService<ScottyMcp, Never
         .disable_allowed_hosts()
         // Inline payloads arrive as JSON text or base64; the create size
         // limit is checked on the decoded bytes in `create_app`, this only
-        // bounds the request.
-        .with_max_request_body_bytes(state.settings.api.create_app_max_size.saturating_mul(2));
+        // bounds the request. JSON-escaped text (`\uXXXX`, surrogate pairs)
+        // takes up to 3x its UTF-8 size, base64 4/3x.
+        .with_max_request_body_bytes(
+            state
+                .settings
+                .api
+                .create_app_max_size
+                .saturating_mul(3)
+                .saturating_add(64 * 1024),
+        );
     let state = state.clone();
     StreamableHttpService::new(
         move || {

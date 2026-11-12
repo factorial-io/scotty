@@ -13,7 +13,7 @@ the REST API. A connection never gets more than that user has.
 
 | Tool | Scope | Annotation | What it does |
 |---|---|---|---|
-| `list_blueprints` | `read` | read-only | Templated blueprints you may create from, with their parameter schema, images and payload patterns |
+| `list_blueprints` | `read` | read-only | Templated blueprints you may create from in scope `default`, with their parameter schema, images and payload patterns |
 | `list_apps` | `read` | read-only | Apps you may view, with status and URLs |
 | `get_app` | `read` | read-only | One app: status, services, URLs, blueprint, scopes |
 | `get_task` | `read` | read-only | A task's state (`Running`, `Finished`, `Failed`) and its last 100 output lines |
@@ -44,7 +44,8 @@ Rules:
 - `create_app` never replaces an app. An existing name is an error; to
   republish, destroy the app and create it again.
 - The decoded files together may not exceed `api.create_app_max_size`.
-- Apps are created in scope `default`.
+- Apps are created in scope `default`, so you need create rights there.
+- `ttl` must be at least `1h` or `1d`.
 - The call returns at once. Poll `get_task` with the returned task id until
   the state is `Finished` or `Failed`.
 
@@ -65,6 +66,9 @@ Example: Claude publishes a page with blueprint `static-html` and the file
   act as their `identifier:<name>` service account and hold every scope; only
   their permissions in the [authorization policy](authorization.md) limit
   them.
+
+Tool calls count against the authenticated rate limit tier when rate limiting
+is enabled.
 
 Session tokens of the web UI and `scottyctl`, and identity provider tokens,
 are refused. A request without a valid token gets `401` with

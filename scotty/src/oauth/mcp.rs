@@ -15,15 +15,15 @@ use axum::{
 };
 use grantry::metadata::{AuthorizationServerMetadata, ProtectedResourceMetadata};
 use grantry::routes::Routes;
-use scotty_core::authorization::Permission;
 use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::server::{mcp_resource, McpServer};
 use crate::api::auth_core::authorize_bearer_user;
-use crate::api::rate_limiting::create_register_limiter;
+use crate::api::error::AppError;
+use crate::api::rate_limiting::middleware::RateLimitMetricsLayer;
+use crate::api::rate_limiting::{create_authenticated_limiter, create_register_limiter};
 use crate::app_state::{AppState, SharedAppState};
-use crate::services::authorization::decision::Target;
 
 pub const AUTHORIZE_PATH: &str = "/oauth/mcp/authorize";
 pub const TOKEN_PATH: &str = "/oauth/mcp/token";
@@ -35,9 +35,16 @@ pub const MCP_PATH: &str = "/mcp";
 /// `/mcp`, in every auth mode, plus the authorization server's routes when
 /// it is configured (oauth mode with a `jwt_secret`).
 pub fn router(state: &SharedAppState) -> Router {
-    let mcp = Router::new()
+    let mut mcp = Router::new()
         .route_service(MCP_PATH, crate::api::mcp::service(state))
         .route_layer(middleware::from_fn_with_state(state.clone(), mcp_auth));
+    // The authenticated tier's limit, keyed by bearer token, as for REST.
+    let limits = &state.settings.api.rate_limiting;
+    if limits.enabled && limits.authenticated.is_enabled() {
+        mcp = mcp
+            .layer(create_authenticated_limiter(&limits.authenticated))
+            .layer(RateLimitMetricsLayer::new("authenticated"));
+    }
     match authorization_server(state) {
         Some(protocol) => protocol.merge(mcp),
         None => mcp,
@@ -125,25 +132,6 @@ impl McpScope {
             Self::Destroy => "destroy",
         }
     }
-
-    /// Whether this scope may stand for `permission` at all.
-    fn covers(self, permission: &Permission) -> bool {
-        matches!(
-            (self, permission),
-            (Self::Read, Permission::View | Permission::Logs)
-                | (Self::Create, Permission::Create)
-                | (Self::Destroy, Permission::Destroy)
-        )
-    }
-}
-
-/// Where a permission is checked: on an app, or in any of some scopes (app
-/// creation, where the app does not exist yet).
-#[allow(dead_code)] // see `McpPrincipal::allow`
-#[derive(Debug, Clone, Copy)]
-pub enum McpTarget<'a> {
-    App(&'a str),
-    Scopes(&'a [String]),
 }
 
 impl McpPrincipal {
@@ -158,31 +146,6 @@ impl McpPrincipal {
                 scope.as_str()
             ))
         }
-    }
-
-    /// D6: allowed only if the token carries `scope`, `scope` stands for
-    /// `permission`, and the policy gives the user `permission` on `target`.
-    /// The tools call [`Self::require_scope`] and leave the policy check to
-    /// `services::apps`, which also serves REST.
-    #[allow(dead_code)]
-    pub async fn allow(
-        &self,
-        state: &AppState,
-        scope: McpScope,
-        permission: Permission,
-        target: McpTarget<'_>,
-    ) -> bool {
-        if !scope.covers(&permission) || self.require_scope(scope).is_err() {
-            return false;
-        }
-        let target = match target {
-            McpTarget::App(app) => Target::App(app),
-            McpTarget::Scopes(scopes) => Target::AnyOf(scopes),
-        };
-        state
-            .auth_service
-            .decide(&self.email, permission.into(), target)
-            .is_allowed()
     }
 }
 
@@ -205,6 +168,11 @@ pub async fn mcp_auth(
     let Some(token) = token else {
         return unauthorized(&state, false);
     };
+    // As the REST authorization middleware: without assignments nobody is
+    // authorized (and the app list would otherwise show every app).
+    if !state.auth_service.is_enabled().await {
+        return AppError::AuthorizationNotConfigured.into_response();
+    }
     if let Some(user) = authorize_bearer_user(state.clone(), &token, false).await {
         req.extensions_mut().insert(McpPrincipal {
             email: user.email,
