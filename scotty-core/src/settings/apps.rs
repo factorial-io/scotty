@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use super::app_blueprint::AppBlueprintMap;
+use super::scheduler_interval::SchedulerInterval;
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
@@ -15,6 +16,13 @@ pub struct Apps {
     /// blueprint's own `domain_suffix` (directory blueprints bypass `config`).
     #[serde(default)]
     pub blueprint_domain_suffixes: HashMap<String, String>,
+    /// An operation running longer than this is aborted and its app unlocked.
+    #[serde(default = "default_max_operation_duration")]
+    pub max_operation_duration: SchedulerInterval,
+}
+
+fn default_max_operation_duration() -> SchedulerInterval {
+    SchedulerInterval::Hours(1)
 }
 
 impl Apps {
@@ -44,6 +52,7 @@ impl Default for Apps {
             domain_suffix: "".to_string(),
             blueprints: HashMap::new(),
             blueprint_domain_suffixes: HashMap::new(),
+            max_operation_duration: default_max_operation_duration(),
         }
     }
 }

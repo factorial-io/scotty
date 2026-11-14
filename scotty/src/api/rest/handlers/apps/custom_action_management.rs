@@ -80,6 +80,8 @@ pub async fn create_custom_action_handler(
         payload.name, app_name, user_id
     );
 
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
     // Validate app exists
     let app = match state.apps.get_app(&app_name).await {
         Some(app) => app,
@@ -195,6 +197,8 @@ pub async fn delete_custom_action_handler(
         action_name, app_name
     );
 
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
     // Validate app exists
     let app = match state.apps.get_app(&app_name).await {
         Some(app) => app,

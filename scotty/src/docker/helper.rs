@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use crate::app_state::SharedAppState;
+use crate::app_state::{AppLock, SharedAppState};
 use crate::docker::find_apps::inspect_app;
 use crate::tasks::actor::{FailureKind, Outcome};
 use anyhow::{anyhow, Context as _};
@@ -10,9 +10,37 @@ use bollard::query_parameters::InspectContainerOptions;
 use scotty_core::apps::app_data::AppData;
 use scotty_core::notification_types::Message;
 use scotty_core::tasks::running_app_context::RunningAppContext;
-use tracing::error;
+use scotty_core::websocket::message::WebSocketMessage;
+use tracing::{error, warn};
 
 use super::steps::context::{Context, TaskAccess};
+
+/// How an operation relates to the app's operation lock.
+pub enum OperationSpec {
+    /// Take the lock under this operation name; refused if it is held.
+    Exclusive(String),
+    /// Use a lock the caller already took (create takes it before reading the
+    /// existing app from disk).
+    Locked(AppLock),
+    /// Read-only: neither takes nor waits for the lock.
+    Shared(String),
+}
+
+impl OperationSpec {
+    pub fn exclusive(name: impl Into<String>) -> Self {
+        Self::Exclusive(name.into())
+    }
+}
+
+/// The error an operation's future is replaced with when it runs longer than
+/// `apps.max_operation_duration`.
+#[derive(Debug, thiserror::Error)]
+#[error("Operation {operation} for app '{app}' aborted after exceeding the maximum operation duration of {limit}")]
+struct OperationTimedOut {
+    operation: String,
+    app: String,
+    limit: String,
+}
 
 /// Run an app operation in the background and own its task.
 ///
@@ -25,6 +53,7 @@ use super::steps::context::{Context, TaskAccess};
 pub async fn run_operation<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
+    operation: OperationSpec,
     notification: Option<Message>,
     op: F,
 ) -> anyhow::Result<RunningAppContext>
@@ -32,15 +61,29 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    run_operation_requested_by(app_state, app, TaskAccess::default(), notification, op).await
+    run_operation_requested_by(
+        app_state,
+        app,
+        operation,
+        TaskAccess::default(),
+        notification,
+        op,
+    )
+    .await
 }
 
 /// Like [`run_operation`], but records who started the task, so that user can
 /// follow it before the app is assigned to a scope (app creation), and for
 /// action runs the permission the action required (task visibility).
+///
+/// An exclusive operation takes the app's lock before the task is created: a
+/// busy app is refused with [`AppError::OperationInProgress`] and no task.
+/// The lock is held until the operation has ended, at most
+/// `apps.max_operation_duration`.
 pub async fn run_operation_requested_by<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
+    operation: OperationSpec,
     access: TaskAccess,
     notification: Option<Message>,
     op: F,
@@ -49,20 +92,56 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let ctx = Context::create(app_state, app, access).await;
+    let (name, lock) = match operation {
+        OperationSpec::Exclusive(name) => {
+            let lock = app_state.app_locks.lock(&app.name, &name)?;
+            (name, Some(lock))
+        }
+        OperationSpec::Locked(lock) => {
+            let name = lock.operation().map(|o| o.operation).unwrap_or_default();
+            (name, Some(lock))
+        }
+        OperationSpec::Shared(name) => (name, None),
+    };
+    let locked = lock.is_some();
+    let ctx = Context::create(app_state.clone(), app, access, name, lock).await;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))
         .await;
+    if locked {
+        app_state.push_app_info(&app.name).await;
+    }
     let running = ctx.as_running_app_context();
+    let limit = app_state.settings.apps.max_operation_duration.clone();
     crate::metrics::spawn_instrumented(async move {
-        let result = op(ctx.clone()).await;
+        // Cancelling `op` drops its running subprocess, which kills it.
+        let result = match tokio::time::timeout(limit.clone().into(), op(ctx.clone())).await {
+            Ok(result) => result,
+            Err(_) => {
+                warn!(
+                    app = %ctx.app_data.name,
+                    operation = %ctx.operation,
+                    task_id = %ctx.task.id(),
+                    limit = %limit,
+                    "Operation exceeded the maximum operation duration; aborted"
+                );
+                Err(OperationTimedOut {
+                    operation: ctx.operation.clone(),
+                    app: ctx.app_data.name.clone(),
+                    limit: limit.to_string(),
+                }
+                .into())
+            }
+        };
         finish_operation(&ctx, result, notification).await;
     });
     Ok(running)
 }
 
-/// Refresh app data, terminate the task once, notify on success.
+/// Refresh app data, release the app's lock, terminate the task once, notify
+/// on success. The lock is released before the task turns terminal, so a
+/// client that waits for the task can start the next operation right away.
 pub async fn finish_operation(
     ctx: &Context,
     result: anyhow::Result<()>,
@@ -70,6 +149,9 @@ pub async fn finish_operation(
 ) {
     let app_name = &ctx.app_data.name;
     let outcome = match (result, refresh_app_data(ctx).await) {
+        (Err(e), _) if e.is::<OperationTimedOut>() => {
+            Outcome::failed(FailureKind::TimedOut, e.to_string())
+        }
         (_, Err(e)) => Outcome::failed(
             FailureKind::RefreshFailed,
             format!("Operation for app '{app_name}' ended, but refreshing app data failed: {e:#}"),
@@ -86,7 +168,14 @@ pub async fn finish_operation(
         )),
     };
     let finished = matches!(outcome, Outcome::Finished { .. });
+    ctx.release_lock();
     ctx.task.terminate(outcome).await;
+    if matches!(ctx.operation.as_str(), "create" | "destroy") {
+        ctx.app_state
+            .messenger
+            .broadcast_to_all(WebSocketMessage::AppListUpdated)
+            .await;
+    }
 
     if !finished {
         return;
@@ -225,6 +314,7 @@ pub async fn wait_for_containers_ready(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::error::AppError;
     use scotty_core::tasks::task_details::{State, TaskDetails};
     use std::time::Duration;
 
@@ -274,11 +364,247 @@ mod tests {
         Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
         let app_state = test_app_state().await;
-        let ctx = run_operation(app_state.clone(), &app, None, op)
+        let ctx = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::exclusive("run"),
+            None,
+            op,
+        )
+        .await
+        .unwrap();
+        assert_eq!(ctx.task.state, State::Running);
+        let task = wait_terminal(&app_state, ctx.task.id).await;
+        // However the operation ended, the app is free once its task is
+        // terminal.
+        assert!(app_state.app_locks.current(&app.name).is_none());
+        task
+    }
+
+    /// The app is busy while the operation runs: a second one is refused
+    /// with the holder and creates no task; once the first task is terminal,
+    /// the next one is accepted at once.
+    #[tokio::test]
+    async fn second_operation_is_refused_until_the_first_ended() {
+        let app_state = test_app_state().await;
+        let app = gone_app("busy");
+        let (release, released) = tokio::sync::oneshot::channel::<()>();
+        let first = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::exclusive("run"),
+            None,
+            |_| async move {
+                let _ = released.await;
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+        let operation = first
+            .app_data
+            .operation
+            .clone()
+            .expect("response shows the lock");
+        assert_eq!(operation.operation, "run");
+        assert_eq!(operation.task_id, Some(first.task.id));
+
+        let refused = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::exclusive("run"),
+            None,
+            |_| async { Ok(()) },
+        )
+        .await
+        .unwrap_err();
+        match AppError::from(refused) {
+            AppError::OperationInProgress { operation, .. } => {
+                assert_eq!(operation.operation, "run");
+                assert_eq!(operation.task_id, Some(first.task.id));
+            }
+            other => panic!("expected OperationInProgress, got {other:?}"),
+        }
+        assert_eq!(app_state.task_manager.get_task_list().await.len(), 1);
+
+        release.send(()).unwrap();
+        let task = wait_terminal(&app_state, first.task.id).await;
+        assert_eq!(task.state, State::Finished);
+        let next = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::exclusive("run"),
+            None,
+            |_| async { Ok(()) },
+        )
+        .await;
+        assert!(next.is_ok(), "next run is accepted right away");
+    }
+
+    /// Read-only operations neither take nor wait for the lock.
+    #[tokio::test]
+    async fn shared_operation_runs_during_an_exclusive_one() {
+        let app_state = test_app_state().await;
+        let app = gone_app("shared");
+        let rebuild = app_state.app_locks.lock(&app.name, "rebuild").unwrap();
+        for _ in 0..2 {
+            let running = run_operation(
+                app_state.clone(),
+                &app,
+                OperationSpec::Shared("action:status".into()),
+                None,
+                |_| std::future::pending(),
+            )
             .await
             .unwrap();
-        assert_eq!(ctx.task.state, State::Running);
-        wait_terminal(&app_state, ctx.task.id).await
+            assert_eq!(running.app_data.operation.unwrap().operation, "rebuild");
+        }
+        drop(rebuild);
+        let _read = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::Shared("action:status".into()),
+            None,
+            |_| std::future::pending(),
+        )
+        .await
+        .unwrap();
+        assert!(
+            app_state.app_locks.current(&app.name).is_none(),
+            "a read-only action is not the app's operation"
+        );
+    }
+
+    /// An operation over the limit is aborted: its process is killed, the
+    /// task fails naming the limit, the app is unlocked and viewers hear of
+    /// it.
+    #[tokio::test]
+    async fn operation_over_the_limit_is_aborted() {
+        let settings: crate::settings::config::Settings = config::Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .set_override("apps.max_operation_duration", "1s")
+            .unwrap()
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        let app_state =
+            crate::api::test_utils::create_test_app_state_with_settings(settings, None).await;
+        let dir = tempfile::tempdir().unwrap();
+        let pid_file = dir.path().join("pid");
+        let app = AppData {
+            name: "slow".into(),
+            // Never written: the refresh is skipped.
+            docker_compose_path: dir
+                .path()
+                .join("docker-compose.yml")
+                .to_string_lossy()
+                .into(),
+            root_directory: dir.path().to_string_lossy().into(),
+            ..Default::default()
+        };
+        app_state
+            .auth_service
+            .set_app_scopes("slow", vec!["client-a".to_string()])
+            .await
+            .unwrap();
+        let mut viewer = connect(&app_state, "identifier:client-a").await;
+        let mut outsider = connect(&app_state, "someone@example.com").await;
+
+        let script = format!("echo $$ > {}; exec sleep 30", pid_file.display());
+        let compose_path = std::path::PathBuf::from(&app.docker_compose_path);
+        let running = run_operation(
+            app_state.clone(),
+            &app,
+            OperationSpec::exclusive("rebuild"),
+            None,
+            move |ctx| async move {
+                crate::docker::steps::run_task_and_wait::run_task_and_wait(
+                    &ctx,
+                    &compose_path,
+                    "sh",
+                    &["-c", &script],
+                    &Default::default(),
+                    "sleep",
+                )
+                .await
+            },
+        )
+        .await
+        .unwrap();
+
+        let task = wait_terminal(&app_state, running.task.id).await;
+        assert_eq!(task.state, State::Failed);
+        assert_eq!(
+            statuses(&task).last().unwrap(),
+            "Operation rebuild for app 'slow' aborted after exceeding the maximum \
+             operation duration of 1s"
+        );
+        assert!(app_state.app_locks.current("slow").is_none());
+
+        let pid = std::fs::read_to_string(&pid_file).unwrap();
+        let alive = || {
+            std::process::Command::new("kill")
+                .args(["-0", pid.trim()])
+                .status()
+                .unwrap()
+                .success()
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while alive() {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .expect("the process outlived its operation");
+
+        // Start and release are pushed to the viewer only.
+        assert_eq!(app_info_updates(&mut viewer, "slow").await, 2);
+        assert_eq!(app_info_updates(&mut outsider, "slow").await, 0);
+    }
+
+    async fn connect(
+        app_state: &SharedAppState,
+        user: &str,
+    ) -> tokio::sync::broadcast::Receiver<axum::extract::ws::Message> {
+        let (tx, rx) = tokio::sync::broadcast::channel(100);
+        let id = uuid::Uuid::new_v4();
+        app_state
+            .messenger
+            .add_client(id, crate::app_state::WebSocketClient::new(tx))
+            .await;
+        let user = crate::api::basic_auth::CurrentUser {
+            email: user.to_string(),
+            name: user.to_string(),
+            picture: None,
+            access_token: None,
+        };
+        app_state
+            .messenger
+            .authenticate_client(id, user)
+            .await
+            .unwrap();
+        rx
+    }
+
+    /// `AppInfoUpdated(app)` messages received, waiting briefly for pushes
+    /// spawned on release.
+    async fn app_info_updates(
+        rx: &mut tokio::sync::broadcast::Receiver<axum::extract::ws::Message>,
+        app: &str,
+    ) -> usize {
+        let expected =
+            serde_json::to_string(&WebSocketMessage::AppInfoUpdated(app.into())).unwrap();
+        let mut count = 0;
+        while let Ok(Ok(message)) =
+            tokio::time::timeout(Duration::from_millis(200), rx.recv()).await
+        {
+            if matches!(message, axum::extract::ws::Message::Text(ref t) if t.as_str() == expected)
+            {
+                count += 1;
+            }
+        }
+        count
     }
 
     #[tokio::test]

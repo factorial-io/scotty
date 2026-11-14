@@ -147,6 +147,9 @@ async fn run_process(
         .args(args)
         .envs(env)
         .current_dir(cwd)
+        // An operation cancelled at its time limit drops this future; the
+        // process must not keep running without the app's lock.
+        .kill_on_drop(true)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()

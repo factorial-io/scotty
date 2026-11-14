@@ -45,3 +45,24 @@ impl From<SchedulerInterval> for chrono::Duration {
         }
     }
 }
+
+impl From<SchedulerInterval> for std::time::Duration {
+    fn from(val: SchedulerInterval) -> Self {
+        match val {
+            SchedulerInterval::Seconds(s) => std::time::Duration::from_secs(s.into()),
+            SchedulerInterval::Minutes(m) => std::time::Duration::from_secs(u64::from(m) * 60),
+            SchedulerInterval::Hours(h) => std::time::Duration::from_secs(u64::from(h) * 3600),
+        }
+    }
+}
+
+/// The same notation the setting is written in, e.g. `1h`.
+impl std::fmt::Display for SchedulerInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SchedulerInterval::Seconds(s) => write!(f, "{s}s"),
+            SchedulerInterval::Minutes(m) => write!(f, "{m}m"),
+            SchedulerInterval::Hours(h) => write!(f, "{h}h"),
+        }
+    }
+}

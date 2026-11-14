@@ -220,6 +220,19 @@ impl TaskOutput {
     }
 }
 
+/// The operation that currently holds an app's operation lock.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct AppOperation {
+    /// e.g. `run`, `rebuild`, `action:<name>`, `settings`.
+    pub operation: String,
+    /// The operation's task, once it exists. Synchronous operations have none.
+    #[ts(type = "string | null")]
+    pub task_id: Option<Uuid>,
+    #[ts(type = "string")]
+    pub started_at: DateTime<Utc>,
+}
+
 // Task types
 #[derive(
     Debug, Clone, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema, utoipa::ToResponse,

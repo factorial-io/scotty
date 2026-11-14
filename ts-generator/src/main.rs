@@ -30,6 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     OutputStreamType::export(&cfg)?;
     OutputLine::export(&cfg)?;
 
+    // App types
+    AppOperation::export(&cfg)?;
+
     // Task types
     State::export(&cfg)?;
     TaskDetails::export(&cfg)?;

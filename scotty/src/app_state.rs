@@ -8,19 +8,25 @@ use std::{
 
 use anyhow::Context;
 use bollard::Docker;
+use scotty_core::apps::app_data::AppOperation;
 use scotty_core::apps::shared_app_list::SharedAppList;
 use scotty_core::settings::api_server::AuthMode;
 use scotty_core::settings::docker::DockerConnectOptions;
+use scotty_core::utils::slugify::slugify;
+use scotty_core::websocket::message::WebSocketMessage;
 use secrecy::ExposeSecret;
 use tokio::sync::{broadcast, Mutex};
 use tracing::info;
+use uuid::Uuid;
 
 use crate::api::basic_auth::CurrentUser;
+use crate::api::error::AppError;
 use crate::api::websocket::WebSocketMessenger;
 use crate::docker::services::logs::LogStreamingService;
 use crate::docker::services::shell::ShellService;
 use crate::oauth::handlers::OAuthState;
 use crate::oauth::{self, create_oauth_session_store, create_web_flow_store};
+use crate::services::authorization::{decision::Target, Permission};
 use crate::services::AuthorizationService;
 use crate::settings::config::Settings;
 use crate::stop_flag;
@@ -72,42 +78,100 @@ pub struct AppState {
     pub session_server: Option<oauth::server::SessionServer>,
     /// The grantry mcp server (D2), over the same database and secret.
     pub mcp_server: Option<oauth::server::McpServer>,
-    /// Apps with a create in flight.
-    pub create_locks: CreateLocks,
+    /// The operation running on each app.
+    pub app_locks: AppLocks,
 }
 
-/// Apps (by directory name) with a create in flight.
+/// At most one operation that changes an app at a time, keyed by the app's
+/// directory name.
 ///
-/// Create is create-or-update: it reads the existing app from disk, checks
-/// rights against it and keeps its generated secrets. Two creates of the
-/// same app running at once would both decide on the same old state and
-/// each generate their own secrets, the last one winning.
+/// In memory only: a restart ends every operation, so a persisted lock could
+/// only go stale.
 #[derive(Debug, Clone, Default)]
-pub struct CreateLocks(Arc<std::sync::Mutex<std::collections::HashSet<String>>>);
+pub struct AppLocks(Arc<std::sync::Mutex<HashMap<String, AppOperation>>>);
 
-impl CreateLocks {
-    /// Lock `app_dir`, or `None` if a create of it is already running.
-    /// The lock is released when the returned guard is dropped.
-    pub fn try_lock(&self, app_dir: &str) -> Option<CreateLock> {
-        let mut locked = self.0.lock().unwrap_or_else(|e| e.into_inner());
-        locked.insert(app_dir.to_string()).then(|| CreateLock {
+impl AppLocks {
+    fn entries(&self) -> std::sync::MutexGuard<'_, HashMap<String, AppOperation>> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Lock `app` for `operation`, or return the operation holding it. The
+    /// lock is released when the returned guard is dropped.
+    pub fn try_lock(&self, app: &str, operation: &str) -> Result<AppLock, AppOperation> {
+        let app = slugify(app);
+        let mut entries = self.entries();
+        if let Some(holder) = entries.get(&app) {
+            return Err(holder.clone());
+        }
+        entries.insert(
+            app.clone(),
+            AppOperation {
+                operation: operation.to_string(),
+                task_id: None,
+                started_at: chrono::Utc::now(),
+            },
+        );
+        Ok(AppLock {
             locks: self.clone(),
-            app_dir: app_dir.to_string(),
+            app,
+            push_to: None,
         })
+    }
+
+    /// Like [`Self::try_lock`], but refuses a busy app with a 409 naming the
+    /// running operation.
+    pub fn lock(&self, app: &str, operation: &str) -> Result<AppLock, AppError> {
+        self.try_lock(app, operation)
+            .map_err(|holder| AppError::OperationInProgress {
+                app: app.to_string(),
+                operation: holder,
+            })
+    }
+
+    /// The operation running on `app`, if any.
+    pub fn current(&self, app: &str) -> Option<AppOperation> {
+        self.entries().get(&slugify(app)).cloned()
     }
 }
 
-/// Holds the create lock of one app; see [`CreateLocks`].
-#[derive(Debug)]
-pub struct CreateLock {
-    locks: CreateLocks,
-    app_dir: String,
+/// Holds the operation lock of one app; see [`AppLocks`].
+pub struct AppLock {
+    locks: AppLocks,
+    app: String,
+    /// Where to announce the release, for operations that run as a task.
+    push_to: Option<SharedAppState>,
 }
 
-impl Drop for CreateLock {
+impl std::fmt::Debug for AppLock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppLock").field("app", &self.app).finish()
+    }
+}
+
+impl AppLock {
+    /// Record the operation's task and announce the release to clients that
+    /// may view the app.
+    pub fn set_task(&mut self, task_id: Uuid, app_state: SharedAppState) {
+        if let Some(entry) = self.locks.entries().get_mut(&self.app) {
+            entry.task_id = Some(task_id);
+        }
+        self.push_to = Some(app_state);
+    }
+
+    pub fn operation(&self) -> Option<AppOperation> {
+        self.locks.current(&self.app)
+    }
+}
+
+impl Drop for AppLock {
     fn drop(&mut self) {
-        let mut locked = self.locks.0.lock().unwrap_or_else(|e| e.into_inner());
-        locked.remove(&self.app_dir);
+        self.locks.entries().remove(&self.app);
+        // Drop can't await; also reached on panic unwind.
+        if let (Some(state), Ok(rt)) = (self.push_to.take(), tokio::runtime::Handle::try_current())
+        {
+            let app = self.app.clone();
+            rt.spawn(async move { state.push_app_info(&app).await });
+        }
     }
 }
 
@@ -126,6 +190,28 @@ async fn load_auth_service(config_dir: &str) -> anyhow::Result<AuthorizationServ
 }
 
 impl AppState {
+    /// Tell the WebSocket clients whose user may view `app` that its info
+    /// changed; they refetch it.
+    pub async fn push_app_info(&self, app: &str) {
+        let message = WebSocketMessage::AppInfoUpdated(app.to_string());
+        // Without assignments every app is listed to everyone (`apps::list`).
+        let everyone = !self.auth_service.is_enabled().await;
+        for (client_id, user) in self.messenger.authenticated_clients().await {
+            let user_id = AuthorizationService::get_user_id_for_authorization(&user);
+            if everyone
+                || self
+                    .auth_service
+                    .decide(&user_id, Permission::View.into(), Target::App(app))
+                    .is_allowed()
+            {
+                let _ = self
+                    .messenger
+                    .send_to_client(client_id, message.clone())
+                    .await;
+            }
+        }
+    }
+
     /// Records when the next scheduled app-state sweep is due.
     pub fn set_next_app_check(&self, at: chrono::DateTime<chrono::Local>) {
         self.next_app_check.store(at.timestamp(), Ordering::Relaxed);
@@ -222,7 +308,7 @@ impl AppState {
             oauth_db,
             session_server,
             mcp_server,
-            create_locks: CreateLocks::default(),
+            app_locks: AppLocks::default(),
         });
 
         Ok(state)
@@ -250,7 +336,7 @@ impl AppState {
             messenger,
             next_app_check: Arc::new(AtomicI64::new(0)),
             oauth_db: None,
-            create_locks: CreateLocks::default(),
+            app_locks: AppLocks::default(),
             session_server: None,
             mcp_server: None,
         }))
@@ -258,20 +344,43 @@ impl AppState {
 }
 
 #[cfg(test)]
-mod create_lock_tests {
-    use super::CreateLocks;
+mod app_lock_tests {
+    use super::AppLocks;
 
     #[test]
-    fn one_create_per_app_at_a_time() {
-        let locks = CreateLocks::default();
-        let first = locks.try_lock("demo").expect("free");
-        assert!(locks.try_lock("demo").is_none(), "second create must wait");
+    fn one_operation_per_app_at_a_time() {
+        let locks = AppLocks::default();
+        let first = locks.try_lock("demo", "rebuild").expect("free");
+        let holder = locks.try_lock("demo", "stop").unwrap_err();
+        assert_eq!(holder.operation, "rebuild");
+        assert_eq!(holder, locks.current("demo").unwrap());
         assert!(
-            locks.try_lock("other").is_some(),
+            locks.try_lock("other", "run").is_ok(),
             "other apps are independent"
         );
         drop(first);
-        assert!(locks.try_lock("demo").is_some(), "released on drop");
+        assert!(locks.current("demo").is_none());
+        assert!(locks.try_lock("demo", "stop").is_ok(), "released on drop");
+    }
+
+    #[test]
+    fn keyed_by_directory_name() {
+        let locks = AppLocks::default();
+        let _lock = locks.try_lock("My App", "create").unwrap();
+        assert!(locks.try_lock("my-app", "run").is_err());
+    }
+
+    #[tokio::test]
+    async fn released_when_the_holding_future_panics() {
+        let locks = AppLocks::default();
+        let held = locks.clone();
+        let result = tokio::spawn(async move {
+            let _lock = held.try_lock("demo", "run").unwrap();
+            panic!("boom");
+        })
+        .await;
+        assert!(result.is_err());
+        assert!(locks.current("demo").is_none());
     }
 }
 

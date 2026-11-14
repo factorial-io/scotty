@@ -12,6 +12,8 @@ use super::settings::AppSettings;
 use super::status::{get_app_status_from_services, AppStatus};
 use super::ttl::AppTtl;
 
+pub use scotty_types::AppOperation;
+
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, ToResponse)]
 pub struct AppData {
     pub status: AppStatus,
@@ -36,6 +38,10 @@ pub struct AppData {
     /// predate the field.
     #[serde(default)]
     pub load_balancer_connectivity: LoadBalancerConnectivity,
+    /// The operation running on the app, if any. Filled from the server's
+    /// lock registry when the app is returned, never stored in the app list.
+    #[serde(default)]
+    pub operation: Option<AppOperation>,
 }
 
 impl Default for AppData {
@@ -63,6 +69,7 @@ impl Default for AppData {
             last_checked: None,
             next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
+            operation: None,
         }
     }
 }
@@ -98,6 +105,7 @@ impl AppData {
             last_checked: None,
             next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
+            operation: None,
         }
     }
 

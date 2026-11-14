@@ -151,12 +151,9 @@ pub async fn create(
         }
     }
 
-    // One create per app at a time: the checks below decide on the app's
+    // One operation per app at a time: the checks below decide on the app's
     // current state on disk, and the create task writes the new one.
-    let lock = state
-        .create_locks
-        .try_lock(&slugify(&payload.app_name))
-        .ok_or_else(|| AppError::CreateInProgress(payload.app_name.clone()))?;
+    let lock = state.app_locks.lock(&payload.app_name, "create")?;
 
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
@@ -317,12 +314,12 @@ pub async fn list(state: &SharedAppState, user_id: &str) -> AppDataVec {
 
     // If authorization is enabled but no assignments exist, return all apps
     if !auth_service.is_enabled().await {
-        return all_apps;
+        return with_operations(state, all_apps);
     }
 
     let grants = auth_service.grants_for(user_id);
     let app_scopes = auth_service.app_scopes();
-    AppDataVec {
+    let apps = AppDataVec {
         apps: all_apps
             .apps
             .into_iter()
@@ -332,7 +329,8 @@ pub async fn list(state: &SharedAppState, user_id: &str) -> AppDataVec {
                     .is_allowed()
             })
             .collect(),
-    }
+    };
+    with_operations(state, apps)
 }
 
 /// One app, if `user_id` may view it.
@@ -341,11 +339,21 @@ pub async fn get(state: &SharedAppState, user_id: &str, app: &str) -> Result<App
     state
         .auth_service
         .require(user_id, Permission::View.into(), Target::App(&app))?;
-    state
+    let mut app_data = state
         .apps
         .get_app(&app)
         .await
-        .ok_or(AppError::AppNotFound(app))
+        .ok_or(AppError::AppNotFound(app))?;
+    app_data.operation = state.app_locks.current(&app_data.name);
+    Ok(app_data)
+}
+
+/// `apps` with each app's running operation filled in from the lock registry.
+fn with_operations(state: &SharedAppState, mut apps: AppDataVec) -> AppDataVec {
+    for app in &mut apps.apps {
+        app.operation = state.app_locks.current(&app.name);
+    }
+    apps
 }
 
 /// A task, with its output, if `user_id` may see it (task-visibility spec).
@@ -423,7 +431,7 @@ pub async fn destroy(
     if app_data.settings.is_none() {
         return Err(AppError::CantDestroyUnmanagedApp(app));
     }
-    Ok(crate::docker::destroy_app::destroy_app(state.clone(), &app_data).await?)
+    Ok(crate::docker::destroy_app::destroy_app(state.clone(), &app_data, "destroy").await?)
 }
 
 /// The blueprints `user_id` may create apps from in `target` (`Global`: in

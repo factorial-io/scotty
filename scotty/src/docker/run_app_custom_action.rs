@@ -4,7 +4,7 @@ use crate::{
     api::error::AppError,
     app_state::SharedAppState,
     docker::{
-        helper::run_operation_requested_by,
+        helper::{run_operation_requested_by, OperationSpec},
         steps::{
             compose::{docker_login, update_app_data},
             context::{Context, TaskAccess},
@@ -111,9 +111,17 @@ pub async fn run_app_custom_action(
         "Starting custom action execution"
     );
     let notification = Message::new(MessageType::AppCustomActionCompleted(action.clone()), app);
+    // Read-only actions run alongside any operation; write actions are
+    // exclusive.
+    let name = format!("action:{}", String::from(action.clone()));
+    let operation = match permission {
+        Permission::ActionRead => OperationSpec::Shared(name),
+        _ => OperationSpec::Exclusive(name),
+    };
     run_operation_requested_by(
         app_state,
         app,
+        operation,
         TaskAccess {
             requested_by: Some(requested_by),
             action_permission: Some(permission.as_str().to_string()),
@@ -177,5 +185,61 @@ mod tests {
             running.task.action_permission.as_deref(),
             Some("action_write")
         );
+    }
+
+    /// `action_read` actions run during any operation and alongside each
+    /// other without becoming the app's operation; `action_write` actions
+    /// are exclusive.
+    #[tokio::test]
+    async fn read_actions_skip_the_lock_write_actions_take_it() {
+        let state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let action = |name: &str, permission| {
+            (
+                name.to_string(),
+                CustomAction::new(
+                    name.to_string(),
+                    String::new(),
+                    HashMap::from([("web".to_string(), vec!["true".to_string()])]),
+                    permission,
+                    "someone".to_string(),
+                ),
+            )
+        };
+        let app = AppData {
+            name: "busy-app".to_string(),
+            status: AppStatus::Running,
+            settings: Some(AppSettings {
+                custom_actions: HashMap::from([
+                    action("status", Permission::ActionRead),
+                    action("migrate", Permission::ActionWrite),
+                ]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let run = |name: &str, permission| {
+            run_app_custom_action(
+                state.clone(),
+                &app,
+                ActionName::Custom(name.to_string()),
+                "identifier:requester".to_string(),
+                permission,
+            )
+        };
+
+        let _rebuild = state.app_locks.lock("busy-app", "rebuild").unwrap();
+        for _ in 0..2 {
+            let running = run("status", Permission::ActionRead).await.unwrap();
+            assert_eq!(running.app_data.operation.unwrap().operation, "rebuild");
+        }
+        let refused = run("migrate", Permission::ActionWrite).await.unwrap_err();
+        assert!(matches!(
+            AppError::from(refused),
+            AppError::OperationInProgress { operation, .. } if operation.operation == "rebuild"
+        ));
     }
 }

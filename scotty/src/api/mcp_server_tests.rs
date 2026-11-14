@@ -536,6 +536,71 @@ async fn destroy_is_denied_without_destroy_and_the_app_stays() {
     assert!(state.apps.get_app("atelier-demo").await.is_some());
 }
 
+/// A busy app: get_app and list_apps show the running operation, and
+/// create_app and destroy_app are refused with the 409 message.
+#[tokio::test]
+async fn busy_app_shows_its_operation_and_refuses_create_and_destroy() {
+    let (server, state) = scotty().await;
+    add_atelier_app(&state).await;
+    let task_id = uuid::Uuid::new_v4();
+    let mut lock = state.app_locks.lock("atelier-demo", "create").unwrap();
+    lock.set_task(task_id, state.clone());
+
+    let app = call(
+        &server,
+        ADMIN_TOKEN,
+        "get_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert_eq!(app["structuredContent"]["operation"]["operation"], "create");
+    assert_eq!(
+        app["structuredContent"]["operation"]["task_id"],
+        task_id.to_string()
+    );
+    let listed = call(&server, ADMIN_TOKEN, "list_apps", json!({})).await;
+    assert_eq!(
+        listed["structuredContent"]["apps"][0]["operation"]["operation"],
+        "create"
+    );
+
+    let destroyed = call(
+        &server,
+        ADMIN_TOKEN,
+        "destroy_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert!(is_error(&destroyed), "{destroyed}");
+    assert!(
+        text(&destroyed).contains("is busy: create")
+            && text(&destroyed).contains(&task_id.to_string()),
+        "{destroyed}"
+    );
+    assert!(state.apps.get_app("atelier-demo").await.is_some());
+
+    let created = call(
+        &server,
+        ADMIN_TOKEN,
+        "create_app",
+        json!({"blueprint": "static-html", "app_name": "atelier-demo",
+               "files": [{"path": "html/index.html", "content": "hi"}]}),
+    )
+    .await;
+    assert!(is_error(&created), "{created}");
+    assert!(text(&created).contains("is busy: create"), "{created}");
+
+    drop(lock);
+    let app = call(
+        &server,
+        ADMIN_TOKEN,
+        "get_app",
+        json!({"app_name": "atelier-demo"}),
+    )
+    .await;
+    assert_eq!(app["structuredContent"]["operation"], Value::Null);
+}
+
 #[tokio::test]
 async fn hidden_and_unknown_tasks_answer_alike() {
     let (server, state) = scotty().await;

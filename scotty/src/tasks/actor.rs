@@ -43,6 +43,8 @@ pub enum FailureKind {
     RefreshFailed,
     /// The operation ended without terminating its task (panic, dropped handle).
     Aborted,
+    /// The operation exceeded the maximum operation duration.
+    TimedOut,
 }
 
 #[derive(Debug, Clone)]

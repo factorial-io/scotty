@@ -269,6 +269,42 @@ mod tests {
     }
 
     #[test]
+    fn test_max_operation_duration_defaults_to_1h_and_env_overrides_it() {
+        // The shipped default config on top of a complete test config. The
+        // environment is a fixed map, so env vars set by parallel tests can't
+        // leak in.
+        let load = |vars: &[(&str, &str)]| -> Settings {
+            let vars = vars
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            Config::builder()
+                .add_source(config::File::with_name("tests/test_bearer_auth"))
+                .add_source(config::File::with_name("../config/default"))
+                .add_source(Settings::get_environment().source(Some(vars)))
+                .build()
+                .unwrap()
+                .try_deserialize()
+                .unwrap()
+        };
+        let duration = |s: Settings| std::time::Duration::from(s.apps.max_operation_duration);
+        assert_eq!(duration(load(&[])), std::time::Duration::from_secs(3600));
+
+        let overridden = load(&[("SCOTTY__APPS__MAX_OPERATION_DURATION", "2h")]);
+        assert_eq!(overridden.apps.max_operation_duration.to_string(), "2h");
+        assert_eq!(duration(overridden), std::time::Duration::from_secs(7200));
+
+        // Config files that predate the setting get the default.
+        let without: Settings = Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(without.apps.max_operation_duration.to_string(), "1h");
+    }
+
+    #[test]
     fn test_notificaction_service_settings() {
         let builder = Config::builder()
             // Add in `./Settings.toml`

@@ -52,6 +52,8 @@ pub async fn add_notification_handler(
     let service_ids = payload.service_ids.clone();
 
     require_manage(&state, &auth_context, &app_name).await?;
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
 
     let app = state
         .apps
@@ -113,6 +115,8 @@ pub async fn remove_notification_handler(
     let service_ids = payload.service_ids.clone();
 
     require_manage(&state, &auth_context, &app_name).await?;
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
 
     let app = state
         .apps

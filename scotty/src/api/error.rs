@@ -96,8 +96,11 @@ pub enum AppError {
     #[error("Action already exists: {0}")]
     ActionAlreadyExists(String),
 
-    #[error("App {0} is already being created; try again when that finished")]
-    CreateInProgress(String),
+    #[error("App {app} is busy: {}; try again when it has finished", describe_operation(.operation))]
+    OperationInProgress {
+        app: String,
+        operation: scotty_core::apps::app_data::AppOperation,
+    },
 
     #[error("{0}")]
     ActionInvalidState(String),
@@ -132,6 +135,21 @@ pub enum AppError {
     #[error("Shell service error: {0}")]
     ShellServiceError(crate::docker::services::shell::ShellServiceError),
 }
+/// e.g. `rebuild (task 6f1c…) running since 2026-11-12T10:03:11Z`.
+fn describe_operation(operation: &scotty_core::apps::app_data::AppOperation) -> String {
+    let task = operation
+        .task_id
+        .map(|id| format!(" (task {id})"))
+        .unwrap_or_default();
+    format!(
+        "{}{task} running since {}",
+        operation.operation,
+        operation
+            .started_at
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    )
+}
+
 impl AppError {
     fn get_error_msg(&self) -> (axum::http::StatusCode, String) {
         let status: axum::http::StatusCode = match self {
@@ -153,7 +171,7 @@ impl AppError {
             AppError::ActionNotFound(_) => StatusCode::NOT_FOUND,
             AppError::ActionNotExecutable(_) => StatusCode::FORBIDDEN,
             AppError::ActionAlreadyExists(_) => StatusCode::CONFLICT,
-            AppError::CreateInProgress(_) => StatusCode::CONFLICT,
+            AppError::OperationInProgress { .. } => StatusCode::CONFLICT,
             AppError::ActionInvalidState(_) => StatusCode::BAD_REQUEST,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
@@ -274,9 +292,51 @@ impl IntoResponse for AppError {
             // For all other errors, return standard AppError format
             _ => {
                 let (status, body) = self.get_error_msg();
-                let body = serde_json::json!({ "error": true, "message": body });
+                let mut body = serde_json::json!({ "error": true, "message": body });
+                // The running operation, so a client can wait for it.
+                if let AppError::OperationInProgress { operation, .. } = &self {
+                    body["operation"] = serde_json::json!(operation);
+                }
                 (status, Json(body)).into_response()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn operation_in_progress_is_409_naming_the_holder() {
+        let task_id = Uuid::new_v4();
+        let started_at = chrono::Utc::now();
+        let response = AppError::OperationInProgress {
+            app: "shop".into(),
+            operation: scotty_core::apps::app_data::AppOperation {
+                operation: "rebuild".into(),
+                task_id: Some(task_id),
+                started_at,
+            },
+        }
+        .into_response();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["error"], true);
+        let message = body["message"].as_str().unwrap();
+        assert!(
+            message.contains("shop")
+                && message.contains("rebuild")
+                && message.contains(&task_id.to_string()),
+            "{message}"
+        );
+        assert_eq!(body["operation"]["operation"], "rebuild");
+        assert_eq!(body["operation"]["task_id"], task_id.to_string());
+        let started: chrono::DateTime<chrono::Utc> =
+            serde_json::from_value(body["operation"]["started_at"].clone()).unwrap();
+        assert_eq!(started, started_at);
     }
 }

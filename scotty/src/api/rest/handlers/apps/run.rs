@@ -193,6 +193,8 @@ pub async fn adopt_app_handler(
         return Err(AppError::AppNotFound(app_id.clone()));
     }
     let app_data = app_data.unwrap();
+    // Adopt writes `.scotty.yml`; held until the request returns.
+    let _lock = state.app_locks.lock(&app_id, "adopt")?;
     let docker_compose_path = std::path::PathBuf::from(app_data.docker_compose_path.clone());
     let app_data = inspect_app(&state, &docker_compose_path).await?;
 

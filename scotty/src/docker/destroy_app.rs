@@ -8,7 +8,7 @@ use scotty_core::notification_types::Message;
 use scotty_core::notification_types::MessageType;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_operation;
+use super::helper::{run_operation, OperationSpec};
 use super::purge_app::{purge_steps, PurgeAppMethod};
 use super::steps::context::Context;
 use super::steps::files::remove_directory;
@@ -24,9 +24,12 @@ pub async fn destroy_steps(ctx: &Context) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Destroy `app`; `operation` names it in the app's lock (`destroy`, or
+/// `ttl-destroy` for the TTL checker).
 pub async fn destroy_app(
     app_state: SharedAppState,
     app: &AppData,
+    operation: &str,
 ) -> anyhow::Result<RunningAppContext> {
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
@@ -34,6 +37,7 @@ pub async fn destroy_app(
     run_operation(
         app_state,
         app,
+        OperationSpec::exclusive(operation),
         Some(Message::new(MessageType::AppDestroyed, app)),
         |ctx| async move { destroy_steps(&ctx).await },
     )

@@ -288,6 +288,8 @@ async fn update_action_status(
     comment: Option<String>,
     operation: ReviewOperation,
 ) -> Result<impl IntoResponse, AppError> {
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(app_name, "settings")?;
     let app = match state.apps.get_app(app_name).await {
         Some(app) => app,
         None => return Err(AppError::AppNotFound(app_name.to_string())),
