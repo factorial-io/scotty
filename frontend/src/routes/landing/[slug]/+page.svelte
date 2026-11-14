@@ -5,8 +5,8 @@
 	import { isAuthenticated, authMode } from '../../../stores/sessionStore';
 	import { authService } from '../../../lib/authService';
 	import { storePendingLandingStart } from '../../../lib/landingResume';
-	import { runApp, updateAppInfo } from '../../../stores/appsStore';
-	import { monitorTask } from '../../../stores/tasksStore';
+	import { apps, runApp, updateAppInfo } from '../../../stores/appsStore';
+	import { tasks } from '../../../stores/tasksStore';
 	import {
 		getTaskOutput,
 		initializeTaskOutput,
@@ -14,6 +14,7 @@
 	} from '../../../stores/taskOutputStore';
 	import { webSocketStore } from '../../../stores/webSocketStore';
 	import UnifiedOutput from '../../../components/unified-output.svelte';
+	import TaskProgress from '../../../components/task-progress.svelte';
 	import type { App } from '../../../types';
 	import { setTitle } from '../../../stores/titleStore';
 
@@ -28,9 +29,30 @@
 	let taskOutputRequested = false;
 	let redirectCountdown = 3;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-	let destroyed = false;
 
 	$: taskOutput = taskId ? getTaskOutput(taskId) : null;
+
+	// The store copy follows AppInfoUpdated, so an operation started elsewhere shows up here.
+	$: app = $apps.find((a) => a.name === data.appName) ?? appInfo;
+	$: operation = app?.operation ?? null;
+
+	// The task store is kept current by the WebSocket, or by the polling
+	// fallback in runApp() without one.
+	$: taskState = taskId ? $tasks[taskId]?.state : undefined;
+	$: if (state === 'starting' && taskState === 'Finished') {
+		state = 'ready';
+		startRedirectCountdown();
+	}
+	$: if (state === 'starting' && taskState === 'Failed') {
+		state = 'error';
+		appError = 'App failed to start. Check the output below for details.';
+	}
+
+	// An operation started elsewhere brought the app up.
+	$: if (state === 'idle' && app && !operation && app.status === 'Running' && safeReturnUrl) {
+		state = 'ready';
+		startRedirectCountdown(safeReturnUrl);
+	}
 
 	// Request task output streaming when authenticated and task is active
 	$: {
@@ -40,27 +62,33 @@
 		}
 	}
 
-	onMount(async () => {
+	onMount(() => {
 		setTitle(`Start: ${data.appName}`);
-
-		// Always load app info first when authenticated — this populates
-		// appInfo which is needed for return_url domain validation.
-		if ($isAuthenticated) {
-			await loadAppInfo();
-			// If app was already running, loadAppInfo triggers redirect — stop here.
-			if (state === 'ready') return;
-		}
-
-		// If autostart param is set and user is authenticated, start immediately.
-		// The OAuth callback redirects here with ?autostart=true after login.
-		if (data.autostart && $isAuthenticated) {
-			await startApp();
-			return;
-		}
 	});
 
+	// The session may still be initializing at mount, so wait for it.
+	let sessionReady = false;
+	$: if ($isAuthenticated && !sessionReady) {
+		sessionReady = true;
+		onAuthenticated();
+	}
+
+	async function onAuthenticated() {
+		// Always load app info first — this populates appInfo which is
+		// needed for return_url domain validation.
+		await loadAppInfo();
+		// If app was already running, loadAppInfo triggers redirect — stop here.
+		if (state === 'ready') return;
+
+		// If autostart param is set, start immediately. The OAuth callback
+		// redirects here with ?autostart=true after login. A running operation
+		// is followed instead.
+		if (data.autostart && state === 'idle' && !appInfo?.operation) {
+			await startApp();
+		}
+	}
+
 	onDestroy(() => {
-		destroyed = true;
 		cleanupTask();
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
@@ -129,20 +157,8 @@
 		try {
 			const id = await runApp(data.appName);
 			taskId = id;
+			// Collected so the output can be shown if the start fails.
 			initializeTaskOutput(id);
-
-			// Monitor task completion. The callback may fire after the component
-			// is destroyed (e.g. user navigates away), so guard with `destroyed`.
-			monitorTask(id, async (result) => {
-				if (destroyed) return;
-				if (result.state === 'Finished') {
-					state = 'ready';
-					startRedirectCountdown();
-				} else if (result.state === 'Failed') {
-					state = 'error';
-					appError = 'App failed to start. Check the output below for details.';
-				}
-			});
 		} catch (err) {
 			state = 'error';
 			appError = err instanceof Error ? err.message : 'Failed to start app';
@@ -151,12 +167,13 @@
 
 	function startRedirectCountdown(url?: string) {
 		const redirectTo = url ?? safeReturnUrl;
-		if (!redirectTo) return;
+		if (!redirectTo || countdownInterval) return;
 		redirectCountdown = 3;
 		countdownInterval = setInterval(() => {
 			redirectCountdown -= 1;
 			if (redirectCountdown <= 0) {
 				if (countdownInterval) clearInterval(countdownInterval);
+				countdownInterval = null;
 				window.location.href = redirectTo;
 			}
 		}, 1000);
@@ -218,7 +235,7 @@
 		}
 	}
 
-	$: safeReturnUrl = isValidReturnUrl(data.returnUrl, appInfo) ? data.returnUrl : null;
+	$: safeReturnUrl = isValidReturnUrl(data.returnUrl, app) ? data.returnUrl : null;
 </script>
 
 <svelte:head>
@@ -283,20 +300,11 @@
 				<span class="loading loading-spinner loading-lg"></span>
 				<h2 class="card-title text-2xl mt-4">Starting {data.appName}...</h2>
 				<p class="text-gray-500 mt-2">Please wait while the app is being started.</p>
+				{#if taskId}
+					<div class="w-full mt-4"><TaskProgress {taskId} /></div>
+				{/if}
 			</div>
 		</div>
-
-		{#if taskId && taskOutput && $taskOutput}
-			<div class="mt-6">
-				<h3 class="text-lg mb-2">Progress</h3>
-				<UnifiedOutput
-					lines={$taskOutput.lines}
-					heading=""
-					loading={$taskOutput.loading}
-					maxHeight="400px"
-				/>
-			</div>
-		{/if}
 	{:else}
 		<!-- IDLE STATE -->
 		<div class="card bg-base-100 shadow-md">
@@ -308,12 +316,25 @@
 						<span class="font-mono">{data.returnUrl}</span>
 					</p>
 				{/if}
-				{#if appInfo}
-					<div class="badge badge-ghost mt-2">{appInfo.status}</div>
+				{#if app}
+					<div class="badge badge-ghost mt-2">{app.status}</div>
+				{/if}
+				{#if operation}
+					<p class="text-gray-500 mt-4">
+						<span class="loading loading-spinner loading-xs align-middle"></span>
+						{operation.operation} is running
+					</p>
+					{#if operation.task_id}
+						<div class="w-full mt-2"><TaskProgress taskId={operation.task_id} /></div>
+					{/if}
 				{/if}
 
 				<div class="card-actions mt-6">
-					<button class="btn btn-primary btn-lg" on:click={handleStart}>
+					<button
+						class="btn btn-primary btn-lg"
+						on:click={handleStart}
+						disabled={!!operation}
+					>
 						Start App
 					</button>
 				</div>

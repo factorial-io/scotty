@@ -24,6 +24,7 @@
 	import { showError } from '../../../stores/errorStore';
 	import Pill from '../../../components/pill.svelte';
 	import CustomActionsDropdown from '../../../components/custom-actions-dropdown.svelte';
+	import TaskProgress from '../../../components/task-progress.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
@@ -190,6 +191,11 @@
 		/>
 	{/if}
 </div>
+{#if data.operation?.task_id}
+	<div class="mt-6 max-w-xl">
+		<TaskProgress taskId={data.operation.task_id} details />
+	</div>
+{/if}
 <h3 class="text-xl mt-16 mb-4">Available Services</h3>
 <table class="table">
 	<thead>
