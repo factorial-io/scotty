@@ -35,6 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Task types
     State::export(&cfg)?;
+    StepState::export(&cfg)?;
+    StepProgress::export(&cfg)?;
+    TransferPhase::export(&cfg)?;
+    TransferProgress::export(&cfg)?;
+    TaskProgress::export(&cfg)?;
     TaskDetails::export(&cfg)?;
     TaskOutputData::export(&cfg)?;
 

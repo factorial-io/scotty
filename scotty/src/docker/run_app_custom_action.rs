@@ -7,8 +7,8 @@ use crate::{
         helper::{run_operation_requested_by, OperationSpec},
         steps::{
             compose::{docker_login, update_app_data},
-            context::{Context, TaskAccess},
-            post_actions::run_post_actions,
+            context::{Context, Step, TaskAccess},
+            post_actions::{action_steps, run_post_actions},
         },
     },
 };
@@ -118,10 +118,12 @@ pub async fn run_app_custom_action(
         Permission::ActionRead => OperationSpec::Shared(name),
         _ => OperationSpec::Exclusive(name),
     };
+    let steps = [vec![Step::Login], action_steps(&app_state, app, &action)?].concat();
     run_operation_requested_by(
         app_state,
         app,
         operation,
+        &steps,
         TaskAccess {
             requested_by: Some(requested_by),
             action_permission: Some(permission.as_str().to_string()),

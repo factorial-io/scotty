@@ -244,6 +244,75 @@ pub enum State {
     Failed,
 }
 
+/// State of one step of an operation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS, utoipa::ToSchema)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, rename_all = "lowercase")]
+pub enum StepState {
+    Pending,
+    Running,
+    Done,
+    Failed,
+    Skipped,
+}
+
+/// One step of an operation, in the order the operation runs them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct StepProgress {
+    pub name: String,
+    pub state: StepState,
+    /// Share of the step in the whole operation. Server-side only.
+    #[serde(skip)]
+    #[ts(skip)]
+    #[schema(ignore)]
+    pub weight: u32,
+}
+
+/// Phase of an image pull.
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, TS, utoipa::ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, rename_all = "lowercase")]
+pub enum TransferPhase {
+    Waiting,
+    Downloading,
+    Extracting,
+    Done,
+}
+
+/// Pull progress of one image.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct TransferProgress {
+    pub image: String,
+    pub phase: TransferPhase,
+    /// Bytes downloaded so far.
+    #[ts(type = "number")]
+    pub current_bytes: u64,
+    /// Bytes of the layers whose size is known so far; grows as layers start.
+    #[ts(type = "number")]
+    pub total_bytes: u64,
+    /// Layers done, including layers that already existed locally.
+    pub layers_done: u32,
+    /// Layers known so far.
+    pub layers_total: u32,
+}
+
+/// Structured progress of a task.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, TS, utoipa::ToSchema)]
+#[ts(export)]
+pub struct TaskProgress {
+    /// Progress of the whole operation, from 0 to 1.
+    pub fraction: f32,
+    /// What happens now, in one line.
+    pub status: String,
+    pub steps: Vec<StepProgress>,
+    /// Per-image pull progress; empty when no pull runs.
+    pub transfers: Vec<TransferProgress>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS, utoipa::ToResponse, utoipa::ToSchema)]
 #[ts(export)]
 pub struct TaskDetails {
@@ -274,6 +343,9 @@ pub struct TaskDetails {
     #[serde(skip)]
     #[ts(skip)]
     pub action_permission: Option<String>,
+    /// Structured progress of the operation behind this task.
+    #[serde(default)]
+    pub progress: TaskProgress,
 }
 
 impl Default for TaskDetails {
@@ -290,6 +362,7 @@ impl Default for TaskDetails {
             output: TaskOutput::default(),
             requested_by: None,
             action_permission: None,
+            progress: TaskProgress::default(),
         }
     }
 }
@@ -309,6 +382,7 @@ impl TaskDetails {
             output: TaskOutput::default(),
             requested_by: None,
             action_permission: None,
+            progress: TaskProgress::default(),
         }
     }
 
@@ -332,6 +406,7 @@ impl TaskDetails {
             output: TaskOutput::new_with_limits(max_lines, max_line_length),
             requested_by: None,
             action_permission: None,
+            progress: TaskProgress::default(),
         }
     }
 }

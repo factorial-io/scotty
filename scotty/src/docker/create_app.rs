@@ -15,7 +15,7 @@ use super::blueprint_template::TemplateInputs;
 use super::helper::{run_operation_requested_by, OperationSpec};
 use super::rebuild_app::rebuild_steps;
 use super::steps::compose::update_app_data;
-use super::steps::context::{Context, TaskAccess};
+use super::steps::context::{Context, Step, TaskAccess};
 use super::steps::files::{create_directory, save_files, save_settings};
 use super::steps::load_balancer::create_load_balancer_config;
 use super::steps::post_actions::run_post_actions;
@@ -26,10 +26,17 @@ pub async fn create_steps(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<()> {
-    create_directory(ctx).await?;
-    save_settings(ctx, settings).await?;
-    save_files(ctx, files).await?;
-    create_load_balancer_config(ctx, settings).await?;
+    ctx.step(&Step::Files, async {
+        create_directory(ctx).await?;
+        save_settings(ctx, settings).await?;
+        save_files(ctx, files).await
+    })
+    .await?;
+    ctx.step(
+        &Step::LoadBalancer,
+        create_load_balancer_config(ctx, settings),
+    )
+    .await?;
     // The per-app network is ensured inside rebuild_steps before any compose
     // command, so create does not ensure it separately.
     rebuild_steps(ctx, false)
@@ -209,6 +216,12 @@ pub async fn create_app(
         app_state,
         &app_data,
         operation,
+        &[
+            &[Step::Files, Step::LoadBalancer],
+            Step::REBUILD.as_slice(),
+            &[Step::PostActions],
+        ]
+        .concat(),
         TaskAccess {
             requested_by,
             ..TaskAccess::default()

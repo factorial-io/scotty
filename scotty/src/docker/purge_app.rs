@@ -7,7 +7,7 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 
 use super::helper::{run_operation, OperationSpec};
 use super::steps::compose::{docker_compose, update_app_data};
-use super::steps::context::Context;
+use super::steps::context::{Context, Step};
 use super::steps::network::teardown_app_network;
 
 #[derive(Copy, Clone, Debug)]
@@ -24,6 +24,8 @@ impl PurgeAppMethod {
         }
     }
 }
+
+pub const PURGE_STEPS: [Step; 2] = [Step::RemoveContainers, Step::RemoveNetwork];
 
 /// Remove the app's containers and its proxy network. Also used by destroy.
 pub async fn purge_steps(ctx: &Context, method: PurgeAppMethod) -> anyhow::Result<()> {
@@ -45,6 +47,7 @@ pub async fn purge_app(
         app_state,
         app,
         OperationSpec::exclusive("purge"),
+        &PURGE_STEPS,
         Some(Message::new(MessageType::AppPurged, app)),
         |ctx| async move { purge_steps(&ctx, PurgeAppMethod::Rm).await },
     )

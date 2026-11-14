@@ -294,6 +294,33 @@ pub struct TaskInfo {
     pub output: Vec<String>,
     /// Output lines left out of `output`; pass `full_output` to see them.
     pub output_lines_omitted: u64,
+    pub progress: TaskProgressInfo,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct TaskProgressInfo {
+    /// Progress of the whole operation, from 0 to 1.
+    pub fraction: f32,
+    /// What happens now, in one line (includes pull byte counts while pulling).
+    pub status: String,
+    /// The operation's steps as `<name>: <state>`, state one of pending,
+    /// running, done, failed, skipped.
+    pub steps: Vec<String>,
+}
+
+impl From<&scotty_types::TaskProgress> for TaskProgressInfo {
+    fn from(p: &scotty_types::TaskProgress) -> Self {
+        Self {
+            fraction: p.fraction,
+            status: p.status.clone(),
+            steps: p
+                .steps
+                .iter()
+                .map(|s| format!("{}: {}", s.name, wire_name(&s.state)))
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -445,6 +472,7 @@ impl ScottyMcp {
                 .output
                 .total_lines_processed
                 .saturating_sub(shown.len() as u64),
+            progress: (&task.progress).into(),
         }))
     }
 

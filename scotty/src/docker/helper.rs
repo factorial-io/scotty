@@ -13,7 +13,7 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::websocket::message::WebSocketMessage;
 use tracing::{error, warn};
 
-use super::steps::context::{Context, TaskAccess};
+use super::steps::context::{Context, Step, TaskAccess};
 
 /// How an operation relates to the app's operation lock.
 pub enum OperationSpec {
@@ -50,10 +50,13 @@ struct OperationTimedOut {
 /// error wins over success, a step error fails the task with its cause, and
 /// `notification` is sent only on success. A panic inside `op` is covered by
 /// `TaskHandle::Drop`, which fails the task when the context is dropped.
+/// `steps` are the steps `op` runs, in order; the task shows them as its
+/// progress from the start.
 pub async fn run_operation<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
     operation: OperationSpec,
+    steps: &[Step],
     notification: Option<Message>,
     op: F,
 ) -> anyhow::Result<RunningAppContext>
@@ -65,6 +68,7 @@ where
         app_state,
         app,
         operation,
+        steps,
         TaskAccess::default(),
         notification,
         op,
@@ -84,6 +88,7 @@ pub async fn run_operation_requested_by<F, Fut>(
     app_state: SharedAppState,
     app: &AppData,
     operation: OperationSpec,
+    steps: &[Step],
     access: TaskAccess,
     notification: Option<Message>,
     op: F,
@@ -104,7 +109,7 @@ where
         OperationSpec::Shared(name) => (name, None),
     };
     let locked = lock.is_some();
-    let ctx = Context::create(app_state.clone(), app, access, name, lock).await;
+    let ctx = Context::create(app_state.clone(), app, access, name, lock, steps).await;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))
@@ -316,6 +321,7 @@ mod tests {
     use super::*;
     use crate::api::error::AppError;
     use scotty_core::tasks::task_details::{State, TaskDetails};
+    use scotty_types::StepState;
     use std::time::Duration;
 
     async fn test_app_state() -> SharedAppState {
@@ -368,6 +374,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::exclusive("run"),
+            &[],
             None,
             op,
         )
@@ -393,6 +400,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::exclusive("run"),
+            &[],
             None,
             |_| async move {
                 let _ = released.await;
@@ -413,6 +421,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::exclusive("run"),
+            &[],
             None,
             |_| async { Ok(()) },
         )
@@ -434,6 +443,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::exclusive("run"),
+            &[],
             None,
             |_| async { Ok(()) },
         )
@@ -452,6 +462,7 @@ mod tests {
                 app_state.clone(),
                 &app,
                 OperationSpec::Shared("action:status".into()),
+                &[],
                 None,
                 |_| std::future::pending(),
             )
@@ -464,6 +475,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::Shared("action:status".into()),
+            &[],
             None,
             |_| std::future::pending(),
         )
@@ -517,6 +529,7 @@ mod tests {
             app_state.clone(),
             &app,
             OperationSpec::exclusive("rebuild"),
+            &[],
             None,
             move |ctx| async move {
                 crate::docker::steps::run_task_and_wait::run_task_and_wait(
@@ -526,6 +539,7 @@ mod tests {
                     &["-c", &script],
                     &Default::default(),
                     "sleep",
+                    crate::tasks::manager::OutputMode::Plain,
                 )
                 .await
             },
@@ -605,6 +619,142 @@ mod tests {
             }
         }
         count
+    }
+
+    async fn wait_for(
+        rx: &mut tokio::sync::watch::Receiver<crate::tasks::actor::Snapshot>,
+        pred: impl Fn(&TaskDetails) -> bool,
+    ) -> TaskDetails {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let task = rx.borrow_and_update().clone();
+                if pred(&task) {
+                    return (*task).clone();
+                }
+                rx.changed().await.unwrap();
+            }
+        })
+        .await
+        .expect("task never satisfied predicate")
+    }
+
+    /// Runs the rebuild plan with stubbed steps: `fail_at` fails, the login
+    /// is skipped (no registry). Returns the step states and the fraction
+    /// after each step, and the terminal task.
+    async fn stubbed_rebuild(fail_at: Option<Step>) -> (Vec<(Vec<StepState>, f32)>, TaskDetails) {
+        let app_state = test_app_state().await;
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let (state, seen_op) = (app_state.clone(), seen.clone());
+        let running = run_operation(
+            app_state.clone(),
+            &gone_app("stubbed"),
+            OperationSpec::exclusive("rebuild"),
+            &Step::REBUILD,
+            None,
+            move |ctx| async move {
+                let mut rx = state.task_manager.subscribe(&ctx.task.id()).await.unwrap();
+                for (i, step) in Step::REBUILD.iter().enumerate() {
+                    let result = match step {
+                        Step::Login => {
+                            ctx.skip_step(step).await;
+                            Ok(())
+                        }
+                        _ if Some(step) == fail_at.as_ref() => {
+                            ctx.step(step, async { anyhow::bail!("stub failed") }).await
+                        }
+                        _ => ctx.step(step, async { Ok(()) }).await,
+                    };
+                    let task = wait_for(&mut rx, |t| {
+                        !matches!(
+                            t.progress.steps[i].state,
+                            StepState::Pending | StepState::Running
+                        )
+                    })
+                    .await;
+                    let states = task.progress.steps.iter().map(|s| s.state).collect();
+                    seen_op
+                        .lock()
+                        .unwrap()
+                        .push((states, task.progress.fraction));
+                    result?;
+                }
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+
+        // Declared up front: the first step runs, the others are pending.
+        let progress = &running.task.progress;
+        let names: Vec<_> = progress.steps.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "Log into registry",
+                "Prepare network",
+                "Pull images",
+                "Build images",
+                "Stop containers",
+                "Start containers",
+                "Wait for containers",
+                "Run post actions"
+            ]
+        );
+        assert_eq!(progress.steps[0].state, StepState::Running);
+        assert!(progress.steps[1..]
+            .iter()
+            .all(|s| s.state == StepState::Pending));
+        assert_eq!(progress.fraction, 0.0);
+        assert_eq!(progress.status, "Log into registry");
+
+        let task = wait_terminal(&app_state, running.task.id).await;
+        let seen = seen.lock().unwrap().clone();
+        (seen, task)
+    }
+
+    #[tokio::test]
+    async fn rebuild_reports_step_states_and_fraction() {
+        use StepState::*;
+        let (seen, task) = stubbed_rebuild(None).await;
+        // Weights: pull 40, build 30, up 10, wait 10, every other step 2.
+        let expected = [2, 4, 44, 74, 76, 86, 96, 98];
+        for (i, ((states, fraction), done)) in seen.iter().zip(expected).enumerate() {
+            let want: Vec<StepState> = (0..8)
+                .map(|j| match j {
+                    0 => Skipped,
+                    j if j <= i => Done,
+                    _ => Pending,
+                })
+                .collect();
+            assert_eq!(states, &want, "after step {i}");
+            assert!(
+                (fraction - done as f32 / 98.0).abs() < 1e-6,
+                "after step {i}: {fraction}"
+            );
+        }
+        assert_eq!(task.state, State::Finished);
+        assert_eq!(task.progress.fraction, 1.0);
+    }
+
+    #[tokio::test]
+    async fn failed_step_leaves_later_steps_pending() {
+        use StepState::*;
+        let (seen, task) = stubbed_rebuild(Some(Step::Build)).await;
+        let (states, fraction) = seen.last().unwrap();
+        assert_eq!(
+            states,
+            &[Skipped, Done, Done, Failed, Pending, Pending, Pending, Pending]
+        );
+        assert_eq!(task.state, State::Failed);
+        assert_eq!(task.progress.fraction, *fraction);
+        assert_eq!(
+            task.progress
+                .steps
+                .iter()
+                .map(|s| s.state)
+                .collect::<Vec<_>>(),
+            *states
+        );
     }
 
     #[tokio::test]

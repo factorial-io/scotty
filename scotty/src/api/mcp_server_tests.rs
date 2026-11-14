@@ -614,6 +614,16 @@ async fn hidden_and_unknown_tasks_answer_alike() {
         .task_manager
         .create_task(scotty_core::tasks::task_details::TaskDetails {
             app_name: Some("atelier-demo".into()),
+            progress: scotty_types::TaskProgress {
+                fraction: 0.5,
+                status: "Pull images".into(),
+                steps: vec![scotty_types::StepProgress {
+                    name: "Pull images".into(),
+                    state: scotty_types::StepState::Running,
+                    weight: 40,
+                }],
+                transfers: vec![],
+            },
             ..Default::default()
         })
         .await;
@@ -628,6 +638,14 @@ async fn hidden_and_unknown_tasks_answer_alike() {
     .await;
     assert!(!is_error(&admin), "{admin}");
     assert_eq!(admin["structuredContent"]["state"], "Running", "{admin}");
+    let progress = &admin["structuredContent"]["progress"];
+    assert_eq!(progress["fraction"], 0.5, "{admin}");
+    assert_eq!(progress["status"], "Pull images", "{admin}");
+    assert_eq!(
+        progress["steps"],
+        json!(["Pull images: running"]),
+        "{admin}"
+    );
     let full = call(
         &server,
         ADMIN_TOKEN,

@@ -4,8 +4,9 @@ use scotty_core::utils::secret::SecretHashMap;
 use tracing::instrument;
 
 use crate::{
-    app_state::SharedAppState, onepassword::lookup::resolve_environment_variables,
-    tasks::actor::TaskWriter,
+    app_state::SharedAppState,
+    onepassword::lookup::resolve_environment_variables,
+    tasks::{actor::TaskWriter, manager::OutputMode},
 };
 
 /// Runs a docker-compose command as a step of the task behind `writer`.
@@ -17,6 +18,7 @@ pub async fn run_task(
     args: &[&str],
     env: &SecretHashMap,
     writer: TaskWriter,
+    mode: OutputMode,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<i32>>> {
     // Resolve environment variables (1Password, substitutions, etc.)
     let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
@@ -28,7 +30,7 @@ pub async fn run_task(
     let exposed_env = resolved_environment.expose_all();
     Ok(shared_app
         .task_manager
-        .start_process(parent_dir, command, args, &exposed_env, writer))
+        .start_process(parent_dir, command, args, &exposed_env, writer, mode))
 }
 
 /// Runs a docker-compose command synchronously and returns the output

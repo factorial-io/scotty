@@ -4,7 +4,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::docker::helper::wait_for_containers_ready;
 
-use super::context::Context;
+use super::context::{Context, Step};
 
 /// Wait until none of the app's containers is still starting (Created or
 /// Restarting). `timeout_seconds` defaults to 300.
@@ -22,9 +22,21 @@ pub async fn wait_for_all_containers(
 
     if container_ids.is_empty() {
         warn!("No container IDs found for app {}", ctx.app_data.name);
+        ctx.skip_step(&Step::WaitForContainers).await;
         return Ok(());
     }
+    ctx.step(
+        &Step::WaitForContainers,
+        wait(ctx, container_ids, timeout_seconds),
+    )
+    .await
+}
 
+async fn wait(
+    ctx: &Context,
+    container_ids: Vec<String>,
+    timeout_seconds: Option<u64>,
+) -> anyhow::Result<()> {
     let writer = ctx.task.writer();
     writer
         .output(

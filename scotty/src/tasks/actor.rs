@@ -19,8 +19,10 @@ use std::sync::Arc;
 use scotty_core::output::OutputStreamType;
 use scotty_core::tasks::task_details::{State, TaskDetails};
 use scotty_core::websocket::message::WebSocketMessage;
+use scotty_types::{StepState, TransferProgress};
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, watch};
+use tokio::time::{Duration, Instant};
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -32,6 +34,9 @@ use crate::services::AuthorizationService;
 pub type Snapshot = Arc<TaskDetails>;
 
 const MAILBOX_CAPACITY: usize = 1024;
+
+/// Minimum time between two progress-only `TaskInfoUpdated` broadcasts.
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Why a task failed. Kept structured internally so a future consumer can
 /// branch on it; the wire only carries the rendered status line for now.
@@ -83,6 +88,17 @@ pub enum TaskEvent {
     Output(Vec<(OutputStreamType, String)>),
     /// A subprocess of this task exited. Never changes the task state.
     SubprocessExited { exit_code: Option<i32> },
+    /// A declared step changed its state. Applies to the first step called
+    /// `name` that is still pending or running; ignored if there is none, so
+    /// a step function can report steps an operation did not declare.
+    Step { name: String, state: StepState },
+    /// Progress within the running step: its own fraction (0 to 1), a status
+    /// line and the image transfers.
+    Progress {
+        step_fraction: f32,
+        status: String,
+        transfers: Vec<TransferProgress>,
+    },
     /// The operation ended. Applied once; later terminations are ignored.
     Terminate(Outcome),
 }
@@ -103,6 +119,9 @@ pub fn spawn(
         mailbox,
         messenger,
         auth,
+        step_fraction: 0.0,
+        last_broadcast: None,
+        pending_broadcast: false,
     };
     tokio::spawn(actor.run());
     let handle = TaskHandle {
@@ -118,13 +137,61 @@ struct TaskActor {
     mailbox: mpsc::Receiver<TaskEvent>,
     messenger: WebSocketMessenger,
     auth: Arc<AuthorizationService>,
+    /// Progress within the running step.
+    step_fraction: f32,
+    last_broadcast: Option<Instant>,
+    /// A throttled change is waiting for its trailing broadcast.
+    pending_broadcast: bool,
+}
+
+/// What an applied event asks of `publish`.
+#[derive(Debug, PartialEq)]
+enum Push {
+    /// Update the snapshot only (output lines are streamed separately).
+    Snapshot,
+    /// Update the snapshot and broadcast now.
+    Now,
+    /// Broadcast at most every `PROGRESS_INTERVAL`, leading and trailing edge.
+    Throttled,
 }
 
 impl TaskActor {
     async fn run(mut self) {
-        while let Some(event) = self.mailbox.recv().await {
-            let broadcast = self.apply(event);
-            self.publish(broadcast).await;
+        loop {
+            let deadline = self
+                .last_broadcast
+                .filter(|_| self.pending_broadcast)
+                .map(|t| t + PROGRESS_INTERVAL);
+            let event = match deadline {
+                Some(deadline) => tokio::select! {
+                    event = self.mailbox.recv() => event,
+                    _ = tokio::time::sleep_until(deadline) => {
+                        self.publish(true).await;
+                        continue;
+                    }
+                },
+                None => self.mailbox.recv().await,
+            };
+            let Some(event) = event else { break };
+            match self.apply(event) {
+                Push::Snapshot => self.publish(false).await,
+                Push::Now => self.publish(true).await,
+                Push::Throttled => {
+                    if self
+                        .last_broadcast
+                        .is_none_or(|t| t.elapsed() >= PROGRESS_INTERVAL)
+                    {
+                        self.publish(true).await;
+                    } else {
+                        // Readers get it with the trailing broadcast; saves a
+                        // snapshot clone per progress event.
+                        self.pending_broadcast = true;
+                    }
+                }
+            }
+        }
+        if self.pending_broadcast {
+            self.publish(true).await;
         }
         // Every writer and the handle are gone. A task that is still Running
         // at this point can never be terminated by anyone else.
@@ -139,26 +206,89 @@ impl TaskActor {
         debug!(task_id = %self.details.id, "Task actor stopped");
     }
 
-    /// Fold one event into the details. Returns whether the change is worth a
-    /// `TaskInfoUpdated` broadcast (output lines are streamed separately).
-    fn apply(&mut self, event: TaskEvent) -> bool {
+    /// Fold one event into the details.
+    fn apply(&mut self, event: TaskEvent) -> Push {
         match event {
             TaskEvent::StepStarted { command } => {
                 self.details.command = command;
-                true
+                Push::Now
             }
             TaskEvent::Output(lines) => {
                 for (stream, line) in lines {
                     self.details.output.add_line(stream, line);
                 }
-                false
+                Push::Snapshot
             }
             TaskEvent::SubprocessExited { exit_code } => {
                 self.details.last_exit_code = exit_code;
-                true
+                Push::Now
             }
-            TaskEvent::Terminate(outcome) => self.terminate(outcome),
+            TaskEvent::Step { name, state } => self.set_step(&name, state),
+            TaskEvent::Progress {
+                step_fraction,
+                status,
+                transfers,
+            } => {
+                if self.details.state != State::Running {
+                    return Push::Snapshot;
+                }
+                self.step_fraction = step_fraction.clamp(0.0, 1.0);
+                self.details.progress.status = status;
+                self.details.progress.transfers = transfers;
+                self.update_fraction();
+                Push::Throttled
+            }
+            TaskEvent::Terminate(outcome) => {
+                if self.terminate(outcome) {
+                    Push::Now
+                } else {
+                    Push::Snapshot
+                }
+            }
         }
+    }
+
+    fn set_step(&mut self, name: &str, state: StepState) -> Push {
+        if self.details.state != State::Running {
+            return Push::Snapshot;
+        }
+        let progress = &mut self.details.progress;
+        let Some(step) = progress
+            .steps
+            .iter_mut()
+            .find(|s| s.name == name && matches!(s.state, StepState::Pending | StepState::Running))
+        else {
+            return Push::Snapshot;
+        };
+        step.state = state;
+        self.step_fraction = 0.0;
+        progress.transfers.clear();
+        if state == StepState::Running {
+            progress.status = name.to_string();
+        }
+        self.update_fraction();
+        Push::Now
+    }
+
+    /// Weighted share of the steps done (or skipped), plus the running step's
+    /// own fraction. Never decreases while the task is running.
+    fn update_fraction(&mut self) {
+        let steps = &self.details.progress.steps;
+        let total: u32 = steps.iter().map(|s| s.weight).sum();
+        if total == 0 {
+            return;
+        }
+        let done: f32 = steps
+            .iter()
+            .map(|s| match s.state {
+                StepState::Done | StepState::Skipped => s.weight as f32,
+                StepState::Running => s.weight as f32 * self.step_fraction,
+                StepState::Pending | StepState::Failed => 0.0,
+            })
+            .sum();
+        let fraction = (done / total as f32).min(1.0);
+        let progress = &mut self.details.progress;
+        progress.fraction = progress.fraction.max(fraction);
     }
 
     fn terminate(&mut self, outcome: Outcome) -> bool {
@@ -180,8 +310,21 @@ impl TaskActor {
         };
         // The status line lands in the same snapshot as the terminal state, so
         // no reader can observe one without the other.
-        self.details.output.add_line(stream, status);
+        self.details.output.add_line(stream, status.clone());
         let failed = state == State::Failed;
+        let progress = &mut self.details.progress;
+        progress.status = status;
+        progress.transfers.clear();
+        if failed {
+            // A step cut off by an abort or a time limit failed with the task.
+            for step in &mut progress.steps {
+                if step.state == StepState::Running {
+                    step.state = StepState::Failed;
+                }
+            }
+        } else {
+            progress.fraction = 1.0;
+        }
         self.details.state = state;
         self.details.output_collection_active = false;
         let finish_time = chrono::Utc::now();
@@ -195,10 +338,12 @@ impl TaskActor {
         true
     }
 
-    async fn publish(&self, broadcast: bool) {
+    async fn publish(&mut self, broadcast: bool) {
         let snapshot = Arc::new(self.details.clone());
         self.snapshot.send_replace(snapshot.clone());
         if broadcast {
+            self.last_broadcast = Some(Instant::now());
+            self.pending_broadcast = false;
             // Only clients allowed to see this task get the update.
             let message = WebSocketMessage::TaskInfoUpdated((*snapshot).clone());
             for (client_id, user) in self.messenger.authenticated_clients().await {
@@ -260,6 +405,28 @@ impl TaskWriter {
 
     pub async fn subprocess_exited(&self, exit_code: Option<i32>) {
         self.send(TaskEvent::SubprocessExited { exit_code }).await;
+    }
+
+    pub async fn step(&self, name: impl Into<String>, state: StepState) {
+        self.send(TaskEvent::Step {
+            name: name.into(),
+            state,
+        })
+        .await;
+    }
+
+    pub async fn progress(
+        &self,
+        step_fraction: f32,
+        status: impl Into<String>,
+        transfers: Vec<TransferProgress>,
+    ) {
+        self.send(TaskEvent::Progress {
+            step_fraction,
+            status: status.into(),
+            transfers,
+        })
+        .await;
     }
 }
 
@@ -513,6 +680,124 @@ mod tests {
         expect_task_update(&mut allowed, "allowed client").await;
         assert_eq!(task_updates(&mut anonymous), 0);
         assert_eq!(task_updates(&mut other), 0);
+    }
+
+    /// A task with steps `a` (weight 40) and `b` (weight 10), `a` running.
+    fn planned() -> TaskDetails {
+        let step = |name: &str, state, weight| scotty_types::StepProgress {
+            name: name.to_string(),
+            state,
+            weight,
+        };
+        let mut details = TaskDetails {
+            app_name: Some("app-a".to_string()),
+            ..TaskDetails::default()
+        };
+        details.progress.steps = vec![
+            step("a", StepState::Running, 40),
+            step("b", StepState::Pending, 10),
+        ];
+        details
+    }
+
+    #[tokio::test]
+    async fn fraction_never_decreases_and_is_one_when_finished() {
+        let (handle, mut rx) = spawn(
+            planned(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
+        let w = handle.writer();
+        w.progress(0.5, "half", vec![]).await;
+        settled(&mut rx, |t| t.progress.status == "half").await;
+        // A pull that discovers more layers reports a lower step fraction.
+        w.progress(0.2, "more layers", vec![]).await;
+        let task = settled(&mut rx, |t| t.progress.status == "more layers").await;
+        assert_eq!(task.progress.fraction, 0.4);
+
+        w.step("a", StepState::Done).await;
+        w.step("b", StepState::Running).await;
+        let task = settled(&mut rx, |t| t.progress.status == "b").await;
+        assert_eq!(task.progress.fraction, 0.8);
+        assert_eq!(task.progress.steps[0].state, StepState::Done);
+        assert_eq!(task.progress.steps[1].state, StepState::Running);
+
+        handle.terminate(Outcome::finished("done")).await;
+        let task = settled(&mut rx, |t| t.state != State::Running).await;
+        assert_eq!(task.progress.fraction, 1.0);
+        assert_eq!(task.progress.status, "done");
+    }
+
+    #[tokio::test]
+    async fn failed_task_keeps_its_fraction() {
+        let (handle, mut rx) = spawn(
+            planned(),
+            create_test_websocket_messenger(),
+            test_auth().await,
+        );
+        handle.writer().progress(0.5, "half", vec![]).await;
+        handle
+            .terminate(Outcome::failed(FailureKind::TimedOut, "too slow"))
+            .await;
+        let task = settled(&mut rx, |t| t.state != State::Running).await;
+        assert_eq!(task.state, State::Failed);
+        assert_eq!(task.progress.fraction, 0.4);
+        // The step that was cut off failed; the next one never ran.
+        assert_eq!(task.progress.steps[0].state, StepState::Failed);
+        assert_eq!(task.progress.steps[1].state, StepState::Pending);
+    }
+
+    /// 200 progress events within a second: at most four broadcasts in any
+    /// second, plus one per step change and the termination.
+    #[tokio::test]
+    async fn progress_broadcasts_are_throttled() {
+        let (auth, _dir) = fixture_auth().await;
+        let messenger = create_test_websocket_messenger();
+        let mut client = connect(&messenger, Some("identifier:client-a")).await;
+        let received = tokio::spawn(async move {
+            let mut received = Vec::new();
+            while let Ok(Message::Text(text)) = client.recv().await {
+                if text.contains("TaskInfoUpdated") {
+                    received.push((Instant::now(), text.to_string()));
+                    if text.contains("Finished") {
+                        break;
+                    }
+                }
+            }
+            received
+        });
+
+        let (handle, _rx) = spawn(planned(), messenger, auth);
+        let w = handle.writer();
+        for i in 0..200 {
+            w.progress(i as f32 / 200.0, format!("event {i}"), vec![])
+                .await;
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        w.step("a", StepState::Done).await;
+        w.step("b", StepState::Running).await;
+        handle.terminate(Outcome::finished("done")).await;
+        let received = tokio::time::timeout(Duration::from_secs(2), received)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let progress: Vec<Instant> = received
+            .iter()
+            // Sent before the first step change.
+            .filter(|(_, text)| text.contains(r#""name":"a","state":"running""#))
+            .map(|(at, _)| *at)
+            .collect();
+        assert!(progress.len() >= 2, "leading and trailing edge");
+        for window in progress.windows(5) {
+            assert!(
+                window[4] - window[0] >= Duration::from_millis(950),
+                "more than four progress broadcasts within a second"
+            );
+        }
+        // Each step change and the termination are pushed at once.
+        let others = received.len() - progress.len();
+        assert_eq!(others, 3, "{received:?}");
     }
 
     #[tokio::test]

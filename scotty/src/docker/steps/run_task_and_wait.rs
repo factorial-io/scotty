@@ -4,6 +4,7 @@ use scotty_core::utils::secret::SecretHashMap;
 use tracing::{error, info};
 
 use crate::docker::docker_compose::run_task;
+use crate::tasks::manager::OutputMode;
 
 use super::context::Context;
 
@@ -17,6 +18,7 @@ pub async fn run_task_and_wait(
     args: &[&str],
     env: &SecretHashMap,
     msg: &str,
+    mode: OutputMode,
 ) -> anyhow::Result<()> {
     info!(
         app_name = %context.app_data.name,
@@ -33,6 +35,7 @@ pub async fn run_task_and_wait(
         args,
         env,
         writer.clone(),
+        mode,
     )
     .await?;
 

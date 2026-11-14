@@ -5,7 +5,7 @@ use tracing::{error, info, instrument, warn};
 
 use crate::docker::loadbalancer::{server_status, traefik_target};
 
-use super::context::Context;
+use super::context::{Context, Step};
 
 /// Resolves the per-app proxy network name and the Traefik container to
 /// connect to, or `None` when load balancing is not Traefik (e.g. HAProxy),
@@ -22,10 +22,11 @@ fn proxy_network_target(context: &Context) -> Option<(String, String)> {
 /// already exist. All operations are idempotent so retries are safe.
 #[instrument(skip_all, fields(app = %context.app_data.name))]
 pub async fn ensure_app_network(context: &Context) -> anyhow::Result<()> {
-    {
-        let Some((network, container)) = proxy_network_target(context) else {
-            return Ok(());
-        };
+    let Some((network, container)) = proxy_network_target(context) else {
+        context.skip_step(&Step::Network).await;
+        return Ok(());
+    };
+    context.step(&Step::Network, async {
         let docker = &context.app_state.docker;
 
         // Create the network. Ignore 409 (already exists) for idempotency.
@@ -85,7 +86,7 @@ pub async fn ensure_app_network(context: &Context) -> anyhow::Result<()> {
         }
 
         Ok(())
-    }
+    }).await
 }
 
 /// Disconnects Traefik from the app's proxy network and removes the network.
@@ -94,10 +95,11 @@ pub async fn ensure_app_network(context: &Context) -> anyhow::Result<()> {
 /// idempotent and best-effort: teardown never fails the surrounding task.
 #[instrument(skip_all, fields(app = %context.app_data.name))]
 pub async fn teardown_app_network(context: &Context) -> anyhow::Result<()> {
-    {
-        let Some((network, container)) = proxy_network_target(context) else {
-            return Ok(());
-        };
+    let Some((network, container)) = proxy_network_target(context) else {
+        context.skip_step(&Step::RemoveNetwork).await;
+        return Ok(());
+    };
+    context.step(&Step::RemoveNetwork, async {
         let docker = &context.app_state.docker;
 
         // Disconnect Traefik. `force` is intentional: the app's containers are
@@ -149,5 +151,5 @@ pub async fn teardown_app_network(context: &Context) -> anyhow::Result<()> {
         }
 
         Ok(())
-    }
+    }).await
 }

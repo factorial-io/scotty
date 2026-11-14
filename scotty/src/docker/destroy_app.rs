@@ -9,8 +9,8 @@ use scotty_core::notification_types::MessageType;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
 use super::helper::{run_operation, OperationSpec};
-use super::purge_app::{purge_steps, PurgeAppMethod};
-use super::steps::context::Context;
+use super::purge_app::{purge_steps, PurgeAppMethod, PURGE_STEPS};
+use super::steps::context::{Context, Step};
 use super::steps::files::remove_directory;
 
 pub async fn destroy_steps(ctx: &Context) -> anyhow::Result<()> {
@@ -19,7 +19,8 @@ pub async fn destroy_steps(ctx: &Context) -> anyhow::Result<()> {
     purge_steps(ctx, PurgeAppMethod::Down)
         .await
         .context("Docker compose down failed")?;
-    remove_directory(ctx).await?;
+    ctx.step(&Step::RemoveDirectory, remove_directory(ctx))
+        .await?;
     ctx.app_state.apps.remove_app(&ctx.app_data.name).await?;
     Ok(())
 }
@@ -38,6 +39,7 @@ pub async fn destroy_app(
         app_state,
         app,
         OperationSpec::exclusive(operation),
+        &[PURGE_STEPS.as_slice(), &[Step::RemoveDirectory]].concat(),
         Some(Message::new(MessageType::AppDestroyed, app)),
         |ctx| async move { destroy_steps(&ctx).await },
     )

@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use scotty_core::output::OutputStreamType;
 use scotty_core::settings::scheduler_interval::SchedulerInterval;
@@ -21,7 +21,18 @@ use crate::api::websocket::WebSocketMessenger;
 use crate::metrics;
 use crate::services::AuthorizationService;
 use crate::tasks::actor::{self, Snapshot, TaskHandle, TaskWriter};
+use crate::tasks::compose_progress::PullProgress;
 use crate::tasks::timed_buffer::TimedBuffer;
+
+/// How a subprocess's output is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputMode {
+    /// Every line is task output.
+    Plain,
+    /// `docker compose --progress json pull`: events become the task's
+    /// transfer progress plus readable lines; other lines are output.
+    ComposeProgress,
+}
 
 #[derive(Clone, Debug)]
 pub struct TaskManager {
@@ -85,6 +96,7 @@ impl TaskManager {
         args: &[&str],
         env: &HashMap<String, String>,
         writer: TaskWriter,
+        mode: OutputMode,
     ) -> tokio::task::JoinHandle<anyhow::Result<i32>> {
         let cwd = cwd.to_path_buf();
         let cmd = cmd.to_string();
@@ -103,7 +115,7 @@ impl TaskManager {
                 .step_started(format!("{} {}", cmd, args.join(" ")))
                 .await;
 
-            let result = run_process(&cwd, &cmd, &args, &env, &writer).await;
+            let result = run_process(&cwd, &cmd, &args, &env, &writer, mode).await;
             match &result {
                 Ok(code) => writer.subprocess_exited(Some(*code)).await,
                 Err(e) => {
@@ -142,6 +154,7 @@ async fn run_process(
     args: &[String],
     env: &HashMap<String, String>,
     writer: &TaskWriter,
+    mode: OutputMode,
 ) -> anyhow::Result<i32> {
     let mut child = Command::new(cmd)
         .args(args)
@@ -157,15 +170,19 @@ async fn run_process(
 
     let stdout = child.stdout.take().expect("stdout is piped");
     let stderr = child.stderr.take().expect("stderr is piped");
+    // Compose may print its events on either stream; both feed one pull.
+    let pull = (mode == OutputMode::ComposeProgress).then(Arc::default);
     let out_pump = tokio::spawn(pump_output(
         writer.clone(),
         stdout,
         OutputStreamType::Stdout,
+        pull.clone(),
     ));
     let err_pump = tokio::spawn(pump_output(
         writer.clone(),
         stderr,
         OutputStreamType::Stderr,
+        pull,
     ));
 
     let status = child.wait().await?;
@@ -182,6 +199,7 @@ async fn pump_output(
     writer: TaskWriter,
     stream: impl AsyncRead + Unpin,
     stream_type: OutputStreamType,
+    pull: Option<Arc<Mutex<PullProgress>>>,
 ) {
     const BATCH_SIZE: usize = 20;
     const FLUSH_INTERVAL_MS: u64 = 100;
@@ -192,6 +210,24 @@ async fn pump_output(
     loop {
         match reader.next_line().await {
             Ok(Some(line)) => {
+                if let Some(pull) = &pull {
+                    let update = {
+                        let mut pull = pull.lock().unwrap_or_else(|e| e.into_inner());
+                        pull.apply(&line).map(|readable| {
+                            (readable, pull.fraction(), pull.status(), pull.transfers())
+                        })
+                    };
+                    if let Some((readable, fraction, status, transfers)) = update {
+                        writer.progress(fraction, status, transfers).await;
+                        if let Some(readable) = readable {
+                            buffer.push((OutputStreamType::Stdout, readable));
+                        }
+                        if buffer.should_flush() {
+                            writer.output_lines(buffer.flush()).await;
+                        }
+                        continue;
+                    }
+                }
                 buffer.push((stream_type, line));
                 if buffer.should_flush() {
                     writer.output_lines(buffer.flush()).await;
@@ -252,6 +288,7 @@ mod tests {
                 &["-c", "echo one; echo two >&2; exit 3"],
                 &HashMap::new(),
                 handle.writer().clone(),
+                OutputMode::Plain,
             )
             .await
             .unwrap()
@@ -286,6 +323,44 @@ mod tests {
         );
     }
 
+    /// A pull's events become transfer progress and readable lines; other
+    /// lines stay output.
+    #[tokio::test]
+    async fn compose_progress_output_becomes_transfers() {
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
+        let (handle, mut rx) = manager.create_task(TaskDetails::default()).await;
+        let code = manager
+            .start_process(
+                Path::new("."),
+                "sh",
+                &[
+                    "-c",
+                    "cat tests/fixtures/compose_pull_progress.jsonl >&2; echo not an event",
+                ],
+                &HashMap::new(),
+                handle.writer().clone(),
+                OutputMode::ComposeProgress,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(code, 0);
+        handle.terminate(Outcome::finished("done")).await;
+        let task = wait_for(&mut rx, |t| t.state != State::Running).await;
+        let output: Vec<_> = task
+            .output
+            .lines
+            .iter()
+            .map(|l| l.content.as_str())
+            .collect();
+        assert!(
+            output.contains(&"Pulled image redis:7.0.15-alpine"),
+            "{output:?}"
+        );
+        assert!(output.contains(&"not an event"));
+        assert!(output.iter().all(|l| !l.starts_with('{')), "{output:?}");
+    }
+
     #[tokio::test]
     async fn missing_binary_is_reported_not_panicked() {
         let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
@@ -297,6 +372,7 @@ mod tests {
                 &[],
                 &HashMap::new(),
                 handle.writer().clone(),
+                OutputMode::Plain,
             )
             .await
             .unwrap();

@@ -1,31 +1,36 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use anyhow::Context as _;
 use scotty_core::{
+    apps::app_data::AppData,
     settings::app_blueprint::{ActionName, AppBlueprint},
     utils::secret::SecretHashMap,
 };
 use tracing::{info, instrument};
 
 use crate::api::error::AppError;
+use crate::app_state::SharedAppState;
+use crate::tasks::manager::OutputMode;
 
-use super::{context::Context, run_task_and_wait::run_task_and_wait};
+use super::{
+    context::{Context, Step},
+    run_task_and_wait::run_task_and_wait,
+};
 
-/// Commands to execute for an action (service -> list of commands)
-type ActionCommands = HashMap<String, Vec<String>>;
+/// Commands to execute for an action (service -> list of commands), by
+/// service name so they run in a stable order.
+type ActionCommands = BTreeMap<String, Vec<String>>;
 
-fn get_blueprint(context: &Context) -> Result<Option<AppBlueprint>, AppError> {
-    let Some(settings) = &context.app_data.settings else {
+fn get_blueprint(
+    app_state: &SharedAppState,
+    app: &AppData,
+) -> Result<Option<AppBlueprint>, AppError> {
+    let Some(settings) = &app.settings else {
         return Ok(None);
     };
     match &settings.app_blueprint {
         Some(blueprint_name) => {
-            let blueprint = context
-                .app_state
-                .settings
-                .apps
-                .blueprints
-                .get(blueprint_name);
+            let blueprint = app_state.settings.apps.blueprints.get(blueprint_name);
 
             if blueprint.is_none() {
                 return Err(AppError::AppBlueprintMismatch(blueprint_name.to_string()));
@@ -39,10 +44,11 @@ fn get_blueprint(context: &Context) -> Result<Option<AppBlueprint>, AppError> {
 /// Get the commands for the action, checking per-app custom actions first, then blueprint.
 /// Returns None if the action is not found in either location.
 fn get_action_commands(
-    context: &Context,
+    app_state: &SharedAppState,
+    app: &AppData,
     action: &ActionName,
 ) -> Result<Option<ActionCommands>, AppError> {
-    let settings = match &context.app_data.settings {
+    let settings = match &app.settings {
         Some(s) => s,
         None => return Ok(None),
     };
@@ -61,12 +67,12 @@ fn get_action_commands(
                 source = "per-app custom action",
                 "Found action in per-app custom actions"
             );
-            return Ok(Some(custom_action.commands.clone()));
+            return Ok(Some(custom_action.commands.clone().into_iter().collect()));
         }
     }
 
     // Fall back to blueprint actions
-    let blueprint = get_blueprint(context)?;
+    let blueprint = get_blueprint(app_state, app)?;
     if let Some(bp) = blueprint {
         if let Some(blueprint_action) = bp.actions.get(action) {
             info!(
@@ -74,32 +80,56 @@ fn get_action_commands(
                 source = "blueprint",
                 "Found action in blueprint"
             );
-            return Ok(Some(blueprint_action.commands.clone()));
+            return Ok(Some(
+                blueprint_action.commands.clone().into_iter().collect(),
+            ));
         }
     }
 
     Ok(None)
 }
 
+/// The steps of running `action` on `app`: one per service command.
+pub fn action_steps(
+    app_state: &SharedAppState,
+    app: &AppData,
+    action: &ActionName,
+) -> Result<Vec<Step>, AppError> {
+    let name = String::from(action.clone());
+    Ok(get_action_commands(app_state, app, action)?
+        .unwrap_or_default()
+        .keys()
+        .map(|service| Step::command(&name, service))
+        .collect())
+}
+
 /// Run the app's commands for `action` (per-app custom action or blueprint
 /// action) on each service. A no-op when the app defines none.
 #[instrument(skip_all, fields(app = %context.app_data.name, action = ?action))]
 pub async fn run_post_actions(context: &Context, action: &ActionName) -> anyhow::Result<()> {
+    // Get action commands from either per-app custom actions or blueprint
+    let Some(commands) = get_action_commands(&context.app_state, &context.app_data, action)? else {
+        info!(
+            app_name = %context.app_data.name,
+            action = ?action,
+            "No action commands found, skipping"
+        );
+        context.skip_step(&Step::PostActions).await;
+        return Ok(());
+    };
+    context
+        .step(&Step::PostActions, run_commands(context, action, commands))
+        .await
+}
+
+async fn run_commands(
+    context: &Context,
+    action: &ActionName,
+    commands: ActionCommands,
+) -> anyhow::Result<()> {
     {
         let docker_compose_path = std::path::PathBuf::from(&context.app_data.docker_compose_path);
-
-        // Get action commands from either per-app custom actions or blueprint
-        let action_commands = get_action_commands(context, action)?;
-        if action_commands.is_none() {
-            info!(
-                app_name = %context.app_data.name,
-                action = ?action,
-                "No action commands found, skipping"
-            );
-            return Ok(());
-        }
-
-        let commands = action_commands.unwrap();
+        let action_name = String::from(action.clone());
 
         // Two different environment variables are used for different purposes:
         // - `environment`: Full environment (app settings + augmented SCOTTY__* vars)
@@ -144,16 +174,20 @@ pub async fn run_post_actions(context: &Context, action: &ActionName) -> anyhow:
             let script_one_line = augmented_script.join("; ");
             let args = vec!["exec", service, "sh", "-c", &script_one_line];
 
-            run_task_and_wait(
+            let msg = format!("action {:?} on service {}", action, service);
+            let run = run_task_and_wait(
                 context,
                 &docker_compose_path,
                 "docker-compose",
                 &args,
                 &environment,
-                &format!("action {:?} on service {}", action, service),
-            )
-            .await
-            .with_context(|| format!("action {:?} on service {}", action, service))?;
+                &msg,
+                OutputMode::Plain,
+            );
+            context
+                .step(&Step::command(&action_name, service), run)
+                .await
+                .context(msg)?;
         }
 
         Ok(())

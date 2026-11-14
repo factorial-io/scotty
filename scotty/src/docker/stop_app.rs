@@ -7,7 +7,7 @@ use scotty_core::tasks::running_app_context::RunningAppContext;
 
 use super::helper::{run_operation, OperationSpec};
 use super::steps::compose::{docker_compose, update_app_data};
-use super::steps::context::Context;
+use super::steps::context::{Context, Step};
 
 /// Intentionally no ensure/teardown of the app network here: `compose stop`
 /// neither attaches nor validates networks, and the app's containers stay in
@@ -29,6 +29,7 @@ async fn start_stop(
         app_state,
         app,
         OperationSpec::exclusive(operation),
+        &[Step::Stop],
         Some(Message::new(MessageType::AppStopped, app)),
         |ctx| async move { stop_steps(&ctx).await },
     )
