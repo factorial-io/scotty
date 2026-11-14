@@ -51,7 +51,7 @@ pub enum AppError {
     #[error("File {0} exceeds maximum decompressed size of {1} bytes")]
     FileDecompressedSizeExceeded(String, usize),
 
-    #[error("Cant destroy an unmanaged app: {0}")]
+    #[error("Can't destroy app {0}: Scotty does not manage it (adopt it first)")]
     CantDestroyUnmanagedApp(String),
 
     #[error("Missing docker-compose file in the payload")]
@@ -172,6 +172,21 @@ impl AppError {
             AppError::ActionNotExecutable(_) => StatusCode::FORBIDDEN,
             AppError::ActionAlreadyExists(_) => StatusCode::CONFLICT,
             AppError::OperationInProgress { .. } => StatusCode::CONFLICT,
+            // The app's state doesn't allow the operation.
+            AppError::CantDestroyUnmanagedApp(_)
+            | AppError::OperationNotSupportedForLegacyApp(_) => StatusCode::CONFLICT,
+            // The request itself is wrong; retrying it can't help.
+            AppError::InvalidInput
+            | AppError::FileContentDecodingError
+            | AppError::NoDockerComposeFile
+            | AppError::InvalidDockerComposeFile
+            | AppError::PublicServiceNotFound(_)
+            | AppError::PublicPortsNotSupported(_)
+            | AppError::EnvironmentVariablesNotSupported(_)
+            | AppError::RegistryNotFound(_)
+            | AppError::AppBlueprintNotFound(_)
+            | AppError::AppBlueprintMismatch(_)
+            | AppError::InvalidNotificationServiceIds(_) => StatusCode::BAD_REQUEST,
             AppError::ActionInvalidState(_) => StatusCode::BAD_REQUEST,
             AppError::OAuthError(ref oauth_error) => oauth_error.clone().into(),
             AppError::ScopesNotFound(_) => StatusCode::BAD_REQUEST,
@@ -217,7 +232,6 @@ impl AppError {
                     ..
                 } => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status, self.to_string())
@@ -338,5 +352,33 @@ mod tests {
         let started: chrono::DateTime<chrono::Utc> =
             serde_json::from_value(body["operation"]["started_at"].clone()).unwrap();
         assert_eq!(started, started_at);
+    }
+
+    #[test]
+    fn client_errors_are_not_500() {
+        let status = |e: AppError| e.get_error_msg().0;
+        assert_eq!(
+            status(AppError::CantDestroyUnmanagedApp("shop".into())),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            status(AppError::OperationNotSupportedForLegacyApp("shop".into())),
+            StatusCode::CONFLICT
+        );
+        for e in [
+            AppError::InvalidInput,
+            AppError::FileContentDecodingError,
+            AppError::NoDockerComposeFile,
+            AppError::InvalidDockerComposeFile,
+            AppError::PublicServiceNotFound("web".into()),
+            AppError::PublicPortsNotSupported("web".into()),
+            AppError::EnvironmentVariablesNotSupported("FOO".into()),
+            AppError::RegistryNotFound("r".into()),
+            AppError::AppBlueprintNotFound("b".into()),
+            AppError::AppBlueprintMismatch("b".into()),
+            AppError::InvalidNotificationServiceIds("x".into()),
+        ] {
+            assert_eq!(status(e.clone()), StatusCode::BAD_REQUEST, "{e}");
+        }
     }
 }
