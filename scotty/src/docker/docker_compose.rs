@@ -48,7 +48,7 @@ pub async fn run_task(
 /// # Returns
 ///
 /// The command output as a string
-#[instrument]
+#[instrument(skip(env_vars))]
 pub async fn run_docker_compose_now(
     docker_compose_path: &Path,
     command: &[&str],
