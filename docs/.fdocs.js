@@ -34,6 +34,7 @@ export default function (defaultConfig) {
             "guide",
             "first-steps",
             "architecture",
+            "operations",
             "installation",
             "configuration",
             "default-backend",

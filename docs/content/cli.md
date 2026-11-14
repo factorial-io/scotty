@@ -6,6 +6,12 @@ destroy apps, as well as manage authorization (scopes, roles, assignments).
 
 You can get help by running `scottyctl --help` and `scottyctl --help <command>`.
 
+Scotty runs one operation per app at a time. When an app is busy, `scottyctl`
+waits until its running operation has ended and then runs your command. Pass the
+global flag `--no-wait` to fail immediately instead. While it waits for a task,
+`scottyctl` shows the progress of the operation in its status line. See
+[Operations](operations.md) for details.
+
 ## Authentication
 
 Scotty supports two authentication methods:
@@ -242,6 +248,8 @@ Pipe a database dump into a container:
 ```shell
 mysqldump mydb | scottyctl app:cp - my-app:db:/tmp/dump.sql
 ```
+
+An upload does not take the app's operation lock and does not wait for other operations. It can fail if the target container is being recreated or removed by a rebuild, purge or destroy.
 
 Stream a remote file to stdout:
 ```shell

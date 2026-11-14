@@ -39,6 +39,7 @@ enum ActionLookupResult<'a> {
     path = "/api/v1/authenticated/apps/{app_name}/actions",
     request_body = CustomActionPayload,
     responses(
+        (status = 409, description = "Another operation is running on the app (only for actions that require action_write); the body names it in `operation`"),
         (status = 200, response = inline(RunningAppContext)),
         (status = 401, description = "Access token is missing or invalid"),
         (status = 403, description = "Insufficient permissions for this action or action not approved"),

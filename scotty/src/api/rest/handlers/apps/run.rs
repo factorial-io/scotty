@@ -27,6 +27,7 @@ use crate::{
     get,
     path = "/api/v1/authenticated/apps/run/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
     ),
@@ -52,6 +53,7 @@ pub async fn run_app_handler(
     get,
     path = "/api/v1/authenticated/apps/stop/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
     ),
@@ -77,6 +79,7 @@ pub async fn stop_app_handler(
     get,
     path = "/api/v1/authenticated/apps/purge/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
     ),
@@ -122,6 +125,7 @@ pub async fn info_app_handler(
     get,
     path = "/api/v1/authenticated/apps/rebuild/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
     ),
@@ -147,6 +151,7 @@ pub async fn rebuild_app_handler(
     get,
     path = "/api/v1/authenticated/apps/destroy/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 400, response = inline(AppError)),
     (status = 401, description = "Access token is missing or invalid"),
@@ -175,6 +180,7 @@ pub async fn destroy_app_handler(
     get,
     path = "/api/v1/authenticated/apps/adopt/{app_id}",
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(AppData)),
     (status = 400, response = inline(AppError)),
     (status = 401, description = "Access token is missing or invalid"),
