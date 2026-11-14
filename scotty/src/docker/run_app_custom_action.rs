@@ -115,8 +115,8 @@ pub async fn run_app_custom_action(
     // exclusive.
     let name = format!("action:{}", String::from(action.clone()));
     let operation = match permission {
-        Permission::ActionRead => OperationSpec::Shared(name),
-        _ => OperationSpec::Exclusive(name),
+        Permission::ActionRead => OperationSpec::shared(name),
+        _ => OperationSpec::exclusive(name),
     };
     let steps = [vec![Step::Login], action_steps(&app_state, app, &action)?].concat();
     run_operation_requested_by(

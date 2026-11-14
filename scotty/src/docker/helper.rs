@@ -16,7 +16,7 @@ use tracing::{error, warn};
 use super::steps::context::{Context, Step, TaskAccess};
 
 /// How an operation relates to the app's operation lock.
-pub enum OperationSpec {
+enum LockSpec {
     /// Take the lock under this operation name; refused if it is held.
     Exclusive(String),
     /// Use a lock the caller already took (create takes it before reading the
@@ -26,9 +26,40 @@ pub enum OperationSpec {
     Shared(String),
 }
 
+/// What [`run_operation`] needs to know about an operation besides its steps.
+pub struct OperationSpec {
+    lock: LockSpec,
+    changes_app_list: bool,
+}
+
 impl OperationSpec {
+    fn new(lock: LockSpec) -> Self {
+        Self {
+            lock,
+            changes_app_list: false,
+        }
+    }
+
+    /// Take the app's lock under `name`; refused if it is held.
     pub fn exclusive(name: impl Into<String>) -> Self {
-        Self::Exclusive(name.into())
+        Self::new(LockSpec::Exclusive(name.into()))
+    }
+
+    /// Use a lock the caller already took, under the lock's operation name.
+    pub fn locked(lock: AppLock) -> Self {
+        Self::new(LockSpec::Locked(lock))
+    }
+
+    /// Read-only: neither takes nor waits for the lock.
+    pub fn shared(name: impl Into<String>) -> Self {
+        Self::new(LockSpec::Shared(name.into()))
+    }
+
+    /// The operation adds or removes the app, so clients refetch the app list
+    /// when it ends.
+    pub fn changing_app_list(mut self) -> Self {
+        self.changes_app_list = true;
+        self
     }
 }
 
@@ -97,19 +128,17 @@ where
     F: FnOnce(Arc<Context>) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let (name, lock) = match operation {
-        OperationSpec::Exclusive(name) => {
+    let (name, lock) = match operation.lock {
+        LockSpec::Exclusive(name) => {
             let lock = app_state.app_locks.lock(&app.name, &name)?;
             (name, Some(lock))
         }
-        OperationSpec::Locked(lock) => {
-            let name = lock.operation().map(|o| o.operation).unwrap_or_default();
-            (name, Some(lock))
-        }
-        OperationSpec::Shared(name) => (name, None),
+        LockSpec::Locked(lock) => (lock.operation().to_string(), Some(lock)),
+        LockSpec::Shared(name) => (name, None),
     };
     let locked = lock.is_some();
     let ctx = Context::create(app_state.clone(), app, access, name, lock, steps).await;
+    let changes_app_list = operation.changes_app_list;
     ctx.task
         .writer()
         .status(format!("Starting app '{}'", app.name))
@@ -139,20 +168,29 @@ where
                 .into())
             }
         };
-        finish_operation(&ctx, result, notification).await;
+        finish_operation(&ctx, result, notification, changes_app_list).await;
     });
     Ok(running)
 }
 
 /// Refresh app data, release the app's lock, terminate the task once, notify
-/// on success. The lock is released before the task turns terminal, so a
-/// client that waits for the task can start the next operation right away.
-pub async fn finish_operation(
+/// on success, and tell every client to refetch the app list if
+/// `changes_app_list`. The lock is released before the task turns terminal, so
+/// a client that waits for the task can start the next operation right away.
+async fn finish_operation(
     ctx: &Context,
     result: anyhow::Result<()>,
     notification: Option<Message>,
+    changes_app_list: bool,
 ) {
-    finish_operation_after(ctx, result, notification, refresh_app_data(ctx)).await
+    finish_operation_after(
+        ctx,
+        result,
+        notification,
+        changes_app_list,
+        refresh_app_data(ctx),
+    )
+    .await
 }
 
 /// How long the refresh after an operation may take. Docker can hang (e.g.
@@ -165,6 +203,7 @@ async fn finish_operation_after(
     ctx: &Context,
     result: anyhow::Result<()>,
     notification: Option<Message>,
+    changes_app_list: bool,
     refresh: impl Future<Output = anyhow::Result<()>>,
 ) {
     let app_name = &ctx.app_data.name;
@@ -201,11 +240,7 @@ async fn finish_operation_after(
     let finished = matches!(outcome, Outcome::Finished { .. });
     ctx.release_lock();
     ctx.task.terminate(outcome).await;
-    // Every create or destroy variant (e.g. `ttl-destroy`) changes the list.
-    if ["create", "destroy"]
-        .iter()
-        .any(|op| ctx.operation.ends_with(op))
-    {
+    if changes_app_list {
         ctx.app_state
             .messenger
             .broadcast_to_all(WebSocketMessage::AppListUpdated)
@@ -491,7 +526,7 @@ mod tests {
             let running = run_operation(
                 app_state.clone(),
                 &app,
-                OperationSpec::Shared("action:status".into()),
+                OperationSpec::shared("action:status"),
                 &[],
                 None,
                 |_| std::future::pending(),
@@ -504,7 +539,7 @@ mod tests {
         let _read = run_operation(
             app_state.clone(),
             &app,
-            OperationSpec::Shared("action:status".into()),
+            OperationSpec::shared("action:status"),
             &[],
             None,
             |_| std::future::pending(),
@@ -615,7 +650,7 @@ mod tests {
         let running = run_operation(
             app_state.clone(),
             &gone_app("expired"),
-            OperationSpec::exclusive("ttl-destroy"),
+            crate::docker::destroy_app::operation("ttl-destroy"),
             &[],
             None,
             |_| async { Ok(()) },
@@ -632,6 +667,32 @@ mod tests {
             seen |= matches!(message, axum::extract::ws::Message::Text(ref t) if t.as_str() == expected);
         }
         assert!(seen, "AppListUpdated was not broadcast");
+    }
+
+    /// The lock is keyed by the app's slug, but start and release are
+    /// announced under the app's own name, the one its scopes are known by.
+    /// A directory placed by hand keeps a name that differs from its slug.
+    #[tokio::test]
+    async fn lock_pushes_under_the_name_the_scopes_use() {
+        let app_state = test_app_state().await;
+        app_state
+            .auth_service
+            .set_app_scopes("simple_nginx", vec!["client-a".to_string()])
+            .await
+            .unwrap();
+        let mut viewer = connect(&app_state, "identifier:client-a").await;
+        let running = run_operation(
+            app_state.clone(),
+            &gone_app("simple_nginx"),
+            OperationSpec::exclusive("run"),
+            &[],
+            None,
+            |_| async { Ok(()) },
+        )
+        .await
+        .unwrap();
+        wait_terminal(&app_state, running.task.id).await;
+        assert_eq!(app_info_updates(&mut viewer, "simple_nginx").await, 2);
     }
 
     /// A refresh that never returns (stuck Docker daemon) still lets the
@@ -652,7 +713,7 @@ mod tests {
         .await;
         tokio::time::timeout(
             REFRESH_TIMEOUT * 2,
-            finish_operation_after(&ctx, Ok(()), None, std::future::pending()),
+            finish_operation_after(&ctx, Ok(()), None, false, std::future::pending()),
         )
         .await
         .expect("finishing waited for the stuck refresh");

@@ -25,6 +25,12 @@ pub async fn destroy_steps(ctx: &Context) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The lock spec of a destroy named `operation`: removing the app changes the
+/// app list.
+pub(crate) fn operation(operation: &str) -> OperationSpec {
+    OperationSpec::exclusive(operation).changing_app_list()
+}
+
 /// Destroy `app`; `operation` names it in the app's lock (`destroy`, or
 /// `ttl-destroy` for the TTL checker).
 pub async fn destroy_app(
@@ -38,7 +44,7 @@ pub async fn destroy_app(
     run_operation(
         app_state,
         app,
-        OperationSpec::exclusive(operation),
+        self::operation(operation),
         &[PURGE_STEPS.as_slice(), &[Step::RemoveDirectory]].concat(),
         Some(Message::new(MessageType::AppDestroyed, app)),
         |ctx| async move { destroy_steps(&ctx).await },

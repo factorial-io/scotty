@@ -98,13 +98,13 @@ impl AppLocks {
     /// Lock `app` for `operation`, or return the operation holding it. The
     /// lock is released when the returned guard is dropped.
     pub fn try_lock(&self, app: &str, operation: &str) -> Result<AppLock, AppOperation> {
-        let app = slugify(app);
+        let key = slugify(app);
         let mut entries = self.entries();
-        if let Some(holder) = entries.get(&app) {
+        if let Some(holder) = entries.get(&key) {
             return Err(holder.clone());
         }
         entries.insert(
-            app.clone(),
+            key.clone(),
             AppOperation {
                 operation: operation.to_string(),
                 task_id: None,
@@ -113,7 +113,9 @@ impl AppLocks {
         );
         Ok(AppLock {
             locks: self.clone(),
-            app,
+            key,
+            app: app.to_string(),
+            operation: operation.to_string(),
             push_to: None,
         })
     }
@@ -137,14 +139,24 @@ impl AppLocks {
 /// Holds the operation lock of one app; see [`AppLocks`].
 pub struct AppLock {
     locks: AppLocks,
+    /// The entry in [`AppLocks`] (the slug of `app`).
+    key: String,
+    /// The app's name as the caller gave it, which is the name the
+    /// authorization service knows the app's scopes by. A directory placed by
+    /// hand (e.g. `simple_nginx`) keeps its name, which differs from its slug,
+    /// so the release must be announced under this name, not under `key`.
     app: String,
+    operation: String,
     /// Where to announce the release, for operations that run as a task.
     push_to: Option<SharedAppState>,
 }
 
 impl std::fmt::Debug for AppLock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AppLock").field("app", &self.app).finish()
+        f.debug_struct("AppLock")
+            .field("app", &self.app)
+            .field("operation", &self.operation)
+            .finish()
     }
 }
 
@@ -152,20 +164,21 @@ impl AppLock {
     /// Record the operation's task and announce the release to clients that
     /// may view the app.
     pub fn set_task(&mut self, task_id: Uuid, app_state: SharedAppState) {
-        if let Some(entry) = self.locks.entries().get_mut(&self.app) {
+        if let Some(entry) = self.locks.entries().get_mut(&self.key) {
             entry.task_id = Some(task_id);
         }
         self.push_to = Some(app_state);
     }
 
-    pub fn operation(&self) -> Option<AppOperation> {
-        self.locks.current(&self.app)
+    /// The operation this lock was taken for.
+    pub fn operation(&self) -> &str {
+        &self.operation
     }
 }
 
 impl Drop for AppLock {
     fn drop(&mut self) {
-        self.locks.entries().remove(&self.app);
+        self.locks.entries().remove(&self.key);
         // Drop can't await; also reached on panic unwind.
         if let (Some(state), Ok(rt)) = (self.push_to.take(), tokio::runtime::Handle::try_current())
         {
@@ -194,7 +207,8 @@ impl AppState {
     /// changed; they refetch it.
     pub async fn push_app_info(&self, app: &str) {
         let message = WebSocketMessage::AppInfoUpdated(app.to_string());
-        // Without assignments every app is listed to everyone (`apps::list`).
+        // Auth disabled means every app is visible to everyone; the single
+        // decision point for that is `services::apps::list`.
         let everyone = !self.auth_service.is_enabled().await;
         for (client_id, user) in self.messenger.authenticated_clients().await {
             let user_id = AuthorizationService::get_user_id_for_authorization(&user);

@@ -215,6 +215,9 @@ async fn pump_output(
 
     let mut reader = BufReader::new(stream).lines();
     let mut buffer = TimedBuffer::new(BATCH_SIZE, FLUSH_INTERVAL_MS);
+    // Compose repeats unchanged progress many times; only changes go to the
+    // task's bounded mailbox. Every change is sent, so the final state is too.
+    let mut last_progress = None;
 
     loop {
         match reader.next_line().await {
@@ -223,11 +226,15 @@ async fn pump_output(
                     let update = {
                         let mut pull = pull.lock().unwrap_or_else(|e| e.into_inner());
                         pull.apply(&line).map(|readable| {
-                            (readable, pull.fraction(), pull.status(), pull.transfers())
+                            (readable, (pull.fraction(), pull.status(), pull.transfers()))
                         })
                     };
-                    if let Some((readable, fraction, status, transfers)) = update {
-                        writer.progress(fraction, status, transfers).await;
+                    if let Some((readable, progress)) = update {
+                        if last_progress.as_ref() != Some(&progress) {
+                            let (fraction, status, transfers) = progress.clone();
+                            writer.progress(fraction, status, transfers).await;
+                            last_progress = Some(progress);
+                        }
                         if let Some(readable) = readable {
                             buffer.push((OutputStreamType::Stdout, readable));
                         }
@@ -267,6 +274,26 @@ mod tests {
 
     async fn test_auth() -> Arc<AuthorizationService> {
         Arc::new(AuthorizationService::create_fallback_service(None).await)
+    }
+
+    /// Repeated identical compose progress reaches the task once.
+    #[tokio::test]
+    async fn unchanged_compose_progress_is_sent_once() {
+        let line = r#"{"id":"Image alpine:3.17","status":"Working","text":"Pulling"}"#;
+        let input = format!("{line}\n").repeat(50);
+        let (writer, mut events) = TaskWriter::detached();
+        pump_output(
+            writer,
+            input.as_bytes(),
+            OutputStreamType::Stdout,
+            Some(Arc::default()),
+        )
+        .await;
+        let mut progress = 0;
+        while let Ok(event) = events.try_recv() {
+            progress += matches!(event, actor::TaskEvent::Progress { .. }) as usize;
+        }
+        assert_eq!(progress, 1);
     }
 
     async fn wait_for(

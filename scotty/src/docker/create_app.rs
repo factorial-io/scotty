@@ -209,9 +209,10 @@ pub async fn create_app(
     let settings = settings.clone();
     let files = files.clone();
     let operation = match lock {
-        Some(lock) => OperationSpec::Locked(lock),
+        Some(lock) => OperationSpec::locked(lock),
         None => OperationSpec::exclusive("create"),
-    };
+    }
+    .changing_app_list();
     run_operation_requested_by(
         app_state,
         &app_data,

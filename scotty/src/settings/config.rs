@@ -180,7 +180,22 @@ impl Settings {
             )));
         }
 
+        settings
+            .check_max_operation_duration()
+            .map_err(ConfigError::Message)?;
+
         Ok(settings)
+    }
+
+    /// A zero limit would abort every operation as soon as it starts.
+    fn check_max_operation_duration(&self) -> Result<(), String> {
+        let limit = &self.apps.max_operation_duration;
+        if std::time::Duration::from(limit.clone()).is_zero() {
+            return Err(format!(
+                "apps.max_operation_duration must be greater than zero (got {limit})"
+            ));
+        }
+        Ok(())
     }
 
     fn check_if_optional(&self, s: &Option<String>) -> Option<String> {
@@ -302,6 +317,26 @@ mod tests {
             .try_deserialize()
             .unwrap();
         assert_eq!(without.apps.max_operation_duration.to_string(), "1h");
+    }
+
+    #[test]
+    fn test_zero_max_operation_duration_is_refused() {
+        let load = |value: &str| -> Settings {
+            Config::builder()
+                .add_source(config::File::with_name("tests/test_bearer_auth"))
+                .set_override("apps.max_operation_duration", value)
+                .unwrap()
+                .build()
+                .unwrap()
+                .try_deserialize()
+                .unwrap()
+        };
+        let err = load("0s").check_max_operation_duration().unwrap_err();
+        assert!(
+            err.contains("apps.max_operation_duration must be greater than zero"),
+            "{err}"
+        );
+        assert!(load("1s").check_max_operation_duration().is_ok());
     }
 
     #[test]

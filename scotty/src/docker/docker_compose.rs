@@ -33,7 +33,10 @@ pub async fn run_task(
         .start_process(parent_dir, command, args, &exposed_env, writer, mode))
 }
 
-/// Runs a docker-compose command synchronously and returns the output
+/// Runs a docker-compose command to completion and returns the output.
+///
+/// Async and `kill_on_drop`, so a caller's timeout (e.g. the app data refresh
+/// after an operation) both frees the runtime worker and ends the process.
 ///
 /// # Arguments
 ///
@@ -46,13 +49,14 @@ pub async fn run_task(
 ///
 /// The command output as a string
 #[instrument]
-pub fn run_docker_compose_now(
+pub async fn run_docker_compose_now(
     docker_compose_path: &Path,
     command: &[&str],
     env_vars: Option<&std::collections::HashMap<String, String>>,
     return_stderr: bool,
 ) -> anyhow::Result<String> {
-    let mut cmd = std::process::Command::new("docker-compose");
+    let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.kill_on_drop(true);
 
     // Add args and set working directory
     let parent_dir = docker_compose_path
@@ -69,7 +73,7 @@ pub fn run_docker_compose_now(
     }
 
     // Execute the command
-    let output = cmd.output()?;
+    let output = cmd.output().await?;
 
     if !output.status.success() {
         let stderr = String::from_utf8(output.stderr)

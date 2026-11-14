@@ -481,6 +481,21 @@ impl Drop for TaskHandle {
 }
 
 #[cfg(test)]
+impl TaskWriter {
+    /// A writer whose events go to the returned receiver instead of an actor.
+    pub(crate) fn detached() -> (Self, mpsc::Receiver<TaskEvent>) {
+        let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
+        (
+            Self {
+                id: Uuid::new_v4(),
+                tx,
+            },
+            rx,
+        )
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::basic_auth::CurrentUser;

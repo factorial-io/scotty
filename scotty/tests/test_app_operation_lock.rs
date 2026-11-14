@@ -283,3 +283,40 @@ async fn app_info_shows_the_running_operation_until_it_ends() {
     drop(rebuild);
     assert_eq!(info().await["operation"], Value::Null);
 }
+
+#[tokio::test]
+async fn a_viewer_sees_the_task_id_of_a_running_action_but_not_its_task() {
+    let env = setup().await;
+    // An action task is visible only to holders of the action's permission;
+    // the viewer holds `view` only.
+    let (task, _snapshots) = env
+        .state
+        .task_manager
+        .create_task(scotty_core::tasks::task_details::TaskDetails {
+            app_name: Some("shop".into()),
+            action_permission: Some("action_write".into()),
+            ..Default::default()
+        })
+        .await;
+    let mut lock = env.state.app_locks.lock("shop", "action:migrate").unwrap();
+    lock.set_task(task.id(), env.state.clone());
+
+    let info = env
+        .server
+        .get("/api/v1/authenticated/apps/info/shop")
+        .authorization_bearer(VIEWER)
+        .await
+        .json::<Value>();
+    assert_eq!(info["operation"]["task_id"], task.id().to_string());
+
+    let task_url = format!("/api/v1/authenticated/task/{}", task.id());
+    let hidden = env
+        .server
+        .get(&task_url)
+        .authorization_bearer(VIEWER)
+        .expect_failure()
+        .await;
+    assert_eq!(hidden.status_code(), 404, "{}", hidden.text());
+    let shown = env.server.get(&task_url).authorization_bearer(ADMIN).await;
+    assert_eq!(shown.status_code(), 200, "{}", shown.text());
+}
