@@ -61,6 +61,9 @@
             <a href="/architecture.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Architecture</span>
       </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/operations.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Operations, locking and progress</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
             <a href="/installation.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Installation</span>
       </a></li>            <li class="Nav-listItem" style="--level: 0">
@@ -209,6 +212,11 @@
 written in Rust and provides a simple interface to list, create, update and
 destroy apps, as well as manage authorization (scopes, roles, assignments).</p>
 <p>You can get help by running <code>scottyctl --help</code> and <code>scottyctl --help &lt;command&gt;</code>.</p>
+<p>Scotty runs one operation per app at a time. When an app is busy, <code>scottyctl</code>
+waits until its running operation has ended and then runs your command. Pass the
+global flag <code>--no-wait</code> to fail immediately instead. While it waits for a task,
+<code>scottyctl</code> shows the progress of the operation in its status line. See
+<a href="operations.html">Operations</a> for details.</p>
 <h2 id="authentication" tabindex="-1"><a class="header-anchor" href="#authentication">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
@@ -417,6 +425,7 @@ scottyctl app:shell my-app db <span class="token parameter variable">-c</span> <
 <pre class="language-shell"><code class="language-shell">scottyctl app:cp ./assets my-app:web:/var/www/public/assets</code></pre>
 <p>Pipe a database dump into a container:</p>
 <pre class="language-shell"><code class="language-shell">mysqldump mydb <span class="token operator">|</span> scottyctl app:cp - my-app:db:/tmp/dump.sql</code></pre>
+<p>An upload does not take the app's operation lock and does not wait for other operations. It can fail if the target container is being recreated or removed by a rebuild, purge or destroy.</p>
 <p>Stream a remote file to stdout:</p>
 <pre class="language-shell"><code class="language-shell">scottyctl app:cp my-app:web:/var/log/app.log - <span class="token operator">|</span> <span class="token function">gzip</span> <span class="token operator">&gt;</span> app.log.gz</code></pre>
 <p>Implicit service on a single-service app:</p>

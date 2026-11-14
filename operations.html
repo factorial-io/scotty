@@ -1,0 +1,402 @@
+<!DOCTYPE html><html lang="en"><head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Operations, locking and progress</title>
+                <link rel="stylesheet" href="/fdocs/common.css">
+          <link rel="stylesheet" href="/fdocs/docs.css">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-Regular.woff2" as="font" crossorigin="">
+        <link rel="preload" href="/fdocs/fonts/SuisseIntl-SemiBold.woff2" as="font" crossorigin="">
+                <meta property="og:title" content=" Operations, locking and progress">
+        <meta name="twitter:title" content=" Operations, locking and progress">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://scotty.factorial.io/operations.html">
+                <meta property="og:site_name" content="Scotty">
+        <meta property="twitter:card" content="summary_large_image">
+                <meta property="og:image" content="https://scotty.factorial.io/assets/hero.png">
+        <meta property="twitter:image" content="https://scotty.factorial.io/assets/hero.png">
+                        <meta property="twitter:creator" content="@factorial_io">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/theme.css"></head>
+    <body>
+        <header class="Header">
+  <a class="SkipToContentLink" href="#content">Jump to content</a>
+  <div class="Header-content u-container">
+          <a href="#nav" class="Header-navLink">
+      <svg class="Header-navLinkIcon" width="17" height="14" viewBox="0 0 17 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect y="12" width="17" height="2"></rect>
+          <rect y="6" width="17" height="2"></rect>
+          <rect width="17" height="2"></rect>
+        </svg>
+        <span class="u-hiddenVisually">Jump to navigation</span>
+      </a>
+              <a href="https://scotty.factorial.io" class="Header-logo">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Header-logoImage" src="/assets/logo.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+              <div class="Header-meta">
+                          <div class="Header-githubLink">
+            <a href="https://github.com/factorial-io/scotty" rel="noopener" target="_blank">GitHub</a>
+          </div>
+              </div>
+      </div>
+</header>
+        <div class="Content">
+        <main class="Docs">
+      <div class="Docs-nav" id="nav">
+        
+<nav class="Nav">
+  <a href="#content" class="Nav-contentLink">
+    <svg class="Nav-contentLinkIcon" width="15" height="14" viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2.19531" y="0.282471" width="17" height="2" transform="rotate(45 2.19531 0.282471)"></rect>
+      <rect x="0.78125" y="12.3033" width="17" height="2" transform="rotate(-45 0.78125 12.3033)"></rect>
+    </svg>
+    <span class="u-hiddenVisually">Jump to content</span>
+  </a>  <ul class="Nav-list">            <li class="Nav-listItem" style="--level: 0">
+            <a href="/guide.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> A guide to Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/first-steps.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> First Steps with Scotty</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/architecture.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Architecture</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a aria-current="page" href="/operations.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Operations, locking and progress</span>
+      </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/operations.html#one-operation-per-app" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> One operation per app</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
+            <a href="/operations.html#task-progress" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Task progress</span>
+      </a></li>
+          </ul></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/installation.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Installation</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/configuration.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Configuration</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/default-backend.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Default backend &amp; landing page</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/observability.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Observability</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/cli.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> The command line interface</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/oauth-authentication.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> OAuth Authentication with OIDC</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/mcp.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> MCP Server</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/authorization.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Authorization System</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/security.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Security</span>
+      </a></li>            <li class="Nav-listItem" style="--level: 0">
+            <a href="/changelog.html" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Changelog</span>
+      </a></li>  </ul>
+  <script>
+    const nav = document.querySelector("#nav");
+    const activeLink = document.querySelector('nav [aria-current="page"]');
+
+    if (nav && activeLink) {
+      if (activeLink.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom) {
+        activeLink.scrollIntoView();
+      }
+    }
+  </script>
+</nav>
+      </div>
+      <div class="Docs-content" id="content">
+          <div class="RichText">
+    <h1 id="operations%2C-locking-and-progress" tabindex="-1"><a class="header-anchor" href="#operations%2C-locking-and-progress">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Operations, locking and progress</h1>
+<p>Scotty runs at most one operation that changes an app at a time. This page
+describes which operations are exclusive, what a client sees when it asks for a
+second one, and how the progress of a running operation is reported.</p>
+<h2 id="one-operation-per-app" tabindex="-1"><a class="header-anchor" href="#one-operation-per-app">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> One operation per app</h2>
+<p>Every operation that changes an app takes the app's operation lock first. The
+following operations are exclusive. The name in brackets is how the operation
+shows up in the <code>operation</code> field of the app data:</p>
+<ul>
+<li>create (<code>create</code>), run (<code>run</code>), stop (<code>stop</code>), rebuild (<code>rebuild</code>), purge
+(<code>purge</code>) and destroy (<code>destroy</code>)</li>
+<li>custom actions that require the <code>action_write</code> permission (<code>action:&lt;name&gt;</code>)</li>
+<li>the stop and destroy done by the TTL checker (<code>ttl-stop</code>, <code>ttl-destroy</code>)</li>
+<li>adopting an unsupported app (<code>adopt</code>)</li>
+<li>edits of the app's settings: creating, deleting, approving, rejecting and
+revoking custom actions, and adding or removing notifications (<code>settings</code>)</li>
+</ul>
+<p>Apps are identified by their directory name. Operations on different apps do
+not block each other.</p>
+<p>These are <strong>not</strong> exclusive and never wait for or get refused because of a
+running operation:</p>
+<ul>
+<li>custom actions that require only <code>action_read</code></li>
+<li>log streams, shell sessions, file downloads and file uploads
+(<code>scottyctl app:cp</code>)</li>
+<li>listing apps, app info and task queries</li>
+</ul>
+<p>An upload that runs during a rebuild, purge or destroy can fail if its target
+container is being recreated or removed.</p>
+<p>The scheduled app sweep and the proxy-network reconciler do not take the lock
+either.</p>
+<p>The lock lives in memory. It is released when the operation ends, whether it
+succeeds, fails or panics, and a server restart leaves no app locked. For
+operations that run as a task, it is released just before the task is marked as
+finished or failed, so a client that waits for the task can start the next
+operation immediately.</p>
+<h3 id="the-409-response" tabindex="-1"><a class="header-anchor" href="#the-409-response">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> The 409 response</h3>
+<p>A request for an exclusive operation on a busy app is refused with
+<code>409 Conflict</code>. No task is created and the running operation is not affected.
+Permissions are checked first: a caller without the permission gets <code>403</code>, not
+<code>409</code>.</p>
+<pre class="language-json"><code class="language-json"><span class="token punctuation">{</span>
+  <span class="token property">"error"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+  <span class="token property">"message"</span><span class="token operator">:</span> <span class="token string">"App shop is busy: rebuild (task 6f1c2a9e-3b47-4c59-8d0e-5a7b1e2c9f10) running since 2026-11-12T10:03:11Z; try again when it has finished"</span><span class="token punctuation">,</span>
+  <span class="token property">"operation"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+    <span class="token property">"operation"</span><span class="token operator">:</span> <span class="token string">"rebuild"</span><span class="token punctuation">,</span>
+    <span class="token property">"task_id"</span><span class="token operator">:</span> <span class="token string">"6f1c2a9e-3b47-4c59-8d0e-5a7b1e2c9f10"</span><span class="token punctuation">,</span>
+    <span class="token property">"started_at"</span><span class="token operator">:</span> <span class="token string">"2026-11-12T10:03:11Z"</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span></code></pre>
+<p><code>operation.task_id</code> is <code>null</code> for operations without a task (<code>adopt</code>,
+<code>settings</code>) and for the short moment before the task exists.</p>
+<h3 id="the-operation-on-app-data" tabindex="-1"><a class="header-anchor" href="#the-operation-on-app-data">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> The operation on app data</h3>
+<p>App data (<code>apps/list</code>, <code>apps/info/{app}</code>, the app data returned when an action
+starts, and the MCP tools <code>list_apps</code> and <code>get_app</code>) has an <code>operation</code> field.
+It is <code>null</code> while no operation runs, otherwise:</p>
+<pre class="language-json"><code class="language-json"><span class="token property">"operation"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+  <span class="token property">"operation"</span><span class="token operator">:</span> <span class="token string">"rebuild"</span><span class="token punctuation">,</span>
+  <span class="token property">"task_id"</span><span class="token operator">:</span> <span class="token string">"6f1c2a9e-3b47-4c59-8d0e-5a7b1e2c9f10"</span><span class="token punctuation">,</span>
+  <span class="token property">"started_at"</span><span class="token operator">:</span> <span class="token string">"2026-11-12T10:03:11Z"</span>
+<span class="token punctuation">}</span></code></pre>
+<p>The value comes from the lock itself, so the scheduled sweep does not change
+it. <code>action_read</code> actions never show up here. Seeing <code>operation</code> does not give
+access to the task: tasks keep following the rules in
+<a href="authorization.html">Authorization</a>.</p>
+<p>When an operation starts or ends, the server sends an <code>AppInfoUpdated</code> message
+with the app name over the WebSocket to every authenticated client that may
+view the app. When an app is created or destroyed it also sends
+<code>AppListUpdated</code>. The web UI uses this to show the running operation, disable
+the controls that would change the app and update without a reload, wherever
+the operation was started.</p>
+<h3 id="ttl-checker" tabindex="-1"><a class="header-anchor" href="#ttl-checker">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> TTL checker</h3>
+<p>The TTL checker never stops or destroys an app that has an operation running.
+It skips the app and looks at it again on its next run (see <code>scheduler.ttl_check</code>
+in <a href="configuration.html">Configuration</a>).</p>
+<h3 id="maximum-operation-duration" tabindex="-1"><a class="header-anchor" href="#maximum-operation-duration">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Maximum operation duration</h3>
+<p>An operation that runs longer than <code>apps.max_operation_duration</code> is aborted:
+its running subprocess is killed, the task fails with a message naming the
+limit, a warning is logged and the lock is released. The default is <code>1h</code>. See
+<a href="configuration.html#app-settings">App settings</a>.</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">max_operation_duration</span><span class="token punctuation">:</span> <span class="token string">"2h"</span></code></pre>
+<p>or <code>SCOTTY__APPS__MAX_OPERATION_DURATION=2h</code>.</p>
+<p>Known limit: scotty kills the <code>docker compose</code> process it started, but work
+already handed to the Docker daemon (an image pull or build in progress,
+containers being created) can continue for a short while after the lock is
+released.</p>
+<h3 id="scottyctl-waits" tabindex="-1"><a class="header-anchor" href="#scottyctl-waits">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> scottyctl waits</h3>
+<p>By default <code>scottyctl</code> waits when the app is busy. It prints which operation
+(and task) it waits for, polls the app until its <code>operation</code> is <code>null</code>, then
+sends the command again. If another client takes the app first, it keeps
+waiting. This lets overlapping CI runs on one app queue up instead of failing.</p>
+<pre class="language-shell"><code class="language-shell">scottyctl app:rebuild shop
+<span class="token comment"># Waiting for rebuild (task 6f1c2a9e-...) on shop...</span></code></pre>
+<p>With the global flag <code>--no-wait</code> scottyctl fails at once instead, prints the
+server's message and exits with a non-zero code:</p>
+<pre class="language-shell"><code class="language-shell">scottyctl --no-wait app:stop shop</code></pre>
+<p>Raw API clients and older versions of scottyctl get the <code>409</code> and have to retry
+themselves.</p>
+<h2 id="task-progress" tabindex="-1"><a class="header-anchor" href="#task-progress">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Task progress</h2>
+<p>The details of a task (<code>GET /api/v1/authenticated/task/{id}</code>) have a <code>progress</code> field for operations run as tasks:</p>
+<pre class="language-json"><code class="language-json"><span class="token property">"progress"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+  <span class="token property">"fraction"</span><span class="token operator">:</span> <span class="token number">0.42</span><span class="token punctuation">,</span>
+  <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"Pulling images"</span><span class="token punctuation">,</span>
+  <span class="token property">"steps"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Log into registry"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"done"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Prepare network"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"done"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Pull images"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"running"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Build images"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"pending"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Stop containers"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"pending"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Start containers"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"pending"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Wait for containers"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"pending"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token property">"name"</span><span class="token operator">:</span> <span class="token string">"Run post actions"</span><span class="token punctuation">,</span> <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"pending"</span> <span class="token punctuation">}</span>
+  <span class="token punctuation">]</span><span class="token punctuation">,</span>
+  <span class="token property">"transfers"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+    <span class="token punctuation">{</span>
+      <span class="token property">"image"</span><span class="token operator">:</span> <span class="token string">"nginx:1.27"</span><span class="token punctuation">,</span>
+      <span class="token property">"phase"</span><span class="token operator">:</span> <span class="token string">"downloading"</span><span class="token punctuation">,</span>
+      <span class="token property">"current_bytes"</span><span class="token operator">:</span> <span class="token number">18350080</span><span class="token punctuation">,</span>
+      <span class="token property">"total_bytes"</span><span class="token operator">:</span> <span class="token number">52428800</span><span class="token punctuation">,</span>
+      <span class="token property">"layers_done"</span><span class="token operator">:</span> <span class="token number">5</span><span class="token punctuation">,</span>
+      <span class="token property">"layers_total"</span><span class="token operator">:</span> <span class="token number">7</span>
+    <span class="token punctuation">}</span>
+  <span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre>
+<ul>
+<li><code>fraction</code> is the progress of the whole operation, from 0 to 1. While the
+task runs it never decreases, even when a pull discovers more data than it
+knew before. It is 1 when the task has finished and keeps its last value when
+the task failed.</li>
+<li><code>status</code> is one line saying what happens now.</li>
+<li><code>steps</code> lists every step of the operation, in order, from the start. <code>state</code>
+is one of <code>pending</code>, <code>running</code>, <code>done</code>, <code>failed</code> or <code>skipped</code>. Custom actions
+list one step per command they run.</li>
+<li><code>transfers</code> has one entry per image while <code>docker compose pull</code> runs, or
+while <code>docker compose up</code> pulls images that are missing locally, and is
+empty otherwise. <code>phase</code> is <code>waiting</code>, <code>downloading</code>, <code>extracting</code> or <code>done</code>.
+<code>total_bytes</code> and <code>layers_total</code> cover the layers known so far and grow as
+more layers start. Layers that already exist locally count as done. The task
+output keeps readable lines such as the name of each pulled image, not the raw
+progress events of Docker.</li>
+<li>Starting containers reports progress too: the step follows the images <code>up</code>
+pulls and the containers it has started out of the app's services, and the
+output gets one line per started container.</li>
+</ul>
+<p>Changes are pushed to the clients that may see the task as <code>TaskInfoUpdated</code>
+WebSocket messages, at most four times per second per task, and always when a
+step changes and when the task ends.</p>
+<p>The MCP tool <code>get_task</code> returns <code>progress</code> too, with <code>fraction</code>, <code>status</code> and
+the steps as <code>&lt;name&gt;: &lt;state&gt;</code> lines; it leaves out <code>transfers</code>, since the
+status line already names the image and its byte counts during a pull.</p>
+<h3 id="how-clients-show-it" tabindex="-1"><a class="header-anchor" href="#how-clients-show-it">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> How clients show it</h3>
+<ul>
+<li>The web UI shows a progress bar and the status line for the running operation
+in the app list and on the app page. The app page also lists the steps. The
+landing page of a stopped app shows the progress of the start instead of the
+raw output, and shows the output only when the start fails. When you may not
+see the task, only the running operation is shown.</li>
+<li><code>scottyctl</code> shows the percentage and the status line in its animated status
+line while it waits for a task. Nothing is shown when the output is not a
+terminal.</li>
+</ul>
+
+  </div>
+        <nav aria-label="article" class="Pagination">
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--prev">
+      <a class="Pagination-link" rel="prev" href="/architecture.html"> Architecture</a>
+    </div>
+        <div class="Pagination-linkWrapper Pagination-linkWrapper--next">
+      <a class="Pagination-link" rel="next" href="/installation.html"> Installation</a>
+    </div>
+  </nav>
+      </div>
+    </main>
+  </div>
+      
+<footer class="Footer">
+  <div class="Footer-wrapper">
+          <a href="https://scotty.factorial.io">
+        <span class="u-hiddenVisually">Go to homepage</span>
+        <img class="Footer-logo" src="/assets/logo-white.svg" width="162" height="40" alt="" aria-hidden="true" fetchpriority="high" style="--inline-size: 162; --block-size: 40;">
+      </a>
+        <p class="Footer-credit">An open source project by <a href="https://www.factorial.io" rel="noopener" target="_blank">Factorial</a></p>
+  </div>
+  <div class="Footer-wrapper Footer-wrapper--links">
+    <h2 class="u-hiddenVisually">Additional information</h2>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-links">
+  <h3 class="u-hiddenVisually" id="footer-nav-links">links</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="https://www.factorial.io/en/imprint" class="FooterList-link FooterList-link--links">
+                  Imprint
+              </a>
+    </li>
+        <li>
+      <a href="https://www.factorial.io/en/privacy-policy" class="FooterList-link FooterList-link--links">
+                  Privacy
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+          <div class="Footer-list">
+        <nav aria-labelledby="footer-nav-social">
+  <h3 class="u-hiddenVisually" id="footer-nav-social">follow us</h3>
+  <ul class="FooterList">
+        <li>
+      <a href="mailto:hello@factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Email address</span>
+          <span class="Icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.57 21.43H3.43A3.44 3.44 0 0 1 0 18V6a3.44 3.44 0 0 1 3.43-3.43h17.14A3.44 3.44 0 0 1 24 6v12a3.44 3.44 0 0 1-3.43 3.43zM1.71 9.25V18c0 .95.77 1.71 1.72 1.71h17.14c.95 0 1.72-.76 1.72-1.71V9.25l-8.5 5.22a3.4 3.4 0 0 1-3.58 0zm0-2.98c0 .6.31 1.16.82 1.47l8.57 5.28a1.7 1.7 0 0 0 1.8 0l8.56-5.28c.5-.31.81-.87.81-1.47V6a1.7 1.7 0 0 0-1.71-1.71H3.43c-.95 0-1.72.76-1.72 1.71z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://github.com/factorial-io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">GitHub</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M12 0C5.37 0 0 5.506 0 12.303c0 5.445 3.435 10.043 8.205 11.674.6.107.825-.262.825-.585 0-.292-.015-1.261-.015-2.291C6 21.67 5.22 20.346 4.98 19.654c-.135-.354-.72-1.446-1.23-1.738-.42-.23-1.02-.8-.015-.815.945-.015 1.62.892 1.845 1.261 1.08 1.86 2.805 1.338 3.495 1.015.105-.8.42-1.338.765-1.645-2.67-.308-5.46-1.37-5.46-6.075 0-1.338.465-2.446 1.23-3.307-.12-.308-.54-1.569.12-3.26 0 0 1.005-.323 3.3 1.26.96-.276 1.98-.415 3-.415s2.04.139 3 .416c2.295-1.6 3.3-1.261 3.3-1.261.66 1.691.24 2.952.12 3.26.765.861 1.23 1.953 1.23 3.307 0 4.721-2.805 5.767-5.475 6.075.435.384.81 1.122.81 2.276 0 1.645-.015 2.968-.015 3.383 0 .323.225.707.825.585a12.046 12.046 0 0 0 5.919-4.489A12.534 12.534 0 0 0 24 12.304C24 5.505 18.63 0 12 0Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.drupal.org/factorial-gmbh" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Drupal community</span>
+          <span class="Icon"><svg width="22" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.625 3.578c.567.257 1.142.518 1.732.886l.023.014c.806.504 5.25 3.283 5.245 9.35C21.625 19.954 16.791 24 11.217 24S.625 19.608.625 13.643c0-5.965 4.65-8.738 5.507-9.179.25-.136.484-.256.71-.372.701-.359 1.34-.686 2.228-1.386.556-.463 1.045-1.11 1.207-2.706.829.993 1.824 2.148 2.542 2.634.596.396 1.196.668 1.806.944Zm-.605 19.06c1.251-.117 2.314-.854 2.43-.97.16-.16.119-.298.091-.392l-.001-.005c-.023-.095-.117-.234-.323-.073-.462.352-1.508.765-2.987.765-1.48 0-2.175-.301-2.637-.67a1.174 1.174 0 0 1-.023-.016.186.186 0 0 0-.03-.019c-.022-.01-.048-.01-.13-.01-.14 0-.229.068-.346.162-.116.095-.161.324 0 .486 1.018.926 2.704.86 3.956.742Zm-1.573-2.918c.256-.235.673-.603 1.068-.765.35-.143.552-.142.85-.14h.118c.367 0 .762.023 1.04.213.276.183.437.597.526.827l.002.004c.095.235 0 .369-.183.463-.16.09-.184.046-.341-.25l-.004-.006-.013-.024c-.156-.293-.309-.579-1.1-.579-.735 0-1.013.232-1.355.518l-.102.085-.013.01c-.385.316-.523.429-.66.247-.134-.185-.09-.369.167-.603Zm7.559-1.59c.556-.81.784-2.104.784-2.819 0-.714-.323-1.92-1.48-1.92-.54 0-1.36.559-2.19 1.123-.841.574-1.694 1.155-2.277 1.166-.568.009-1.224-.454-1.993-.996-1.076-.76-2.37-1.673-3.948-1.66-2.125.022-3.816 1.713-3.838 3.515-.023 1.016.322 1.758 1.018 2.243.461.302.873.508 2.264.508 1.283 0 2.762-.892 4.05-1.67 1.013-.61 1.907-1.15 2.497-1.131.57.024 1.312.779 2.006 1.485.602.612 1.167 1.188 1.554 1.221.651.045 1.002-.256 1.553-1.066Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://twitter.com/factorial_io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">X</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.317 7.274v.591c0 6.35-4.92 13.735-13.864 13.735-2.832 0-5.366-.738-7.453-2.215h1.193c2.236 0 4.472-.739 6.111-2.068-2.087 0-3.875-1.477-4.62-3.397.297 0 .595.148.894.148.447 0 .894 0 1.341-.148a4.779 4.779 0 0 1-3.876-4.726c.597.296 1.342.591 2.237.591-1.342-.886-2.237-2.363-2.237-3.988 0-.886.299-1.772.597-2.51C4.025 6.24 7.602 8.16 11.776 8.308c-.149-.295-.149-.738-.149-1.034 0-2.658 2.236-4.874 4.92-4.874 1.341 0 2.683.591 3.577 1.477a8.077 8.077 0 0 0 3.13-1.181c-.298 1.181-1.192 2.067-2.086 2.658 1.043-.147 1.938-.443 2.832-.738-.894 1.181-1.789 2.067-2.683 2.658Z"></path></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.facebook.com/factorial.io" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Facebook</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path clip-path="url(#a)" d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.628 3.875 10.35 9.101 11.647v-7.98H6.627V12H9.1v-1.58c0-4.084 1.849-5.978 5.859-5.978.76 0 2.072.15 2.608.298v3.324a15.38 15.38 0 0 0-1.386-.044c-1.967 0-2.728.745-2.728 2.683V12h3.92l-.673 3.667h-3.247v8.245C19.396 23.195 24 18.135 24 12Z"></path><defs><clipPath id="a"><path d="M0 0h24v24H0z"></path></clipPath></defs></svg>
+</span>
+              </a>
+    </li>
+        <li>
+      <a href="https://www.instagram.com/factorial.io/" class="FooterList-link FooterList-link--social">
+                  <span class="u-hiddenVisually">Instagram</span>
+          <span class="Icon"><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.982c2.937 0 3.285.011 4.445.064 1.073.05 1.655.228 2.043.379.477.176.91.457 1.264.823.366.355.647.787.823 1.265.15.387.33.97.379 2.042.053 1.16.064 1.508.064 4.445 0 2.937-.011 3.285-.064 4.445-.049 1.073-.228 1.655-.379 2.043a3.64 3.64 0 0 1-2.087 2.087c-.388.151-.97.33-2.043.38-1.16.052-1.508.063-4.445.063-2.937 0-3.285-.01-4.445-.064-1.073-.049-1.655-.228-2.043-.379a3.407 3.407 0 0 1-1.264-.822 3.408 3.408 0 0 1-.823-1.265c-.15-.388-.33-.97-.379-2.043-.053-1.16-.064-1.508-.064-4.445 0-2.937.011-3.285.064-4.445.049-1.072.228-1.655.379-2.042.176-.478.457-.91.823-1.265a3.408 3.408 0 0 1 1.265-.823c.387-.15.97-.33 2.042-.379 1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066-1.171.054-1.97.24-2.67.512a5.392 5.392 0 0 0-1.949 1.268 5.392 5.392 0 0 0-1.269 1.949c-.271.7-.457 1.499-.51 2.67C1.012 8.638 1 9.013 1 12c0 2.988.013 3.362.066 4.535.054 1.171.24 1.97.512 2.67.276.734.709 1.4 1.268 1.949.55.56 1.215.992 1.949 1.268.7.272 1.5.458 2.67.512C8.638 22.987 9.013 23 12 23c2.988 0 3.362-.013 4.535-.066 1.171-.054 1.97-.24 2.67-.512a5.625 5.625 0 0 0 3.218-3.217c.272-.7.458-1.499.511-2.67.053-1.173.066-1.548.066-4.535s-.012-3.362-.066-4.535c-.053-1.171-.24-1.97-.511-2.67a5.392 5.392 0 0 0-1.27-1.949 5.393 5.393 0 0 0-1.947-1.269c-.7-.271-1.5-.457-2.67-.51C15.361 1.012 14.986 1 12 1Z"></path><path d="M12 6.352a5.649 5.649 0 1 0 0 11.297 5.649 5.649 0 0 0 0-11.297Zm0 9.315a3.666 3.666 0 1 1 0-7.333 3.666 3.666 0 0 1 0 7.333Zm5.87-8.218a1.32 1.32 0 1 0 0-2.64 1.32 1.32 0 0 0 0 2.64Z"></path></svg>
+</span>
+              </a>
+    </li>
+      </ul>
+</nav>
+      </div>
+      </div>
+</footer>
+    
+
+</body></html>
