@@ -170,12 +170,16 @@ The details of a task (`GET /api/v1/authenticated/task/{id}`) have a `progress` 
 * `steps` lists every step of the operation, in order, from the start. `state`
   is one of `pending`, `running`, `done`, `failed` or `skipped`. Custom actions
   list one step per command they run.
-* `transfers` has one entry per image while `docker compose pull` runs, and is
+* `transfers` has one entry per image while `docker compose pull` runs, or
+  while `docker compose up` pulls images that are missing locally, and is
   empty otherwise. `phase` is `waiting`, `downloading`, `extracting` or `done`.
   `total_bytes` and `layers_total` cover the layers known so far and grow as
   more layers start. Layers that already exist locally count as done. The task
   output keeps readable lines such as the name of each pulled image, not the raw
   progress events of Docker.
+* Starting containers reports progress too: the step follows the images `up`
+  pulls and the containers it has started out of the app's services, and the
+  output gets one line per started container.
 
 Changes are pushed to the clients that may see the task as `TaskInfoUpdated`
 WebSocket messages, at most four times per second per task, and always when a

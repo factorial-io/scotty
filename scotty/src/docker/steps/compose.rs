@@ -50,12 +50,19 @@ async fn login(ctx: &Context, registry: &str) -> anyhow::Result<()> {
 }
 
 /// `docker-compose <args>` with the app's environment, reported as the step
-/// its subcommand stands for. A pull reports per-image progress.
+/// its subcommand stands for. A pull reports per-image progress, `up` also
+/// the containers it started.
 #[instrument(skip_all, fields(app = %ctx.app_data.name, args = ?args))]
 pub async fn docker_compose(ctx: &Context, args: &[&str]) -> anyhow::Result<()> {
     let subcommand = args.first().copied().unwrap_or_default();
     let (mode, global_args): (_, &[&str]) = match subcommand {
         "pull" => (OutputMode::ComposeProgress, &["--progress", "json"]),
+        "up" => (
+            OutputMode::ComposeUp {
+                services: ctx.app_data.services.len(),
+            },
+            &["--progress", "json"],
+        ),
         _ => (OutputMode::Plain, &[]),
     };
     let full_args = [global_args, args].concat();

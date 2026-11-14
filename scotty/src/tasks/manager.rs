@@ -32,6 +32,9 @@ pub enum OutputMode {
     /// `docker compose --progress json pull`: events become the task's
     /// transfer progress plus readable lines; other lines are output.
     ComposeProgress,
+    /// `docker compose --progress json up` for an app with `services`
+    /// services: like `ComposeProgress`, plus started containers.
+    ComposeUp { services: usize },
 }
 
 #[derive(Clone, Debug)]
@@ -171,7 +174,13 @@ async fn run_process(
     let stdout = child.stdout.take().expect("stdout is piped");
     let stderr = child.stderr.take().expect("stderr is piped");
     // Compose may print its events on either stream; both feed one pull.
-    let pull = (mode == OutputMode::ComposeProgress).then(Arc::default);
+    let pull = match mode {
+        OutputMode::Plain => None,
+        OutputMode::ComposeProgress => Some(Arc::default()),
+        OutputMode::ComposeUp { services } => {
+            Some(Arc::new(Mutex::new(PullProgress::up(services))))
+        }
+    };
     let out_pump = tokio::spawn(pump_output(
         writer.clone(),
         stdout,
