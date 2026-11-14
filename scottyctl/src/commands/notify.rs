@@ -1,7 +1,7 @@
 use anyhow::Context;
 
 use crate::{
-    api::get_or_post,
+    api::{get_or_post, with_busy_wait},
     cli::{NotifyAddCommand, NotifyRemoveCommand},
     commands::apps::format_app_info,
     context::AppContext,
@@ -17,8 +17,16 @@ pub async fn add_notification(context: &AppContext, cmd: &NotifyAddCommand) -> a
             "service_ids": cmd.service_id,
         });
 
-        let result =
-            get_or_post(context.server(), "apps/notify/add", "POST", Some(payload)).await?;
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get_or_post(
+                context.server(),
+                "apps/notify/add",
+                "POST",
+                Some(payload.clone()),
+            )
+            .await
+        })
+        .await?;
 
         let app_data: AppData =
             serde_json::from_value(result).context("Failed to parse context from API")?;
@@ -46,12 +54,15 @@ pub async fn remove_notification(
         };
 
         let payload = serde_json::to_value(&payload).context("Failed to serialize payload")?;
-        let result = get_or_post(
-            context.server(),
-            "apps/notify/remove",
-            "POST",
-            Some(payload),
-        )
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get_or_post(
+                context.server(),
+                "apps/notify/remove",
+                "POST",
+                Some(payload.clone()),
+            )
+            .await
+        })
         .await?;
 
         let app_data: AppData =

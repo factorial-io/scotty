@@ -6,7 +6,7 @@ use crate::{
     api::get,
     cli::InfoCommand,
     context::AppContext,
-    utils::formatting::{colored_by_status, format_since},
+    utils::formatting::{colored_by_status, format_since, status_with_operation},
 };
 use scotty_core::apps::{app_data::AppData, shared_app_list::AppDataVec};
 
@@ -31,7 +31,7 @@ pub async fn list_apps(context: &AppContext) -> anyhow::Result<()> {
             let urls = app.urls();
             builder.push_record(vec![
                 &colored_by_status(&app.name, &app.status),
-                &app.status.to_string(),
+                &status_with_operation(&app.status, &app.operation),
                 &format_since(&app.running_since()),
                 &urls.join("\n"),
             ]);

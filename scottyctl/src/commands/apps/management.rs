@@ -2,7 +2,7 @@ use anyhow::Context;
 use owo_colors::OwoColorize;
 
 use crate::{
-    api::{get, get_or_post, wait_for_task},
+    api::{get, get_or_post, wait_for_task, with_busy_wait},
     cli::CreateCommand,
     context::AppContext,
     utils::{files::collect_files, parsers::parse_env_file},
@@ -190,7 +190,16 @@ pub async fn create_app(context: &AppContext, cmd: &CreateCommand) -> anyhow::Re
             context.server().server.yellow(),
             size.blue()
         ));
-        let result = get_or_post(context.server(), "apps/create", "POST", Some(payload)).await?;
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get_or_post(
+                context.server(),
+                "apps/create",
+                "POST",
+                Some(payload.clone()),
+            )
+            .await
+        })
+        .await?;
 
         ui.success(format!(
             "App {} beamed up to {} ({})!",

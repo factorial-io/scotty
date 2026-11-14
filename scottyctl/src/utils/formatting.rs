@@ -1,5 +1,6 @@
-use chrono::TimeDelta;
+use chrono::{DateTime, TimeDelta, Utc};
 use scotty_core::{apps::app_data::AppStatus, utils::format::format_chrono_duration};
+use scotty_types::AppOperation;
 use serde_json::Value;
 
 /// Format the details of a custom action (everything below the title line) as an
@@ -50,6 +51,27 @@ pub fn format_since(duration: &Option<TimeDelta>) -> String {
     }
 }
 
+/// One line for `app:info`: what runs on the app, since when, and its task.
+pub fn format_operation(op: &AppOperation, now: DateTime<Utc>) -> String {
+    let mut line = format!(
+        "Operation: {} running since {}",
+        op.operation,
+        format_since(&Some(now - op.started_at))
+    );
+    if let Some(task_id) = op.task_id {
+        line += &format!(" (task {task_id})");
+    }
+    line
+}
+
+/// Status cell of `app:list`, marked with the running operation, if any.
+pub fn status_with_operation(status: &AppStatus, operation: &Option<AppOperation>) -> String {
+    match operation {
+        Some(op) => format!("{status} [{}]", op.operation),
+        None => status.to_string(),
+    }
+}
+
 pub fn colored_by_status(name: &str, status: &AppStatus) -> String {
     use owo_colors::OwoColorize;
     match status {
@@ -58,5 +80,40 @@ pub fn colored_by_status(name: &str, status: &AppStatus) -> String {
         AppStatus::Creating => name.bright_green().to_string(),
         AppStatus::Destroying => name.bright_red().to_string(),
         AppStatus::Unsupported => name.white().to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    fn op(task_id: Option<uuid::Uuid>) -> AppOperation {
+        AppOperation {
+            operation: "rebuild".into(),
+            task_id,
+            started_at: Utc::now() - Duration::minutes(3),
+        }
+    }
+
+    #[test]
+    fn operation_line_names_operation_and_task() {
+        let id = uuid::Uuid::nil();
+        let line = format_operation(&op(Some(id)), Utc::now());
+        assert!(
+            line.starts_with("Operation: rebuild running since "),
+            "{line}"
+        );
+        assert!(line.ends_with(&format!("(task {id})")), "{line}");
+        assert!(!format_operation(&op(None), Utc::now()).contains("task"));
+    }
+
+    #[test]
+    fn list_marks_busy_apps_only() {
+        assert_eq!(
+            status_with_operation(&AppStatus::Running, &Some(op(None))),
+            "Running [rebuild]"
+        );
+        assert_eq!(status_with_operation(&AppStatus::Running, &None), "Running");
     }
 }

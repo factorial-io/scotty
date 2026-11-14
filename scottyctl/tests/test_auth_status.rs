@@ -22,6 +22,7 @@ async fn test_auth_status_with_invalid_bearer_token_unauthorized() {
     let server_settings = ServerSettings {
         server: mock_server.uri(),
         access_token: Some("invalid_bearer_token".to_string()),
+        no_wait: false,
     };
 
     let app_context = AppContext::new(server_settings);
@@ -69,6 +70,7 @@ async fn test_auth_status_with_valid_bearer_token_succeeds() {
     let server_settings = ServerSettings {
         server: mock_server.uri(),
         access_token: Some("valid_token".to_string()),
+        no_wait: false,
     };
 
     let app_context = AppContext::new(server_settings);
@@ -102,6 +104,7 @@ async fn test_auth_status_with_invalid_bearer_token_forbidden() {
     let server_settings = ServerSettings {
         server: mock_server.uri(),
         access_token: Some("invalid_bearer_token".to_string()),
+        no_wait: false,
     };
 
     let app_context = AppContext::new(server_settings);
@@ -134,6 +137,7 @@ async fn test_auth_status_with_no_auth_succeeds() {
     let server_settings = ServerSettings {
         server: mock_server.uri(),
         access_token: None,
+        no_wait: false,
     };
 
     let app_context = AppContext::new(server_settings);

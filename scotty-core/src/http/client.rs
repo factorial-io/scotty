@@ -109,53 +109,64 @@ impl HttpClient {
         }
     }
 
-    /// Helper function to extract error message from response body
-    ///
-    /// Limits the body size to MAX_ERROR_BODY_SIZE to prevent DoS attacks
-    async fn extract_error_message(response: Response) -> String {
+    /// Read an error response body, bounded by MAX_ERROR_BODY_SIZE to prevent
+    /// DoS via large bodies. `Err` carries the status-only fallback message.
+    async fn read_error_body(response: Response) -> Result<String, String> {
         let status = response.status();
-
-        // Read response body with size limit to prevent DoS attacks
+        let fallback = || format!("HTTP error: {}", status);
         let mut body_bytes = Vec::new();
         let mut stream = response.bytes_stream();
 
         while let Some(chunk_result) = stream.next().await {
-            match chunk_result {
-                Ok(chunk) => {
-                    // Check if adding this chunk would exceed the limit
-                    if body_bytes.len() + chunk.len() > MAX_ERROR_BODY_SIZE {
-                        // Body too large, stop reading and return status only
-                        return format!("HTTP error: {}", status);
-                    }
-                    body_bytes.extend_from_slice(&chunk);
-                }
-                Err(_) => {
-                    // If we can't read the body, just return the status
-                    return format!("HTTP error: {}", status);
-                }
+            let chunk = chunk_result.map_err(|_| fallback())?;
+            if body_bytes.len() + chunk.len() > MAX_ERROR_BODY_SIZE {
+                return Err(fallback());
             }
+            body_bytes.extend_from_slice(&chunk);
         }
+        String::from_utf8(body_bytes).map_err(|_| fallback())
+    }
 
-        // Convert bytes to string
-        match String::from_utf8(body_bytes) {
+    /// Turn a non-2xx response into an `HttpError`: `Busy` for a 409 whose body
+    /// names the running operation, `Http` with the extracted message otherwise.
+    pub async fn error_from_response(response: Response) -> HttpError {
+        let status = response.status();
+        let message = match Self::read_error_body(response).await {
             Ok(body) => {
-                // Try to parse as JSON and extract the "message" field
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
-                    if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
-                        return format!("{}: {}", status, message);
+                let json = serde_json::from_str::<serde_json::Value>(&body).ok();
+                if status == reqwest::StatusCode::CONFLICT {
+                    let operation = json
+                        .as_ref()
+                        .and_then(|j| j.get("operation"))
+                        .and_then(|o| serde_json::from_value(o.clone()).ok());
+                    if let Some(operation) = operation {
+                        let message = json
+                            .as_ref()
+                            .and_then(|j| j.get("message")?.as_str())
+                            .unwrap_or("app is busy")
+                            .to_string();
+                        return HttpError::Busy { message, operation };
                     }
                 }
-                // If JSON parsing fails or no message field, return status + body
-                if !body.is_empty() && body.len() < 500 {
-                    return format!("{}: {}", status, body);
+                match json.as_ref().and_then(|j| j.get("message")?.as_str()) {
+                    Some(message) => format!("{}: {}", status, message),
+                    None if !body.is_empty() && body.len() < 500 => {
+                        format!("{}: {}", status, body)
+                    }
+                    None => format!("HTTP error: {}", status),
                 }
-                // Fallback to just status if body is too long or empty
-                format!("HTTP error: {}", status)
             }
-            Err(_) => {
-                // If body is not valid UTF-8, just return the status
-                format!("HTTP error: {}", status)
-            }
+            Err(fallback) => fallback,
+        };
+        HttpError::http(status.as_u16(), message)
+    }
+
+    /// Helper function to extract error message from response body
+    #[cfg(test)]
+    async fn extract_error_message(response: Response) -> String {
+        match Self::error_from_response(response).await {
+            HttpError::Http { message, .. } => message,
+            other => other.to_string(),
         }
     }
 
@@ -197,9 +208,7 @@ impl HttpClient {
                 }
 
                 if !response.status().is_success() {
-                    let status = response.status().as_u16();
-                    let error_msg = Self::extract_error_message(response).await;
-                    return Err(HttpError::http(status, error_msg));
+                    return Err(Self::error_from_response(response).await);
                 }
 
                 let json = response
@@ -258,9 +267,7 @@ impl HttpClient {
                 }
 
                 if !response.status().is_success() {
-                    let status = response.status().as_u16();
-                    let error_msg = Self::extract_error_message(response).await;
-                    return Err(HttpError::http(status, error_msg));
+                    return Err(Self::error_from_response(response).await);
                 }
 
                 let json = response
@@ -341,6 +348,38 @@ mod tests {
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
     };
+
+    #[tokio::test]
+    async fn a_409_naming_an_operation_is_busy_and_not_retried() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/busy"))
+            .respond_with(ResponseTemplate::new(409).set_body_json(serde_json::json!({
+                "error": true,
+                "message": "App shop is busy",
+                "operation": {
+                    "operation": "rebuild",
+                    "task_id": null,
+                    "started_at": "2026-11-12T10:03:11Z"
+                }
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = HttpClient::new().unwrap();
+        let err = client
+            .get_json::<serde_json::Value>(&format!("{}/busy", mock_server.uri()))
+            .await
+            .unwrap_err();
+        match err {
+            RetryError::NonRetriable(HttpError::Busy { message, operation }) => {
+                assert_eq!(message, "App shop is busy");
+                assert_eq!(operation.operation, "rebuild");
+            }
+            other => panic!("expected Busy, got {other:?}"),
+        }
+    }
 
     #[tokio::test]
     async fn test_extract_error_message_with_json() {

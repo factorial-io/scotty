@@ -3,9 +3,9 @@ use owo_colors::OwoColorize;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::{
-    api::{get, wait_for_task},
+    api::{get, wait_for_task, with_busy_wait},
     context::{AppContext, ServerSettings},
-    utils::formatting::format_since,
+    utils::formatting::{format_operation, format_since},
 };
 use scotty_core::{
     apps::app_data::{AppData, LoadBalancerConnectivity},
@@ -44,7 +44,10 @@ pub async fn call_apps_api(context: &AppContext, verb: &str, app_name: &str) -> 
             crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
 
         // Start the task
-        let result = get(context.server(), &format!("apps/{verb}/{app_name}")).await?;
+        let result = with_busy_wait(context.server(), ui, app_name, || async {
+            get(context.server(), &format!("apps/{verb}/{app_name}")).await
+        })
+        .await?;
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
 
@@ -183,6 +186,10 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     table.with(Style::rounded());
 
     let mut result = format!("Info for {}\n{}", app_data.name, table);
+
+    if let Some(op) = &app_data.operation {
+        result += &format!("\n{}", format_operation(op, chrono::Utc::now()));
+    }
 
     if let Some(settings) = &app_data.settings {
         if !settings.notify.is_empty() {

@@ -14,8 +14,77 @@ use scotty_core::settings::api_server::AuthMode;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 use scotty_core::tasks::task_details::State;
 use scotty_core::version::VersionManager;
+use scotty_types::AppOperation;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+
+/// The server refused a request because an operation is running on the app.
+/// `Display` is the server's message.
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct BusyError {
+    pub message: String,
+    pub operation: AppOperation,
+}
+
+const BUSY_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// Run `request`; if the app is busy, wait until its operation has ended and
+/// send it again, waiting again when another client takes the app first.
+/// With `--no-wait` the busy error is returned at once.
+pub async fn with_busy_wait<T, F, Fut>(
+    server: &ServerSettings,
+    ui: &Ui,
+    app: &str,
+    request: F,
+) -> anyhow::Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    busy_wait(server, ui, app, BUSY_POLL_INTERVAL, request).await
+}
+
+async fn busy_wait<T, F, Fut>(
+    server: &ServerSettings,
+    ui: &Ui,
+    app: &str,
+    interval: Duration,
+    mut request: F,
+) -> anyhow::Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    loop {
+        let err = match request().await {
+            Err(e) => e,
+            ok => return ok,
+        };
+        let Some(busy) = err.downcast_ref::<BusyError>().filter(|_| !server.no_wait) else {
+            return Err(err);
+        };
+        let task = busy
+            .operation
+            .task_id
+            .map(|id| format!(" (task {id})"))
+            .unwrap_or_default();
+        ui.eprintln(format!(
+            "Waiting for {}{task} on {app}...",
+            busy.operation.operation
+        ));
+        loop {
+            // A failed poll (e.g. the app is gone) ends the wait; the resent
+            // request then reports the real problem.
+            match get(server, &format!("apps/info/{app}")).await {
+                Ok(info) if info.get("operation").is_some_and(|o| !o.is_null()) => {
+                    tokio::time::sleep(interval).await
+                }
+                _ => break,
+            }
+        }
+    }
+}
 
 // Global cached token manager
 static CACHED_TOKEN_MANAGER: OnceLock<CachedTokenManager> = OnceLock::new();
@@ -159,6 +228,11 @@ async fn send_request(
                 }
                 None => client.request(reqwest::Method::DELETE, url).await?,
             };
+            if !response.status().is_success() {
+                return Err(RetryError::NonRetriable(
+                    HttpClient::error_from_response(response).await,
+                ));
+            }
             response
                 .json::<Value>()
                 .await
@@ -195,6 +269,9 @@ pub async fn get_or_post(
                 "Not authenticated or session expired. Run 'scottyctl --server {} auth:login' or set SCOTTY_ACCESS_TOKEN",
                 server.server
             ))
+        }
+        Err(RetryError::NonRetriable(HttpError::Busy { message, operation })) => {
+            Err(BusyError { message, operation }.into())
         }
         Err(RetryError::NonRetriable(err)) => {
             // HttpError now preserves the status code
@@ -351,6 +428,9 @@ pub async fn wait_for_task(
                                         display_task_output_line(&line, &ui_clone);
                                     }
                                 }
+                                WebSocketMessage::TaskInfoUpdated(task) => {
+                                    show_progress(&ui_clone, &task);
+                                }
                                 WebSocketMessage::TaskOutputStreamEnded { .. } => {
                                     stream_ended_clone
                                         .store(true, std::sync::atomic::Ordering::SeqCst);
@@ -376,6 +456,7 @@ pub async fn wait_for_task(
 
             // Check if task is done
             done = task.state != State::Running;
+            show_progress(ui, &task);
 
             if done {
                 // Wait a bit for any remaining WebSocket messages to be processed
@@ -445,6 +526,7 @@ pub async fn wait_for_task(
                 serde_json::from_value(result).context("Failed to parse task")?;
 
             done = task.state != State::Running;
+            show_progress(ui, &task);
 
             if done {
                 match task.state {
@@ -516,9 +598,41 @@ fn display_task_output_line(line: &scotty_types::OutputLine, ui: &Arc<Ui>) {
     ui.println(formatted_line);
 }
 
+/// Status-line text for a progress update; `None` keeps the current text.
+fn progress_line(progress: &scotty_types::TaskProgress) -> Option<String> {
+    if progress.status.is_empty() {
+        return None;
+    }
+    let percent = (progress.fraction.clamp(0.0, 1.0) * 100.0).round() as u32;
+    Some(format!("{percent}% {}", progress.status))
+}
+
+/// Updates the animated status line of a running task (no output when not on a terminal).
+fn show_progress(ui: &Ui, task: &scotty_types::TaskDetails) {
+    if task.state != State::Running {
+        return;
+    }
+    if let Some(line) = progress_line(&task.progress) {
+        ui.new_status_line(line);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn progress_line_formats_percent_and_keeps_text_when_status_empty() {
+        let mut p = scotty_types::TaskProgress {
+            fraction: 0.426,
+            status: "Pulling images".into(),
+            ..Default::default()
+        };
+        assert_eq!(progress_line(&p).as_deref(), Some("43% Pulling images"));
+        p.status.clear();
+        assert_eq!(progress_line(&p), None);
+    }
+
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn unauthorized() -> RetryError {
@@ -667,5 +781,134 @@ mod tests {
         .await;
         assert!(result.is_ok());
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    // --- busy wait ---
+
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+    fn busy_body() -> Value {
+        serde_json::json!({
+            "error": true,
+            "message": "App shop is busy: rebuild running",
+            "operation": {
+                "operation": "rebuild",
+                "task_id": "6f1c0000-0000-0000-0000-000000000000",
+                "started_at": "2026-11-12T10:03:11Z"
+            }
+        })
+    }
+
+    fn settings(server: &MockServer, no_wait: bool) -> ServerSettings {
+        ServerSettings {
+            server: server.uri(),
+            access_token: Some("t".into()),
+            no_wait,
+        }
+    }
+
+    /// `apps/run/shop` answers 409 for the first `busy` calls, then 200.
+    async fn busy_server(busy: usize, info_busy: usize) -> MockServer {
+        let server = MockServer::start().await;
+        let run_calls = Arc::new(AtomicUsize::new(0));
+        Mock::given(method("GET"))
+            .and(path("/api/v1/authenticated/apps/run/shop"))
+            .respond_with(move |_: &Request| {
+                if run_calls.fetch_add(1, Ordering::SeqCst) < busy {
+                    ResponseTemplate::new(409).set_body_json(busy_body())
+                } else {
+                    ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true}))
+                }
+            })
+            .mount(&server)
+            .await;
+        let info_calls = Arc::new(AtomicUsize::new(0));
+        Mock::given(method("GET"))
+            .and(path("/api/v1/authenticated/apps/info/shop"))
+            .respond_with(move |_: &Request| {
+                let op = if info_calls.fetch_add(1, Ordering::SeqCst) < info_busy {
+                    busy_body()["operation"].clone()
+                } else {
+                    Value::Null
+                };
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"operation": op}))
+            })
+            .mount(&server)
+            .await;
+        server
+    }
+
+    async fn run_shop(server: &ServerSettings) -> anyhow::Result<Value> {
+        let ui = Ui::new();
+        busy_wait(server, &ui, "shop", Duration::from_millis(5), || {
+            get(server, "apps/run/shop")
+        })
+        .await
+    }
+
+    async fn count(server: &MockServer, p: &str) -> usize {
+        server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|r| r.url.path().ends_with(p))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn a_busy_app_is_waited_for_and_the_request_resent() {
+        let server = busy_server(1, 2).await;
+        let result = run_shop(&settings(&server, false)).await.unwrap();
+        assert_eq!(result["ok"], true);
+        assert_eq!(count(&server, "apps/run/shop").await, 2);
+        assert_eq!(
+            count(&server, "apps/info/shop").await,
+            3,
+            "polled until idle"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_wait_fails_on_the_first_409_with_the_server_message() {
+        let server = busy_server(1, 0).await;
+        let err = run_shop(&settings(&server, true)).await.unwrap_err();
+        assert!(err.to_string().contains("App shop is busy"), "{err}");
+        assert_eq!(count(&server, "apps/run/shop").await, 1);
+        assert_eq!(count(&server, "apps/info/shop").await, 0);
+    }
+
+    #[tokio::test]
+    async fn a_second_409_after_the_app_became_free_keeps_waiting() {
+        let server = busy_server(2, 0).await;
+        let result = run_shop(&settings(&server, false)).await.unwrap();
+        assert_eq!(result["ok"], true);
+        assert_eq!(count(&server, "apps/run/shop").await, 3);
+        assert_eq!(count(&server, "apps/info/shop").await, 2);
+    }
+
+    #[tokio::test]
+    async fn other_errors_are_not_waited_for() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        assert!(run_shop(&settings(&server, false)).await.is_err());
+        assert_eq!(count(&server, "apps/run/shop").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_409_on_delete_is_busy_not_success() {
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .respond_with(ResponseTemplate::new(409).set_body_json(busy_body()))
+            .mount(&server)
+            .await;
+        let err = delete(&settings(&server, true), "apps/x", None)
+            .await
+            .unwrap_err();
+        assert!(err.downcast_ref::<BusyError>().is_some(), "{err}");
     }
 }
