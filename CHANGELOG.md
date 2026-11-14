@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0](https://github.com/factorial-io/scotty/compare/v0.5.0...v0.6.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** model.conf is no longer read or shipped; delete your copy and keep config/casbin/policy.yaml. Scotty now refuses to start when an assignment names an undefined role or scope or a role lists an unknown permission; the error names the entry. Rights from matching entries now add up: a user gets everything granted to their own entry, to their domain and to the wildcard entry together. Before, a user's own entry replaced their domain's entry when creating apps, in listings and in admin checks, so users with both can now gain rights. An app in no scope and an assignment with empty scopes grant nothing. The admin API answers 400 or 409 for invalid policy changes and leaves the policy unchanged.
+
+### Features
+
+* **docs:** apply Factorial design layer to the docs site ([531f5c9](https://github.com/factorial-io/scotty/commit/531f5c97eac5825e4c8806bb89fc0e337a9f5f13))
+* **docs:** dark hero and benefits on the docs homepage ([be266a0](https://github.com/factorial-io/scotty/commit/be266a092c86200c7e3b22dd5f05df7bcdeaf34c))
+* **mcp:** add stop_app, start_app and rebuild_app with a manage scope ([#984](https://github.com/factorial-io/scotty/issues/984)) ([90d4598](https://github.com/factorial-io/scotty/commit/90d45981f5a5ca55fec45710f236f073c345fdd1))
+* **mcp:** MCP server at /mcp for blueprint apps ([#977](https://github.com/factorial-io/scotty/issues/977)) ([0b7914d](https://github.com/factorial-io/scotty/commit/0b7914d1bcdaa14ab789382dfda87f9fce8a44d4))
+* **mcp:** summarize get_task output by default ([#983](https://github.com/factorial-io/scotty/issues/983)) ([110b2bf](https://github.com/factorial-io/scotty/commit/110b2bf2d0ddd982daabf6d58b40ac6e7df7e340))
+
+
+### Bug Fixes
+
+* **auth:** refuse to start when the authorization policy does not load ([39dcde8](https://github.com/factorial-io/scotty/commit/39dcde8b49c680803d8358f9cc8ca574aa6cff7a)), closes [#945](https://github.com/factorial-io/scotty/issues/945)
+* **deps:** update rust crate getrandom to 0.4 ([2ba0c0e](https://github.com/factorial-io/scotty/commit/2ba0c0e85b04f1fd38b7771bfb4dc4926dd5a667))
+* **docs:** line up the benefits columns with the hero copy ([d2c6e97](https://github.com/factorial-io/scotty/commit/d2c6e97018ef613bb4a435c9e874ca06152a1ab8))
+* **mcp:** answer unknown /.well-known paths with 404 instead of the SPA ([#981](https://github.com/factorial-io/scotty/issues/981)) ([831d622](https://github.com/factorial-io/scotty/commit/831d622648a3296efff342be6c1cbbd639bc5484))
+* **tasks:** let admin_read see tasks of apps without a scope ([21b4bf8](https://github.com/factorial-io/scotty/commit/21b4bf8fb0ae4047f286a0a1eb3b5e426ded5688))
+* **tasks:** limit admin_read task visibility to the app's scopes ([ab29ab1](https://github.com/factorial-io/scotty/commit/ab29ab16465dee01a412908d2b6b3966161b23f3))
+* **tasks:** show action output only to users who may run the action ([cd262ed](https://github.com/factorial-io/scotty/commit/cd262edba4a5d5fcb1b27e0da96e26746e68a39f)), closes [#952](https://github.com/factorial-io/scotty/issues/952)
+* **tests:** make the full test suite pass on main ([28fb70b](https://github.com/factorial-io/scotty/commit/28fb70b0008b810bc81d036d98620da7e6f1bb4f))
+* **tests:** seed casbin policy into a temp dir instead of the tracked fixture ([757c4fb](https://github.com/factorial-io/scotty/commit/757c4fbe3218ccb2693dcdfd9a1dfc43f4236001))
+
+
+### Refactor
+
+* **auth:** one authorization decision point with copy-on-write policy snapshots ([#974](https://github.com/factorial-io/scotty/issues/974)) ([375f36f](https://github.com/factorial-io/scotty/commit/375f36fafdb2e7e5c7936871c1e5be3c9d1caeb3))
+* **tasks:** pass task requester and action permission as a named struct ([0044564](https://github.com/factorial-io/scotty/commit/0044564da3d978054bbe9894080f0269c5ee6e10))
+
+
+### Documentation
+
+* **auth:** explain who gains rights now that matching entries add up ([#976](https://github.com/factorial-io/scotty/issues/976)) ([73613cd](https://github.com/factorial-io/scotty/commit/73613cde25f926e465eaf17e010cdd1f18c72f7e))
+
+
+### Testing
+
+* **auth:** check every protected route refuses users without rights ([7deff37](https://github.com/factorial-io/scotty/commit/7deff3794d43d6d7470d54896752bf26c345bcbd))
+* **auth:** pin current permission decisions and listings ([465b07d](https://github.com/factorial-io/scotty/commit/465b07dcec3b9d4633e39c024c9697b7fa38f242))
+* **auth:** pin runtime policy changes and policy loading ([d99a6bb](https://github.com/factorial-io/scotty/commit/d99a6bb46942b1e645db4d61b74763cb817e51ae))
+
 ## [0.5.0](https://github.com/factorial-io/scotty/compare/v0.4.0...v0.5.0) (2026-11-11)
 
 
