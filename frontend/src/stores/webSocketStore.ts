@@ -8,7 +8,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { sessionStore, isAuthenticated } from './sessionStore';
-import { loadApps } from './appsStore';
+import { loadApps, updateAppInfo } from './appsStore';
 import { updateTask, requestAllTasks } from './tasksStore';
 import { handleTaskOutputMessage } from './taskOutputStore';
 import { handleContainerLogsMessage } from './containerLogsStore';
@@ -109,7 +109,7 @@ function sendMessage(message: WebSocketMessage) {
 /**
  * Handle incoming WebSocket messages
  */
-function handleMessage(event: MessageEvent) {
+export function handleMessage(event: MessageEvent) {
 	try {
 		const message: WebSocketMessage = JSON.parse(event.data);
 		console.log('WebSocket message received:', message.type);
@@ -156,8 +156,8 @@ function handleMessage(event: MessageEvent) {
 				break;
 
 			case 'AppInfoUpdated':
-				// Handle app info updates if needed
-				console.log('App info updated:', message.data);
+				// Refetch the app; a 404 removes it from the store.
+				updateAppInfo(message.data).catch(() => {});
 				break;
 
 			case 'TaskListUpdated':

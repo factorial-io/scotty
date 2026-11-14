@@ -1,3 +1,5 @@
+import type { AppOperation } from './generated';
+
 export interface AppService {
 	service: string;
 	domains: string[];
@@ -56,6 +58,8 @@ export interface App {
 	/** When the server's next scheduled app-state sweep is due; null before the first sweep. */
 	next_check: string | null;
 	load_balancer_connectivity: LoadBalancerConnectivity;
+	/** The operation running on the app; null when idle. */
+	operation: AppOperation | null;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
 // The old interface with stdout/stderr is deprecated
@@ -64,7 +68,8 @@ export type {
 	WebSocketMessage,
 	TaskOutputData,
 	OutputLine,
-	OutputStreamType
+	OutputStreamType,
+	AppOperation
 } from './generated';
 
 export interface ApiError {
@@ -74,6 +79,7 @@ export interface ApiError {
 
 export interface BlueprintAction {
 	description: string;
+	permission?: string;
 }
 
 export interface Blueprint {
@@ -87,12 +93,14 @@ export interface BlueprintsResponse {
 export interface CustomAction {
 	name: string;
 	description: string;
+	permission?: string;
 }
 
 export interface RunningAppContext {
-	task?: {
+	task: {
 		id: string;
 	};
+	app_data?: App;
 }
 
 export interface OAuthConfig {

@@ -4,8 +4,8 @@
 	import AppStatusPill from '../../../components/app-status-pill.svelte';
 	import AppConnectivityPill from '../../../components/app-connectivity-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
-	import { dispatchAppCommand, updateAppInfo } from '../../../stores/appsStore';
-	import { monitorTask } from '../../../stores/tasksStore';
+	import { dispatchAppCommand } from '../../../stores/appsStore';
+	import { goto } from '$app/navigation';
 	import {
 		getAppPermissions,
 		permissionsLoaded,
@@ -19,7 +19,7 @@
 	import AppServiceButton from '../../../components/app-service-button.svelte';
 	import FormatBasicAuth from '../../../components/format-basic-auth.svelte';
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
 	import { showError } from '../../../stores/errorStore';
 	import Pill from '../../../components/pill.svelte';
@@ -62,9 +62,12 @@
 		return actions;
 	})();
 
-	let current_task: string | null = null;
+	// Set between the click and the server's response; afterwards
+	// `data.operation` says whether the app is busy.
 	let current_action: string | null = null;
 	let customActionsAvailable: boolean = false;
+
+	$: busy = current_action !== null || !!data.operation;
 
 	async function handleClick(action: string) {
 		if (action === 'Destroy') {
@@ -79,15 +82,10 @@
 		}
 		current_action = action;
 		try {
-			current_task = await dispatchAppCommand(action.toLowerCase(), data.name);
-			monitorTask(current_task, async () => {
-				current_task = null;
-				current_action = null;
-				data = (await updateAppInfo(data.name)) as App;
-			});
+			await dispatchAppCommand(action.toLowerCase(), data.name);
 		} catch (err) {
 			showError(`${action} failed`, err);
-			current_task = null;
+		} finally {
 			current_action = null;
 		}
 	}
@@ -101,12 +99,19 @@
 		app_tasks = Object.values(new_tasks).filter((t) => t.app_name === data.name);
 	});
 
-	apps.subscribe(() => {
-		let result = getApp(data.name);
-		if (result) {
-			data = result;
-		}
-	});
+	let seenInStore = false;
+	onDestroy(
+		apps.subscribe(() => {
+			let result = getApp(data.name);
+			if (result) {
+				seenInStore = true;
+				data = result;
+			} else if (seenInStore) {
+				// The app was destroyed.
+				goto(resolve('/dashboard'));
+			}
+		})
+	);
 
 	function format_ttl(ttlData: AppTtl) {
 		if (typeof ttlData === 'string') {
@@ -131,6 +136,22 @@
 	<div slot="meta" class="flex items-center gap-2">
 		<AppStatusPill status={data.status} />
 		<AppConnectivityPill connectivity={data.load_balancer_connectivity} />
+		{#if data.operation}
+			<Pill color="bg-warning" textColor="text-warning-content">
+				<span class="loading loading-spinner loading-xs align-middle"></span>
+				{#if data.operation.task_id}
+					<a class="link" href={resolve(`/tasks/${data.operation.task_id}`)}
+						>{data.operation.operation} running since <TimeAgo
+							dateString={data.operation.started_at}
+						/></a
+					>
+				{:else}
+					{data.operation.operation} running since <TimeAgo
+						dateString={data.operation.started_at}
+					/>
+				{/if}
+			</Pill>
+		{/if}
 	</div>
 </PageHeader>
 
@@ -150,10 +171,10 @@
 		<div class="join">
 			{#each availableActions as action (action)}
 				<button
-					disabled={current_task !== null || !isSupported()}
+					disabled={busy || !isSupported()}
 					class="btn btn-sm join-item"
 					on:click={() => handleClick(action)}
-					>{#if action === current_action}
+					>{#if action === current_action || data.operation?.operation === action.toLowerCase()}
 						<span class="loading loading-spinner"></span>
 					{/if}{action}</button
 				>
