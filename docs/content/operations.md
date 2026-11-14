@@ -109,6 +109,11 @@ apps:
 
 or `SCOTTY__APPS__MAX_OPERATION_DURATION=2h`.
 
+Known limit: scotty kills the `docker compose` process it started, but work
+already handed to the Docker daemon (an image pull or build in progress,
+containers being created) can continue for a short while after the lock is
+released.
+
 ### scottyctl waits
 
 By default `scottyctl` waits when the app is busy. It prints which operation

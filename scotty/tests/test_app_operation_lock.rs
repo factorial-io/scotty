@@ -13,18 +13,23 @@ use serde_json::{json, Value};
 /// Bearer tokens of `tests/test_bearer_auth.yaml`.
 const ADMIN: &str = "test-bearer-token-123";
 const VIEWER: &str = "client-a-secure-token-456";
+const CREATOR: &str = "token-without-rbac-assignments";
 
 const POLICY: &str = r#"
 scopes:
   ops: { description: Ops, created_at: 2024-01-01T00:00:00Z }
+  dev: { description: Dev, created_at: 2024-01-01T00:00:00Z }
 roles:
   admin: { permissions: ['*'], description: d }
   viewer: { permissions: [view], description: d }
+  creator: { permissions: [view, create], description: d }
 assignments:
   identifier:admin:
     - { role: admin, scopes: [ops] }
   identifier:client-a:
     - { role: viewer, scopes: [ops] }
+  identifier:no-rbac:
+    - { role: creator, scopes: [dev] }
 "#;
 
 struct Env {
@@ -208,6 +213,35 @@ async fn caller_without_permission_gets_403_not_409() {
         .json(&json!({}))
         .await;
     assert_eq!(approve.status_code(), 403, "{}", approve.text());
+}
+
+/// Creating over an existing app the caller has no rights on is refused
+/// before the lock: 403, nothing about the running operation.
+#[tokio::test]
+async fn create_over_a_foreign_busy_app_gets_403_not_409() {
+    let env = setup().await;
+    // A directory without `.scotty.yml`: an app in scope `default`.
+    std::fs::create_dir_all(env._app_dir.path().join("shop")).unwrap();
+    let _rebuild = env.state.app_locks.lock("shop", "rebuild").unwrap();
+    let create = env
+        .server
+        .post("/api/v1/authenticated/apps/create")
+        .authorization_bearer(CREATOR)
+        .json(&json!({
+            "app_name": "shop",
+            "settings": {
+                "public_services": [], "domain": "", "time_to_live": "Forever",
+                "basic_auth": null, "disallow_robots": true, "environment": {},
+                "registry": null,
+            },
+            "files": { "files": [] },
+            "custom_domains": [],
+            "requested_scopes": ["dev"],
+        }))
+        .await;
+    assert_eq!(create.status_code(), 403, "{}", create.text());
+    let body: Value = create.json();
+    assert!(body.get("operation").is_none(), "{body}");
 }
 
 #[tokio::test]

@@ -151,15 +151,12 @@ pub async fn create(
         }
     }
 
-    // One operation per app at a time: the checks below decide on the app's
-    // current state on disk, and the create task writes the new one.
-    let lock = state.app_locks.lock(&payload.app_name, "create")?;
-
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
     // right after a restart.
-    let existing = existing_app_settings(&state.settings.apps.root_folder, &payload.app_name)
-        .map_err(|e| {
+    let root_folder = &state.settings.apps.root_folder;
+    let check_existing = || -> Result<Option<AppSettings>, AppError> {
+        let existing = existing_app_settings(root_folder, &payload.app_name).map_err(|e| {
             // A broken file on disk is a server problem; keep its contents
             // out of the response.
             tracing::error!("Can't read .scotty.yml of app {}: {e}", payload.app_name);
@@ -168,30 +165,41 @@ pub async fn create(
                 payload.app_name
             ))
         })?;
-    if existing.is_some() && on_existing == OnExisting::Refuse {
-        return Err(AppError::Conflict(format!(
-            "App {} already exists; choose another name",
-            payload.app_name
-        )));
-    }
-    if let Some(existing) = &existing {
-        let as_set = |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
-        if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {
-            return Err(AppError::ScopeAccessDenied(format!(
-                "App {} exists in scopes {:?}; re-creating it can't change them to {:?}",
-                payload.app_name, existing.scopes, payload.requested_scopes
+        if existing.is_some() && on_existing == OnExisting::Refuse {
+            return Err(AppError::Conflict(format!(
+                "App {} already exists; choose another name",
+                payload.app_name
             )));
         }
-        // `create:<blueprint>` only covers apps created from that blueprint.
-        let candidate =
-            templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
-        // Rights in every scope of the app being replaced, not just one.
-        auth_service.require(
-            user_id,
-            Action::create(candidate),
-            Target::EveryOf(&existing.scopes),
-        )?;
-    }
+        if let Some(existing) = &existing {
+            let as_set =
+                |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
+            if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {
+                return Err(AppError::ScopeAccessDenied(format!(
+                    "App {} exists in scopes {:?}; re-creating it can't change them to {:?}",
+                    payload.app_name, existing.scopes, payload.requested_scopes
+                )));
+            }
+            // `create:<blueprint>` only covers apps created from that blueprint.
+            let candidate =
+                templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
+            // Rights in every scope of the app being replaced, not just one.
+            auth_service.require(
+                user_id,
+                Action::create(candidate),
+                Target::EveryOf(&existing.scopes),
+            )?;
+        }
+        Ok(existing)
+    };
+    // Checked before the lock too: a caller without rights on an existing
+    // app is refused without learning about its running operation.
+    check_existing()?;
+
+    // One operation per app at a time: the checks decide on the app's
+    // current state on disk, and the create task writes the new one.
+    let lock = state.app_locks.lock(&payload.app_name, "create")?;
+    let existing = check_existing()?;
 
     // Copy validated scopes to settings
     payload.settings.scopes = payload.requested_scopes.clone();

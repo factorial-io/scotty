@@ -8,8 +8,8 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { sessionStore, isAuthenticated } from './sessionStore';
-import { loadApps, updateAppInfo } from './appsStore';
-import { updateTask, requestAllTasks } from './tasksStore';
+import { apps, loadApps, updateAppInfo } from './appsStore';
+import { updateTask, requestAllTasks, requestTaskDetails, tasks } from './tasksStore';
 import { handleTaskOutputMessage } from './taskOutputStore';
 import { handleContainerLogsMessage } from './containerLogsStore';
 import type { WebSocketMessage } from '../types';
@@ -107,6 +107,19 @@ function sendMessage(message: WebSocketMessage) {
 }
 
 /**
+ * Pushes sent while the socket was down are lost, so resync busy apps and
+ * running tasks after (re)authentication.
+ */
+export function resyncAfterReconnect() {
+	for (const app of get(apps)) {
+		if (app.operation) updateAppInfo(app.name).catch(() => {});
+	}
+	for (const task of Object.values(get(tasks))) {
+		if (task.state === 'Running') requestTaskDetails(task.id).catch(() => {});
+	}
+}
+
+/**
  * Handle incoming WebSocket messages
  */
 export function handleMessage(event: MessageEvent) {
@@ -119,6 +132,7 @@ export function handleMessage(event: MessageEvent) {
 				console.log('WebSocket authentication successful');
 				update((state) => ({ ...state, connectionState: 'authenticated' }));
 				startPing();
+				resyncAfterReconnect();
 				break;
 
 			case 'AuthenticationFailed':

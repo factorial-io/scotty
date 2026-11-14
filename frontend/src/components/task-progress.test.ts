@@ -83,4 +83,14 @@ describe('task-progress', () => {
 		flushSync();
 		expect(requestTaskDetails).toHaveBeenCalledTimes(1);
 	});
+
+	it('formats transfer sizes in decimal units like the status line', () => {
+		const t = task(0.5, 'Pulling images');
+		t.progress!.transfers = [
+			{ image: 'img', phase: 'Downloading', current_bytes: 8855051, total_bytes: 2500000000 }
+		] as never;
+		tasks.set({ t1: t });
+		render({ taskId: 't1', details: true });
+		expect(document.body.textContent).toContain('8.9 MB / 2.5 GB');
+	});
 });

@@ -56,6 +56,7 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<T>>,
 {
+    let mut announced = None;
     loop {
         let err = match request().await {
             Err(e) => e,
@@ -69,17 +70,18 @@ where
             .task_id
             .map(|id| format!(" (task {id})"))
             .unwrap_or_default();
-        ui.eprintln(format!(
-            "Waiting for {}{task} on {app}...",
-            busy.operation.operation
-        ));
+        let waiting_for = format!("{}{task}", busy.operation.operation);
+        if announced.as_ref() != Some(&waiting_for) {
+            ui.eprintln(format!("Waiting for {waiting_for} on {app}..."));
+            announced = Some(waiting_for);
+        }
+        // Every poll is preceded by a pause, so no path resends without one.
+        // A failed poll (the app is not visible yet, or not to this caller)
+        // ends the wait; the resent request then reports the real state.
         loop {
-            // A failed poll (e.g. the app is gone) ends the wait; the resent
-            // request then reports the real problem.
+            tokio::time::sleep(interval).await;
             match get(server, &format!("apps/info/{app}")).await {
-                Ok(info) if info.get("operation").is_some_and(|o| !o.is_null()) => {
-                    tokio::time::sleep(interval).await
-                }
+                Ok(info) if info.get("operation").is_some_and(|o| !o.is_null()) => {}
                 _ => break,
             }
         }
@@ -886,6 +888,50 @@ mod tests {
         assert_eq!(result["ok"], true);
         assert_eq!(count(&server, "apps/run/shop").await, 3);
         assert_eq!(count(&server, "apps/info/shop").await, 2);
+    }
+
+    /// The app is not visible yet (a concurrent create has not registered
+    /// it): failed polls pace the resends instead of a tight loop.
+    #[tokio::test]
+    async fn failed_info_polls_still_pause_between_resends() {
+        let server = MockServer::start().await;
+        let run_calls = Arc::new(AtomicUsize::new(0));
+        Mock::given(method("GET"))
+            .and(path("/api/v1/authenticated/apps/run/shop"))
+            .respond_with(move |_: &Request| {
+                if run_calls.fetch_add(1, Ordering::SeqCst) < 3 {
+                    ResponseTemplate::new(409).set_body_json(busy_body())
+                } else {
+                    ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true}))
+                }
+            })
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/authenticated/apps/info/shop"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        let server_settings = settings(&server, false);
+        let interval = Duration::from_millis(50);
+        let started = std::time::Instant::now();
+        let result: Value = busy_wait(&server_settings, &Ui::new(), "shop", interval, || {
+            get(&server_settings, "apps/run/shop")
+        })
+        .await
+        .unwrap();
+        assert_eq!(result["ok"], true);
+        assert!(
+            started.elapsed() >= interval * 3,
+            "resent without pausing: {:?}",
+            started.elapsed()
+        );
+        let (runs, polls) = (
+            count(&server, "apps/run/shop").await,
+            count(&server, "apps/info/shop").await,
+        );
+        assert_eq!(runs, 4);
+        assert!(runs <= polls + 1, "{runs} requests for {polls} polls");
     }
 
     #[tokio::test]

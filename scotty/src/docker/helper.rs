@@ -152,8 +152,34 @@ pub async fn finish_operation(
     result: anyhow::Result<()>,
     notification: Option<Message>,
 ) {
+    finish_operation_after(ctx, result, notification, refresh_app_data(ctx)).await
+}
+
+/// How long the refresh after an operation may take. Docker can hang (e.g.
+/// right after an operation was aborted); the lock and the task must not
+/// hang with it.
+const REFRESH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// [`finish_operation`] with the refresh passed in, so tests can stall it.
+async fn finish_operation_after(
+    ctx: &Context,
+    result: anyhow::Result<()>,
+    notification: Option<Message>,
+    refresh: impl Future<Output = anyhow::Result<()>>,
+) {
     let app_name = &ctx.app_data.name;
-    let outcome = match (result, refresh_app_data(ctx).await) {
+    let refreshed = match tokio::time::timeout(REFRESH_TIMEOUT, refresh).await {
+        Ok(refreshed) => refreshed,
+        Err(_) => {
+            warn!(
+                app = %app_name,
+                operation = %ctx.operation,
+                "Refreshing app data after the operation timed out; releasing the app anyway"
+            );
+            Err(anyhow!("timed out after {}s", REFRESH_TIMEOUT.as_secs()))
+        }
+    };
+    let outcome = match (result, refreshed) {
         (Err(e), _) if e.is::<OperationTimedOut>() => {
             Outcome::failed(FailureKind::TimedOut, e.to_string())
         }
@@ -175,7 +201,11 @@ pub async fn finish_operation(
     let finished = matches!(outcome, Outcome::Finished { .. });
     ctx.release_lock();
     ctx.task.terminate(outcome).await;
-    if matches!(ctx.operation.as_str(), "create" | "destroy") {
+    // Every create or destroy variant (e.g. `ttl-destroy`) changes the list.
+    if ["create", "destroy"]
+        .iter()
+        .any(|op| ctx.operation.ends_with(op))
+    {
         ctx.app_state
             .messenger
             .broadcast_to_all(WebSocketMessage::AppListUpdated)
@@ -575,6 +605,65 @@ mod tests {
         // Start and release are pushed to the viewer only.
         assert_eq!(app_info_updates(&mut viewer, "slow").await, 2);
         assert_eq!(app_info_updates(&mut outsider, "slow").await, 0);
+    }
+
+    /// The TTL checker's destroy changes the app list like a user's destroy.
+    #[tokio::test]
+    async fn ttl_destroy_broadcasts_the_app_list_change() {
+        let app_state = test_app_state().await;
+        let mut client = connect(&app_state, "someone@example.com").await;
+        let running = run_operation(
+            app_state.clone(),
+            &gone_app("expired"),
+            OperationSpec::exclusive("ttl-destroy"),
+            &[],
+            None,
+            |_| async { Ok(()) },
+        )
+        .await
+        .unwrap();
+        wait_terminal(&app_state, running.task.id).await;
+
+        let expected = serde_json::to_string(&WebSocketMessage::AppListUpdated).unwrap();
+        let mut seen = false;
+        while let Ok(Ok(message)) =
+            tokio::time::timeout(Duration::from_millis(200), client.recv()).await
+        {
+            seen |= matches!(message, axum::extract::ws::Message::Text(ref t) if t.as_str() == expected);
+        }
+        assert!(seen, "AppListUpdated was not broadcast");
+    }
+
+    /// A refresh that never returns (stuck Docker daemon) still lets the
+    /// app's lock go and the task end.
+    #[tokio::test(start_paused = true)]
+    async fn a_stuck_refresh_does_not_keep_the_lock() {
+        let app_state = test_app_state().await;
+        let app = gone_app("stuck");
+        let lock = app_state.app_locks.lock(&app.name, "rebuild").unwrap();
+        let ctx = Context::create(
+            app_state.clone(),
+            &app,
+            TaskAccess::default(),
+            "rebuild".into(),
+            Some(lock),
+            &[],
+        )
+        .await;
+        tokio::time::timeout(
+            REFRESH_TIMEOUT * 2,
+            finish_operation_after(&ctx, Ok(()), None, std::future::pending()),
+        )
+        .await
+        .expect("finishing waited for the stuck refresh");
+        assert!(app_state.app_locks.current(&app.name).is_none());
+        let task = wait_terminal(&app_state, ctx.task.id()).await;
+        assert_eq!(task.state, State::Failed);
+        assert!(
+            statuses(&task).last().unwrap().contains("timed out"),
+            "{:?}",
+            statuses(&task)
+        );
     }
 
     async fn connect(
