@@ -4,10 +4,10 @@
 	import stop from '@iconify-icons/ph/stop';
 	import unsupported from '@iconify-icons/ph/ghost';
 	import errorIcon from '@iconify-icons/ph/warning-octagon';
-	import { runApp, stopApp, updateAppInfo } from '../stores/appsStore';
-	import { monitorTask } from '../stores/tasksStore';
+	import { runApp, stopApp } from '../stores/appsStore';
+	import { tasks } from '../stores/tasksStore';
 	import { hasPermission, permissionsLoaded } from '../stores/permissionStore';
-	import type { App, TaskDetail } from '../types';
+	import type { App } from '../types';
 	import { showError } from '../stores/errorStore';
 
 	export let app: App;
@@ -15,36 +15,39 @@
 	$: name = app.name;
 	$: status = app.status;
 
-	let task_id: string = '';
-	let failed_task: TaskDetail | null = null;
+	// Only covers the gap between the click and the server's response;
+	// afterwards `app.operation` says whether the app is busy.
+	let pending = false;
+	// The last task this button started, to show its failure.
+	let last_task_id: string | null = null;
+	let dismissed_failure = false;
 
 	function isSupported() {
 		return status !== 'Unsupported';
 	}
 
+	$: busy = pending || !!app.operation;
+	$: failed_task =
+		!dismissed_failure && last_task_id && $tasks[last_task_id]?.state === 'Failed'
+			? $tasks[last_task_id]
+			: null;
 	$: canManage = $permissionsLoaded ? hasPermission(app, 'manage') : false;
 	$: currentIcon = status === 'Running' ? stop : !isSupported() ? unsupported : play;
-	$: isDisabled = !isSupported() || !canManage;
+	$: isDisabled = !isSupported() || !canManage || busy;
 
 	async function handleClick() {
 		if (!isSupported() || !canManage) return;
-		failed_task = null;
-		if (task_id !== '') return;
+		dismissed_failure = true;
+		if (busy) return;
+		pending = true;
 		try {
-			task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
+			last_task_id = await (status === 'Running' ? stopApp(name) : runApp(name));
+			dismissed_failure = false;
 		} catch (err) {
 			showError(`${status === 'Running' ? 'Stop' : 'Run'} failed`, err);
-			task_id = '';
-			return;
+		} finally {
+			pending = false;
 		}
-		monitorTask(task_id, (result) => {
-			if (result.state === 'Failed') {
-				failed_task = result;
-			}
-
-			task_id = '';
-			updateAppInfo(name);
-		});
 	}
 </script>
 
@@ -58,8 +61,14 @@
 		</button>
 	</div>
 {:else}
-	<button class="btn btn-circle btn-xs" on:click={handleClick} disabled={isDisabled}>
-		{#if task_id !== ''}
+	<button
+		class="btn btn-circle btn-xs"
+		on:click={handleClick}
+		disabled={isDisabled}
+		aria-busy={busy}
+		title={app.operation ? `${app.operation.operation} running` : undefined}
+	>
+		{#if busy}
 			<span class="loading loading-spinner"></span>
 		{:else}
 			<Icon icon={currentIcon} />

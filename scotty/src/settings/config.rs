@@ -180,7 +180,22 @@ impl Settings {
             )));
         }
 
+        settings
+            .check_max_operation_duration()
+            .map_err(ConfigError::Message)?;
+
         Ok(settings)
+    }
+
+    /// A zero limit would abort every operation as soon as it starts.
+    fn check_max_operation_duration(&self) -> Result<(), String> {
+        let limit = &self.apps.max_operation_duration;
+        if std::time::Duration::from(limit.clone()).is_zero() {
+            return Err(format!(
+                "apps.max_operation_duration must be greater than zero (got {limit})"
+            ));
+        }
+        Ok(())
     }
 
     fn check_if_optional(&self, s: &Option<String>) -> Option<String> {
@@ -266,6 +281,62 @@ mod tests {
             settings.apps.domain_suffix_for(Some("static-html")),
             "artifacts.example.net"
         );
+    }
+
+    #[test]
+    fn test_max_operation_duration_defaults_to_1h_and_env_overrides_it() {
+        // The shipped default config on top of a complete test config. The
+        // environment is a fixed map, so env vars set by parallel tests can't
+        // leak in.
+        let load = |vars: &[(&str, &str)]| -> Settings {
+            let vars = vars
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            Config::builder()
+                .add_source(config::File::with_name("tests/test_bearer_auth"))
+                .add_source(config::File::with_name("../config/default"))
+                .add_source(Settings::get_environment().source(Some(vars)))
+                .build()
+                .unwrap()
+                .try_deserialize()
+                .unwrap()
+        };
+        let duration = |s: Settings| std::time::Duration::from(s.apps.max_operation_duration);
+        assert_eq!(duration(load(&[])), std::time::Duration::from_secs(3600));
+
+        let overridden = load(&[("SCOTTY__APPS__MAX_OPERATION_DURATION", "2h")]);
+        assert_eq!(overridden.apps.max_operation_duration.to_string(), "2h");
+        assert_eq!(duration(overridden), std::time::Duration::from_secs(7200));
+
+        // Config files that predate the setting get the default.
+        let without: Settings = Config::builder()
+            .add_source(config::File::with_name("tests/test_bearer_auth"))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(without.apps.max_operation_duration.to_string(), "1h");
+    }
+
+    #[test]
+    fn test_zero_max_operation_duration_is_refused() {
+        let load = |value: &str| -> Settings {
+            Config::builder()
+                .add_source(config::File::with_name("tests/test_bearer_auth"))
+                .set_override("apps.max_operation_duration", value)
+                .unwrap()
+                .build()
+                .unwrap()
+                .try_deserialize()
+                .unwrap()
+        };
+        let err = load("0s").check_max_operation_duration().unwrap_err();
+        assert!(
+            err.contains("apps.max_operation_duration must be greater than zero"),
+            "{err}"
+        );
+        assert!(load("1s").check_max_operation_duration().is_ok());
     }
 
     #[test]

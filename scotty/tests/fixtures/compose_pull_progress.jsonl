@@ -1,0 +1,100 @@
+{"id":"Image alpine:3.17","status":"Working","text":"Pulling"}
+{"id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling"}
+{"id":"Image busybox:1.36.0","status":"Working","text":"Pulling"}
+{"id":"Image alpine:3.17","status":"Done","text":"Pulled"}
+{"id":"cf04c63912e1","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Already exists","details":"0B","percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"de52dc070c69","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Waiting","details":"0B"}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Waiting","details":"0B"}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Waiting","details":"0B"}
+{"id":"de52dc070c69","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Waiting","details":"0B"}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Waiting","details":"0B"}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"3.452kB","current":3452,"total":171262,"percent":2}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"113.1kB","current":113112,"total":171262,"percent":66}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"16.38kB","current":16384,"total":934504,"percent":1}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"171.3kB","current":171262,"total":171262,"percent":100}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"962B","current":962,"total":962,"percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"962B","current":962,"total":962,"percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"962B","current":962,"total":962,"percent":100}
+{"id":"a4aa6b3a9bb8","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"113.1kB","current":113112,"total":934504,"percent":12}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"32.77kB","current":32768,"total":171262,"percent":19}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"171.3kB","current":171262,"total":171262,"percent":100}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"171.3kB","current":171262,"total":171262,"percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"353.6kB","current":353593,"total":934504,"percent":37}
+{"id":"d1672cbd8c2e","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"96.97kB","current":96968,"total":8855051,"percent":1}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"615.8kB","current":615829,"total":934504,"percent":65}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"100B","current":100,"total":100,"percent":100}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"705.4kB","current":705373,"total":934504,"percent":75}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"293.6kB","current":293576,"total":8855051,"percent":3}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"934.5kB","current":934504,"total":934504,"percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"32.77kB","current":32768,"total":934504,"percent":3}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"934.5kB","current":934504,"total":934504,"percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"934.5kB","current":934504,"total":934504,"percent":100}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"32B","current":32,"total":32,"percent":100}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"abf32e71a5b3","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"686.8kB","current":686792,"total":8855051,"percent":7}
+{"id":"de52dc070c69","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"574B","current":574,"total":574,"percent":100}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"1.177MB","current":1176736,"total":8855051,"percent":13}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"32.12kB","current":32123,"total":1999717,"percent":1}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"1.472MB","current":1471648,"total":8855051,"percent":16}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"129.7kB","current":129734,"total":1999717,"percent":6}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"1.668MB","current":1668256,"total":8855051,"percent":18}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"324.8kB","current":324766,"total":1999717,"percent":16}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"1.963MB","current":1963168,"total":8855051,"percent":22}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"423.1kB","current":423070,"total":1999717,"percent":21}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"2.258MB","current":2258080,"total":8855051,"percent":25}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"718kB","current":717982,"total":1999717,"percent":35}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"2.553MB","current":2552992,"total":8855051,"percent":28}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"913kB","current":913014,"total":1999717,"percent":45}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"1.144MB","current":1143966,"total":1999717,"percent":57}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"1.341MB","current":1340574,"total":1999717,"percent":67}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Downloading","details":"1.57MB","current":1569950,"total":1999717,"percent":78}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"2.848MB","current":2847904,"total":8855051,"percent":32}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Extracting","details":"32.77kB","current":32768,"total":1999717,"percent":1}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Working","text":"Extracting","details":"2MB","current":1999717,"total":1999717,"percent":100}
+{"id":"805f301826ef","parent_id":"Image busybox:1.36.0","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"Image busybox:1.36.0","status":"Done","text":"Pulled"}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"3.829MB","current":3829096,"total":8855051,"percent":43}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"5.6MB","current":5599832,"total":8855051,"percent":63}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"6.087MB","current":6087244,"total":8855051,"percent":68}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"6.278MB","current":6278422,"total":8855051,"percent":70}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"6.967MB","current":6966550,"total":8855051,"percent":78}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"7.065MB","current":7064854,"total":8855051,"percent":79}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"7.54MB","current":7540038,"total":8855051,"percent":85}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"7.929MB","current":7928526,"total":8855051,"percent":89}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Downloading","details":"8.414MB","current":8413742,"total":8855051,"percent":95}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"98.3kB","current":98304,"total":8855051,"percent":1}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"7.864MB","current":7864320,"total":8855051,"percent":88}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"8.855MB","current":8855051,"total":8855051,"percent":100}
+{"id":"b319d29ec0a2","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"100B","current":100,"total":100,"percent":100}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"100B","current":100,"total":100,"percent":100}
+{"id":"25ff5b765137","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"32B","current":32,"total":32,"percent":100}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"32B","current":32,"total":32,"percent":100}
+{"id":"4f4fb700ef54","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"de52dc070c69","parent_id":"Image redis:7.0.15-alpine","status":"Working","text":"Extracting","details":"574B","current":574,"total":574,"percent":100}
+{"id":"de52dc070c69","parent_id":"Image redis:7.0.15-alpine","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"Image redis:7.0.15-alpine","status":"Done","text":"Pulled"}

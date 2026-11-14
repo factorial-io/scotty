@@ -4,6 +4,7 @@ use scotty_core::utils::secret::SecretHashMap;
 use tracing::{error, info};
 
 use crate::docker::docker_compose::run_task;
+use crate::tasks::manager::OutputMode;
 
 use super::context::Context;
 
@@ -17,6 +18,7 @@ pub async fn run_task_and_wait(
     args: &[&str],
     env: &SecretHashMap,
     msg: &str,
+    mode: OutputMode,
 ) -> anyhow::Result<()> {
     info!(
         app_name = %context.app_data.name,
@@ -33,10 +35,21 @@ pub async fn run_task_and_wait(
         args,
         env,
         writer.clone(),
+        mode,
     )
     .await?;
 
-    let failure = match handle.await {
+    // Aborts the process task (and with it the process) if this step is
+    // cancelled, e.g. when the operation exceeds its maximum duration.
+    struct AbortOnDrop<T>(tokio::task::JoinHandle<T>);
+    impl<T> Drop for AbortOnDrop<T> {
+        fn drop(&mut self) {
+            self.0.abort();
+        }
+    }
+    let mut handle = AbortOnDrop(handle);
+
+    let failure = match (&mut handle.0).await {
         Ok(Ok(0)) => None,
         Ok(Ok(code)) => Some(format!("{msg} (exit code {code})")),
         Ok(Err(e)) => Some(format!("{msg}: {e:#}")),

@@ -4,8 +4,9 @@ use scotty_core::utils::secret::SecretHashMap;
 use tracing::instrument;
 
 use crate::{
-    app_state::SharedAppState, onepassword::lookup::resolve_environment_variables,
-    tasks::actor::TaskWriter,
+    app_state::SharedAppState,
+    onepassword::lookup::resolve_environment_variables,
+    tasks::{actor::TaskWriter, manager::OutputMode},
 };
 
 /// Runs a docker-compose command as a step of the task behind `writer`.
@@ -17,6 +18,7 @@ pub async fn run_task(
     args: &[&str],
     env: &SecretHashMap,
     writer: TaskWriter,
+    mode: OutputMode,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<i32>>> {
     // Resolve environment variables (1Password, substitutions, etc.)
     let resolved_environment = resolve_environment_variables(&shared_app.settings, env).await;
@@ -28,10 +30,13 @@ pub async fn run_task(
     let exposed_env = resolved_environment.expose_all();
     Ok(shared_app
         .task_manager
-        .start_process(parent_dir, command, args, &exposed_env, writer))
+        .start_process(parent_dir, command, args, &exposed_env, writer, mode))
 }
 
-/// Runs a docker-compose command synchronously and returns the output
+/// Runs a docker-compose command to completion and returns the output.
+///
+/// Async and `kill_on_drop`, so a caller's timeout (e.g. the app data refresh
+/// after an operation) both frees the runtime worker and ends the process.
 ///
 /// # Arguments
 ///
@@ -43,14 +48,15 @@ pub async fn run_task(
 /// # Returns
 ///
 /// The command output as a string
-#[instrument]
-pub fn run_docker_compose_now(
+#[instrument(skip(env_vars))]
+pub async fn run_docker_compose_now(
     docker_compose_path: &Path,
     command: &[&str],
     env_vars: Option<&std::collections::HashMap<String, String>>,
     return_stderr: bool,
 ) -> anyhow::Result<String> {
-    let mut cmd = std::process::Command::new("docker-compose");
+    let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.kill_on_drop(true);
 
     // Add args and set working directory
     let parent_dir = docker_compose_path
@@ -67,7 +73,7 @@ pub fn run_docker_compose_now(
     }
 
     // Execute the command
-    let output = cmd.output()?;
+    let output = cmd.output().await?;
 
     if !output.status.success() {
         let stderr = String::from_utf8(output.stderr)

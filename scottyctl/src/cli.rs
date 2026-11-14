@@ -35,6 +35,13 @@ pub struct Cli {
     )]
     pub bypass_version_check: bool,
 
+    #[arg(
+        long,
+        default_value = "false",
+        help = "Fail at once if the app is busy instead of waiting for its running operation"
+    )]
+    pub no_wait: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -497,4 +504,17 @@ pub struct ShellCommand {
 
 pub fn print_completions<G: clap_complete::Generator>(gen: G, cmd: &mut clap::Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_wait_defaults_to_false_and_is_global() {
+        let cli = Cli::parse_from(["scottyctl", "app:list"]);
+        assert!(!cli.no_wait);
+        let cli = Cli::parse_from(["scottyctl", "--no-wait", "app:list"]);
+        assert!(cli.no_wait);
+    }
 }

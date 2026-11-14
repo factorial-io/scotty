@@ -35,6 +35,7 @@ async fn require_manage(
     path = "/api/v1/authenticated/apps/notify/add",
     request_body(content = AddNotificationRequest, content_type = "application/json"),
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(AppData)),
     (status = 401, description = "Access token is missing or invalid"),
     (status = 403, description = "Caller lacks manage permission for the app"),
@@ -52,6 +53,8 @@ pub async fn add_notification_handler(
     let service_ids = payload.service_ids.clone();
 
     require_manage(&state, &auth_context, &app_name).await?;
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
 
     let app = state
         .apps
@@ -96,6 +99,7 @@ pub async fn add_notification_handler(
     path = "/api/v1/authenticated/apps/notify/remove",
     request_body(content = RemoveNotificationRequest, content_type = "application/json"),
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(AppData)),
     (status = 401, description = "Access token is missing or invalid"),
     (status = 403, description = "Caller lacks manage permission for the app"),
@@ -113,6 +117,8 @@ pub async fn remove_notification_handler(
     let service_ids = payload.service_ids.clone();
 
     require_manage(&state, &auth_context, &app_name).await?;
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
 
     let app = state
         .apps

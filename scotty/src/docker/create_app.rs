@@ -12,10 +12,10 @@ use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
 use super::blueprint_template::TemplateInputs;
-use super::helper::run_operation_requested_by;
+use super::helper::{run_operation_requested_by, OperationSpec};
 use super::rebuild_app::rebuild_steps;
 use super::steps::compose::update_app_data;
-use super::steps::context::{Context, TaskAccess};
+use super::steps::context::{Context, Step, TaskAccess};
 use super::steps::files::{create_directory, save_files, save_settings};
 use super::steps::load_balancer::create_load_balancer_config;
 use super::steps::post_actions::run_post_actions;
@@ -26,10 +26,17 @@ pub async fn create_steps(
     settings: &AppSettings,
     files: &FileList,
 ) -> anyhow::Result<()> {
-    create_directory(ctx).await?;
-    save_settings(ctx, settings).await?;
-    save_files(ctx, files).await?;
-    create_load_balancer_config(ctx, settings).await?;
+    ctx.step(&Step::Files, async {
+        create_directory(ctx).await?;
+        save_settings(ctx, settings).await?;
+        save_files(ctx, files).await
+    })
+    .await?;
+    ctx.step(
+        &Step::LoadBalancer,
+        create_load_balancer_config(ctx, settings),
+    )
+    .await?;
     // The per-app network is ensured inside rebuild_steps before any compose
     // command, so create does not ensure it separately.
     rebuild_steps(ctx, false)
@@ -124,8 +131,9 @@ pub struct CreateRequest<'a> {
     pub files: &'a FileList,
     pub template: TemplateInputs<'a>,
     pub requested_by: Option<String>,
-    /// Holds the app's create lock until the create finished, if given.
-    pub lock: Option<crate::app_state::CreateLock>,
+    /// The app's operation lock, taken before the existing app was read.
+    /// Taken here if not given.
+    pub lock: Option<crate::app_state::AppLock>,
 }
 
 /// Asynchronously creates a new application by validating input files, preparing application data, and running the creation steps.
@@ -195,23 +203,32 @@ pub async fn create_app(
         // The app does not exist yet; the reconciler fills this in once it has
         // observed the app's proxy network.
         load_balancer_connectivity: Default::default(),
+        operation: None,
     };
     let notification = Message::new(MessageType::AppCreated, &app_data);
     let settings = settings.clone();
     let files = files.clone();
+    let operation = match lock {
+        Some(lock) => OperationSpec::locked(lock),
+        None => OperationSpec::exclusive("create"),
+    }
+    .changing_app_list();
     run_operation_requested_by(
         app_state,
         &app_data,
+        operation,
+        &[
+            &[Step::Files, Step::LoadBalancer],
+            Step::REBUILD.as_slice(),
+            &[Step::PostActions],
+        ]
+        .concat(),
         TaskAccess {
             requested_by,
             ..TaskAccess::default()
         },
         Some(notification),
-        move |ctx| async move {
-            // Released once the app's settings and files are written.
-            let _lock = lock;
-            create_steps(&ctx, &settings, &files).await
-        },
+        move |ctx| async move { create_steps(&ctx, &settings, &files).await },
     )
     .await
 }

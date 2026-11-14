@@ -1,0 +1,51 @@
+{"id":"Image busybox:1.35.0","status":"Working","text":"Pulling"}
+{"id":"Image alpine:3.16","status":"Working","text":"Pulling"}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Pulling fs layer","details":"0B"}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"32.77kB","current":32768,"total":2708283,"percent":1}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"32.12kB","current":32123,"total":1836303,"percent":1}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"127.7kB","current":127674,"total":2708283,"percent":4}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"130.4kB","current":130427,"total":1836303,"percent":7}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"329.1kB","current":329082,"total":2708283,"percent":12}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"327kB","current":327035,"total":1836303,"percent":17}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"522.5kB","current":522538,"total":2708283,"percent":19}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"556.4kB","current":556411,"total":1836303,"percent":30}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"744.5kB","current":744450,"total":2708283,"percent":27}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"753kB","current":753019,"total":1836303,"percent":41}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"952.7kB","current":952714,"total":2708283,"percent":35}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"949.6kB","current":949627,"total":1836303,"percent":51}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"1.148MB","current":1147746,"total":2708283,"percent":42}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"1.146MB","current":1146235,"total":1836303,"percent":62}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"1.377MB","current":1377122,"total":2708283,"percent":50}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"1.376MB","current":1375611,"total":1836303,"percent":74}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"1.574MB","current":1573730,"total":2708283,"percent":58}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"1.605MB","current":1604987,"total":1836303,"percent":87}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"1.77MB","current":1770338,"total":2708283,"percent":65}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Downloading","details":"1.802MB","current":1801595,"total":1836303,"percent":98}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Extracting","details":"32.77kB","current":32768,"total":1836303,"percent":1}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"2MB","current":1999714,"total":2708283,"percent":73}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Working","text":"Extracting","details":"1.836MB","current":1836303,"total":1836303,"percent":100}
+{"id":"235378d388b7","parent_id":"Image busybox:1.35.0","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"2.229MB","current":2229090,"total":2708283,"percent":82}
+{"id":"Image busybox:1.35.0","status":"Done","text":"Pulled"}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"2.458MB","current":2458466,"total":2708283,"percent":90}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Downloading","details":"2.688MB","current":2687842,"total":2708283,"percent":99}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Verifying Checksum","details":"0B"}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Done","text":"Download complete","details":"0B","percent":100}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Extracting","details":"32.77kB","current":32768,"total":2708283,"percent":1}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Working","text":"Extracting","details":"2.708MB","current":2708283,"total":2708283,"percent":100}
+{"id":"550f8bf8502c","parent_id":"Image alpine:3.16","status":"Done","text":"Pull complete","details":"0B","percent":100}
+{"id":"Image alpine:3.16","status":"Done","text":"Pulled"}
+{"id":"Network uptest_default","status":"Working","text":"Creating"}
+{"id":"Network uptest_default","status":"Working","text":"Creating"}
+{"id":"Network uptest_default","status":"Done","text":"Created"}
+{"id":"Network uptest_default","status":"Done","text":"Created"}
+{"id":"Container uptest-b-1","status":"Working","text":"Creating"}
+{"id":"Container uptest-a-1","status":"Working","text":"Creating"}
+{"id":"Container uptest-b-1","status":"Done","text":"Created"}
+{"id":"Container uptest-a-1","status":"Done","text":"Created"}
+{"id":"Container uptest-a-1","status":"Working","text":"Starting"}
+{"id":"Container uptest-b-1","status":"Working","text":"Starting"}
+{"id":"Container uptest-a-1","status":"Done","text":"Started"}
+{"id":"Container uptest-b-1","status":"Done","text":"Started"}

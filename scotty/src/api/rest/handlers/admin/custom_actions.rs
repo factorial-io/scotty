@@ -131,6 +131,7 @@ pub async fn get_action_details_handler(
     path = "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/approve",
     request_body = ReviewActionRequest,
     responses(
+        (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
         (status = 200, description = "Action approved", body = CustomAction),
         (status = 400, description = "Action is not in pending state"),
         (status = 401, description = "Access token is missing or invalid"),
@@ -172,6 +173,7 @@ pub async fn approve_action_handler(
     path = "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/reject",
     request_body = ReviewActionRequest,
     responses(
+        (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
         (status = 200, description = "Action rejected", body = CustomAction),
         (status = 400, description = "Action is not in pending state"),
         (status = 401, description = "Access token is missing or invalid"),
@@ -213,6 +215,7 @@ pub async fn reject_action_handler(
     path = "/api/v1/authenticated/admin/actions/{app_name}/{action_name}/revoke",
     request_body = ReviewActionRequest,
     responses(
+        (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
         (status = 200, description = "Action revoked", body = CustomAction),
         (status = 400, description = "Action is not in approved state"),
         (status = 401, description = "Access token is missing or invalid"),
@@ -288,6 +291,8 @@ async fn update_action_status(
     comment: Option<String>,
     operation: ReviewOperation,
 ) -> Result<impl IntoResponse, AppError> {
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(app_name, "settings")?;
     let app = match state.apps.get_app(app_name).await {
         Some(app) => app,
         None => return Err(AppError::AppNotFound(app_name.to_string())),

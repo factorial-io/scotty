@@ -151,18 +151,12 @@ pub async fn create(
         }
     }
 
-    // One create per app at a time: the checks below decide on the app's
-    // current state on disk, and the create task writes the new one.
-    let lock = state
-        .create_locks
-        .try_lock(&slugify(&payload.app_name))
-        .ok_or_else(|| AppError::CreateInProgress(payload.app_name.clone()))?;
-
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
     // right after a restart.
-    let existing = existing_app_settings(&state.settings.apps.root_folder, &payload.app_name)
-        .map_err(|e| {
+    let root_folder = &state.settings.apps.root_folder;
+    let check_existing = || -> Result<Option<AppSettings>, AppError> {
+        let existing = existing_app_settings(root_folder, &payload.app_name).map_err(|e| {
             // A broken file on disk is a server problem; keep its contents
             // out of the response.
             tracing::error!("Can't read .scotty.yml of app {}: {e}", payload.app_name);
@@ -171,30 +165,41 @@ pub async fn create(
                 payload.app_name
             ))
         })?;
-    if existing.is_some() && on_existing == OnExisting::Refuse {
-        return Err(AppError::Conflict(format!(
-            "App {} already exists; choose another name",
-            payload.app_name
-        )));
-    }
-    if let Some(existing) = &existing {
-        let as_set = |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
-        if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {
-            return Err(AppError::ScopeAccessDenied(format!(
-                "App {} exists in scopes {:?}; re-creating it can't change them to {:?}",
-                payload.app_name, existing.scopes, payload.requested_scopes
+        if existing.is_some() && on_existing == OnExisting::Refuse {
+            return Err(AppError::Conflict(format!(
+                "App {} already exists; choose another name",
+                payload.app_name
             )));
         }
-        // `create:<blueprint>` only covers apps created from that blueprint.
-        let candidate =
-            templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
-        // Rights in every scope of the app being replaced, not just one.
-        auth_service.require(
-            user_id,
-            Action::create(candidate),
-            Target::EveryOf(&existing.scopes),
-        )?;
-    }
+        if let Some(existing) = &existing {
+            let as_set =
+                |s: &[String]| s.iter().cloned().collect::<std::collections::BTreeSet<_>>();
+            if as_set(&existing.scopes) != as_set(&payload.requested_scopes) {
+                return Err(AppError::ScopeAccessDenied(format!(
+                    "App {} exists in scopes {:?}; re-creating it can't change them to {:?}",
+                    payload.app_name, existing.scopes, payload.requested_scopes
+                )));
+            }
+            // `create:<blueprint>` only covers apps created from that blueprint.
+            let candidate =
+                templated_blueprint.filter(|bp| existing.app_blueprint.as_deref() == Some(*bp));
+            // Rights in every scope of the app being replaced, not just one.
+            auth_service.require(
+                user_id,
+                Action::create(candidate),
+                Target::EveryOf(&existing.scopes),
+            )?;
+        }
+        Ok(existing)
+    };
+    // Checked before the lock too: a caller without rights on an existing
+    // app is refused without learning about its running operation.
+    check_existing()?;
+
+    // One operation per app at a time: the checks decide on the app's
+    // current state on disk, and the create task writes the new one.
+    let lock = state.app_locks.lock(&payload.app_name, "create")?;
+    let existing = check_existing()?;
 
     // Copy validated scopes to settings
     payload.settings.scopes = payload.requested_scopes.clone();
@@ -317,12 +322,12 @@ pub async fn list(state: &SharedAppState, user_id: &str) -> AppDataVec {
 
     // If authorization is enabled but no assignments exist, return all apps
     if !auth_service.is_enabled().await {
-        return all_apps;
+        return with_operations(state, all_apps);
     }
 
     let grants = auth_service.grants_for(user_id);
     let app_scopes = auth_service.app_scopes();
-    AppDataVec {
+    let apps = AppDataVec {
         apps: all_apps
             .apps
             .into_iter()
@@ -332,7 +337,8 @@ pub async fn list(state: &SharedAppState, user_id: &str) -> AppDataVec {
                     .is_allowed()
             })
             .collect(),
-    }
+    };
+    with_operations(state, apps)
 }
 
 /// One app, if `user_id` may view it.
@@ -341,11 +347,21 @@ pub async fn get(state: &SharedAppState, user_id: &str, app: &str) -> Result<App
     state
         .auth_service
         .require(user_id, Permission::View.into(), Target::App(&app))?;
-    state
+    let mut app_data = state
         .apps
         .get_app(&app)
         .await
-        .ok_or(AppError::AppNotFound(app))
+        .ok_or(AppError::AppNotFound(app))?;
+    app_data.operation = state.app_locks.current(&app_data.name);
+    Ok(app_data)
+}
+
+/// `apps` with each app's running operation filled in from the lock registry.
+fn with_operations(state: &SharedAppState, mut apps: AppDataVec) -> AppDataVec {
+    for app in &mut apps.apps {
+        app.operation = state.app_locks.current(&app.name);
+    }
+    apps
 }
 
 /// A task, with its output, if `user_id` may see it (task-visibility spec).
@@ -423,7 +439,7 @@ pub async fn destroy(
     if app_data.settings.is_none() {
         return Err(AppError::CantDestroyUnmanagedApp(app));
     }
-    Ok(crate::docker::destroy_app::destroy_app(state.clone(), &app_data).await?)
+    Ok(crate::docker::destroy_app::destroy_app(state.clone(), &app_data, "destroy").await?)
 }
 
 /// The blueprints `user_id` may create apps from in `target` (`Global`: in

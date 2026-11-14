@@ -45,6 +45,13 @@ pub enum HttpError {
     #[error("HTTP {status}: {message}")]
     Http { status: u16, message: String },
 
+    /// 409 refusing the request because the app has an operation running.
+    #[error("HTTP 409: {message}")]
+    Busy {
+        message: String,
+        operation: scotty_types::AppOperation,
+    },
+
     /// Network-level error (connection, DNS, etc.)
     #[error("Network error: {0}")]
     Network(reqwest::Error),
@@ -99,6 +106,7 @@ impl HttpError {
     pub fn status_code(&self) -> Option<u16> {
         match self {
             Self::Http { status, .. } => Some(*status),
+            Self::Busy { .. } => Some(409),
             Self::Network(e) => e.status().map(|s| s.as_u16()),
             _ => None,
         }

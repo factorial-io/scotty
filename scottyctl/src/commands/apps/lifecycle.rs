@@ -2,7 +2,7 @@ use anyhow::Context;
 use owo_colors::OwoColorize;
 
 use crate::{
-    api::get,
+    api::{get, with_busy_wait},
     cli::{AdoptCommand, DestroyCommand, PurgeCommand, RebuildCommand, RunCommand, StopCommand},
     context::AppContext,
 };
@@ -35,7 +35,10 @@ pub async fn adopt_app(context: &AppContext, cmd: &AdoptCommand) -> anyhow::Resu
     let ui = context.ui();
     ui.new_status_line(format!("Adopting app {}...", cmd.app_name));
     ui.run(async || {
-        let result = get(context.server(), &format!("apps/adopt/{}", cmd.app_name)).await?;
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get(context.server(), &format!("apps/adopt/{}", cmd.app_name)).await
+        })
+        .await?;
         let app_data: AppData = serde_json::from_value(result)?;
         ui.success(format!("App {} adopted successfully", cmd.app_name));
         format_app_info(&app_data)
@@ -52,7 +55,10 @@ pub async fn destroy_app(context: &AppContext, cmd: &DestroyCommand) -> anyhow::
         let ws_connection =
             crate::websocket::AuthenticatedWebSocket::connect(context.server()).await;
 
-        let result = get(context.server(), &format!("apps/destroy/{}", cmd.app_name)).await?;
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get(context.server(), &format!("apps/destroy/{}", cmd.app_name)).await
+        })
+        .await?;
         let app_context: RunningAppContext =
             serde_json::from_value(result).context("Failed to parse context from API")?;
         crate::api::wait_for_task(context.server(), &app_context, ui, ws_connection).await?;

@@ -104,6 +104,20 @@ pub struct AppSummary {
     pub time_to_live: Option<serde_json::Value>,
     /// Whether the app is behind basic auth (the credentials are not shown).
     pub basic_auth: bool,
+    /// The operation running on the app; other operations are refused until
+    /// it has ended.
+    pub operation: Option<RunningOperation>,
+}
+
+/// An operation running on an app.
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct RunningOperation {
+    /// e.g. `create`, `rebuild`, `action:<name>`.
+    pub operation: String,
+    /// Its task, to poll with get_task.
+    pub task_id: Option<String>,
+    pub started_at: String,
 }
 
 /// A unit enum's serde name, the same string the REST API sends, so a Rust
@@ -137,6 +151,11 @@ impl AppSummary {
             scopes: settings.map(|s| s.scopes.clone()).unwrap_or_default(),
             time_to_live: settings.and_then(|s| serde_json::to_value(&s.time_to_live).ok()),
             basic_auth: settings.is_some_and(|s: &AppSettings| s.basic_auth.is_some()),
+            operation: app.operation.as_ref().map(|o| RunningOperation {
+                operation: o.operation.clone(),
+                task_id: o.task_id.map(|id| id.to_string()),
+                started_at: o.started_at.to_rfc3339(),
+            }),
         }
     }
 }
@@ -275,6 +294,33 @@ pub struct TaskInfo {
     pub output: Vec<String>,
     /// Output lines left out of `output`; pass `full_output` to see them.
     pub output_lines_omitted: u64,
+    pub progress: TaskProgressInfo,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct TaskProgressInfo {
+    /// Progress of the whole operation, from 0 to 1.
+    pub fraction: f32,
+    /// What happens now, in one line (includes pull byte counts while pulling).
+    pub status: String,
+    /// The operation's steps as `<name>: <state>`, state one of pending,
+    /// running, done, failed, skipped.
+    pub steps: Vec<String>,
+}
+
+impl From<&scotty_types::TaskProgress> for TaskProgressInfo {
+    fn from(p: &scotty_types::TaskProgress) -> Self {
+        Self {
+            fraction: p.fraction,
+            status: p.status.clone(),
+            steps: p
+                .steps
+                .iter()
+                .map(|s| format!("{}: {}", s.name, wire_name(&s.state)))
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -426,6 +472,7 @@ impl ScottyMcp {
                 .output
                 .total_lines_processed
                 .saturating_sub(shown.len() as u64),
+            progress: (&task.progress).into(),
         }))
     }
 

@@ -500,7 +500,8 @@ scheduler:
   running apps be checked. The default is 1m.
 * `ttl_check` how often should the ttl of the apps be checked. The default is
   10m. This setting describes the frequency of the ttl-check. The actual ttl is
-  configured on a per app basis.
+  configured on a per app basis. An app that has an operation running is
+  skipped and checked again on the next run.
 * `task_cleanup` how often should the task-queue be cleaned up. The default is
   3m. Everytime a cli or UI is issuing a command, a new task gets created and
   put into the queue. The task encapsulates the output of the command and
@@ -514,6 +515,7 @@ apps:
   domain_suffix: "ddev.site"
   root_folder: "./apps" # Path to the folder where the apps are stored
   max_depth: 3
+  max_operation_duration: "1h"
 ```
 
 * `domain_suffix` The suffix for auto-generated domains. Set this to the domain
@@ -526,6 +528,11 @@ apps:
   path on the host, where the docker daemon is running.
 * `max_depth` How many directory levels below `root_folder` scotty searches for
   apps. The default is 3.
+* `max_operation_duration` The longest an operation (create, run, stop, rebuild,
+  purge, destroy, custom actions) may run on an app. After that, the operation
+  is aborted, its task fails and the app's operation lock is released. The
+  default is `1h`. Override it with `SCOTTY__APPS__MAX_OPERATION_DURATION`. See
+  [Operations](operations.md).
 
 ### Docker settings
 

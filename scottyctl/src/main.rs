@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
     let server_settings = ServerSettings {
         server: cli.server.clone(),
         access_token: cli.access_token.clone(),
+        no_wait: cli.no_wait,
     };
 
     // Create the app context with UI and server settings

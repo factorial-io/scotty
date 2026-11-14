@@ -205,7 +205,7 @@ mod tests {
             task_output_service: crate::tasks::output_streaming::TaskOutputStreamingService::new(),
             settings,
             next_app_check: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-            create_locks: Default::default(),
+            app_locks: Default::default(),
             oauth_db: None,
             session_server: None,
             mcp_server: None,

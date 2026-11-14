@@ -6,12 +6,20 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_operation;
+use super::helper::{run_operation, OperationSpec};
 use super::steps::compose::{docker_compose, docker_login, update_app_data};
-use super::steps::context::Context;
+use super::steps::context::{Context, Step};
 use super::steps::network::ensure_app_network;
 use super::steps::post_actions::run_post_actions;
 use super::steps::wait_for_containers::wait_for_all_containers;
+
+const RUN_STEPS: [Step; 5] = [
+    Step::Login,
+    Step::Network,
+    Step::Up,
+    Step::WaitForContainers,
+    Step::PostActions,
+];
 
 pub async fn run_steps(ctx: &Context) -> anyhow::Result<()> {
     docker_login(ctx).await?;
@@ -34,6 +42,8 @@ pub async fn run_app(
     run_operation(
         app_state,
         app,
+        OperationSpec::exclusive("run"),
+        &RUN_STEPS,
         Some(Message::new(MessageType::AppStarted, app)),
         |ctx| async move { run_steps(&ctx).await },
     )

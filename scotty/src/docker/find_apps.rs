@@ -271,7 +271,7 @@ async fn inspect_docker_compose(
         .ok()
         .flatten()
         .map(|s| s.environment.expose_all());
-    let output = run_docker_compose_now(file, &["ps", "-q", "-a"], env.as_ref(), false)?;
+    let output = run_docker_compose_now(file, &["ps", "-q", "-a"], env.as_ref(), false).await?;
     let containers: Vec<String> = output.lines().map(String::from).collect();
     info!(
         "Found containers for {}: {}",

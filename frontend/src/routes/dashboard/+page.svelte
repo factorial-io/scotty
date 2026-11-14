@@ -15,6 +15,7 @@
 	import type { App } from '../../types';
 	import TableHeaderSort from '../../components/table-header-sort.svelte';
 	import LastStarted from '../../components/last-started.svelte';
+	import TaskProgress from '../../components/task-progress.svelte';
 
 	const filter = writable('');
 	const sortBy = writable('status');
@@ -102,7 +103,12 @@
 						{/if}
 					{/each}</td
 				>
-				<td><AppStatusPill status={app.status} /></td>
+				<td
+					><AppStatusPill status={app.status} />
+					{#if app.operation?.task_id}
+						<div class="mt-1"><TaskProgress taskId={app.operation.task_id} /></div>
+					{/if}</td
+				>
 				<td><LastStarted services={app.services}></LastStarted> </td></tr
 			>
 		{/each}

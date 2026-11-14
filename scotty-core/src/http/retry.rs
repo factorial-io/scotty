@@ -71,6 +71,8 @@ pub fn is_retriable_error(err: &HttpError) -> bool {
                 || e.is_request()
                 || e.status().is_some_and(|s| s.is_server_error())
         }
+        // A busy app is for the caller to wait out, not for blind retries
+        HttpError::Busy { .. } => false,
         HttpError::Timeout => true,
         // Don't retry parse errors (likely bad response format)
         HttpError::ParseError(_) => false,

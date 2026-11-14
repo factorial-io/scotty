@@ -6,6 +6,8 @@ use std::sync::Arc;
 pub struct ServerSettings {
     pub server: String,
     pub access_token: Option<String>,
+    /// Fail at once on a busy app instead of waiting for it.
+    pub no_wait: bool,
 }
 
 /// AppContext provides access to shared application resources

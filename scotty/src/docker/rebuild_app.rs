@@ -6,9 +6,9 @@ use scotty_core::notification_types::{Message, MessageType};
 use scotty_core::settings::app_blueprint::ActionName;
 use scotty_core::tasks::running_app_context::RunningAppContext;
 
-use super::helper::run_operation;
+use super::helper::{run_operation, OperationSpec};
 use super::steps::compose::{docker_compose, docker_login, update_app_data};
-use super::steps::context::Context;
+use super::steps::context::{Context, Step};
 use super::steps::load_balancer::create_load_balancer_config;
 use super::steps::network::ensure_app_network;
 use super::steps::post_actions::run_post_actions;
@@ -54,6 +54,8 @@ pub async fn rebuild_app(
     run_operation(
         app_state,
         app,
+        OperationSpec::exclusive("rebuild"),
+        &Step::REBUILD,
         Some(Message::new(MessageType::AppRebuilt, app)),
         |ctx| async move { rebuild_steps(&ctx, true).await },
     )

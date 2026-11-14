@@ -4,7 +4,7 @@ use serde_json::json;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::{
-    api::{delete, get, post},
+    api::{delete, get, post, with_busy_wait},
     cli::{AdminActionGetCommand, AdminActionReviewCommand},
     context::AppContext,
     utils::ui::Ui,
@@ -503,7 +503,10 @@ pub async fn approve_action(
     });
 
     let endpoint = format!("admin/actions/{}/{}/approve", cmd.app_name, cmd.action_name);
-    let result = post(context.server(), &endpoint, payload).await?;
+    let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+        post(context.server(), &endpoint, payload.clone()).await
+    })
+    .await?;
 
     handle_success_response(
         ui,
@@ -534,7 +537,10 @@ pub async fn reject_action(
     });
 
     let endpoint = format!("admin/actions/{}/{}/reject", cmd.app_name, cmd.action_name);
-    let result = post(context.server(), &endpoint, payload).await?;
+    let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+        post(context.server(), &endpoint, payload.clone()).await
+    })
+    .await?;
 
     handle_success_response(
         ui,
@@ -565,7 +571,10 @@ pub async fn revoke_action(
     });
 
     let endpoint = format!("admin/actions/{}/{}/revoke", cmd.app_name, cmd.action_name);
-    let result = post(context.server(), &endpoint, payload).await?;
+    let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+        post(context.server(), &endpoint, payload.clone()).await
+    })
+    .await?;
 
     handle_success_response(
         ui,

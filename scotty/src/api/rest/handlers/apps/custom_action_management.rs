@@ -57,6 +57,7 @@ fn validate_action_name(raw: &str) -> Result<String, AppError> {
     path = "/api/v1/authenticated/apps/{app_name}/custom-actions",
     request_body = CreateCustomActionRequest,
     responses(
+        (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
         (status = 201, description = "Custom action created", body = CustomAction),
         (status = 400, description = "Invalid request (e.g. bad name or permission)"),
         (status = 401, description = "Access token is missing or invalid"),
@@ -80,6 +81,8 @@ pub async fn create_custom_action_handler(
         payload.name, app_name, user_id
     );
 
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
     // Validate app exists
     let app = match state.apps.get_app(&app_name).await {
         Some(app) => app,
@@ -177,6 +180,7 @@ pub async fn list_custom_actions_handler(
     delete,
     path = "/api/v1/authenticated/apps/{app_name}/custom-actions/{action_name}",
     responses(
+        (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
         (status = 200, description = "Custom action deleted", body = CustomAction),
         (status = 401, description = "Access token is missing or invalid"),
         (status = 404, description = "App or action not found"),
@@ -195,6 +199,8 @@ pub async fn delete_custom_action_handler(
         action_name, app_name
     );
 
+    // Held until the settings are written.
+    let _lock = state.app_locks.lock(&app_name, "settings")?;
     // Validate app exists
     let app = match state.apps.get_app(&app_name).await {
         Some(app) => app,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { authenticatedApiCall } from '$lib';
-	import type { App, BlueprintsResponse, CustomAction, RunningAppContext } from '../types';
+	import type { App, BlueprintsResponse, CustomAction } from '../types';
+	import { runCustomAction } from '../stores/appsStore';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { sessionStore } from '../stores/sessionStore';
@@ -17,8 +18,14 @@
 
 	// Export a reactive value that indicates if actions are available
 	export let hasActions: boolean = false;
-	let currentTaskId: string | null = null;
+	// Set between the click and the server's response.
 	let currentAction: string | null = null;
+
+	// While the app is busy only read actions may run; they take no lock.
+	$: busy = currentAction !== null || !!app.operation;
+	function isAvailable(action: CustomAction, busy: boolean): boolean {
+		return !busy || (currentAction === null && action.permission === 'action_read');
+	}
 
 	// Reactive statement: Fetch blueprints when authentication is ready and canManage is true
 	$: {
@@ -56,7 +63,8 @@
 					.filter((key) => !key.startsWith('post_'))
 					.map((key) => ({
 						name: key,
-						description: blueprint.actions[key].description
+						description: blueprint.actions[key].description,
+						permission: blueprint.actions[key].permission
 					}));
 			} else {
 				console.warn(`Blueprint ${app.settings.app_blueprint} not found or has no actions`);
@@ -83,30 +91,17 @@
 	}
 
 	async function triggerCustomAction(actionName: string) {
-		if (currentTaskId !== null || !isSupported() || !canManage) return;
+		const action = customActions.find((a) => a.name === actionName);
+		if (!action || !isAvailable(action, busy) || !isSupported() || !canManage) return;
 
 		try {
 			currentAction = actionName;
-			const result = await authenticatedApiCall(`apps/${app.name}/actions`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ action_name: actionName })
-			});
-
-			// RunningAppContext contains a task field with the task details
-			const context = result as RunningAppContext;
-			if (context && context.task && context.task.id) {
-				currentTaskId = context.task.id;
-				goto(resolve(`/tasks/${currentTaskId}`));
-			} else {
-				console.error('Unexpected API response:', result);
-				throw new Error('Invalid response from server');
-			}
+			const taskId = await runCustomAction(app.name, actionName);
+			goto(resolve(`/tasks/${taskId}`));
 		} catch (err) {
 			console.error('Error triggering custom action:', err);
 			showError(`${actionName} failed`, err);
+		} finally {
 			currentAction = null;
 		}
 	}
@@ -125,13 +120,16 @@
 		<div
 			tabindex="0"
 			role="button"
-			class="btn btn-sm {currentTaskId !== null || !canManage || !isSupported()
+			class="btn btn-sm {currentAction !== null || !canManage || !isSupported()
 				? 'btn-disabled'
 				: ''}"
 		>
 			{#if currentAction}
 				<span class="loading loading-spinner loading-xs mr-1"></span>
 				Running {currentAction}...
+			{:else if app.operation}
+				<span class="loading loading-spinner loading-xs mr-1"></span>
+				Custom Actions
 			{:else}
 				Custom Actions
 			{/if}
@@ -147,7 +145,7 @@
 						on:click={() => triggerCustomAction(action.name)}
 						data-tip={action.description}
 						class="tooltip tooltip-right"
-						disabled={currentTaskId !== null || !canManage || !isSupported()}
+						disabled={!isAvailable(action, busy) || !canManage || !isSupported()}
 					>
 						{action.name}
 					</button>

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::{
-    api::{delete, get, get_or_post, post, wait_for_task},
+    api::{delete, get, get_or_post, post, wait_for_task, with_busy_wait},
     cli::{
         ActionCommand, ActionCreateCommand, ActionDeleteCommand, ActionGetCommand,
         ActionListCommand,
@@ -33,12 +33,15 @@ pub async fn run_custom_action(context: &AppContext, cmd: &ActionCommand) -> any
             "action_name": cmd.action_name
         });
 
-        let result = get_or_post(
-            context.server(),
-            &format!("apps/{}/actions", cmd.app_name),
-            "POST",
-            Some(payload),
-        )
+        let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+            get_or_post(
+                context.server(),
+                &format!("apps/{}/actions", cmd.app_name),
+                "POST",
+                Some(payload.clone()),
+            )
+            .await
+        })
         .await?;
 
         let app_context: RunningAppContext =
@@ -188,11 +191,14 @@ pub async fn create_custom_action(
         "commands": commands
     });
 
-    let result = post(
-        context.server(),
-        &format!("apps/{}/custom-actions", cmd.app_name),
-        payload,
-    )
+    let result = with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+        post(
+            context.server(),
+            &format!("apps/{}/custom-actions", cmd.app_name),
+            payload.clone(),
+        )
+        .await
+    })
     .await?;
 
     let status = result["status"].as_str().unwrap_or("unknown");
@@ -227,11 +233,14 @@ pub async fn delete_custom_action(
         cmd.app_name.yellow()
     ));
 
-    delete(
-        context.server(),
-        &format!("apps/{}/custom-actions/{}", cmd.app_name, cmd.action_name),
-        None::<serde_json::Value>,
-    )
+    with_busy_wait(context.server(), ui, &cmd.app_name, || async {
+        delete(
+            context.server(),
+            &format!("apps/{}/custom-actions/{}", cmd.app_name, cmd.action_name),
+            None::<serde_json::Value>,
+        )
+        .await
+    })
     .await?;
 
     ui.success(format!(

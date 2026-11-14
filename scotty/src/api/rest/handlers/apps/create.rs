@@ -32,6 +32,7 @@ fn declared_body_size(headers: &HeaderMap) -> String {
     path = "/api/v1/authenticated/apps/create",
     request_body(content = CreateAppRequest, content_type = "application/json"),
     responses(
+    (status = 409, description = "Another operation is running on the app; the body names it in `operation`"),
     (status = 200, response = inline(RunningAppContext)),
     (status = 401, description = "Access token is missing or invalid"),
     ),

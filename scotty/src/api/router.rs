@@ -5,6 +5,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use scotty_core::apps::app_data::AppData;
+use scotty_core::apps::app_data::AppOperation;
 use scotty_core::apps::app_data::AppSettings;
 use scotty_core::apps::app_data::AppTtl;
 use scotty_core::apps::app_data::ContainerState;
@@ -23,6 +24,7 @@ use scotty_core::settings::custom_action::{
     ActionStatus, CreateCustomActionRequest, CustomAction, CustomActionList, ReviewActionRequest,
 };
 use scotty_core::tasks::running_app_context::RunningAppContext;
+use scotty_types::{StepProgress, StepState, TaskProgress, TransferPhase, TransferProgress};
 
 use utoipa::openapi::security::SecurityScheme;
 use utoipa::Modify;
@@ -224,6 +226,7 @@ use scotty_core::admin::{
             AddNotificationRequest, TaskList, File, FileList, CreateAppRequest,
             AppData, AppDataVec, TaskDetails, ContainerState, AppSettings,
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
+            AppOperation, TaskProgress, StepProgress, StepState, TransferProgress, TransferPhase,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, CallbackQuery,
             DeviceInfo, DeviceDecision,
             ConsentInfo, ConsentApproval, ConsentRedirect, Connection,
