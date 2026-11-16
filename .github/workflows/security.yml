@@ -95,7 +95,8 @@ jobs:
                   if [ -n "$BASE_SHA" ]; then
                     LOG_OPTS="--log-opts=${BASE_SHA}..${HEAD_SHA}"
                   else
-                    LOG_OPTS=""
+                    # HEAD only: --all would include the generated gh-pages site.
+                    LOG_OPTS="--log-opts=HEAD"
                   fi
                   go run "$GITLEAKS" git $LOG_OPTS --config .gitleaks.toml --redact --verbose --exit-code 1 .
 
