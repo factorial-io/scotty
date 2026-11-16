@@ -35,6 +35,30 @@ pub async fn run_app(
     app_state: SharedAppState,
     app: &AppData,
 ) -> anyhow::Result<RunningAppContext> {
+    start(
+        app_state,
+        app,
+        Some(Message::new(MessageType::AppStarted, app)),
+    )
+    .await
+}
+
+/// Start an app on behalf of an incoming request (autowake): same as
+/// [`run_app`], but without the `AppStarted` notification. The app's lock
+/// keeps concurrent requests from starting it twice.
+#[instrument(skip(app_state))]
+pub async fn wake_app(
+    app_state: SharedAppState,
+    app: &AppData,
+) -> anyhow::Result<RunningAppContext> {
+    start(app_state, app, None).await
+}
+
+async fn start(
+    app_state: SharedAppState,
+    app: &AppData,
+    notification: Option<Message>,
+) -> anyhow::Result<RunningAppContext> {
     if app.status == AppStatus::Unsupported {
         return Err(AppError::OperationNotSupportedForLegacyApp(app.name.clone()).into());
     }
@@ -44,7 +68,7 @@ pub async fn run_app(
         app,
         OperationSpec::exclusive("run"),
         &RUN_STEPS,
-        Some(Message::new(MessageType::AppStarted, app)),
+        notification,
         |ctx| async move { run_steps(&ctx).await },
     )
     .await

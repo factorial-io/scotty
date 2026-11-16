@@ -63,6 +63,28 @@ responds accordingly:
 All landing-related responses are sent with `Cache-Control: no-store` so browsers
 and proxies never cache the redirect or the error pages for a stopped app.
 
+## Autowake
+
+Apps created with `--autowake` (setting `autowake: true`) skip the landing page.
+When a request for a stopped autowake app reaches Scotty, it is handled on the
+spot:
+
+| Request | Response |
+|---------|----------|
+| No or wrong basic-auth credentials | `401` with `WWW-Authenticate: Basic realm="traefik"`; the app is not started |
+| Matching credentials | The app is started in the background and Scotty answers `503` with a page that reloads every 5 seconds until the app's own route is live |
+
+- **Basic auth is required.** It is the only thing that stops bots and crawlers from
+  starting the app. Creating an app with `autowake` but without basic auth is
+  rejected. If an existing app somehow has `autowake` but no basic auth, it gets the
+  normal landing-page redirect instead.
+- **One prompt.** Scotty challenges with Traefik's default realm, so the browser
+  reuses the credentials once Traefik serves the running app.
+- **No Scotty login, no output.** No `manage` permission is needed and the startup
+  output is not shown. The `AppStarted` notification is not sent for autowake starts.
+- **One start at a time.** Concurrent requests trigger a single start. If the start
+  fails, the next request with valid credentials tries again.
+
 ## Configuration
 
 Two things are required:

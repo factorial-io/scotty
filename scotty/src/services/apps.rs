@@ -83,6 +83,16 @@ fn drop_scotty_managed_settings(settings: &mut AppSettings, existing: Option<&Ap
         .unwrap_or_default();
 }
 
+/// Autowake is gated by the app's basic auth; without it anyone could wake the app.
+fn check_autowake(settings: &AppSettings) -> Result<(), AppError> {
+    if settings.autowake && settings.basic_auth.is_none() {
+        return Err(AppError::BadRequest(
+            "autowake requires basic auth to be configured".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 /// What [`create`] does when the app already exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnExisting {
@@ -150,6 +160,8 @@ pub async fn create(
             )));
         }
     }
+
+    check_autowake(&payload.settings)?;
 
     // Create is create-or-update. Updating an app needs rights on the app
     // being replaced, read from disk, not the in-memory list, which is empty
@@ -527,6 +539,23 @@ fn for_listing(blueprint: &AppBlueprint) -> AppBlueprint {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_check_autowake() {
+        let mut settings = AppSettings {
+            autowake: true,
+            ..Default::default()
+        };
+        assert!(matches!(
+            check_autowake(&settings),
+            Err(AppError::BadRequest(_))
+        ));
+        settings.basic_auth = Some(("user".into(), "pass".into()));
+        assert!(check_autowake(&settings).is_ok());
+        settings.autowake = false;
+        settings.basic_auth = None;
+        assert!(check_autowake(&settings).is_ok());
+    }
 
     fn action(name: &str) -> scotty_core::settings::custom_action::CustomAction {
         let mut action = scotty_core::settings::custom_action::CustomAction::new(

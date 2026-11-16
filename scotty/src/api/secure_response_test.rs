@@ -26,6 +26,7 @@ fn create_app_settings_with_env_vars(env_vars: HashMap<String, String>) -> AppSe
         domain: "test.example.com".to_string(),
         time_to_live: AppTtl::Days(7),
         destroy_on_ttl: false,
+        autowake: false,
         basic_auth: None,
         disallow_robots: true,
         environment: SecretHashMap::from_hashmap(env_vars),
