@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('$lib', () => ({
+vi.mock('#lib', () => ({
 	authenticatedApiCall: vi.fn().mockResolvedValue({
 		blueprints: {
 			bp: {

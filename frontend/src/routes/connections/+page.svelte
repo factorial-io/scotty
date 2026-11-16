@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ApiError } from '$lib';
+	import { ApiError } from '#lib';
 	import PageHeader from '../../components/page-header.svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { isInitialized, isLoggedIn } from '../../stores/userStore';

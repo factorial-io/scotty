@@ -5,9 +5,9 @@ vi.mock('./userStore', async () => {
 	const { writable } = await import('svelte/store');
 	return { authMode: writable('oauth'), isLoggedIn: writable(true) };
 });
-vi.mock('$lib', () => ({ authenticatedApiCall: vi.fn() }));
+vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn() }));
 
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 import { authMode as mockedAuthMode } from './userStore';
 import { apps } from './appsStore';
 import type { App } from '../types';

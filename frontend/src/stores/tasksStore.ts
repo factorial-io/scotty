@@ -1,4 +1,4 @@
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 import { writable } from 'svelte/store';
 import type { TaskDetail, ApiError } from '../types';
 

@@ -6,7 +6,7 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { sessionStore, isAuthenticated } from './sessionStore';
 import { apps, loadApps, updateAppInfo } from './appsStore';
 import { updateTask, requestAllTasks, requestTaskDetails, tasks } from './tasksStore';

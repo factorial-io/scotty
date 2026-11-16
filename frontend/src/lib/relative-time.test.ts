@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRelativeTime } from '$lib/relative-time';
+import { formatRelativeTime } from '#lib/relative-time.ts';
 
 const now = new Date('2026-09-05T12:00:00Z');
 const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000).toISOString();

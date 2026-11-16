@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 
-vi.mock('$lib', async () => {
+vi.mock('#lib', async () => {
 	class ApiError extends Error {
 		constructor(
 			message: string,
@@ -23,7 +23,7 @@ vi.mock('./webSocketStore', async () => {
 });
 vi.mock('./tasksStore', () => ({ monitorTask: vi.fn() }));
 
-import { ApiError, authenticatedApiCall } from '$lib';
+import { ApiError, authenticatedApiCall } from '#lib';
 import { monitorTask } from './tasksStore';
 import { apps, runApp, updateAppInfo } from './appsStore';
 import type { App } from '../types';

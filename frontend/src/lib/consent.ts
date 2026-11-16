@@ -3,7 +3,7 @@
  * denies an MCP client's authorization request, optionally dropping scopes.
  */
 
-import { ApiError, authenticatedApiCall } from '$lib';
+import { ApiError, authenticatedApiCall } from '#lib';
 
 export interface ConsentRequest {
 	id: string;

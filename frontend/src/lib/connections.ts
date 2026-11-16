@@ -3,7 +3,7 @@
  * grants; admins can list everyone's.
  */
 
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 
 export interface Connection {
 	id: string;

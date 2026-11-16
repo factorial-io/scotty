@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib', () => ({ authenticatedApiCall: vi.fn() }));
+vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn() }));
 
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 import { listConnections, revokeConnection, type Connection } from './connections';
 
 const api = vi.mocked(authenticatedApiCall);

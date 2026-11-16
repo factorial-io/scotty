@@ -3,7 +3,7 @@
  * `scottyctl auth:login` device code (RFC 8628 user interaction step).
  */
 
-import { ApiError, authenticatedApiCall } from '$lib';
+import { ApiError, authenticatedApiCall } from '#lib';
 
 export interface DeviceRequest {
 	user_code: string;

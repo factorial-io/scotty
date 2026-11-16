@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
-vi.mock('$lib', () => ({ authenticatedApiCall: vi.fn().mockResolvedValue({}) }));
+vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn().mockResolvedValue({}) }));
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('../../../stores/permissionStore', async () => {
 	const { readable } = await import('svelte/store');

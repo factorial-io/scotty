@@ -17,7 +17,7 @@ vi.mock('./authService', async (importOriginal) => ({
 
 import { sessionStore } from '../stores/sessionStore';
 import { authService } from './authService';
-import { authenticatedApiCall } from '$lib';
+import { authenticatedApiCall } from '#lib';
 
 function jsonResponse(status: number, body: unknown, statusText = '') {
 	return new Response(JSON.stringify(body), {

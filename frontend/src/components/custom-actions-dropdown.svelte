@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authenticatedApiCall } from '$lib';
+	import { authenticatedApiCall } from '#lib';
 	import type { App, BlueprintsResponse, CustomAction } from '../types';
 	import { runCustomAction } from '../stores/appsStore';
 	import { goto } from '$app/navigation';
@@ -97,7 +97,7 @@
 		try {
 			currentAction = actionName;
 			const taskId = await runCustomAction(app.name, actionName);
-			goto(resolve(`/tasks/${taskId}`));
+			goto(resolve('/tasks/[slug]', { slug: taskId }));
 		} catch (err) {
 			console.error('Error triggering custom action:', err);
 			showError(`${actionName} failed`, err);

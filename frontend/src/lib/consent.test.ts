@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib', async () => {
+vi.mock('#lib', async () => {
 	class ApiError extends Error {
 		constructor(
 			message: string,
@@ -12,7 +12,7 @@ vi.mock('$lib', async () => {
 	return { ApiError, authenticatedApiCall: vi.fn() };
 });
 
-import { ApiError, authenticatedApiCall } from '$lib';
+import { ApiError, authenticatedApiCall } from '#lib';
 import { canApprove, decideConsent, describeScope, loadConsent, selectedScopes } from './consent';
 
 const api = vi.mocked(authenticatedApiCall);

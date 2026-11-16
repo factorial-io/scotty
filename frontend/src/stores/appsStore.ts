@@ -1,4 +1,4 @@
-import { ApiError as HttpError, authenticatedApiCall } from '$lib';
+import { ApiError as HttpError, authenticatedApiCall } from '#lib';
 import { get, writable } from 'svelte/store';
 import type { ApiError, App, RunningAppContext } from '../types';
 import { monitorTask } from './tasksStore';

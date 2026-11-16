@@ -141,7 +141,9 @@
 			<Pill color="bg-warning" textColor="text-warning-content">
 				<span class="loading loading-spinner loading-xs align-middle"></span>
 				{#if data.operation.task_id}
-					<a class="link" href={resolve(`/tasks/${data.operation.task_id}`)}
+					<a
+						class="link"
+						href={resolve('/tasks/[slug]', { slug: data.operation.task_id })}
 						>{data.operation.operation} running since <TimeAgo
 							dateString={data.operation.started_at}
 						/></a
@@ -212,7 +214,10 @@
 				<td>
 					{#if permissions.logs}
 						<a
-							href={resolve(`/dashboard/${data.name}/${service.service}`)}
+							href={resolve('/dashboard/[slug]/[service]', {
+								slug: data.name,
+								service: service.service
+							})}
 							class="link link-primary"
 						>
 							{service.service}

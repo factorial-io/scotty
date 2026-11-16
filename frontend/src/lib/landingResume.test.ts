@@ -10,7 +10,7 @@ import {
 	redirectAfterLogin,
 	storePendingLandingStart,
 	storeReturnPath
-} from '$lib/landingResume';
+} from '#lib/landingResume.ts';
 
 const KEY = 'scotty_landing_pending_start';
 
