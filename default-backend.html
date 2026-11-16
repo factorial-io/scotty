@@ -77,6 +77,10 @@
         <span class="Nav-listItemLinkLabel"> How it works</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
+            <a href="/default-backend.html#autowake" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Autowake</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
             <a href="/default-backend.html#configuration" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Configuration</span>
       </a></li>
@@ -210,6 +214,43 @@ responds accordingly:</p>
 </table>
 <p>All landing-related responses are sent with <code>Cache-Control: no-store</code> so browsers
 and proxies never cache the redirect or the error pages for a stopped app.</p>
+<h2 id="autowake" tabindex="-1"><a class="header-anchor" href="#autowake">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Autowake</h2>
+<p>Apps created with <code>--autowake</code> (setting <code>autowake: true</code>) skip the landing page.
+When a request for a stopped autowake app reaches Scotty, it is handled on the
+spot:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No or wrong basic-auth credentials</td>
+<td><code>401</code> with <code>WWW-Authenticate: Basic realm="traefik"</code>; the app is not started</td>
+</tr>
+<tr>
+<td>Matching credentials</td>
+<td>The app is started in the background and Scotty answers <code>503</code> with a page that reloads every 5 seconds until the app's own route is live</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Basic auth is required.</strong> It is the only thing that stops bots and crawlers from
+starting the app. Creating an app with <code>autowake</code> but without basic auth is
+rejected. If an existing app somehow has <code>autowake</code> but no basic auth, it gets the
+normal landing-page redirect instead.</li>
+<li><strong>One prompt.</strong> Scotty challenges with Traefik's default realm, so the browser
+reuses the credentials once Traefik serves the running app.</li>
+<li><strong>No Scotty login, no output.</strong> No <code>manage</code> permission is needed and the startup
+output is not shown. The <code>AppStarted</code> notification is not sent for autowake starts.</li>
+<li><strong>One start at a time.</strong> Concurrent requests trigger a single start. If the start
+fails, the next request with valid credentials tries again.</li>
+</ul>
 <h2 id="configuration" tabindex="-1"><a class="header-anchor" href="#configuration">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>

@@ -473,7 +473,7 @@ stopped by this command.</p>
   <span class="token parameter variable">--service</span> <span class="token operator">&lt;</span>SERVICE:PORT<span class="token operator">&gt;</span> <span class="token punctuation">[</span>--service <span class="token operator">&lt;</span>SERVICE:PORT<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--app-blueprint <span class="token operator">&lt;</span>BLUEPRINT<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--ttl <span class="token operator">&lt;</span>LIFETIME<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--basic-auth <span class="token operator">&lt;</span>USERNAME:PASSWORD<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--allow-robots<span class="token punctuation">]</span> <span class="token punctuation">\</span>
-  <span class="token punctuation">[</span>--destroy-on-ttl<span class="token punctuation">]</span> <span class="token punctuation">\</span>
+  <span class="token punctuation">[</span>--destroy-on-ttl<span class="token punctuation">]</span> <span class="token punctuation">[</span>--autowake<span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--custom-domain <span class="token operator">&lt;</span>DOMAIN:SERVICE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--custom-domain <span class="token operator">&lt;</span>DOMAIN:SERVICE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">[</span>--env <span class="token operator">&lt;</span>KEY<span class="token operator">=</span>VALUE<span class="token operator">&gt;</span> <span class="token punctuation">..</span>.<span class="token punctuation">]</span> <span class="token punctuation">\</span>
   <span class="token punctuation">[</span>--env-file <span class="token operator">&lt;</span>FILE<span class="token operator">&gt;</span><span class="token punctuation">]</span> <span class="token punctuation">\</span>
@@ -525,6 +525,9 @@ index the app.
 <p>The <code>--destroy-on-ttl</code> argument will destroy the app after the specified ttl
 instead of just stopping it. Suitable for apps that are not expected to be used
 for a long time.</p>
+<p>The <code>--autowake</code> argument (requires <code>--basic-auth</code>) lets anyone holding the app's
+basic-auth credentials start the stopped app just by visiting its domain, without
+a Scotty login. See <a href="default-backend.html#autowake">Default backend &amp; landing page</a>.</p>
 <p>The <code>--env-file</code> argument will load environment variables from a file. The file
 should contain key-value pairs separated by an equal sign.</p>
 <p>You can add custom domains to the app with the <code>--custom-domain</code> argument. The
