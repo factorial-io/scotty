@@ -53,7 +53,7 @@ jobs:
                   persist-credentials: false
             - name: Scan bun lockfiles
               run: |
-                  go run "$OSV_SCANNER" scan source --format json \
+                  go run "$OSV_SCANNER" scan source --format json --config=osv-scanner.toml \
                     --lockfile=frontend/bun.lock --lockfile=docs/bun.lock \
                     > osv.json || true
             - name: Fail on high or critical vulnerabilities
