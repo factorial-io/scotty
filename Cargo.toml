@@ -100,7 +100,7 @@ flate2 = { version = "1.0", default-features = false, features = ["rust_backend"
 wiremock = "0.6"
 grantry = { version = "=0.5.0", default-features = false, features = ["axum"] }
 # `macros` only for `migrate!`; queries are runtime `sqlx::query`, no `query!`.
-sqlx = { version = "0.8", default-features = false, features = ["sqlite", "migrate", "macros", "runtime-tokio"] }
+sqlx = { version = "0.9", default-features = false, features = ["sqlite", "migrate", "macros", "runtime-tokio"] }
 
 [workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
 pre-build = [
