@@ -181,6 +181,7 @@ async fn run_commands(
                 "docker-compose",
                 &args,
                 &environment,
+                None,
                 &msg,
                 OutputMode::Plain,
             );
