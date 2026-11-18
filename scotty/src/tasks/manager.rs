@@ -94,10 +94,8 @@ impl TaskManager {
     /// exit code are reported to the task; the task state is never changed
     /// here (that is the owner's job). Resolves to the exit code.
     ///
-    /// `stdin`, if given, is written to the process's standard input, which
-    /// is then closed. It is written before the output is read, so keep it
-    /// small (a password): a value larger than the pipe buffer (~64 KiB)
-    /// could deadlock against a process blocked on full stdout.
+    /// `stdin`, if given, is written to the process's standard input followed
+    /// by a newline, then stdin is closed. Without it, stdin is empty.
     #[allow(clippy::too_many_arguments)]
     pub fn start_process(
         &self,
@@ -188,20 +186,25 @@ async fn run_process(
 
     if let Some(secret) = stdin {
         let mut pipe = child.stdin.take().expect("stdin is piped");
-        // A process that exits without reading stdin breaks the pipe; its
-        // exit code still decides the result, the warning names the cause.
-        let written = async {
-            pipe.write_all(secret.expose_secret().as_bytes()).await?;
-            // Line-oriented readers such as `docker login --password-stdin`
-            // and `read` expect a terminated line.
-            pipe.write_all(b"\n").await
-        }
-        .await;
-        if let Err(e) = written {
-            tracing::warn!("writing stdin of `{cmd}` failed: {e}");
-        }
-        // Dropping the pipe closes stdin, so the process sees EOF.
-        drop(pipe);
+        let secret = secret.clone();
+        let cmd = cmd.to_string();
+        // Written alongside the output readers, so a process blocked on full
+        // stdout cannot deadlock against this write.
+        tokio::spawn(async move {
+            // A process that exits without reading stdin breaks the pipe; its
+            // exit code still decides the result, the warning names the cause.
+            let written = async {
+                pipe.write_all(secret.expose_secret().as_bytes()).await?;
+                // Line-oriented readers such as `docker login --password-stdin`
+                // and `read` expect a terminated line.
+                pipe.write_all(b"\n").await
+            }
+            .await;
+            if let Err(e) = written {
+                tracing::warn!("writing stdin of `{cmd}` failed: {e}");
+            }
+            // Dropping the pipe closes stdin, so the process sees EOF.
+        });
     }
 
     let stdout = child.stdout.take().expect("stdout is piped");
@@ -428,6 +431,30 @@ mod tests {
                 .all(|l| !l.content.contains("s3cr3t-value")));
             handle.terminate(Outcome::finished("done")).await;
         }
+    }
+
+    /// A process that exits without reading its stdin still reports its own
+    /// exit code; the broken pipe does not turn into a failure.
+    #[tokio::test]
+    async fn unread_stdin_keeps_exit_code() {
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
+        let secret = MaskedSecret::new("x".repeat(256 * 1024));
+        let (handle, _rx) = manager.create_task(TaskDetails::default()).await;
+        let code = manager
+            .start_process(
+                Path::new("."),
+                "sh",
+                &["-c", "exit 4"],
+                &HashMap::new(),
+                Some(&secret),
+                handle.writer().clone(),
+                OutputMode::Plain,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(code, 4);
+        handle.terminate(Outcome::finished("done")).await;
     }
 
     /// A pull's events become transfer progress and readable lines; other
