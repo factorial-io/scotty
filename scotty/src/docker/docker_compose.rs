@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use scotty_core::utils::secret::SecretHashMap;
+use scotty_core::utils::secret::{MaskedSecret, SecretHashMap};
 use tracing::instrument;
 
 use crate::{
@@ -11,12 +11,14 @@ use crate::{
 
 /// Runs a docker-compose command as a step of the task behind `writer`.
 /// Resolves to the process exit code; the task state is left to its owner.
+#[allow(clippy::too_many_arguments)]
 pub async fn run_task(
     shared_app: &SharedAppState,
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
     env: &SecretHashMap,
+    stdin: Option<&MaskedSecret>,
     writer: TaskWriter,
     mode: OutputMode,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<i32>>> {
@@ -28,9 +30,15 @@ pub async fn run_task(
         .ok_or_else(|| anyhow::anyhow!("Docker compose path has no parent directory"))?;
 
     let exposed_env = resolved_environment.expose_all();
-    Ok(shared_app
-        .task_manager
-        .start_process(parent_dir, command, args, &exposed_env, writer, mode))
+    Ok(shared_app.task_manager.start_process(
+        parent_dir,
+        command,
+        args,
+        &exposed_env,
+        stdin,
+        writer,
+        mode,
+    ))
 }
 
 /// Runs a docker-compose command to completion and returns the output.

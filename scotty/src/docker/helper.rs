@@ -603,6 +603,7 @@ mod tests {
                     "sh",
                     &["-c", &script],
                     &Default::default(),
+                    None,
                     "sleep",
                     crate::tasks::manager::OutputMode::Plain,
                 )

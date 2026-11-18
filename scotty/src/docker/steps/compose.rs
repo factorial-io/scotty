@@ -1,4 +1,5 @@
 use anyhow::Context as _;
+use scotty_core::settings::docker::DockerRegistrySettings;
 use scotty_core::utils::secret::SecretHashMap;
 use tracing::{info, instrument};
 
@@ -28,25 +29,29 @@ async fn login(ctx: &Context, registry: &str) -> anyhow::Result<()> {
         .registries
         .get(registry)
         .ok_or_else(|| anyhow::anyhow!("Registry {} not found in settings!", registry))?;
-    let args = [
-        "login",
-        &registry.registry,
-        "-u",
-        &registry.username,
-        "-p",
-        registry.password.expose_secret(),
-    ];
     run_task_and_wait(
         ctx,
         &std::path::PathBuf::from(&ctx.app_data.docker_compose_path),
         "docker",
-        &args,
+        &login_args(registry),
         &SecretHashMap::new(),
+        Some(&registry.password),
         &format!("Log into registry {}", registry.registry),
         OutputMode::Plain,
     )
     .await
     .context("docker login")
+}
+
+/// docker reads the password from stdin.
+fn login_args(registry: &DockerRegistrySettings) -> [&str; 5] {
+    [
+        "login",
+        &registry.registry,
+        "-u",
+        &registry.username,
+        "--password-stdin",
+    ]
 }
 
 /// `docker-compose <args>` with the app's environment, reported as the step
@@ -73,6 +78,7 @@ pub async fn docker_compose(ctx: &Context, args: &[&str]) -> anyhow::Result<()> 
             "docker-compose",
             &full_args,
             &ctx.app_data.get_environment(),
+            None,
             &format!("docker-compose {}", args.join(" ")),
             mode,
         )
@@ -101,4 +107,25 @@ pub async fn update_app_data(ctx: &Context) -> anyhow::Result<()> {
     let app_data = inspect_app(&ctx.app_state, &docker_compose_path).await?;
     ctx.app_state.apps.update_app(app_data).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scotty_core::utils::secret::MaskedSecret;
+
+    #[test]
+    fn login_args_keep_the_password_out() {
+        let registry = DockerRegistrySettings {
+            registry: "registry.example.com".into(),
+            username: "deploy".into(),
+            password: MaskedSecret::new("s3cr3t".into()),
+        };
+        let args = login_args(&registry);
+        assert_eq!(
+            args.join(" "),
+            "login registry.example.com -u deploy --password-stdin"
+        );
+        assert!(args.iter().all(|a| !a.contains("s3cr3t")));
+    }
 }

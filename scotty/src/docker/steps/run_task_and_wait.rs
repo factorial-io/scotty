@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use scotty_core::utils::secret::SecretHashMap;
+use scotty_core::utils::secret::{MaskedSecret, SecretHashMap};
 use tracing::{error, info};
 
 use crate::docker::docker_compose::run_task;
@@ -11,12 +11,14 @@ use super::context::Context;
 /// Run a subprocess as one step of the current task and wait for it.
 /// A non-zero exit, a signal, or a spawn failure is an error for the caller;
 /// the task itself stays `Running` until its owner terminates it.
+#[allow(clippy::too_many_arguments)]
 pub async fn run_task_and_wait(
     context: &Context,
     docker_compose_path: &Path,
     command: &str,
     args: &[&str],
     env: &SecretHashMap,
+    stdin: Option<&MaskedSecret>,
     msg: &str,
     mode: OutputMode,
 ) -> anyhow::Result<()> {
@@ -34,6 +36,7 @@ pub async fn run_task_and_wait(
         command,
         args,
         env,
+        stdin,
         writer.clone(),
         mode,
     )

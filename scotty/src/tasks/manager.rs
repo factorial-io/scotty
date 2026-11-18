@@ -11,7 +11,8 @@ use std::sync::{Arc, Mutex};
 use scotty_core::output::OutputStreamType;
 use scotty_core::settings::scheduler_interval::SchedulerInterval;
 use scotty_core::tasks::task_details::{State, TaskDetails};
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use scotty_core::utils::secret::MaskedSecret;
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::{watch, RwLock};
 use tracing::{debug, info, instrument};
@@ -92,12 +93,17 @@ impl TaskManager {
     /// Run `cmd` as a step of the task behind `writer`. Output lines and the
     /// exit code are reported to the task; the task state is never changed
     /// here (that is the owner's job). Resolves to the exit code.
+    ///
+    /// `stdin`, if given, is written to the process's standard input, which
+    /// is then closed.
+    #[allow(clippy::too_many_arguments)]
     pub fn start_process(
         &self,
         cwd: &Path,
         cmd: &str,
         args: &[&str],
         env: &HashMap<String, String>,
+        stdin: Option<&MaskedSecret>,
         writer: TaskWriter,
         mode: OutputMode,
     ) -> tokio::task::JoinHandle<anyhow::Result<i32>> {
@@ -105,6 +111,7 @@ impl TaskManager {
         let cmd = cmd.to_string();
         let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
         let env = env.clone();
+        let stdin = stdin.cloned();
 
         tokio::spawn(async move {
             info!(
@@ -118,7 +125,7 @@ impl TaskManager {
                 .step_started(format!("{} {}", cmd, args.join(" ")))
                 .await;
 
-            let result = run_process(&cwd, &cmd, &args, &env, &writer, mode).await;
+            let result = run_process(&cwd, &cmd, &args, &env, stdin.as_ref(), &writer, mode).await;
             match &result {
                 Ok(code) => writer.subprocess_exited(Some(*code)).await,
                 Err(e) => {
@@ -156,6 +163,7 @@ async fn run_process(
     cmd: &str,
     args: &[String],
     env: &HashMap<String, String>,
+    stdin: Option<&MaskedSecret>,
     writer: &TaskWriter,
     mode: OutputMode,
 ) -> anyhow::Result<i32> {
@@ -166,10 +174,31 @@ async fn run_process(
         // An operation cancelled at its time limit drops this future; the
         // process must not keep running without the app's lock.
         .kill_on_drop(true)
+        .stdin(if stdin.is_some() {
+            std::process::Stdio::piped()
+        } else {
+            std::process::Stdio::null()
+        })
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| anyhow::anyhow!("failed to start `{cmd}`: {e}"))?;
+
+    if let Some(secret) = stdin {
+        let mut pipe = child.stdin.take().expect("stdin is piped");
+        // A process that exits without reading stdin breaks the pipe; its
+        // exit code still decides the result, the warning names the cause.
+        let written = async {
+            pipe.write_all(secret.expose_secret().as_bytes()).await?;
+            pipe.write_all(b"\n").await
+        }
+        .await;
+        if let Err(e) = written {
+            tracing::warn!("writing stdin of `{cmd}` failed: {e}");
+        }
+        // Dropping the pipe closes stdin, so the process sees EOF.
+        drop(pipe);
+    }
 
     let stdout = child.stdout.take().expect("stdout is piped");
     let stderr = child.stderr.take().expect("stderr is piped");
@@ -323,6 +352,7 @@ mod tests {
                 "sh",
                 &["-c", "echo one; echo two >&2; exit 3"],
                 &HashMap::new(),
+                None,
                 handle.writer().clone(),
                 OutputMode::Plain,
             )
@@ -359,6 +389,43 @@ mod tests {
         );
     }
 
+    /// A secret given as stdin reaches the process but not the task's command;
+    /// without one, stdin is empty, so a reader ends instead of hanging.
+    #[tokio::test]
+    async fn stdin_secret_reaches_process_only() {
+        let manager = TaskManager::new(create_test_websocket_messenger(), test_auth().await);
+        let secret = MaskedSecret::new("s3cr3t-value".into());
+        let script = r#"read p; [ "$p" = "$EXPECTED" ] && echo match"#;
+        let env = HashMap::from([("EXPECTED".to_string(), "s3cr3t-value".to_string())]);
+
+        for (stdin, expected) in [(Some(&secret), 0), (None, 1)] {
+            let (handle, mut rx) = manager.create_task(TaskDetails::default()).await;
+            let code = manager
+                .start_process(
+                    Path::new("."),
+                    "sh",
+                    &["-c", script],
+                    &env,
+                    stdin,
+                    handle.writer().clone(),
+                    OutputMode::Plain,
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(code, expected);
+
+            let task = wait_for(&mut rx, |t| t.last_exit_code == Some(expected)).await;
+            assert!(!task.command.contains("s3cr3t-value"), "{}", task.command);
+            assert!(task
+                .output
+                .lines
+                .iter()
+                .all(|l| !l.content.contains("s3cr3t-value")));
+            handle.terminate(Outcome::finished("done")).await;
+        }
+    }
+
     /// A pull's events become transfer progress and readable lines; other
     /// lines stay output.
     #[tokio::test]
@@ -374,6 +441,7 @@ mod tests {
                     "cat tests/fixtures/compose_pull_progress.jsonl >&2; echo not an event",
                 ],
                 &HashMap::new(),
+                None,
                 handle.writer().clone(),
                 OutputMode::ComposeProgress,
             )
@@ -407,6 +475,7 @@ mod tests {
                 "/definitely/not/here",
                 &[],
                 &HashMap::new(),
+                None,
                 handle.writer().clone(),
                 OutputMode::Plain,
             )
