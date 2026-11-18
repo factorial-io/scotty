@@ -81,6 +81,7 @@ api:
   base64-encoded, about 3/4 of the limit is usable as compressed payload. The
   same limit also caps the decompressed size of each individual file.
 * `base_url`: Public-facing base URL under which Scotty itself is reachable (e.g. `"https://scotty.example.com"`). Used for post-login OAuth redirects and by the [default backend / landing page](default-backend.md) feature to tell Scotty's own domain apart from app domains and to build the redirect that lets users start a stopped app from its own URL. **Set this in any production deployment** — when it is missing, OAuth redirects fall back to `http://localhost:21342`, the landing-page redirect for stopped apps is disabled (Scotty serves its frontend instead), and a warning is logged at startup.
+* `suisse_fonts_url` (optional): Base URL of a server that hosts the SuisseIntl web fonts, e.g. `"https://config.factorial.io/fonts"`. When set, the web UI loads SuisseIntl 400/600 and SuisseIntlMono 400 from `<url>/<Face>-Web/S/<Face>-WebS.woff2` (the server must allow cross-origin font requests). SuisseIntl is proprietary; set this only on installs covered by a licence. Unset (the default), the UI uses its bundled Inter and JetBrains Mono and requests no external font.
 * `auth_mode`: Authentication mode. Options are:
   * `"dev"`: Development mode with no authentication (uses fixed dev user)
   * `"oauth"`: Native OAuth authentication with OIDC providers (supports optional bearer token fallback for service accounts)

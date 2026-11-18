@@ -160,24 +160,21 @@
 
 	{#if lines.length > 0}
 		<div class="mt-2 flex items-center gap-2">
-			<button
-				class="btn btn-sm btn-outline"
-				class:btn-disabled={shouldAutoScroll}
-				disabled={shouldAutoScroll}
-				on:click={scrollToBottom}
-			>
+			<button class="btn outline sm" disabled={shouldAutoScroll} on:click={scrollToBottom}>
 				Scroll to bottom ↓
 			</button>
 
 			<button
-				class="btn btn-sm {shouldAutoScroll ? 'btn-primary' : 'btn-outline'}"
+				class="btn outline sm"
+				aria-pressed={shouldAutoScroll}
 				on:click={() => (shouldAutoScroll = !shouldAutoScroll)}
 			>
 				Auto-scroll {shouldAutoScroll ? 'ON' : 'OFF'}
 			</button>
 
 			<button
-				class="btn btn-sm {showTimestamps ? 'btn-primary' : 'btn-outline'}"
+				class="btn outline sm"
+				aria-pressed={showTimestamps}
 				on:click={toggleTimestamps}
 			>
 				{showTimestamps ? 'Hide' : 'Show'} Timestamps

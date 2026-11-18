@@ -42,31 +42,49 @@ describe('task-progress', () => {
 		document.body.innerHTML = '';
 	});
 
-	function render(props: { taskId: string; details?: boolean }) {
+	function render(props: { taskId: string; kind?: string; details?: boolean }) {
 		component = mount(TaskProgress, { target: document.body, props });
 		flushSync();
 	}
 
-	it('shows the bar and status line and follows store updates', () => {
-		tasks.set({ t1: task(0.25, 'Pulling images') });
-		render({ taskId: 't1' });
+	const line = () =>
+		document.body.querySelector('.progress-line')!.textContent!.replace(/\s+/g, ' ').trim();
+	const bar = () => document.body.querySelector('[role="progressbar"]')!;
 
-		const bar = document.body.querySelector('progress')!;
-		expect(bar.value).toBe(25);
-		expect(document.body.textContent).toContain('Pulling images');
-		expect(document.body.querySelector('li')).toBeNull();
+	it('shows kind, status and percent in one line with a bar, and follows updates', () => {
+		tasks.set({ t1: task(0.25, 'Pulling images') });
+		render({ taskId: 't1', kind: 'rebuild' });
+
+		expect(line()).toBe('rebuild · Pulling images · 25 %');
+		expect(bar().getAttribute('aria-valuenow')).toBe('25');
+		expect(document.body.querySelector('details')).toBeNull();
 
 		tasks.set({ t1: task(0.6, 'Starting containers') });
 		flushSync();
-		expect(bar.value).toBe(60);
-		expect(document.body.textContent).toContain('Starting containers');
+		expect(line()).toBe('rebuild · Starting containers · 60 %');
+		expect(bar().getAttribute('aria-valuenow')).toBe('60');
 	});
 
-	it('lists the steps with their states when asked for details', () => {
+	it('floors the percent and names custom actions without the prefix', () => {
+		tasks.set({ t1: task(0.999, 'Finishing') });
+		render({ taskId: 't1', kind: 'action:drush cr' });
+		expect(line()).toBe('drush cr · Finishing · 99 %');
+	});
+
+	it('omits the kind when none is given', () => {
+		tasks.set({ t1: task(0.5, 'Starting containers') });
+		render({ taskId: 't1' });
+		expect(line()).toBe('Starting containers · 50 %');
+	});
+
+	it('offers the steps in a collapsed section when asked for details', () => {
 		tasks.set({ t1: task(0.5, 'Starting containers') });
 		render({ taskId: 't1', details: true });
 
-		const states = [...document.body.querySelectorAll('li')].map((li) => li.dataset.state);
+		const details = document.body.querySelector('details')!;
+		expect(details.open).toBe(false);
+		expect(details.querySelector('summary')!.textContent).toContain('Show steps (1 of 3)');
+		const states = [...details.querySelectorAll('li')].map((li) => li.dataset.state);
 		expect(states).toEqual(['done', 'running', 'pending']);
 	});
 
@@ -76,7 +94,7 @@ describe('task-progress', () => {
 
 		expect(requestTaskDetails).toHaveBeenCalledTimes(1);
 		expect(requestTaskDetails).toHaveBeenCalledWith('t1');
-		expect(document.body.querySelector('progress')).toBeNull();
+		expect(document.body.querySelector('[role="progressbar"]')).toBeNull();
 
 		// Updates of other tasks do not refetch.
 		tasks.set({ t2: task(0.1, 'other') });

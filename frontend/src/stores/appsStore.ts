@@ -1,7 +1,8 @@
 import { ApiError as HttpError, authenticatedApiCall } from '#lib';
 import { get, writable } from 'svelte/store';
 import type { ApiError, App, RunningAppContext } from '../types';
-import { monitorTask } from './tasksStore';
+import { monitorTask, tasks } from './tasksStore';
+import { showToast } from './toastStore';
 import { isConnected } from './webSocketStore';
 
 export const apps = writable([] as App[]);
@@ -46,7 +47,12 @@ export function removeApp(name: string) {
  * already marks the app busy. Without an authenticated WebSocket nobody pushes
  * the end of the operation, so the task is polled until it is terminal.
  */
-async function dispatch(name: string, url: string, options?: RequestInit): Promise<string> {
+async function dispatch(
+	name: string,
+	label: string,
+	url: string,
+	options?: RequestInit
+): Promise<string> {
 	let result: RunningAppContext;
 	try {
 		result = (await authenticatedApiCall(url, options)) as RunningAppContext;
@@ -61,6 +67,8 @@ async function dispatch(name: string, url: string, options?: RequestInit): Promi
 		storeApp(result.app_data);
 	}
 	const taskId = result.task.id;
+	showToast(`${label} started for ${name}`);
+	toastWhenFinished(taskId, `${label} finished for ${name}`);
 	if (!get(isConnected)) {
 		monitorTask(taskId, () => {
 			updateAppInfo(name).catch(() => {});
@@ -69,12 +77,27 @@ async function dispatch(name: string, url: string, options?: RequestInit): Promi
 	return taskId;
 }
 
+/** Toast when the task finishes; a failure gets no toast (the error state shows it). */
+function toastWhenFinished(taskId: string, message: string) {
+	let stop = () => {};
+	let done = false;
+	stop = tasks.subscribe(($t) => {
+		const state = $t[taskId]?.state;
+		if (state !== 'Finished' && state !== 'Failed') return;
+		if (state === 'Finished') showToast(message);
+		done = true;
+		stop();
+	});
+	if (done) stop();
+}
+
 export async function dispatchAppCommand(command: string, name: string): Promise<string> {
-	return dispatch(name, `apps/${command}/${name}`);
+	const label = command[0].toUpperCase() + command.slice(1);
+	return dispatch(name, label, `apps/${command}/${name}`);
 }
 
 export async function runCustomAction(name: string, actionName: string): Promise<string> {
-	return dispatch(name, `apps/${name}/actions`, {
+	return dispatch(name, actionName, `apps/${name}/actions`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ action_name: actionName })

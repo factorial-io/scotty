@@ -1,34 +1,32 @@
 <script lang="ts">
-	import ArrowUpRight from '@iconify-icons/ph/arrow-up-right';
 	import Icon from '@iconify/svelte';
 	import type { AppService } from '../types';
-	export let service: AppService;
-	export let property = 'service';
 
-	function url(domain: string, use_tls: boolean) {
-		return `${use_tls ? 'https' : 'http'}://${domain}`;
-	}
-	function title(domain: string) {
-		return property === 'domain' ? domain : service[property as keyof AppService];
-	}
+	let {
+		service,
+		property = 'service'
+	}: { service: AppService; property?: 'service' | 'domain' } = $props();
+
+	const url = (domain: string) => `${service.use_tls ? 'https' : 'http'}://${domain}`;
+	let running = $derived(service.status === 'Running');
 </script>
 
-<!-- URLs are always shown when domains exist (they come from app settings, not
-     live containers); the landing page turns a stopped app's URL into a start
-     affordance. Non-running services get a muted style instead of being hidden. -->
-{#if service.domains.length === 0}
-	<button class="btn btn-xs" disabled>{service.service}</button>
-{:else}
-	{@const running = service.status === 'Running'}
-	<!-- eslint-disable svelte/no-navigation-without-resolve -->
-	{#each service.domains as domain (domain)}
-		<a
-			title={running ? domain : `${domain} (service not running)`}
-			class="btn btn-xs mr-2 mb-2 {running ? '' : 'btn-ghost opacity-60'}"
-			href={url(domain, service.use_tls)}
-			target="_blank"
-			rel="external"><Icon icon={ArrowUpRight} />{title(domain)}</a
-		>
-	{/each}
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
-{/if}
+<!-- A stopped service still links to its domain, in a muted style: the landing
+     page there offers to start the app (decision 2). Services without a domain
+     render nothing; callers show a dash. -->
+<!-- eslint-disable svelte/no-navigation-without-resolve -->
+{#each service.domains as domain (domain)}
+	<a
+		class="btn outline sm"
+		class:muted={!running}
+		title={running ? domain : `${domain} (not running, opens the start page)`}
+		href={url(domain)}
+		target="_blank"
+		rel="external"
+		>{property === 'domain' ? domain : service.service}<Icon
+			icon="ph:arrow-square-out"
+			class="ic sm"
+			aria-hidden="true"
+		/></a
+	>
+{/each}

@@ -1,102 +1,88 @@
 <script lang="ts">
+	import Icon from '@iconify/svelte';
+	import { DropdownMenu } from 'bits-ui';
 	import { authMode, userInfo } from '../stores/sessionStore';
 	import { authService } from '../lib/authService';
-	import UserAvatar from './user-avatar.svelte';
+	import { getUserInitials } from '#lib/gravatar.ts';
+	import { theme, type ThemeChoice } from '../stores/themeStore';
 
-	async function logout() {
-		await authService.logout('/login');
-	}
+	let { version = '' }: { version?: string } = $props();
+
+	let name = $derived(
+		$authMode === 'oauth'
+			? $userInfo?.name || $userInfo?.id || 'Unknown user'
+			: $authMode === 'dev'
+				? 'Dev user'
+				: 'User'
+	);
+	let method = $derived(
+		$authMode === 'oauth'
+			? 'Signed in via OAuth'
+			: $authMode === 'bearer'
+				? 'Signed in with a bearer token'
+				: 'Development mode, no sign-in'
+	);
+
+	const themes: { value: ThemeChoice; label: string; icon: string }[] = [
+		{ value: 'light', label: 'Light', icon: 'ph:sun' },
+		{ value: 'dark', label: 'Dark', icon: 'ph:moon' },
+		{ value: 'system', label: 'System', icon: 'ph:monitor' }
+	];
 </script>
 
-{#if $authMode === 'oauth' && $userInfo}
-	<div class="dropdown dropdown-end">
-		<div tabindex="0" role="button" class="btn btn-ghost btn-circle">
-			<UserAvatar
-				email={$userInfo.email || ''}
-				name={$userInfo.name || $userInfo.id || 'User'}
-				picture={$userInfo.picture || ''}
-				size="sm"
-			/>
-		</div>
-		<ul
-			tabindex="0"
-			role="menu"
-			class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-64 p-2 shadow"
-		>
-			<li class="px-2 py-3">
-				<div class="flex items-center gap-3">
-					<UserAvatar
-						email={$userInfo.email || ''}
-						name={$userInfo.name || $userInfo.id || 'User'}
-						picture={$userInfo.picture || ''}
-						size="md"
-					/>
-					<div class="flex flex-col">
-						<span class="font-medium text-sm"
-							>{$userInfo.name || $userInfo.id || 'Unknown User'}</span
-						>
-						<span class="text-xs text-gray-500"
-							>{$userInfo.email || 'No email provided'}</span
-						>
-					</div>
-				</div>
-			</li>
-			<li><hr class="my-1" /></li>
-			<li>
-				<button on:click={logout} class="text-left">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						class="w-4 h-4"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
-						/>
-					</svg>
-					Logout
-				</button>
-			</li>
-		</ul>
+<div class="user">
+	<div class="av" aria-hidden="true">{getUserInitials(name, $userInfo?.email)}</div>
+	<div class="who">
+		<b>{name}</b><span>Scotty v{version}</span>
 	</div>
-{:else if $authMode === 'bearer' || $authMode === 'dev'}
-	<div class="dropdown dropdown-end">
-		<div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2">
-			<UserAvatar email="" name={$authMode === 'dev' ? 'Dev User' : 'User'} size="xs" />
-			{#if $authMode === 'dev'}
-				Dev User
-			{:else}
-				User
-			{/if}
-		</div>
-		<ul
-			tabindex="0"
-			role="menu"
-			class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
-		>
-			<li>
-				<button on:click={logout} class="text-left">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						class="w-4 h-4"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
-						/>
-					</svg>
-					Logout
-				</button>
-			</li>
-		</ul>
-	</div>
-{/if}
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger class="ibtn" aria-label="Account menu">
+			<Icon icon="ph:caret-up-down" class="ic" aria-hidden="true" />
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Portal>
+			<DropdownMenu.Content class="menu" side="top" align="end" sideOffset={8}>
+				<div class="hd">{method}</div>
+				{#if $userInfo?.email}<div class="sub" style="padding: 0 10px 6px">
+						{$userInfo.email}
+					</div>{/if}
+				<DropdownMenu.Separator />
+				<DropdownMenu.RadioGroup
+					value={$theme}
+					onValueChange={(v) => theme.choose(v as ThemeChoice)}
+					aria-label="Theme"
+				>
+					{#each themes as t (t.value)}
+						<DropdownMenu.RadioItem value={t.value} closeOnSelect={false}>
+							{#snippet children({ checked })}
+								<Icon icon={t.icon} class="ic sm" aria-hidden="true" />
+								{t.label}
+								{#if checked}<Icon
+										icon="ph:check"
+										class="ic sm"
+										style="margin-left:auto"
+										aria-hidden="true"
+									/>{/if}
+							{/snippet}
+						</DropdownMenu.RadioItem>
+					{/each}
+				</DropdownMenu.RadioGroup>
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item
+					onSelect={() =>
+						window.open(
+							`https://github.com/factorial-io/scotty/releases/tag/v${version}`,
+							'_blank',
+							'noopener'
+						)}
+				>
+					<Icon icon="ph:arrow-square-out" class="ic sm" aria-hidden="true" />
+					Release notes v{version}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onSelect={() => authService.logout('/login')}>
+					<Icon icon="ph:sign-out" class="ic sm" aria-hidden="true" />
+					Sign out
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Portal>
+	</DropdownMenu.Root>
+</div>

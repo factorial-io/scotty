@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Icon from '@iconify/svelte';
+	import AuthFrame from '../../../../components/auth-frame.svelte';
 	import { page } from '$app/state';
 	import { setTitle } from '../../../../stores/titleStore';
 	import { isInitialized, isLoggedIn, userInfo } from '../../../../stores/userStore';
@@ -54,67 +56,59 @@
 	}
 </script>
 
-<div class="card bg-base-100 w-[32rem] max-w-full shadow-md mx-auto">
-	<div class="card-body">
-		<h2 class="card-title">Connect an app to Scotty</h2>
-
-		{#if consent.kind === 'loading' || consent.kind === 'redirect'}
-			<span class="loading loading-spinner"></span>
-		{:else if consent.kind === 'invalid'}
-			<div class="alert alert-error">
-				<span
-					>This request is invalid or has expired; start the connection again from the
-					app.</span
-				>
+<AuthFrame>
+	<h1>Connect an app to Scotty</h1>
+	{#if consent.kind === 'loading' || consent.kind === 'redirect'}
+		<p class="meta">
+			<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
+			{consent.kind === 'redirect' ? 'Sending you back to the app…' : 'Loading the request…'}
+		</p>
+	{:else if consent.kind === 'invalid'}
+		<div class="banner err">
+			<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+			<div class="txt">
+				<b>This request is invalid or has expired</b>
+				<span>Start the connection again from the app.</span>
 			</div>
-		{:else if consent.kind === 'error'}
-			<div class="alert alert-error">
-				<span>{consent.message}</span>
-			</div>
-		{:else}
-			{@const request = consent.request}
-			<div>
-				<p class="text-sm text-gray-500">Access will be sent to</p>
-				<p class="text-2xl font-bold font-mono break-all">{request.redirect_host}</p>
-				{#if request.loopback_only}
-					<p class="text-sm mt-1">
-						The app receives the authorization only on this computer.
-					</p>
-				{/if}
-			</div>
-			<p>
-				The app calls itself <strong>{request.client_name}</strong>
-				<span class="text-sm text-gray-500">(self-declared, not verified)</span>. It wants
-				to act as <strong>{$userInfo?.email || 'you'}</strong>.
-			</p>
-			<fieldset class="mt-2">
-				<legend class="text-sm mb-2">Allow it to:</legend>
-				{#each request.scopes as scope (scope)}
-					<label class="label flex cursor-pointer justify-start gap-3 py-1">
-						<input
-							type="checkbox"
-							class="checkbox checkbox-sm"
-							bind:checked={ticked[scope]}
-							disabled={busy}
-						/>
-						<span>{describeScope(scope)}</span>
-						<span class="text-xs font-mono text-gray-500">{scope}</span>
-					</label>
-				{/each}
-			</fieldset>
-			<p class="text-sm text-gray-500">
-				Only approve if you started this connection yourself and recognize the host.
-			</p>
-			<div class="card-actions justify-end mt-4">
-				<button class="btn" onclick={() => decide(false)} disabled={busy}>Deny</button>
-				<button
-					class="btn btn-primary"
-					onclick={() => decide(true)}
-					disabled={busy || !approvable}
-				>
-					Approve
-				</button>
-			</div>
-		{/if}
-	</div>
-</div>
+		</div>
+	{:else if consent.kind === 'error'}
+		<div class="banner err">
+			<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+			<div class="txt"><b>Something went wrong</b><span>{consent.message}</span></div>
+		</div>
+	{:else}
+		{@const request = consent.request}
+		<div>
+			<p class="meta">Access will be sent to</p>
+			<p class="big-host">{request.redirect_host}</p>
+			{#if request.loopback_only}
+				<p class="sub2">The app receives the authorization only on this computer.</p>
+			{/if}
+		</div>
+		<p>
+			The app calls itself <b>{request.client_name}</b>
+			<span class="sub2">(self-declared, not verified)</span>. It wants to act as
+			<b>{$userInfo?.email || 'you'}</b>.
+		</p>
+		<fieldset class="scopes">
+			<legend>Allow it to</legend>
+			{#each request.scopes as scope (scope)}
+				<label>
+					<input type="checkbox" bind:checked={ticked[scope]} disabled={busy} />
+					<span>{describeScope(scope)}<span class="mono">{scope}</span></span>
+				</label>
+			{/each}
+		</fieldset>
+		<p class="sub2">
+			Only approve if you started this connection yourself and recognize the host.
+		</p>
+		<div class="acts">
+			<button class="btn outline" onclick={() => decide(false)} disabled={busy}>Deny</button>
+			<button
+				class="btn filled primary"
+				onclick={() => decide(true)}
+				disabled={busy || !approvable}>Approve</button
+			>
+		</div>
+	{/if}
+</AuthFrame>

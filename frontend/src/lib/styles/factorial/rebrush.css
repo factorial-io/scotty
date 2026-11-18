@@ -1,0 +1,346 @@
+/* Rebrush app style (Nina Borrusch, 2026-11-17/18). Loaded after tokens.css (and components.css).
+   Set data-app-style="rebrush" on the app root. data-product="subtool" is kept as an alias for the
+   same style, and styles/subtool.css only imports this file.
+
+   One style for Subtool and every other app that takes the new look (Scotty). The website and
+   apps that do not set the attribute keep the rules of tokens.css and A-D2 (orange accent, red for
+   errors, rectangles). Not generated from tokens.json. Source of the values: kb-subtool
+   rebrush-palette.md and the rules of 2026-11-13. See modules/app.md A-D7 and A-D8. */
+
+/* ---- 1. Colour roles ------------------------------------------------------------------------ */
+:is([data-app-style='rebrush'], [data-product='subtool']) {
+	--color-primary: var(--color-blue); /* accent is blue, not orange */
+	--color-primary-light: var(--color-blue-light);
+	--color-status-error: var(--color-orange); /* error, reject, destructive: orange, no red */
+	--color-status-warning: var(
+		--color-status-decision
+	); /* warning is retired; what waits for a decision is yellow */
+	--color-phase-lost: var(--color-status-error);
+	--color-block-request: var(--color-status-decision);
+	--color-block-refused: var(--color-status-error);
+
+	/* Sizes (A-D8): buttons 36, compact 32 (44 on touch), toast 440 wide, navigation icons 24 */
+	--app-control-height: 36px;
+	--app-pill-height: 32px;
+	--app-toast-width: 440px;
+	--app-icon: 24px;
+	--app-icon-button: 40px; /* keeps air around the 24px glyph (Stephan, 2026-11-18) */
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool']),
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+	.is-dark,
+	[data-theme='dark'],
+	[data-color-scheme='dark']
+) {
+	--color-primary: var(--color-blue-light); /* blue on dark grounds */
+	--color-primary-light: var(--color-blue-light);
+	--color-status-error: var(--color-orange-light);
+	--color-status-warning: var(--color-status-decision);
+	--color-phase-lost: var(--color-status-error);
+	--color-block-request: var(--color-status-decision);
+	--color-block-refused: var(--color-status-error);
+}
+@media (pointer: coarse) {
+	:is([data-app-style='rebrush'], [data-product='subtool']) {
+		--app-control-height: 44px;
+		--app-pill-height: 44px;
+	}
+}
+
+/* ---- 2. Buttons: four roles, one shape (all fully round) ------------------------------------ */
+/* primary .btn.filled.primary · secondary .btn.outline · tertiary .btn.ghost · verdict .btn.verdict.accept|reject
+   compact: add .sm (32 px). Hover: quiet controls get a tint of the text colour, filled ones get
+   lighter (web rule), a verdict takes the tint of its own status colour. */
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn {
+	height: var(--app-control-height);
+	padding: 0 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	border-radius: var(--radius-pill);
+	font-size: 16px;
+	line-height: 1;
+	font-weight: 400;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.sm {
+	height: var(--app-pill-height);
+	padding: 0 14px;
+	font-size: 14px;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.outline {
+	border-color: var(--color-app-border-strong);
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.ghost {
+	border-color: transparent;
+}
+:is([data-app-style='rebrush'], [data-product='subtool'])
+	.btn.outline:hover:not(:disabled):not([aria-disabled='true']),
+:is([data-app-style='rebrush'], [data-product='subtool'])
+	.btn.ghost:hover:not(:disabled):not([aria-disabled='true']) {
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	filter: none;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn:disabled,
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn[aria-disabled='true'] {
+	opacity: 0.45;
+	cursor: not-allowed;
+	filter: none;
+}
+/* destructive: filled orange (never red); the label is white on light, dark on dark (white on the
+   light orange would only reach 2.7:1) */
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.danger {
+	background: var(--color-status-error);
+	color: var(--color-white);
+	border-color: transparent;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.danger:hover:not(:disabled) {
+	filter: brightness(1.15);
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.btn.danger,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.btn.danger {
+	color: var(--color-blue-dark);
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.btn.filled.primary,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.btn.filled.primary {
+	background: var(--color-white);
+	color: var(--color-blue-dark);
+	border-color: transparent;
+}
+/* verdict pill: neutral until aria-pressed, then it carries its status colour */
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.verdict {
+	background: none;
+	border-color: var(--color-app-border-strong);
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.verdict.accept:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--color-status-success) 14%, transparent);
+	filter: none;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.verdict.reject:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--color-status-error) 14%, transparent);
+	filter: none;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.verdict.accept[aria-pressed='true'] {
+	border-color: var(--color-status-success);
+	color: var(--color-status-success);
+	box-shadow: inset 0 0 0 1px var(--color-status-success);
+	font-weight: 600;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .btn.verdict.reject[aria-pressed='true'] {
+	border-color: var(--color-status-error);
+	color: var(--color-status-error);
+	box-shadow: inset 0 0 0 1px var(--color-status-error);
+	font-weight: 600;
+}
+
+/* ---- 3. Filters and toggles (pills) --------------------------------------------------------- */
+:is([data-app-style='rebrush'], [data-product='subtool']) .pill {
+	height: var(--app-pill-height);
+	padding: 0 16px;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid var(--color-app-border-strong);
+	border-radius: var(--radius-pill);
+	background: none;
+	cursor: pointer;
+	font: var(--text-app-body-sm);
+	letter-spacing: 0;
+}
+:is([data-app-style='rebrush'], [data-product='subtool'])
+	.pill:hover:not(:disabled):not([aria-pressed='true']) {
+	background: color-mix(in srgb, currentColor 8%, transparent);
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .pill .mono {
+	color: var(--color-copy-secondary);
+}
+/* selected: dark blue like the sidebar (white on dark in the dark theme) */
+:is([data-app-style='rebrush'], [data-product='subtool']) .pill[aria-pressed='true'] {
+	background: var(--color-blue-dark);
+	border-color: var(--color-blue-dark);
+	color: var(--color-white);
+	font-weight: 600;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .pill[aria-pressed='true']:hover {
+	filter: brightness(1.25);
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .pill[aria-pressed='true'] .mono {
+	color: inherit;
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.pill[aria-pressed='true'],
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.pill[aria-pressed='true'] {
+	background: var(--color-white);
+	border-color: var(--color-white);
+	color: var(--color-blue-dark);
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.pill[aria-pressed='true']:hover,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.pill[aria-pressed='true']:hover {
+	filter: brightness(0.9);
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .searchbtn {
+	border-radius: var(--radius-pill);
+	padding: 0 14px;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .ibtn {
+	border-radius: var(--radius-pill);
+} /* icon-only buttons are round too */
+
+/* ---- 4. Tags: static, fully round, Suisse Intl regular (not mono), a light fill ------------- */
+:is([data-app-style='rebrush'], [data-product='subtool']) .tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 24px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: var(--radius-pill);
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	font: var(--text-app-compact-meta);
+	letter-spacing: 0;
+	white-space: nowrap;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .tag.draft {
+	background: none;
+	border: 1px dashed currentColor;
+} /* state tag: a draft of the machine */
+
+/* ---- 5. Sidebar: counts, collapsed rail, scrolling ------------------------------------------- */
+/* counts: a light oval behind the number; .urgent = a blue oval for the one count that needs you.
+   Contrast: white on the translucent oval 11:1, blue-dark on blue-light 5.4:1. No `display` here on purpose:
+   the collapsed rail hides .count with its own rule, and a display set here would win against it. */
+:is([data-app-style='rebrush'], [data-product='subtool']) .side .item .count {
+	margin-left: auto;
+	min-width: 24px;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.14);
+	color: var(--color-white);
+	font: var(--text-app-compact-meta);
+	line-height: 20px;
+	text-align: center;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .side .item .count.urgent {
+	background: var(--color-blue-light);
+	color: var(--color-blue-dark);
+}
+/* a window too low for the navigation scrolls it; the entries keep their height instead of squeezing the icons */
+:is([data-app-style='rebrush'], [data-product='subtool']) .side nav {
+	min-height: 0;
+	overflow-y: auto;
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .side .item {
+	flex: none;
+}
+/* collapsed: the organisation row already draws a line below it, so the first group adds none.
+   Written for the .collapsed class; an app that collapses the rail by a media query repeats this one rule inside it. */
+:is([data-app-style='rebrush'], [data-product='subtool'])
+	.shell.collapsed
+	.side
+	nav
+	> .grp:first-child {
+	display: none;
+}
+
+/* ---- 6. Toast: top centre, one line, dark in every theme, no status colour ------------------- */
+:is([data-app-style='rebrush'], [data-product='subtool']) .toasts {
+	top: max(12px, env(safe-area-inset-top, 0px));
+	bottom: auto;
+	right: auto;
+	left: 50%;
+	transform: translateX(-50%);
+	width: min(var(--app-toast-width), calc(100vw - 24px));
+}
+:is([data-app-style='rebrush'], [data-product='subtool']) .toast,
+:is([data-app-style='rebrush'], [data-product='subtool']) .toast.ok,
+:is([data-app-style='rebrush'], [data-product='subtool']) .toast.info,
+:is([data-app-style='rebrush'], [data-product='subtool']) .toast.err,
+:is([data-app-style='rebrush'], [data-product='subtool']) .toast.neutral {
+	background: var(--color-blue-dark);
+	color: var(--color-white);
+	min-height: 36px;
+	padding: 8px 12px 8px 16px;
+	align-items: center;
+	border-radius: 8px;
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.toast,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.toast,
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.toast.ok,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.toast.ok,
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.toast.info,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.toast.info,
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.toast.err,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.toast.err,
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark'])
+	:is([data-app-style='rebrush'], [data-product='subtool'])
+	.toast.neutral,
+:is([data-app-style='rebrush'], [data-product='subtool']):is(
+		.is-dark,
+		[data-theme='dark'],
+		[data-color-scheme='dark']
+	)
+	.toast.neutral {
+	background: var(--color-blue-dark);
+	color: var(--color-white);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: var(--app-shadow-dialog);
+}

@@ -1,25 +1,17 @@
 <script lang="ts">
-	export let environment: Map<string, string> | null;
+	let { environment }: { environment: Map<string, string> | Record<string, string> | null } =
+		$props();
+	let entries = $derived(
+		Object.entries(environment ?? {}).sort(([a], [b]) => a.localeCompare(b))
+	);
 </script>
 
-{#if environment === null || (environment && Object.keys(environment).length === 0)}
-	None
+{#if entries.length === 0}
+	<span class="meta">None</span>
 {:else}
-	<dl class="flex flex-col gap-1">
-		{#each Object.entries(environment).sort( ([a], [b]) => a.localeCompare(b) ) as [key, value] (key)}
-			<div class="flex">
-				<dt class="font-mono">{key}&nbsp;=&nbsp;</dt>
-				<dd class="font-mono wrap-anywhere">{value}</dd>
-			</div>
+	<div class="env mono">
+		{#each entries as [key, value] (key)}
+			<span>{key}</span><span>{value}</span>
 		{/each}
-	</dl>
+	</div>
 {/if}
-
-<style>
-	.wrap-anywhere {
-		word-break: break-all;
-		overflow-wrap: anywhere;
-		white-space: pre-wrap;
-		max-width: 100%;
-	}
-</style>

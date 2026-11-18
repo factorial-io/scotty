@@ -40,12 +40,19 @@ async function render(props: { app: App; canManage: boolean }) {
 	const component = mount(CustomActionsDropdown, { target: document.body, props });
 	await vi.waitFor(() => {
 		flushSync();
-		expect(document.body.querySelectorAll('li button').length).toBe(2);
+		expect(document.body.querySelector('button.btn')).not.toBeNull();
 	});
+	const trigger = document.body.querySelector<HTMLButtonElement>('button.btn')!;
+	trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+	await vi.waitFor(() => {
+		flushSync();
+		expect(document.body.querySelectorAll('[data-action]').length).toBe(2);
+	});
+	// The menu item is disabled through bits-ui's data-disabled attribute.
 	const buttons = Object.fromEntries(
-		[...document.body.querySelectorAll<HTMLButtonElement>('li button')].map((b) => [
-			b.textContent!.trim(),
-			b
+		[...document.body.querySelectorAll<HTMLElement>('[data-action]')].map((b) => [
+			b.dataset.action!,
+			{ disabled: b.hasAttribute('data-disabled') }
 		])
 	);
 	return { component, buttons };

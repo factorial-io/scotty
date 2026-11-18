@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import UnifiedOutput from '../../../components/unified-output.svelte';
-	import PageHeader from '../../../components/page-header.svelte';
 	import TaskStatusPill from '../../../components/task-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { tasks } from '../../../stores/tasksStore';
@@ -15,6 +14,7 @@
 	import type { TaskDetail } from '../../../types';
 	import { onMount, onDestroy } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
+	import { apps } from '../../../stores/appsStore';
 
 	export let data: TaskDetail;
 
@@ -23,25 +23,16 @@
 	// Get reactive task output store for this task
 	$: taskOutput = getTaskOutput(data.id);
 
-	// Debug reactive statement to log task output state changes
-	$: {
-		console.log('Task output state for', data.id, ':', $taskOutput);
-	}
-
 	// Request task output when WebSocket is authenticated
 	$: {
 		if ($isAuthenticated && !taskOutputRequested) {
-			console.log('WebSocket authenticated, requesting task output for:', data.id);
 			webSocketStore.requestTaskOutputStream(data.id, true);
 			taskOutputRequested = true;
 		}
 	}
 
 	onMount(() => {
-		setTitle(`Task: ${data.id} for ${data.app_name}`);
-
-		console.log('Task details page mounted for task:', data.id);
-		console.log('Task data:', data);
+		setTitle(`Task ${data.id}`);
 
 		// Initialize task output state
 		initializeTaskOutput(data.id);
@@ -54,77 +45,67 @@
 	});
 
 	// Update task details when tasks store changes
-	tasks.subscribe((new_tasks) => {
-		data = Object.values(new_tasks).find((t) => t.id === data.id) || data;
-	});
+	onDestroy(
+		tasks.subscribe((new_tasks) => {
+			data = new_tasks[data.id] ?? data;
+		})
+	);
+
+	$: appExists =
+		!data.app_name || $apps.length === 0 || $apps.some((a) => a.name === data.app_name);
+	const fmt = (d: string) => new Date(d).toLocaleString();
 </script>
 
-<PageHeader>
-	<h2 class="card-title" slot="header">Task-Details</h2>
-	<div slot="meta">
-		<div class="flex items-center gap-2">
-			<TaskStatusPill status={data.state} />
-			{#if $taskOutput.subscribed}
-				<span class="badge badge-info badge-sm">Live</span>
-			{/if}
-		</div>
+<div class="ph">
+	<div class="ph-row">
+		<h1>
+			<span class="mono" style="font:inherit">{data.command}</span>{#if data.app_name}
+				on {data.app_name}{/if}
+		</h1>
 	</div>
-</PageHeader>
-
-<!-- Breadcrumb Navigation -->
-<div class="text-sm breadcrumbs mb-4">
-	<ul>
-		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
-		<li>
-			<a
-				href={data.app_name
-					? resolve('/dashboard/[slug]', { slug: data.app_name })
-					: resolve('/dashboard')}>{data.app_name}</a
-			>
-		</li>
-		<li>{data.id}</li>
-	</ul>
+	<div class="chips">
+		<TaskStatusPill status={data.state} />
+		{#if $taskOutput.subscribed && data.state === 'Running'}
+			<span class="st info"><i class="sw"></i><span class="w">Live</span></span>
+		{/if}
+	</div>
 </div>
 
-<!-- Task Information Section -->
-<h3 class="text-xl mt-8 mb-4">Task Information</h3>
-<table class="table table-zebra">
-	<tbody>
-		<tr>
-			<td class="text-gray-500 w-48"><strong>Task ID</strong></td>
-			<td>{data.id}</td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Status</strong></td>
-			<td><TaskStatusPill status={data.state} /></td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Started</strong></td>
-			<td><TimeAgo dateString={data.start_time} /></td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Finished</strong></td>
-			<td><TimeAgo dateString={data.finish_time} /></td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>App</strong></td>
-			<td>
-				<a
-					class="link link-primary"
-					href={data.app_name
-						? resolve('/dashboard/[slug]', { slug: data.app_name })
-						: resolve('/dashboard')}>{data.app_name}</a
+<dl class="dl">
+	<div>
+		<dt>Task</dt>
+		<dd class="mono">{data.id}</dd>
+	</div>
+	<div>
+		<dt>App</dt>
+		<dd>
+			{#if !data.app_name}
+				<span class="meta">—</span>
+			{:else if appExists}
+				<a class="link" href={resolve('/dashboard/[slug]', { slug: data.app_name })}
+					>{data.app_name}</a
 				>
-			</td>
-		</tr>
-	</tbody>
-</table>
+			{:else}
+				{data.app_name} <span class="meta">(destroyed)</span>
+			{/if}
+		</dd>
+	</div>
+	<div>
+		<dt>Started</dt>
+		<dd class="mono">{fmt(data.start_time)} · <TimeAgo dateString={data.start_time} /></dd>
+	</div>
+	<div>
+		<dt>Finished</dt>
+		<dd class="mono">{data.finish_time ? fmt(data.finish_time) : '—'}</dd>
+	</div>
+</dl>
 
-<!-- Task Output Section -->
-<h3 class="text-xl mt-8 mb-4">Task Output</h3>
-<UnifiedOutput
-	lines={$taskOutput.lines}
-	heading=""
-	loading={$taskOutput.loading}
-	maxHeight="600px"
-/>
+<section class="sec">
+	<div class="sec-h"><h2>Output</h2></div>
+	<UnifiedOutput
+		lines={$taskOutput.lines}
+		heading=""
+		loading={$taskOutput.loading}
+		maxHeight="600px"
+	/>
+</section>

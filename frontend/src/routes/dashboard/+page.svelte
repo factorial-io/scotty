@@ -1,117 +1,140 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { apps } from '../../stores/appsStore';
-	import { loadApps } from '../../stores/appsStore';
-	import { writable } from 'svelte/store';
-	import MagnifyingGlass from '@iconify-icons/ph/magnifying-glass';
+	import Icon from '@iconify/svelte';
+	import { apps, loadApps } from '../../stores/appsStore';
 	import { setTitle } from '../../stores/titleStore';
-
 	import StartStopAppAction from '../../components/start-stop-app-action.svelte';
 	import AppServiceButton from '../../components/app-service-button.svelte';
 	import AppStatusPill from '../../components/app-status-pill.svelte';
-	import Icon from '@iconify/svelte';
-	import PageHeader from '../../components/page-header.svelte';
-	import type { App } from '../../types';
 	import TableHeaderSort from '../../components/table-header-sort.svelte';
 	import LastStarted from '../../components/last-started.svelte';
 	import TaskProgress from '../../components/task-progress.svelte';
+	import {
+		STATUS_FILTERS,
+		countByFilter,
+		listApps,
+		type SortKey,
+		type StatusFilter
+	} from '../../lib/appList';
 
-	const filter = writable('');
-	const sortBy = writable('status');
+	let search = $state('');
+	let statusFilter = $state<StatusFilter>('All');
+	let sortBy = $state<SortKey>('status');
 
-	function setSort(event: { sortBy: string }) {
-		sortBy.set(event.sortBy);
+	let counts = $derived(countByFilter($apps));
+	let list = $derived(listApps($apps, search, statusFilter, sortBy));
+
+	function clearFilter() {
+		search = '';
+		statusFilter = 'All';
 	}
 
-	function doSort(a: App, b: App): number {
-		if ($sortBy === 'name') {
-			return a.name.localeCompare(b.name);
-		}
-		if ($sortBy === 'status') {
-			const result = a.status.localeCompare(b.status);
-			if (result === 0) {
-				return a.name.localeCompare(b.name);
-			} else {
-				return result;
-			}
-		}
-		return 0;
-	}
-
-	const filteredAndSortedApps = writable([] as App[]);
-	function updateAppList() {
-		$filteredAndSortedApps = $apps
-			.filter((app) => app.name.toLowerCase().includes($filter.toLowerCase()))
-			.sort((a, b) => doSort(a, b));
-	}
-
-	apps.subscribe(() => {
-		updateAppList();
-	});
-
-	sortBy.subscribe(() => {
-		updateAppList();
-	});
-	filter.subscribe(() => {
-		updateAppList();
-	});
-
-	onMount(async () => {
-		setTitle('Apps Dashboard');
-		await loadApps();
-		updateAppList();
+	onMount(() => {
+		setTitle('Apps');
+		loadApps();
 	});
 </script>
 
-<PageHeader>
-	<h2 slot="header" class="card-title">List of apps</h2>
-	<label slot="meta" class="input input-bordered input-sm flex items-center gap-2">
-		<input type="text" bind:value={$filter} placeholder="Filter by name" class="grow" />
-		<Icon icon={MagnifyingGlass} />
-	</label>
-</PageHeader>
-<table class="table">
-	<!-- head -->
-	<thead>
-		<tr>
-			<th class="w-1"></th>
-			<th
-				><TableHeaderSort onsetSort={setSort} sortBy={$sortBy} key="name" name="Name"
-				></TableHeaderSort></th
-			>
-			<th>Services</th>
-			<th
-				><TableHeaderSort onsetSort={setSort} sortBy={$sortBy} key="status" name="Status"
-				></TableHeaderSort></th
-			>
-			<th>Last time started</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each $filteredAndSortedApps as app (app.name)}
-			<tr>
-				<td><StartStopAppAction {app} /></td>
-				<td
-					><a class="link-primary" href={resolve('/dashboard/[slug]', { slug: app.name })}
-						>{app.name}</a
-					></td
+<div class="ph">
+	<div class="ph-row"><h1>Apps</h1></div>
+	<p class="lead">
+		Every app this Scotty server knows about. Start, stop and open them from here; create new
+		ones with <span class="mono">scottyctl app:create</span>.
+	</p>
+</div>
+
+<div class="sec">
+	<div class="toolbar">
+		<div class="pills" role="group" aria-label="Filter by status">
+			{#each STATUS_FILTERS as f (f)}
+				<button
+					class="pill"
+					aria-pressed={statusFilter === f}
+					onclick={() => (statusFilter = f)}
+					>{f}<span class="mono">{counts[f]}</span></button
 				>
-				<td
-					>{#each app.services as service (service.service)}
-						{#if service.domains && service.domains.length > 0}
-							<AppServiceButton {service} />
-						{/if}
-					{/each}</td
-				>
-				<td
-					><AppStatusPill status={app.status} />
-					{#if app.operation?.task_id}
-						<div class="mt-1"><TaskProgress taskId={app.operation.task_id} /></div>
-					{/if}</td
-				>
-				<td><LastStarted services={app.services}></LastStarted> </td></tr
-			>
-		{/each}
-	</tbody>
-</table>
+			{/each}
+		</div>
+		<label class="field">
+			<Icon icon="ph:magnifying-glass" class="ic" aria-hidden="true" />
+			<input
+				id="app-search"
+				type="search"
+				placeholder="Filter by name"
+				aria-label="Filter by name"
+				bind:value={search}
+			/>
+		</label>
+	</div>
+
+	{#if list.length}
+		<div class="tw">
+			<table>
+				<thead>
+					<tr>
+						<th style="width:1px"><span class="sr-only">Action</span></th>
+						<th
+							><TableHeaderSort
+								onsetSort={(e) => (sortBy = e.sortBy as SortKey)}
+								{sortBy}
+								key="name"
+								name="Name"
+							/></th
+						>
+						<th>Services</th>
+						<th
+							><TableHeaderSort
+								onsetSort={(e) => (sortBy = e.sortBy as SortKey)}
+								{sortBy}
+								key="status"
+								name="Status"
+							/></th
+						>
+						<th class="num">Last started</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each list as app (app.name)}
+						{@const linked = app.services.filter((s) => s.domains.length > 0)}
+						<tr>
+							<td><StartStopAppAction {app} /></td>
+							<td
+								><a
+									class="name"
+									href={resolve('/dashboard/[slug]', { slug: app.name })}
+									>{app.name}</a
+								></td
+							>
+							<td>
+								<div class="svcs">
+									{#each linked as service (service.service)}
+										<AppServiceButton {service} />
+									{:else}
+										<span class="meta">—</span>
+									{/each}
+								</div>
+							</td>
+							<td>
+								<AppStatusPill status={app.status} />
+								{#if app.operation?.task_id}
+									<TaskProgress
+										taskId={app.operation.task_id}
+										kind={app.operation.operation}
+									/>
+								{/if}
+							</td>
+							<td class="num mono"><LastStarted services={app.services} /></td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{:else if $apps.length}
+		<div class="empty">
+			<h2>No app matches “{search || statusFilter}”</h2>
+			<p>Check the spelling or show all apps.</p>
+			<button class="link" onclick={clearFilter}>Clear filter</button>
+		</div>
+	{/if}
+</div>

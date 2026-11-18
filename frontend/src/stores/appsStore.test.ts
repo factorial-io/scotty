@@ -21,10 +21,15 @@ vi.mock('./webSocketStore', async () => {
 		}
 	};
 });
-vi.mock('./tasksStore', () => ({ monitorTask: vi.fn() }));
+vi.mock('./tasksStore', async () => {
+	const { writable } = await import('svelte/store');
+	return { monitorTask: vi.fn(), tasks: writable({}) };
+});
+vi.mock('./errorStore', () => ({ showError: vi.fn() }));
 
 import { ApiError, authenticatedApiCall } from '#lib';
-import { monitorTask } from './tasksStore';
+import { monitorTask, tasks } from './tasksStore';
+import { dismissToast, toasts } from './toastStore';
 import { apps, runApp, updateAppInfo } from './appsStore';
 import type { App } from '../types';
 
@@ -40,6 +45,8 @@ describe('appsStore', () => {
 		connected.value = true;
 		vi.mocked(authenticatedApiCall).mockReset();
 		vi.mocked(monitorTask).mockReset();
+		get(toasts).forEach((t) => dismissToast(t.id));
+		tasks.set({});
 	});
 
 	it('stores the app data returned by an action, so the app is busy at once', async () => {
@@ -91,5 +98,26 @@ describe('appsStore', () => {
 		await expect(updateAppInfo('shop')).rejects.toThrow();
 
 		expect(get(apps).map((a) => a.name)).toEqual(['blog']);
+	});
+
+	it('toasts an accepted action and its finish, nothing on failure', async () => {
+		vi.mocked(authenticatedApiCall).mockResolvedValueOnce({
+			task: { id: 't-toast' },
+			app_data: app('shop', running)
+		});
+		await runApp('shop');
+		expect(get(toasts).map((t) => t.message)).toEqual(['Run started for shop']);
+
+		tasks.set({ 't-toast': { id: 't-toast', state: 'Finished' } } as never);
+		expect(get(toasts).map((t) => t.message)).toEqual([
+			'Run started for shop',
+			'Run finished for shop'
+		]);
+	});
+
+	it('shows no toast when the action is refused with 403', async () => {
+		vi.mocked(authenticatedApiCall).mockRejectedValueOnce(new ApiError('Forbidden', 403));
+		await expect(runApp('shop')).rejects.toThrow('Forbidden');
+		expect(get(toasts)).toEqual([]);
 	});
 });

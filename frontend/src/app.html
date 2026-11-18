@@ -1,9 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="fac app" data-app-style="rebrush">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/scotty.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Apply the stored theme before the first paint (see src/stores/themeStore.ts).
+			(function () {
+				var choice = null;
+				try {
+					choice = localStorage.getItem('scotty-theme');
+				} catch (e) {}
+				var dark =
+					choice === 'dark' ||
+					(choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+				if (dark) document.documentElement.classList.add('is-dark');
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

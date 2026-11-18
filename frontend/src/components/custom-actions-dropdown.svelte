@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '@iconify/svelte';
+	import { DropdownMenu } from 'bits-ui';
 	import { authenticatedApiCall } from '#lib';
 	import type { App, BlueprintsResponse, CustomAction } from '../types';
 	import { runCustomAction } from '../stores/appsStore';
@@ -116,41 +118,33 @@
 </script>
 
 {#if hasActions}
-	<div class="dropdown dropdown-end">
-		<div
-			tabindex="0"
-			role="button"
-			class="btn btn-sm {currentAction !== null || !canManage || !isSupported()
-				? 'btn-disabled'
-				: ''}"
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger
+			class="btn outline"
+			disabled={currentAction !== null || !canManage || !isSupported()}
 		>
-			{#if currentAction}
-				<span class="loading loading-spinner loading-xs mr-1"></span>
-				Running {currentAction}...
-			{:else if app.operation}
-				<span class="loading loading-spinner loading-xs mr-1"></span>
-				Custom Actions
+			{#if currentAction || app.operation}
+				<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
 			{:else}
-				Custom Actions
+				<Icon icon="ph:lightning" class="ic sm" aria-hidden="true" />
 			{/if}
-		</div>
-		<ul
-			role="menu"
-			tabindex="0"
-			class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow-sm"
-		>
-			{#each customActions as action (action)}
-				<li>
-					<button
-						on:click={() => triggerCustomAction(action.name)}
-						data-tip={action.description}
-						class="tooltip tooltip-right"
+			{currentAction ? `Running ${currentAction}…` : 'Custom actions'}
+			<Icon icon="ph:caret-down" class="ic sm" aria-hidden="true" />
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Portal>
+			<DropdownMenu.Content class="menu" align="end" sideOffset={6}>
+				<div class="hd">Custom actions</div>
+				{#each customActions as action (action.name)}
+					<DropdownMenu.Item
 						disabled={!isAvailable(action, busy) || !canManage || !isSupported()}
+						onSelect={() => triggerCustomAction(action.name)}
+						data-action={action.name}
 					>
-						{action.name}
-					</button>
-				</li>
-			{/each}
-		</ul>
-	</div>
+						<Icon icon="ph:terminal-window" class="ic sm" aria-hidden="true" />
+						<span>{action.name}<span class="sub">{action.description}</span></span>
+					</DropdownMenu.Item>
+				{/each}
+			</DropdownMenu.Content>
+		</DropdownMenu.Portal>
+	</DropdownMenu.Root>
 {/if}

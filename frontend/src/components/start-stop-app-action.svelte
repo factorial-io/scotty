@@ -2,7 +2,7 @@
 	import Icon from '@iconify/svelte';
 	import play from '@iconify-icons/ph/play';
 	import stop from '@iconify-icons/ph/stop';
-	import unsupported from '@iconify-icons/ph/ghost';
+	import unsupported from '@iconify-icons/ph/lock';
 	import errorIcon from '@iconify-icons/ph/warning-octagon';
 	import { runApp, stopApp } from '../stores/appsStore';
 	import { tasks } from '../stores/tasksStore';
@@ -56,22 +56,33 @@
 		class="tooltip tooltip-error tooltip-right"
 		data-tip={`Task failed: ${failed_task.command}. Check task details for output.`}
 	>
-		<button class="btn btn-circle btn-xs bg-error text-white" on:click={handleClick}>
-			<Icon icon={errorIcon} />
+		<button class="ibtn boxed failed" aria-label="Task failed, retry" on:click={handleClick}>
+			<Icon icon={errorIcon} class="ic" aria-hidden="true" />
 		</button>
 	</div>
 {:else}
 	<button
-		class="btn btn-circle btn-xs"
+		class="ibtn boxed"
+		aria-label={!isSupported()
+			? 'Not managed by Scotty'
+			: status === 'Running'
+				? `Stop ${name}`
+				: `Start ${name}`}
 		on:click={handleClick}
 		disabled={isDisabled}
 		aria-busy={busy}
-		title={app.operation ? `${app.operation.operation} running` : undefined}
+		title={!isSupported()
+			? 'Not managed by Scotty'
+			: app.operation
+				? `${app.operation.operation} running`
+				: status === 'Running'
+					? 'Stop'
+					: 'Start'}
 	>
 		{#if busy}
-			<span class="loading loading-spinner"></span>
+			<Icon icon="ph:spinner" class="ic spin" aria-hidden="true" />
 		{:else}
-			<Icon icon={currentIcon} />
+			<Icon icon={currentIcon} class="ic" aria-hidden="true" />
 		{/if}
 	</button>
 {/if}

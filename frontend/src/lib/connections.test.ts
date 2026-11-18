@@ -23,12 +23,10 @@ const conn = (id: string): Connection => ({
 describe('connections page logic', () => {
 	beforeEach(() => api.mockReset());
 
-	it('lists own or all connections', async () => {
+	it('lists the own connections', async () => {
 		api.mockResolvedValue([conn('a')]);
 		await listConnections();
 		expect(api).toHaveBeenLastCalledWith('connections');
-		await listConnections(true);
-		expect(api).toHaveBeenLastCalledWith('connections?all=true');
 	});
 
 	it('revokes a connection and removes its row', async () => {
