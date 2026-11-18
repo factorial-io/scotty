@@ -1,0 +1,7 @@
+# osv-scanner exceptions, used by .github/workflows/security.yml.
+# ignoreUntil makes osv-scanner report the finding again once the date passes.
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2027-02-28
+reason = "picomatch ReDoS, no patched release (all <= 4.0.7). Only pulled in by build/test tooling (vite, vitest, tinyglobby, eleventy) on trusted repo globs; not in the shipped frontend bundle."
