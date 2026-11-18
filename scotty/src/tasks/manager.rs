@@ -95,7 +95,9 @@ impl TaskManager {
     /// here (that is the owner's job). Resolves to the exit code.
     ///
     /// `stdin`, if given, is written to the process's standard input, which
-    /// is then closed.
+    /// is then closed. It is written before the output is read, so keep it
+    /// small (a password): a value larger than the pipe buffer (~64 KiB)
+    /// could deadlock against a process blocked on full stdout.
     #[allow(clippy::too_many_arguments)]
     pub fn start_process(
         &self,
@@ -190,6 +192,8 @@ async fn run_process(
         // exit code still decides the result, the warning names the cause.
         let written = async {
             pipe.write_all(secret.expose_secret().as_bytes()).await?;
+            // Line-oriented readers such as `docker login --password-stdin`
+            // and `read` expect a terminated line.
             pipe.write_all(b"\n").await
         }
         .await;
