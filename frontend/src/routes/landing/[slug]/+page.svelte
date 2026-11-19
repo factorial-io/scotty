@@ -288,7 +288,7 @@
 		<Icon icon="ph:spinner" class="ic lg spin" aria-hidden="true" />
 		<h1>Starting {data.appName}</h1>
 		<p class="sub2">Please wait while the app is being started.</p>
-		{#if taskId}<div style="width:100%"><TaskProgress {taskId} /></div>{/if}
+		{#if taskId}<div class="progress-center"><TaskProgress {taskId} /></div>{/if}
 	{:else}
 		<h1>{data.appName}</h1>
 		<p class="sub2">This app is currently not running.</p>
@@ -300,7 +300,7 @@
 				{operation.operation} is running
 			</p>
 			{#if operation.task_id}
-				<div style="width:100%"><TaskProgress taskId={operation.task_id} /></div>
+				<div class="progress-center"><TaskProgress taskId={operation.task_id} /></div>
 			{/if}
 		{/if}
 		<div class="acts">

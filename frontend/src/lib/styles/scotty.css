@@ -681,6 +681,12 @@ kbd {
 	max-width: 220px;
 	margin-top: 6px;
 }
+.progress-center {
+	width: 100%;
+}
+.progress-center .progress {
+	margin-inline: auto;
+}
 .progress > i {
 	display: block;
 	height: 100%;
