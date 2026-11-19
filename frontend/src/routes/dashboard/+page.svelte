@@ -83,7 +83,8 @@
 							/></th
 						>
 						<th>Services</th>
-						<th
+						<!-- ponytail: fixed Status width so a running task's changing progress text does not re-flow the table -->
+						<th style="width:14rem"
 							><TableHeaderSort
 								onsetSort={(e) => (sortBy = e.sortBy as SortKey)}
 								{sortBy}
@@ -118,10 +119,12 @@
 							<td>
 								<AppStatusPill status={app.status} />
 								{#if app.operation?.task_id}
-									<TaskProgress
-										taskId={app.operation.task_id}
-										kind={app.operation.operation}
-									/>
+									<div style="width:14rem">
+										<TaskProgress
+											taskId={app.operation.task_id}
+											kind={app.operation.operation}
+										/>
+									</div>
 								{/if}
 							</td>
 							<td class="num mono"><LastStarted services={app.services} /></td>
