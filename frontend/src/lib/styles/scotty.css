@@ -45,9 +45,11 @@ body {
 		transform: rotate(360deg);
 	}
 }
+/* A spinner says "still working", so it keeps turning under reduced motion,
+   just slower (as Bootstrap does), instead of looking frozen. */
 @media (prefers-reduced-motion: reduce) {
 	.spin {
-		animation: none;
+		animation-duration: 3s;
 	}
 }
 :focus-visible {
