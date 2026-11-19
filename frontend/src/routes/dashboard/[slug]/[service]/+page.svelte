@@ -5,7 +5,7 @@
 	import { resolve } from '$app/paths';
 	import AppStatusPill from '../../../../components/app-status-pill.svelte';
 	import TimeAgo from '../../../../components/time-ago.svelte';
-	import UnifiedOutput from '../../../../components/unified-output.svelte';
+	import LogViewer from '../../../../components/log-viewer.svelte';
 	import { setTitle } from '../../../../stores/titleStore';
 	import {
 		getContainerLogs,
@@ -42,6 +42,7 @@
 	);
 
 	let hasStartedStream = false;
+	let range: number | null = 500;
 
 	// Start log stream when WebSocket is connected
 	$: if ($isConnected && !hasStartedStream && $permissionsLoaded && permissions.logs) {
@@ -67,9 +68,6 @@
 			goto(resolve('/dashboard/[slug]', { slug: data.app.name }));
 			return;
 		}
-
-		// Initialize log state
-		initializeContainerLogs(data.app.name, data.service.service);
 	});
 
 	onDestroy(() => {
@@ -82,8 +80,14 @@
 	});
 
 	function startLogStream() {
-		console.log('Starting log stream for', data.app.name, data.service.service);
-		webSocketStore.requestLogStream(data.app.name, data.service.service, true, null, false);
+		initializeContainerLogs(data.app.name, data.service.service, range);
+		webSocketStore.requestLogStream(data.app.name, data.service.service, true, range, false);
+	}
+
+	function changeRange(next: number | null) {
+		range = next;
+		if (logState.streamId) webSocketStore.stopLogStream(logState.streamId);
+		startLogStream();
 	}
 </script>
 
@@ -131,5 +135,11 @@
 		<h2>Logs</h2>
 		<span class="meta">stdout and stderr, newest at the bottom</span>
 	</div>
-	<UnifiedOutput lines={logState.lines} heading="" loading={logState.loading} maxHeight="600px" />
+	<LogViewer
+		lines={logState.lines}
+		live={logState.streaming && logState.follow}
+		stopped={isTerminal}
+		{range}
+		onRangeChange={changeRange}
+	/>
 </section>

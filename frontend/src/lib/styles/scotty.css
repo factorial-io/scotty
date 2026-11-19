@@ -1030,6 +1030,12 @@ td a.name:hover {
 .logv .ln:hover {
 	background: var(--color-bg-light);
 }
+/* ponytail: the browser skips layout for off-screen rows; a virtual list only if
+   "since container start" on 50k+ lines gets slow */
+.logv .out .ln {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 20px;
+}
 .logv .out {
 	background: var(--color-bg);
 }
