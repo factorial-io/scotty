@@ -1,18 +1,18 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 
-	export let name: string;
-	export let key: string;
-	export let sortBy: string;
-	export let onsetSort: (event: { sortBy: string }) => void = () => {};
-
-	function setSort(sortValue: string) {
-		onsetSort({ sortBy: sortValue });
+	interface Props {
+		name: string;
+		key: string;
+		sortBy: string;
+		onsetSort?: (event: { sortBy: string }) => void;
 	}
+
+	let { name, key, sortBy, onsetSort = () => {} }: Props = $props();
 </script>
 
-<button class="link" on:click={() => setSort(key)}
-	>{name}
-	{#if sortBy == key}<Icon class="float-right" icon="ph:arrow-up" />
-	{/if}</button
->
+<!-- Styled by `th button` in scotty.css. Ascending only. -->
+<button aria-pressed={sortBy === key} onclick={() => onsetSort({ sortBy: key })}>
+	{name}
+	{#if sortBy === key}<Icon icon="ph:caret-down" class="ic sm" aria-hidden="true" />{/if}
+</button>

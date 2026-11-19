@@ -63,7 +63,7 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the Docker Compose version to install
-ENV DOCKER_COMPOSE_VERSION=5.7.0
+ENV DOCKER_COMPOSE_VERSION=5.7.2
 # Download and install Docker Compose
 RUN curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
     chmod +x /usr/local/bin/docker-compose

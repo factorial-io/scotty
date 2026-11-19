@@ -1,4 +1,7 @@
 <script lang="ts">
+	import AppStatusPill from '../../../components/app-status-pill.svelte';
+	import AuthFrame from '../../../components/auth-frame.svelte';
+	import Icon from '@iconify/svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
@@ -242,108 +245,71 @@
 	<title>Start {data.appName} - Scotty</title>
 </svelte:head>
 
-<div class="max-w-xl mx-auto mt-8">
+<AuthFrame center={!(appError && state === 'error')}>
 	{#if appError && state === 'error'}
-		<!-- ERROR STATE -->
-		<div class="card bg-base-100 shadow-md">
-			<div class="card-body items-center text-center">
-				<h2 class="card-title text-error text-2xl">Failed to start</h2>
-				<p class="text-gray-500 mt-2">{appError}</p>
-				<div class="card-actions mt-6">
-					<button class="btn btn-primary" on:click={handleRetry}>Try Again</button>
-					<a href={resolve('/dashboard')} class="btn btn-ghost">Go to Dashboard</a>
-				</div>
-			</div>
+		<h1>Failed to start {data.appName}</h1>
+		<div class="banner err">
+			<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+			<div class="txt"><b>The start did not finish</b><span>{appError}</span></div>
 		</div>
-
+		<div class="acts">
+			<a href={resolve('/dashboard')} class="btn outline">Go to dashboard</a>
+			<button class="btn filled primary" on:click={handleRetry}>Try again</button>
+		</div>
 		{#if taskId && taskOutput && $taskOutput}
-			<div class="mt-6">
-				<h3 class="text-lg mb-2">Task Output</h3>
-				<UnifiedOutput
-					lines={$taskOutput.lines}
-					heading=""
-					loading={$taskOutput.loading}
-					maxHeight="400px"
-				/>
-			</div>
+			<UnifiedOutput
+				lines={$taskOutput.lines}
+				heading=""
+				loading={$taskOutput.loading}
+				maxHeight="400px"
+			/>
 		{/if}
 	{:else if state === 'ready'}
-		<!-- READY STATE -->
-		<div class="card bg-base-100 shadow-md">
-			<div class="card-body items-center text-center">
-				<div class="text-success text-5xl mb-4">&#10003;</div>
-				<h2 class="card-title text-2xl">App is ready!</h2>
-				{#if safeReturnUrl}
-					<p class="text-gray-500 mt-2">
-						Redirecting in {redirectCountdown}...
-					</p>
-					<div class="card-actions mt-4">
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-						<a href={safeReturnUrl} class="btn btn-primary">Go to App</a>
-					</div>
-				{:else}
-					<p class="text-gray-500 mt-2">
-						<strong>{data.appName}</strong> is now running.
-					</p>
-					<div class="card-actions mt-4">
-						<a
-							href={resolve('/dashboard/[slug]', { slug: data.appName })}
-							class="btn btn-primary">View in Dashboard</a
-						>
-					</div>
-				{/if}
-			</div>
+		<div class="ok-mark" style="color:var(--color-status-success)">
+			<Icon icon="ph:check-circle" class="ic lg" aria-hidden="true" />
 		</div>
+		<h1>{data.appName} is ready</h1>
+		{#if safeReturnUrl}
+			<p class="sub2">Redirecting in {redirectCountdown}…</p>
+			<div class="acts">
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+				<a href={safeReturnUrl} class="btn filled primary">Go to the app</a>
+			</div>
+		{:else}
+			<p class="sub2"><b>{data.appName}</b> is now running.</p>
+			<div class="acts">
+				<a
+					href={resolve('/dashboard/[slug]', { slug: data.appName })}
+					class="btn filled primary">View in dashboard</a
+				>
+			</div>
+		{/if}
 	{:else if state === 'starting'}
-		<!-- STARTING STATE -->
-		<div class="card bg-base-100 shadow-md">
-			<div class="card-body items-center text-center">
-				<span class="loading loading-spinner loading-lg"></span>
-				<h2 class="card-title text-2xl mt-4">Starting {data.appName}...</h2>
-				<p class="text-gray-500 mt-2">Please wait while the app is being started.</p>
-				{#if taskId}
-					<div class="w-full mt-4"><TaskProgress {taskId} /></div>
-				{/if}
-			</div>
-		</div>
+		<Icon icon="ph:spinner" class="ic lg spin" aria-hidden="true" />
+		<h1>Starting {data.appName}</h1>
+		<p class="sub2">Please wait while the app is being started.</p>
+		{#if taskId}<div class="progress-center"><TaskProgress {taskId} /></div>{/if}
 	{:else}
-		<!-- IDLE STATE -->
-		<div class="card bg-base-100 shadow-md">
-			<div class="card-body items-center text-center">
-				<h2 class="card-title text-2xl">{data.appName}</h2>
-				<p class="text-gray-500 mt-2">This app is currently not running.</p>
-				{#if data.returnUrl}
-					<p class="text-sm text-gray-400 mt-1">
-						<span class="font-mono">{data.returnUrl}</span>
-					</p>
-				{/if}
-				{#if app}
-					<div class="badge badge-ghost mt-2">{app.status}</div>
-				{/if}
-				{#if operation}
-					<p class="text-gray-500 mt-4">
-						<span class="loading loading-spinner loading-xs align-middle"></span>
-						{operation.operation} is running
-					</p>
-					{#if operation.task_id}
-						<div class="w-full mt-2"><TaskProgress taskId={operation.task_id} /></div>
-					{/if}
-				{/if}
-
-				<div class="card-actions mt-6">
-					<button
-						class="btn btn-primary btn-lg"
-						on:click={handleStart}
-						disabled={!!operation}
-					>
-						Start App
-					</button>
-				</div>
-
-				{#if !$isAuthenticated}
-					<p class="text-sm text-gray-400 mt-4">You will be asked to log in first.</p>
-				{/if}
-			</div>
+		<h1>{data.appName}</h1>
+		<p class="sub2">This app is currently not running.</p>
+		{#if data.returnUrl}<p class="mono">{data.returnUrl}</p>{/if}
+		{#if app}<AppStatusPill status={app.status} />{/if}
+		{#if operation}
+			<p class="meta">
+				<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
+				{operation.operation} is running
+			</p>
+			{#if operation.task_id}
+				<div class="progress-center"><TaskProgress taskId={operation.task_id} /></div>
+			{/if}
+		{/if}
+		<div class="acts">
+			<button class="btn filled primary" on:click={handleStart} disabled={!!operation}>
+				<Icon icon="ph:play" class="ic sm" aria-hidden="true" />Start app
+			</button>
 		</div>
+		{#if !$isAuthenticated}
+			<p class="meta">You will be asked to sign in first.</p>
+		{/if}
 	{/if}
-</div>
+</AuthFrame>

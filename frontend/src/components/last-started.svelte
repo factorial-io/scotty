@@ -1,24 +1,9 @@
 <script lang="ts">
 	import type { AppService } from '../types';
+	import { lastStartedAt } from '../lib/appList';
 	import TimeAgo from './time-ago.svelte';
 
-	export let services: AppService[] = [];
-
-	let lastStarted: string | null = null;
-	$: {
-		if (services.length > 0) {
-			lastStarted =
-				services.reduce(
-					(oldest, service) => {
-						if (!oldest || new Date(service.started_at) < new Date(oldest.started_at)) {
-							return service;
-						}
-						return oldest;
-					},
-					null as AppService | null
-				)?.started_at ?? null;
-		}
-	}
+	let { services = [] }: { services?: AppService[] } = $props();
 </script>
 
-<TimeAgo dateString={lastStarted}></TimeAgo>
+<TimeAgo dateString={lastStartedAt(services)} />

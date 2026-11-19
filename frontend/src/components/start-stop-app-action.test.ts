@@ -41,13 +41,13 @@ describe('start-stop-app-action', () => {
 	it('shows the busy indicator and is disabled while an operation runs', () => {
 		const button = render({ app: app(rebuild) });
 		expect(button.disabled).toBe(true);
-		expect(button.querySelector('.loading-spinner')).not.toBeNull();
+		expect(button.getAttribute('aria-busy')).toBe('true');
 	});
 
 	it('is enabled and idle without an operation', () => {
 		const button = render({ app: app() });
 		expect(button.disabled).toBe(false);
-		expect(button.querySelector('.loading-spinner')).toBeNull();
+		expect(button.getAttribute('aria-busy')).toBe('false');
 	});
 
 	it('shows the failure of the task it started from the tasks store', async () => {
@@ -60,6 +60,6 @@ describe('start-stop-app-action', () => {
 		tasks.set({ t1: { id: 't1', state: 'Failed', command: 'run' } as never });
 		flushSync();
 
-		expect(document.body.querySelector('.tooltip-error')).not.toBeNull();
+		expect(document.body.querySelector('button.failed')).not.toBeNull();
 	});
 });

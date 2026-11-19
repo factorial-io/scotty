@@ -20,4 +20,8 @@ pub struct ServerInfo {
     #[serde(default)]
     pub auth_mode: AuthMode,
     pub oauth_config: Option<OAuthConfig>,
+    /// `api.suisse_fonts_url`: where the web UI loads SuisseIntl from; null
+    /// means the bundled open fonts.
+    #[serde(default)]
+    pub suisse_fonts_url: Option<String>,
 }

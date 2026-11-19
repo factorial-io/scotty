@@ -1,0 +1,535 @@
+/* ── styles.css ── */
+/* Factorial Design System — single entry point. Link this one file. */
+/* ── colors_and_type.css ── */
+/* ==========================================================================
+   Factorial — Colors & Type
+   Source of truth: factorial-website/factorial-frontend/assets/variables.css
+   Fonts: SuisseIntl only when api.suisse_fonts_url is set, else Inter (see README).
+   ========================================================================== */
+
+/* Font Face declarations ---------------------------------------------------- */
+
+/* Design tokens ------------------------------------------------------------- */
+:root {
+	/* Type stacks */
+	--font-family-copy: SuisseIntl, Inter, system-ui, sans-serif;
+	--font-family-title: SuisseIntl, Inter, system-ui, sans-serif;
+	--font-family-mono:
+		SuisseIntlMono, 'JetBrains Mono', 'Lucida Console', 'Courier New', monospace;
+	--font-family-mono-bold:
+		SuisseIntlMono, 'JetBrains Mono', 'Lucida Console', 'Courier New', monospace;
+
+	/* Type scale (converted to px — 1rem=10px in original) */
+	--font-size-h1: 54px;
+	--line-height-h1: 64px;
+	--font-weight-h1: 400;
+	--font-size-h1-mobile: 40px;
+	--line-height-h1-mobile: 48px;
+	--font-size-h2: 40px;
+	--line-height-h2: 48px;
+	--font-weight-h2: 400;
+	--font-size-h2-mobile: 32px;
+	--line-height-h2-mobile: 40px;
+	--font-size-h3: 30px;
+	--line-height-h3: 40px;
+	--font-weight-h3: 400;
+	--font-size-h3-mobile: 28px;
+	--font-size-h4: 24px;
+	--line-height-h4: 32px;
+	--font-size-copy: 20px;
+	--line-height-copy: 32px;
+	--letter-spacing-copy: 0.01em;
+	--font-size-copy-small: 16px;
+	--line-height-copy-small: 28px;
+	--letter-spacing-copy-small: 0.03em;
+	--font-size-copy-mono: 16px;
+	--line-height-copy-mono: 30px;
+	--font-size-top-label: 16px;
+	--line-height-top-label: 28px; /* @kind other */
+
+	/* Layout */
+	--constrain-text: 1080px;
+}
+
+/* Dark mode overrides ------------------------------------------------------- */
+.is-dark,
+[data-color-scheme='dark'] {
+	--color-bg: var(--color-black);
+	--color-bg-light: var(--color-bg-light-darkmode);
+	--color-copy-primary: var(--color-white);
+	--color-copy-secondary: var(--color-grey-400);
+	--color-box-shadow: var(--color-blue-dark);
+	--box-shadow: none;
+	--box-shadow-small: none;
+	--box-shadow-medium: none;
+	--box-shadow-large: none; /* no shadows in dark mode */
+	color-scheme: dark;
+}
+
+/* Semantic type utilities --------------------------------------------------- */
+html.fac {
+	font-size: 16px;
+}
+.fac body,
+.fac .body {
+	font-family: var(--font-family-copy);
+	font-size: var(--font-size-copy-small);
+	line-height: var(--line-height-copy-small);
+	letter-spacing: var(--letter-spacing-copy-small);
+	color: var(--color-copy-primary);
+	background: var(--color-bg);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.fac-h1 {
+	font-family: var(--font-family-title);
+	font-weight: var(--font-weight-h1);
+	font-size: var(--font-size-h1);
+	line-height: var(--line-height-h1);
+	letter-spacing: 0;
+}
+.fac-h2 {
+	font-family: var(--font-family-title);
+	font-weight: var(--font-weight-h2);
+	font-size: var(--font-size-h2);
+	line-height: var(--line-height-h2);
+	letter-spacing: var(--letter-spacing-copy);
+}
+.fac-h3 {
+	font-family: var(--font-family-title);
+	font-weight: var(--font-weight-h3);
+	font-size: var(--font-size-h3);
+	line-height: var(--line-height-h3);
+	letter-spacing: var(--letter-spacing-copy);
+}
+.fac-h4 {
+	font-family: var(--font-family-copy);
+	font-weight: 400;
+	font-size: var(--font-size-h4);
+	line-height: var(--line-height-h4);
+	letter-spacing: var(--letter-spacing-copy);
+}
+.fac-copy {
+	font-family: var(--font-family-copy);
+	font-weight: 400;
+	font-size: var(--font-size-copy);
+	line-height: var(--line-height-copy);
+	letter-spacing: var(--letter-spacing-copy);
+}
+.fac-copy-small {
+	font-family: var(--font-family-copy);
+	font-weight: 400;
+	font-size: var(--font-size-copy-small);
+	line-height: var(--line-height-copy-small);
+	letter-spacing: var(--letter-spacing-copy-small);
+}
+.fac-copy-highlight {
+	font-family: var(--font-family-copy);
+	font-weight: 600;
+	font-size: var(--font-size-copy-small);
+	line-height: var(--line-height-copy-small);
+}
+.fac-mono {
+	font-family: var(--font-family-mono);
+	font-size: var(--font-size-copy-mono);
+	line-height: var(--line-height-copy-mono);
+}
+/* The signature Factorial eyebrow — orange (or orange-light in dark) monoish label */
+.fac-top-label {
+	font-family: var(--font-family-copy);
+	font-weight: 600;
+	font-size: var(--font-size-top-label);
+	line-height: var(--line-height-top-label);
+	color: var(--color-primary);
+}
+.is-dark .fac-top-label,
+[data-color-scheme='dark'] .fac-top-label,
+.section.dark .fac-top-label {
+	color: var(--color-primary-light);
+}
+
+/* ── styles.css ── */
+
+/* ── ui_kits/website/kit.css ── */
+/* Site-scale rules specific to the website recreation.
+   Tokens come from ../../colors_and_type.css — include that first. */
+
+html,
+body {
+	margin: 0;
+}
+body {
+	background: var(--color-bg);
+	color: var(--color-copy-primary);
+	font-family: var(--font-family-copy);
+	font-size: var(--font-size-copy-small);
+	line-height: var(--line-height-copy-small);
+	letter-spacing: var(--letter-spacing-copy-small);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+a,
+button {
+	color: inherit;
+	text-decoration: none;
+	font: inherit;
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+}
+
+:focus-visible {
+	outline: var(--outline-width) solid var(--color-primary);
+	outline-offset: var(--outline-offset);
+}
+
+/* ==========  Layout  ========== */
+.container {
+	max-width: var(
+		--layout-container-max,
+		1316px
+	); /* 1252 content + 2 x 32 gutter (G-19, 2026-10-08) */
+	padding-inline: var(--layout-gutter, 32px);
+	margin-inline: auto;
+	box-sizing: border-box;
+}
+@media (max-width: 767px) {
+	.container {
+		padding-inline: var(--space-small);
+	}
+}
+
+/* ==========  Link underline (u-linkHover)  ========== */
+.link {
+	position: relative;
+	text-decoration: underline;
+	text-decoration-thickness: 0.09375em;
+	text-underline-offset: 0.4em;
+	text-decoration-color: transparent;
+	transition: text-decoration-color var(--transition-timing) var(--transition-ease);
+}
+.link:hover {
+	text-decoration-color: currentColor;
+}
+
+/* ==========  Button  ========== */
+.btn {
+	display: inline-block;
+	font: inherit;
+	font-family: var(--font-family-copy);
+	font-size: 16px;
+	line-height: 28px;
+	border: var(--border-width) solid transparent;
+	border-radius: var(--border-radius);
+	padding: calc(0.75em - var(--border-width)) calc(1.5em - var(--border-width));
+	cursor: pointer;
+	background: transparent;
+	color: inherit;
+	text-align: center;
+	text-decoration: none;
+	transition: filter 250ms var(--transition-ease);
+	white-space: nowrap;
+}
+.btn.ghost {
+	border-color: currentColor;
+}
+.btn.ghost:hover {
+	filter: brightness(0.7);
+}
+.btn.filled {
+	color: var(--color-white);
+}
+.btn.filled:hover {
+	filter: brightness(1.25);
+}
+.btn.filled.primary {
+	background: var(--color-blue-dark);
+}
+.btn.filled.secondary {
+	background: var(--color-orange);
+}
+.btn.filled.tertiary {
+	background: var(--color-green);
+}
+
+.is-dark .btn.filled.primary,
+[data-color-scheme='dark'] .btn.filled.primary {
+	background: transparent;
+	border-color: currentColor;
+	color: var(--color-white);
+}
+.is-dark .btn.filled.primary:hover {
+	filter: brightness(0.7);
+}
+
+/* ==========  Section eyebrow  ========== */
+.eyebrow {
+	display: block;
+	font-family: var(--font-family-copy);
+	font-weight: 600;
+	font-size: 16px;
+	line-height: 28px;
+	letter-spacing: 0;
+	color: var(--color-primary);
+	margin-bottom: var(--space-small);
+}
+.is-dark .eyebrow,
+[data-color-scheme='dark'] .eyebrow,
+.section.dark .eyebrow {
+	color: var(--color-primary-light);
+} /* orange-light on blue-dark 6.5:1 (AA); dark orange there was 3.9:1 */
+
+/* ==========  Section spacing  ========== */
+.section {
+	padding-block: var(--space-xxlarge);
+}
+@media (max-width: 767px) {
+	.section {
+		padding-block: var(--space-xlarge);
+	}
+}
+.section.dark {
+	background: var(--color-bg-dark);
+	color: var(--color-copy-primary-dark);
+}
+.section.light {
+	background: var(--color-bg-light);
+}
+
+/* ==========  Heading utilities  ========== */
+.h1 {
+	font-family: var(--font-family-title);
+	font-weight: 400;
+	font-size: var(--font-size-h1);
+	line-height: var(--line-height-h1);
+	letter-spacing: 0;
+	margin: 0;
+}
+.h2 {
+	font-family: var(--font-family-title);
+	font-weight: 400;
+	font-size: var(--font-size-h2);
+	line-height: var(--line-height-h2);
+	letter-spacing: var(--letter-spacing-copy);
+	margin: 0;
+}
+.h3 {
+	font-family: var(--font-family-title);
+	font-weight: 400;
+	font-size: var(--font-size-h3);
+	line-height: var(--line-height-h3);
+	letter-spacing: var(--letter-spacing-copy);
+	margin: 0;
+}
+.h4 {
+	font-family: var(--font-family-copy);
+	font-weight: 400;
+	font-size: var(--font-size-h4);
+	line-height: var(--line-height-h4);
+	letter-spacing: var(--letter-spacing-copy);
+	margin: 0;
+}
+.copy {
+	font-family: var(--font-family-copy);
+	font-size: var(--font-size-copy);
+	line-height: var(--line-height-copy);
+	letter-spacing: var(--letter-spacing-copy);
+}
+.copy-small {
+	font-family: var(--font-family-copy);
+	font-size: var(--font-size-copy-small);
+	line-height: var(--line-height-copy-small);
+}
+
+@media (max-width: 767px) {
+	.h1 {
+		font-size: var(--font-size-h1-mobile);
+		line-height: var(--line-height-h1-mobile);
+	}
+	.h2 {
+		font-size: var(--font-size-h2-mobile);
+		line-height: var(--line-height-h2-mobile);
+	}
+	.h3 {
+		font-size: var(--font-size-h3-mobile);
+	}
+}
+
+/* ==========  Divider  ========== */
+.divider {
+	height: 1px;
+	background: currentColor;
+	opacity: 0.2;
+	border: 0;
+}
+
+/* ── styles.css ── */
+
+/* ── colors_and_type.css ── */
+
+/* ── ui_kits/website/kit.css ── */
+
+/* ==========  Content Block Teaser  ========== */
+/* web.md §4 (Meik 2026-11-06). CircleDot 2026 teaser/feature (Figma 158:1983 desktop, 337:4656 mobile) and the
+   factorial.io TeaserModule: a box that links to another page. Added in the skill; not yet in the Design System
+   artifact that generates this file (G-44), carry it over when the file is regenerated.
+   Light mode: blue-dark box. Dark mode: inverted to a white box with dark text (default);
+   .cbt--dark keeps the blue-dark box in dark mode, as factorial.io does today. */
+.cbt {
+	position: relative;
+	display: flex;
+	gap: var(--space-6);
+	justify-content: space-between;
+	align-items: flex-start;
+	padding: var(--space-10);
+	border-radius: var(--border-radius);
+	background: var(--color-blue-dark);
+	color: var(--color-white);
+}
+.cbt .cbt__label {
+	margin: 0;
+	font: var(--text-copy-small);
+}
+.cbt__label a {
+	color: inherit;
+	text-decoration: none;
+}
+.cbt__label a::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+} /* the whole box is the link */
+.cbt .cbt__title {
+	margin: var(--space-2) 0 0;
+	font: var(--text-h4);
+}
+.cbt:hover .cbt__title {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	text-decoration-thickness: 1px;
+}
+.cbt__icon {
+	flex: none;
+	align-self: center;
+	width: 32px;
+	height: 32px;
+} /* chevron and button vertically centred, the text stays on top so labels line up in a row (Meik 2026-11-06) */
+.cbt:focus-within {
+	outline: var(--outline-width) solid var(--color-primary-light);
+	outline-offset: var(--outline-offset);
+}
+.cbt__label a:focus-visible {
+	outline: none;
+}
+.cbt-row {
+	display: grid;
+	grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+	gap: var(--space-2);
+} /* 2 or 3 in a row, never 1 or 4 */
+.cbt-row--2 {
+	--n: 2;
+}
+
+/* .cbt .x selectors outweigh page resets such as .lp p { margin: 0 } */
+/* single teaser on its own row: wider, orange overline, one sentence, filled orange button */
+.cbt--solo {
+	display: grid;
+	grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+	column-gap: var(--layout-gap-x);
+	align-items: center;
+	padding: var(--space-16);
+}
+.cbt--solo .eyebrow {
+	color: var(--color-primary-light);
+}
+.cbt--solo .h3 {
+	margin: var(--space-2) 0 0;
+}
+.cbt .cbt__text {
+	margin: var(--space-4) 0 0;
+	font: var(--text-copy-small);
+	color: inherit;
+} /* same colour as the headline: white, or blue-dark when inverted */
+.cbt--solo .btn {
+	justify-self: end;
+}
+
+.cbt__link {
+	color: inherit;
+	text-decoration: none;
+}
+.cbt__link::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+} /* .cbt--solo.cbt--link = single teaser: the whole box is the link, chevron; .cbt--solo.cbt--cta = CTA teaser with a button */
+.cbt--link:hover .h3 {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	text-decoration-thickness: 1px;
+}
+.cbt--solo.cbt--link {
+	grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+} /* text keeps the 8-column measure */
+@media (max-width: 1023px) {
+	.cbt--solo.cbt--link {
+		grid-template-columns: minmax(0, 1fr) auto;
+		column-gap: var(--space-6);
+	}
+}
+.cbt--solo .cbt__icon {
+	justify-self: end;
+}
+.cbt--solo .cbt__label + .h3 {
+	margin-top: var(--space-2);
+}
+
+/* dark mode: inverted by default, .cbt--dark keeps the dark box */
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark']) .cbt:not(.cbt--dark) {
+	background: var(--color-white);
+	color: var(--color-blue-dark);
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark']) .cbt--solo:not(.cbt--dark) .eyebrow {
+	color: var(--color-orange);
+}
+:is(.is-dark, [data-theme='dark'], [data-color-scheme='dark']) .cbt:not(.cbt--dark):focus-within {
+	outline-color: var(--color-orange);
+}
+
+@media (max-width: 1023px) {
+	.cbt-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.cbt--solo:not(.cbt--link) {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--space-8);
+	}
+	.cbt--solo .btn {
+		justify-self: start;
+	}
+}
+@media (max-width: 767px) {
+	.cbt {
+		padding: var(--space-8);
+	}
+	.cbt .cbt__title {
+		font: var(--text-copy);
+		font-weight: 600;
+	} /* CircleDot teaser/feature/mobile: smaller, semibold */
+	.cbt__icon {
+		width: 24px;
+		height: 24px;
+	}
+	.cbt--solo .btn {
+		width: 100%;
+		justify-content: center;
+	}
+}

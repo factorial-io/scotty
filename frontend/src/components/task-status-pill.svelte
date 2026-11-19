@@ -1,16 +1,15 @@
-<script>
-	import Pill from './pill.svelte';
+<script lang="ts">
+	import StatusMark from './status-mark.svelte';
 
-	export let status = 'Running';
-
-	$: statusColor =
-		status === 'Failed'
-			? 'bg-red-500'
-			: status === 'Finished'
-				? 'bg-green-500'
-				: status === 'Running'
-					? 'bg-secondary'
-					: 'bg-gray-300';
+	let { status = 'Running' }: { status?: string } = $props();
 </script>
 
-<Pill text={status} color={statusColor} />
+{#if status === 'Running'}
+	<StatusMark tone="info" label="Running" icon="spinner" />
+{:else if status === 'Finished'}
+	<StatusMark tone="ok" label="Finished" icon="ph:check-circle" />
+{:else if status === 'Failed'}
+	<StatusMark tone="err" label="Failed" icon="ph:warning-circle" />
+{:else}
+	<StatusMark tone="off" label={status} />
+{/if}

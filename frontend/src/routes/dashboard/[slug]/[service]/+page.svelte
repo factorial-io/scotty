@@ -1,12 +1,11 @@
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import PageHeader from '../../../../components/page-header.svelte';
 	import AppStatusPill from '../../../../components/app-status-pill.svelte';
 	import TimeAgo from '../../../../components/time-ago.svelte';
-	import UnifiedOutput from '../../../../components/unified-output.svelte';
-	import AppServiceButton from '../../../../components/app-service-button.svelte';
+	import LogViewer from '../../../../components/log-viewer.svelte';
 	import { setTitle } from '../../../../stores/titleStore';
 	import {
 		getContainerLogs,
@@ -43,6 +42,7 @@
 	);
 
 	let hasStartedStream = false;
+	let range: number | null = 500;
 
 	// Start log stream when WebSocket is connected
 	$: if ($isConnected && !hasStartedStream && $permissionsLoaded && permissions.logs) {
@@ -68,9 +68,6 @@
 			goto(resolve('/dashboard/[slug]', { slug: data.app.name }));
 			return;
 		}
-
-		// Initialize log state
-		initializeContainerLogs(data.app.name, data.service.service);
 	});
 
 	onDestroy(() => {
@@ -83,76 +80,66 @@
 	});
 
 	function startLogStream() {
-		console.log('Starting log stream for', data.app.name, data.service.service);
-		webSocketStore.requestLogStream(data.app.name, data.service.service, true, null, false);
+		initializeContainerLogs(data.app.name, data.service.service, range);
+		webSocketStore.requestLogStream(data.app.name, data.service.service, true, range, false);
+	}
+
+	function changeRange(next: number | null) {
+		range = next;
+		if (logState.streamId) webSocketStore.stopLogStream(logState.streamId);
+		startLogStream();
 	}
 </script>
 
-<PageHeader>
-	<h2 class="card-title" slot="header">
-		Service: {data.service.service}
-		<span class="text-sm font-normal text-gray-500">({data.app.name})</span>
-	</h2>
-	<div slot="meta">
+<div class="ph">
+	<div class="ph-row"><h1>{data.service.service}</h1></div>
+	<div class="chips">
 		<AppStatusPill status={data.service.status || 'unknown'} />
+		{#if data.service.started_at}
+			<span class="meta">Started <TimeAgo dateString={data.service.started_at} /></span>
+		{/if}
+		{#each data.service.domains as domain (domain)}
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<a
+				class="link meta"
+				href="{data.service.use_tls ? 'https' : 'http'}://{domain}"
+				target="_blank"
+				rel="external">{domain}</a
+			>
+		{/each}
 	</div>
-</PageHeader>
-
-<!-- Breadcrumb Navigation -->
-<div class="text-sm breadcrumbs mb-4">
-	<ul>
-		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
-		<li><a href={resolve('/dashboard/[slug]', { slug: data.app.name })}>{data.app.name}</a></li>
-		<li>{data.service.service}</li>
-	</ul>
 </div>
 
-<!-- Service Information Section -->
-<h3 class="text-xl mt-8 mb-4">Service Information</h3>
-<table class="table table-zebra">
-	<tbody>
-		<tr>
-			<td class="text-gray-500 w-48"><strong>Service Name</strong></td>
-			<td>{data.service.service}</td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Status</strong></td>
-			<td><AppStatusPill status={data.service.status || 'unknown'} /></td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Started</strong></td>
-			<td><TimeAgo dateString={data.service.started_at} /></td>
-		</tr>
-		<tr>
-			<td class="text-gray-500"><strong>Domain(s)</strong></td>
-			<td>
-				{#if data.service.domains && data.service.domains.length > 0}
-					<AppServiceButton property="domain" service={data.service} />
-				{:else}
-					--
-				{/if}
-			</td>
-		</tr>
-	</tbody>
-</table>
-
-<!-- Log Viewer Section -->
-<h3 class="text-xl mt-8 mb-4">Container Logs</h3>
-
 {#if isTerminal}
-	<div class="alert alert-info text-sm mb-4">
-		<span>
-			Container has stopped (status: {data.service.status || 'unknown'}). Showing historical
-			logs — live follow is unavailable until the container is started again.
-		</span>
+	<div class="banner">
+		<Icon icon="ph:info" class="ic" aria-hidden="true" />
+		<div class="txt">
+			<b>The container has stopped</b>
+			<span
+				>Showing the logs it wrote before it exited. Live follow starts again once the app
+				runs.</span
+			>
+		</div>
 	</div>
 {/if}
 
 {#if logState.error}
-	<div class="alert alert-error text-sm mb-4">
-		<span>⚠️ Error: {logState.error}</span>
+	<div class="banner err">
+		<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+		<div class="txt"><b>Could not load the logs</b><span>{logState.error}</span></div>
 	</div>
 {/if}
 
-<!-- Unified Output Component -->
-<UnifiedOutput lines={logState.lines} heading="" loading={logState.loading} maxHeight="600px" />
+<section class="sec">
+	<div class="sec-h">
+		<h2>Logs</h2>
+		<span class="meta">stdout and stderr, newest at the bottom</span>
+	</div>
+	<LogViewer
+		lines={logState.lines}
+		live={logState.streaming && logState.follow}
+		stopped={isTerminal}
+		{range}
+		onRangeChange={changeRange}
+	/>
+</section>

@@ -1,5 +1,6 @@
 <script>
-	import logo from '#lib/assets/scotty.svg';
+	import Icon from '@iconify/svelte';
+	import AuthFrame from '../../components/auth-frame.svelte';
 	import { onMount } from 'svelte';
 	import { setTitle } from '../../stores/titleStore';
 	import { authService } from '../../lib/authService';
@@ -72,71 +73,50 @@
 	}
 </script>
 
-{#if loading}
-	<div class="card bg-base-100 w-96 shadow-md mx-auto">
-		<div class="card-body">
-			<div class="flex justify-center">
-				<span class="loading loading-spinner loading-lg"></span>
+<AuthFrame>
+	{#if loading}
+		<p class="meta">Checking how this server signs you in…</p>
+	{:else}
+		<h1>Sign in to Scotty</h1>
+		{#if error}
+			<div class="banner err">
+				<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+				<div class="txt"><b>Sign-in failed</b><span>{error}</span></div>
 			</div>
-			<p class="text-center">Checking authentication...</p>
-		</div>
-	</div>
-{:else}
-	<div class="card bg-base-100 w-96 shadow-md mx-auto">
-		<figure class="bg-gray-100 max-h-48">
-			<img src={logo} alt="Scotty Logo" />
-		</figure>
-		<div class="card-body">
-			<form on:submit|preventDefault={login}>
-				<div class="card-body">
-					<h2 class="card-title">
-						{#if authMode === 'oauth'}
-							OAuth Authentication
-						{:else}
-							Please log in
-						{/if}
-					</h2>
-
-					{#if error}
-						<div class="alert alert-error mb-4">
-							<span>{error}</span>
-						</div>
-					{/if}
-
-					{#if message}
-						<p class="text-sm text-gray-600">{message}</p>
-					{:else if authMode === 'oauth'}
-						<p>You'll be redirected to your OIDC provider for authentication</p>
+		{/if}
+		<p class="sub2">
+			{#if message}
+				{message}
+			{:else if authMode === 'oauth'}
+				You'll be sent to your company sign-in (OIDC) and come back here afterwards.
+			{:else}
+				Enter the access token for this installation.
+			{/if}
+		</p>
+		<form on:submit|preventDefault={login} style="display:flex;flex-direction:column;gap:20px">
+			{#if authMode === 'bearer'}
+				<label class="field">
+					<Icon icon="ph:key" class="ic" aria-hidden="true" />
+					<input
+						type="password"
+						bind:value={password}
+						placeholder="Access token"
+						aria-label="Access token"
+						required
+						disabled={loading}
+					/>
+				</label>
+			{/if}
+			<div class="acts">
+				<button type="submit" class="btn filled primary" disabled={loading}>
+					{#if loading}
+						<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
 					{:else}
-						<p>Please provide the password for this installation</p>
+						<Icon icon="ph:sign-in" class="ic sm" aria-hidden="true" />
 					{/if}
-
-					{#if authMode === 'bearer'}
-						<div class="my-4">
-							<input
-								class="input input-bordered w-full max-w-xs"
-								type="password"
-								bind:value={password}
-								placeholder="Enter your password"
-								required
-								disabled={loading}
-							/>
-						</div>
-					{/if}
-				</div>
-				<div class="card-actions justify-end">
-					<button type="submit" class="btn btn-primary" disabled={loading}>
-						{#if loading}
-							<span class="loading loading-spinner loading-sm"></span>
-						{/if}
-						{#if authMode === 'oauth'}
-							Continue with OAuth
-						{:else}
-							Login
-						{/if}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
+					{authMode === 'oauth' ? 'Continue with OAuth' : 'Sign in'}
+				</button>
+			</div>
+		</form>
+	{/if}
+</AuthFrame>

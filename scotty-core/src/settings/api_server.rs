@@ -77,6 +77,11 @@ pub struct ApiServer {
     /// back to Scotty's domain.
     #[serde(default)]
     pub base_url: Option<String>,
+    /// Base URL of a SuisseIntl webfont folder laid out like
+    /// `https://config.factorial.io/fonts`. Unset (the default), the web UI
+    /// uses its bundled open fonts and requests no font from another host.
+    #[serde(default)]
+    pub suisse_fonts_url: Option<String>,
     /// SQLite database of the OAuth server (grants, codes, refresh tokens).
     #[serde(default = "default_database_path")]
     pub database_path: String,
@@ -233,6 +238,7 @@ impl Default for ApiServer {
             bearer_tokens: HashMap::new(),
             rate_limiting: RateLimitingConfig::default(),
             base_url: None,
+            suisse_fonts_url: None,
             database_path: default_database_path(),
             jwt_secret: None,
         }

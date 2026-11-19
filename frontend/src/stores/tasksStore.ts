@@ -1,8 +1,14 @@
 import { authenticatedApiCall } from '#lib';
-import { writable } from 'svelte/store';
+import { derived, writable } from 'svelte/store';
 import type { TaskDetail, ApiError } from '../types';
 
 export const tasks = writable({} as Record<string, TaskDetail>);
+
+/** Running tasks, for the sidebar count. */
+export const runningTaskCount = derived(
+	tasks,
+	($t) => Object.values($t).filter((t) => t.state === 'Running').length
+);
 
 export function monitorTask(taskId: string, callback: (result: TaskDetail) => void) {
 	const interval = setInterval(async () => {

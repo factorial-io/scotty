@@ -1,6 +1,6 @@
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { resolve } from '$app/paths';
-	import PageHeader from '../../../components/page-header.svelte';
 	import AppStatusPill from '../../../components/app-status-pill.svelte';
 	import AppConnectivityPill from '../../../components/app-connectivity-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
@@ -16,13 +16,13 @@
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
 	import { getApp, apps } from '../../../stores/appsStore';
-	import AppServiceButton from '../../../components/app-service-button.svelte';
 	import FormatBasicAuth from '../../../components/format-basic-auth.svelte';
 	import FormatEnvironmentVariables from '../../../components/format-environment-variables.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
 	import { showError } from '../../../stores/errorStore';
-	import Pill from '../../../components/pill.svelte';
+	import { DropdownMenu } from 'bits-ui';
+	import { askConfirm } from '../../../stores/confirmStore';
 	import CustomActionsDropdown from '../../../components/custom-actions-dropdown.svelte';
 	import TaskProgress from '../../../components/task-progress.svelte';
 
@@ -48,39 +48,16 @@
 
 	$: isLoadingPermissions = $permissionsLoading || !$permissionsLoaded;
 
-	// Calculate available actions after permissions are loaded
-	$: availableActions = (() => {
-		let actions: string[] = [];
-
-		if (permissions.manage) {
-			actions.push('Run', 'Stop', 'Purge', 'Rebuild');
-		}
-
-		if (permissions.destroy && data.settings) {
-			actions.push('Destroy');
-		}
-
-		return actions;
-	})();
-
 	// Set between the click and the server's response; afterwards
 	// `data.operation` says whether the app is busy.
 	let current_action: string | null = null;
-	let customActionsAvailable: boolean = false;
 
 	$: busy = current_action !== null || !!data.operation;
+	$: running = data.status === 'Running';
+	$: canDestroy = permissions.destroy && !!data.settings;
 
 	async function handleClick(action: string) {
-		if (action === 'Destroy') {
-			if (
-				!confirm(`Are you sure you want to destroy the app ${data.name} and all its data?`)
-			) {
-				return;
-			}
-		}
-		if (current_action) {
-			return;
-		}
+		if (current_action) return;
 		current_action = action;
 		try {
 			await dispatchAppCommand(action.toLowerCase(), data.name);
@@ -91,14 +68,29 @@
 		}
 	}
 
+	async function destroy() {
+		const n = data.services.length;
+		const ok = await askConfirm({
+			title: `Destroy ${data.name}?`,
+			body: 'Scotty stops the app and deletes it from this server.',
+			consequence: `This removes ${n === 1 ? '1 service and its' : `${n} services and all their`} data, including volumes. It cannot be undone.`,
+			confirmLabel: 'Destroy app'
+		});
+		if (ok) handleClick('Destroy');
+	}
+
 	function isSupported() {
 		return data.status !== 'Unsupported';
 	}
 
 	let app_tasks: TaskDetail[] = [];
-	tasks.subscribe((new_tasks) => {
-		app_tasks = Object.values(new_tasks).filter((t) => t.app_name === data.name);
-	});
+	onDestroy(
+		tasks.subscribe((new_tasks) => {
+			app_tasks = Object.values(new_tasks)
+				.filter((t) => t.app_name === data.name)
+				.sort((a, b) => b.start_time.localeCompare(a.start_time));
+		})
+	);
 
 	let seenInStore = false;
 	onDestroy(
@@ -125,166 +117,238 @@
 	}
 
 	function format_value(value: unknown) {
-		if (value === null) {
-			return 'None';
-		}
-		return value;
+		return value === null || value === undefined || value === '' ? 'None' : value;
 	}
+
+	const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 </script>
 
-<PageHeader>
-	<h2 class="card-title" slot="header">App-Details for {data.name}</h2>
-	<div slot="meta" class="flex items-center gap-2">
+<div class="ph">
+	<div class="ph-row">
+		<h1>{data.name}</h1>
+		{#if isSupported()}
+			<div class="acts">
+				{#if isLoadingPermissions}
+					<span class="meta">Loading permissions…</span>
+				{:else}
+					{#if permissions.manage}
+						<button
+							class="btn filled primary"
+							disabled={busy}
+							on:click={() => handleClick(running ? 'Stop' : 'Run')}
+						>
+							<Icon
+								icon={busy && current_action !== null
+									? 'ph:spinner'
+									: running
+										? 'ph:stop'
+										: 'ph:play'}
+								class="ic sm {busy && current_action !== null ? 'spin' : ''}"
+								aria-hidden="true"
+							/>{running ? 'Stop' : 'Run'}</button
+						>
+						<button
+							class="btn outline"
+							disabled={busy}
+							on:click={() => handleClick('Rebuild')}
+						>
+							<Icon
+								icon="ph:hammer"
+								class="ic sm"
+								aria-hidden="true"
+							/>Rebuild</button
+						>
+						<button
+							class="btn outline"
+							disabled={busy}
+							on:click={() => handleClick('Purge')}
+						>
+							<Icon icon="ph:broom" class="ic sm" aria-hidden="true" />Purge</button
+						>
+					{/if}
+					<CustomActionsDropdown app={data} canManage={permissions.manage} />
+					{#if canDestroy}
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger class="ibtn" aria-label="More actions">
+								<Icon icon="ph:dots-three" class="ic" aria-hidden="true" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Portal>
+								<DropdownMenu.Content class="menu" align="end" sideOffset={6}>
+									<DropdownMenu.Item
+										disabled={busy}
+										onSelect={destroy}
+										class="danger"
+									>
+										<Icon
+											icon="ph:trash"
+											class="ic sm"
+											aria-hidden="true"
+										/>Destroy app…
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Portal>
+						</DropdownMenu.Root>
+					{/if}
+				{/if}
+			</div>
+		{/if}
+	</div>
+	<div class="chips">
 		<AppStatusPill status={data.status} />
 		<AppConnectivityPill connectivity={data.load_balancer_connectivity} />
-		{#if data.operation}
-			<Pill color="bg-warning" textColor="text-warning-content">
-				<span class="loading loading-spinner loading-xs align-middle"></span>
+		{#if data.settings?.time_to_live}
+			<span class="tag"
+				><Icon icon="ph:clock" class="ic sm" aria-hidden="true" />Time to live: {format_ttl(
+					data.settings.time_to_live
+				)}</span
+			>
+		{/if}
+		{#if data.settings?.app_blueprint}
+			<span class="tag">Blueprint: {data.settings.app_blueprint}</span>
+		{/if}
+		{#if data.next_check}
+			<span class="meta">Next update <TimeAgo dateString={data.next_check} /></span>
+		{/if}
+	</div>
+</div>
+
+{#if !isSupported()}
+	<div class="banner warn">
+		<Icon icon="ph:warning" class="ic" aria-hidden="true" />
+		<div class="txt">
+			<b>Scotty does not manage this app</b>
+			<span
+				>It was started outside of Scotty, so it can only be listed. Recreate it with <span
+					class="mono">scottyctl app:create</span
+				> to manage it here.</span
+			>
+		</div>
+	</div>
+{/if}
+
+{#if data.operation}
+	<div class="banner">
+		<Icon icon="ph:spinner" class="ic spin" aria-hidden="true" />
+		<div class="txt">
+			<b
+				>{cap(data.operation.operation)} running since <TimeAgo
+					dateString={data.operation.started_at}
+				/></b
+			>
+			<span
+				>Actions are paused until it finishes.
 				{#if data.operation.task_id}
 					<a
 						class="link"
 						href={resolve('/tasks/[slug]', { slug: data.operation.task_id })}
-						>{data.operation.operation} running since <TimeAgo
-							dateString={data.operation.started_at}
-						/></a
+						>Follow the task output</a
 					>
-				{:else}
-					{data.operation.operation} running since <TimeAgo
-						dateString={data.operation.started_at}
-					/>
-				{/if}
-			</Pill>
-		{/if}
-	</div>
-</PageHeader>
-
-<!-- Breadcrumb Navigation -->
-<div class="text-sm breadcrumbs mb-4">
-	<ul>
-		<li><a href={resolve('/dashboard')}>Dashboard</a></li>
-		<li>{data.name}</li>
-	</ul>
-</div>
-
-<h3 class="text-xl mt-8 mb-4">Available Actions</h3>
-<div class="flex flex-wrap items-center gap-2">
-	{#if isLoadingPermissions}
-		<div class="btn btn-sm join-item loading">Loading permissions...</div>
-	{:else}
-		<div class="join">
-			{#each availableActions as action (action)}
-				<button
-					disabled={busy || !isSupported()}
-					class="btn btn-sm join-item"
-					on:click={() => handleClick(action)}
-					>{#if action === current_action || data.operation?.operation === action.toLowerCase()}
-						<span class="loading loading-spinner"></span>
-					{/if}{action}</button
-				>
-			{/each}
+				{/if}</span
+			>
+			{#if data.operation.task_id}
+				<TaskProgress
+					taskId={data.operation.task_id}
+					kind={data.operation.operation}
+					details
+				/>
+			{/if}
 		</div>
-		{#if customActionsAvailable && availableActions.length > 0}
-			<div class="divider divider-horizontal mx-0"></div>
-		{/if}
-		<CustomActionsDropdown
-			app={data}
-			canManage={permissions.manage}
-			bind:hasActions={customActionsAvailable}
-		/>
-	{/if}
-</div>
-{#if data.operation?.task_id}
-	<div class="mt-6 max-w-xl">
-		<TaskProgress taskId={data.operation.task_id} details />
 	</div>
 {/if}
-<h3 class="text-xl mt-16 mb-4">Available Services</h3>
-<table class="table">
-	<thead>
-		<tr>
-			<th>Name</th>
-			<th>Status</th>
-			<th>Url(s)</th>
-			<th>Started</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each data.services as service (service.service)}
-			<tr>
-				<td>
-					{#if permissions.logs}
-						<a
-							href={resolve('/dashboard/[slug]/[service]', {
-								slug: data.name,
-								service: service.service
-							})}
-							class="link link-primary"
-						>
-							{service.service}
-						</a>
-					{:else}
-						{service.service}
-					{/if}
-				</td>
-				<td><AppStatusPill status={service.status || 'unknown'} /></td>
-				<td
-					>{#if service.domains && service.domains.length > 0}
-						<AppServiceButton property="domain" {service} />
-					{:else}
-						--
-					{/if}
-				</td>
-				<td>
-					<TimeAgo dateString={service.started_at} />
-				</td>
-			</tr>{/each}
-	</tbody>
-</table>
+
+<section class="sec">
+	<div class="sec-h">
+		<h2>Services</h2>
+		<span class="meta"
+			>{data.services.length} {data.services.length === 1 ? 'container' : 'containers'}</span
+		>
+	</div>
+	<div class="tw">
+		<table>
+			<thead>
+				<tr><th>Name</th><th>Status</th><th>URL</th><th class="num">Started</th></tr>
+			</thead>
+			<tbody>
+				{#each data.services as service (service.service)}
+					<tr>
+						<td>
+							{#if permissions.logs}
+								<a
+									class="name"
+									href={resolve('/dashboard/[slug]/[service]', {
+										slug: data.name,
+										service: service.service
+									})}>{service.service}</a
+								>
+							{:else}
+								{service.service}
+							{/if}
+						</td>
+						<td><AppStatusPill status={service.status || 'unknown'} /></td>
+						<td>
+							{#each service.domains as domain (domain)}
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a
+									class="link"
+									class:muted={service.status !== 'Running'}
+									href="{service.use_tls ? 'https' : 'http'}://{domain}"
+									target="_blank"
+									rel="external">{domain}</a
+								><br />
+							{:else}
+								<span class="meta">—</span>
+							{/each}
+						</td>
+						<td class="num mono"><TimeAgo dateString={service.started_at} /></td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+</section>
+
 {#if data.settings}
-	<h3 class="text-xl mt-16 mb-4">Settings</h3>
-	<table class="table">
-		<tbody>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>App Blueprint</strong></td>
-				<td class="align-top">{format_value(data.settings.app_blueprint)}</td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Basic Auth</strong></td>
-				<td class="align-top"><FormatBasicAuth auth={data.settings.basic_auth} /></td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Disallow Robots</strong></td>
-				<td class="align-top">{data.settings.disallow_robots}</td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Private Docker Registry</strong></td>
-				<td class="align-top">{format_value(data.settings.registry)}</td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Time to live</strong></td>
-				<td class="align-top">{format_ttl(data.settings.time_to_live)}</td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Middlewares</strong></td>
-				<td class="align-top">{format_value(data.settings.middlewares?.join(', '))}</td>
-			</tr>
-			<tr>
-				<td class="text-gray-500 align-top"><strong>Environment</strong></td>
-				<td class="align-top"
-					><FormatEnvironmentVariables environment={data.settings.environment} /></td
-				>
-			</tr>
-		</tbody>
-	</table>
+	<section class="sec">
+		<div class="sec-h"><h2>Settings</h2></div>
+		<dl class="dl">
+			<div>
+				<dt>Blueprint</dt>
+				<dd>{format_value(data.settings.app_blueprint)}</dd>
+			</div>
+			<div>
+				<dt>Basic auth</dt>
+				<dd><FormatBasicAuth auth={data.settings.basic_auth} /></dd>
+			</div>
+			<div>
+				<dt>Disallow robots</dt>
+				<dd>{data.settings.disallow_robots ? 'Yes' : 'No'}</dd>
+			</div>
+			<div>
+				<dt>Private registry</dt>
+				<dd>{format_value(data.settings.registry)}</dd>
+			</div>
+			<div>
+				<dt>Time to live</dt>
+				<dd>{format_ttl(data.settings.time_to_live)}</dd>
+			</div>
+			<div>
+				<dt>Middlewares</dt>
+				<dd>{format_value(data.settings.middlewares?.join(', '))}</dd>
+			</div>
+			<div>
+				<dt>Environment</dt>
+				<dd><FormatEnvironmentVariables environment={data.settings.environment} /></dd>
+			</div>
+		</dl>
+	</section>
 {/if}
+
 {#if app_tasks.length > 0}
-	<h3 class="text-xl mt-16 mb-4">Latest task-invocations</h3>
-	<TasksTable taskList={app_tasks} />
-{/if}
-{#if data.next_check}
-	<div class="text-right mt-8">
-		<Pill>
-			Next update <TimeAgo dateString={data.next_check} />
-		</Pill>
-	</div>
+	<section class="sec">
+		<div class="sec-h">
+			<h2>Latest tasks</h2>
+			<a class="link meta" href={resolve('/tasks')}>All tasks</a>
+		</div>
+		<TasksTable taskList={app_tasks} withApp={false} />
+	</section>
 {/if}

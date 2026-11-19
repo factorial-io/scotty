@@ -1,14 +1,10 @@
 <script lang="ts">
-	export let text = '';
-	export let color = 'bg-gray-300 dark:bg-gray-700';
-	export let textColor = 'text-white dark:text-black';
-	export let additionalClasses = '';
+	import type { Snippet } from 'svelte';
+
+	/** A static tag (rebrush .tag): round, light fill, not interactive. */
+	let { text = '', children }: { text?: string; children?: Snippet } = $props();
 </script>
 
-<span class="{textColor} px-3 py-1 rounded-full text-xs {color} {additionalClasses}">
-	{#if text}
-		{text}
-	{:else}
-		<slot />
-	{/if}
+<span class="tag">
+	{#if text}{text}{:else}{@render children?.()}{/if}
 </span>

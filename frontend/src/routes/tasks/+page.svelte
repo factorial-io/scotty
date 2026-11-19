@@ -1,22 +1,30 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '../../components/page-header.svelte';
-	import { requestAllTasks } from '../../stores/tasksStore';
-	import { tasks } from '../../stores/tasksStore';
+	import Icon from '@iconify/svelte';
+	import { requestAllTasks, tasks } from '../../stores/tasksStore';
 	import TasksTable from '../../components/tasks-table.svelte';
 	import { setTitle } from '../../stores/titleStore';
 
-	onMount(async () => {
+	onMount(() => {
 		setTitle('Tasks');
-		await requestAllTasks();
+		requestAllTasks();
 	});
-
-	let taskList = [];
-
-	$: taskList = Object.values($tasks);
 </script>
 
-<PageHeader>
-	<h2 class="card-title" slot="header">List of recent tasks</h2>
-</PageHeader>
-<TasksTable {taskList} />
+<div class="ph">
+	<div class="ph-row"><h1>Tasks</h1></div>
+	<p class="lead">Every action Scotty ran on an app, newest first. Running tasks update live.</p>
+</div>
+<section class="sec">
+	{#if Object.keys($tasks).length}
+		<TasksTable taskList={Object.values($tasks)} />
+	{:else}
+		<div class="empty">
+			<div class="sq">
+				<Icon icon="ph:list-checks" class="ic lg" aria-hidden="true" />
+			</div>
+			<h2>No tasks yet</h2>
+			<p>Tasks appear here when you or scottyctl run an action on an app.</p>
+		</div>
+	{/if}
+</section>

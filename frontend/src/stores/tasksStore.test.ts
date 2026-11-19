@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn() }));
 
 import { authenticatedApiCall } from '#lib';
-import { monitorTask, tasks, updateTask } from './tasksStore';
+import { monitorTask, runningTaskCount, tasks, updateTask } from './tasksStore';
 import type { TaskDetail } from '../types';
 
 function task(state: TaskDetail['state']): TaskDetail {
@@ -61,5 +61,14 @@ describe('tasksStore', () => {
 		await vi.advanceTimersByTimeAsync(2000);
 
 		expect(callback).toHaveBeenCalledOnce();
+	});
+
+	it('counts running tasks as they change', () => {
+		expect(get(runningTaskCount)).toBe(0);
+		updateTask('t1', task('Running'));
+		updateTask('t2', { ...task('Running'), id: 't2' });
+		expect(get(runningTaskCount)).toBe(2);
+		updateTask('t1', task('Finished'));
+		expect(get(runningTaskCount)).toBe(1);
 	});
 });

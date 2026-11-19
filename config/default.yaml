@@ -2,6 +2,7 @@ debug: false
 api:
     bind_address: "0.0.0.0:21342"
     # base_url: "https://scotty.example.com"  # Public-facing URL of Scotty, used for OAuth post-login and landing page redirects
+    # suisse_fonts_url: "https://config.factorial.io/fonts"  # Load SuisseIntl for the web UI from here (Factorial installs only; default: bundled Inter and JetBrains Mono)
     auth_mode: bearer
     create_app_max_size: "50M"
     bearer_tokens:

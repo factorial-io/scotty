@@ -3,6 +3,7 @@ import { flushSync, mount, unmount } from 'svelte';
 
 vi.mock('#lib', () => ({ authenticatedApiCall: vi.fn().mockResolvedValue({}) }));
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('../../../stores/confirmStore', () => ({ askConfirm: vi.fn() }));
 vi.mock('../../../stores/permissionStore', async () => {
 	const { readable } = await import('svelte/store');
 	return {
@@ -14,6 +15,8 @@ vi.mock('../../../stores/permissionStore', async () => {
 });
 
 import Page from './+page.svelte';
+import { authenticatedApiCall } from '#lib';
+import { askConfirm } from '../../../stores/confirmStore';
 import type { App } from '../../../types';
 
 function app(operation: App['operation'] = null): App {
@@ -38,27 +41,83 @@ describe('app detail page', () => {
 	function render(data: App) {
 		component = mount(Page, { target: document.body, props: { data } });
 		flushSync();
-		return [...document.body.querySelectorAll<HTMLButtonElement>('.join button')];
 	}
-
-	it('names the running operation, links its task and disables the actions', () => {
-		const buttons = render(
-			app({ operation: 'run', task_id: 't1', started_at: '2020-01-01T00:00:00Z' })
+	const button = (name: string) =>
+		[...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
+			(b) => b.textContent?.trim() === name
 		);
-		const link = document.body.querySelector<HTMLAnchorElement>('a[href$="/tasks/t1"]');
-		expect(link?.textContent).toMatch(/run running since .*ago/);
-		expect(buttons.map((b) => b.textContent?.trim())).toEqual([
-			'Run',
-			'Stop',
-			'Purge',
-			'Rebuild'
-		]);
-		expect(buttons.every((b) => b.disabled)).toBe(true);
+
+	it('shows the header facts as status and tags', () => {
+		render({
+			...app(),
+			settings: {
+				app_blueprint: 'nginx-lagoon',
+				time_to_live: { Days: 7 },
+				basic_auth: null,
+				environment: null,
+				middlewares: [],
+				registry: null
+			}
+		} as unknown as App);
+		const tags = [...document.querySelectorAll('.tag')].map((t) => t.textContent?.trim());
+		expect(tags).toEqual(['Time to live: 7 days', 'Blueprint: nginx-lagoon']);
+		expect(document.querySelector('.chips .st .w')?.textContent).toBe('Running');
 	});
 
-	it('enables the actions and shows no pill while idle', () => {
-		const buttons = render(app());
+	it('names the running operation, links its task and disables the actions', () => {
+		render(app({ operation: 'run', task_id: 't1', started_at: '2020-01-01T00:00:00Z' }));
+		expect(document.body.textContent).toMatch(/Run running since .*ago/);
+		const link = document.body.querySelector<HTMLAnchorElement>('a[href$="/tasks/t1"]');
+		expect(link?.textContent).toBe('Follow the task output');
+		for (const name of ['Stop', 'Rebuild', 'Purge']) expect(button(name)?.disabled).toBe(true);
+	});
+
+	it('enables the actions while idle', () => {
+		render(app());
 		expect(document.body.textContent).not.toMatch(/running since/);
-		expect(buttons.every((b) => !b.disabled)).toBe(true);
+		for (const name of ['Stop', 'Rebuild', 'Purge']) expect(button(name)?.disabled).toBe(false);
+	});
+
+	it('explains an unmanaged app and offers no actions', () => {
+		render({ ...app(), status: 'Unsupported' } as App);
+		expect(document.querySelector('.banner b')?.textContent).toBe(
+			'Scotty does not manage this app'
+		);
+		expect(document.body.textContent).toContain('scottyctl app:create');
+		expect(document.querySelector('.acts')).toBeNull();
+	});
+
+	it('destroys only after the confirmation', async () => {
+		const settings = {
+			basic_auth: null,
+			environment: null,
+			middlewares: [],
+			time_to_live: 'Forever'
+		};
+		render({ ...app(), settings } as unknown as App);
+		const destroyCalls = () =>
+			vi
+				.mocked(authenticatedApiCall)
+				.mock.calls.filter(([url]) => url === 'apps/destroy/shop');
+		const choose = async () => {
+			document
+				.querySelector('[aria-label="More actions"]')!
+				.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+			await vi.waitFor(() => {
+				flushSync();
+				expect(document.querySelector('[role="menuitem"]')).not.toBeNull();
+			});
+			(document.querySelector('[role="menuitem"]') as HTMLElement).click();
+			await new Promise((r) => setTimeout(r));
+		};
+
+		vi.mocked(askConfirm).mockResolvedValueOnce(false);
+		await choose();
+		expect(askConfirm).toHaveBeenCalledTimes(1);
+		expect(destroyCalls()).toHaveLength(0);
+
+		vi.mocked(askConfirm).mockResolvedValueOnce(true);
+		await choose();
+		expect(destroyCalls()).toHaveLength(1);
 	});
 });

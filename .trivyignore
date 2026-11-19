@@ -6,7 +6,7 @@
 
 # no fixed release yet: docker-buildx 0.38.1 bundles moby/go-archive 0.2.0. expires: 2026-12-07
 CVE-2026-17106
-# no fixed release yet: docker-buildx 0.38.1 and docker-compose 5.7.0 bundle golang.org/x/net < 0.62.0. expires: 2026-12-07
+# no fixed release yet: docker-buildx 0.38.1 and docker-compose 5.7.2 bundle golang.org/x/net < 0.62.0. expires: 2026-12-07
 CVE-2026-78661
 # no fixed release yet: docker-buildx 0.38.1 bundles golang.org/x/net 0.59.0. expires: 2026-12-07
 CVE-2026-78669

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Icon from '@iconify/svelte';
+	import AuthFrame from '../../../components/auth-frame.svelte';
 	import { page } from '$app/state';
 	import { authService } from '../../../lib/authService';
 	import { redirectAfterLogin } from '../../../lib/landingResume';
@@ -62,29 +64,24 @@
 </script>
 
 <svelte:head>
-	<title>OAuth Callback - Scotty</title>
+	<title>Signing in | Scotty</title>
 </svelte:head>
 
-{#if loading}
-	<div class="card bg-base-100 w-96 shadow-md mx-auto">
-		<div class="card-body">
-			<div class="flex justify-center">
-				<span class="loading loading-spinner loading-lg"></span>
-			</div>
-			<p class="text-center">Completing authentication...</p>
-			<p class="text-center text-sm text-gray-500">
-				Please wait while we verify your credentials
-			</p>
-		</div>
-	</div>
-{:else if error}
-	<div class="card bg-base-100 w-96 shadow-md mx-auto">
-		<div class="card-body">
-			<h2 class="card-title text-error">Authentication Failed</h2>
-			<p class="text-sm">{error}</p>
-			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary" on:click={handleRetry}> Try Again </button>
+<AuthFrame center={loading}>
+	{#if loading}
+		<Icon icon="ph:spinner" class="ic lg spin" aria-hidden="true" />
+		<h1>Completing sign-in</h1>
+		<p class="sub2">Please wait while Scotty verifies your sign-in.</p>
+	{:else if error}
+		<h1>Sign-in failed</h1>
+		<div class="banner err">
+			<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
+			<div class="txt">
+				<b>Your identity provider did not confirm the sign-in</b><span>{error}</span>
 			</div>
 		</div>
-	</div>
-{/if}
+		<div class="acts">
+			<button class="btn filled primary" on:click={handleRetry}>Try again</button>
+		</div>
+	{/if}
+</AuthFrame>
