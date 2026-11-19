@@ -332,11 +332,9 @@ button {
 .side .item .count:empty {
 	display: none;
 }
-.side .item .count.ext {
-	background: none;
-	min-width: 0;
-	padding: 0;
-} /* external-link marker, not a count */
+.side .item .count.ext .ic {
+	vertical-align: -3px;
+} /* external-link marker in the count oval (Nina, 2026-11-19) */
 .side .user {
 	height: var(--app-footer-height);
 	border-top: 1px solid rgba(255, 255, 255, 0.14);
@@ -605,6 +603,9 @@ kbd {
 .side .ibtn:hover {
 	background: rgba(255, 255, 255, 0.08);
 }
+.toast .ibtn:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.14);
+}
 .ibtn.boxed {
 	border: 1px solid var(--color-app-border-strong);
 }
@@ -613,7 +614,7 @@ kbd {
 	cursor: not-allowed;
 }
 .searchbtn {
-	height: var(--app-pill-height);
+	height: var(--app-control-height);
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;

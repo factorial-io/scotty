@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Icon from '@iconify/svelte';
 	import { requestAllTasks, tasks } from '../../stores/tasksStore';
 	import TasksTable from '../../components/tasks-table.svelte';
 	import { setTitle } from '../../stores/titleStore';
@@ -19,6 +20,9 @@
 		<TasksTable taskList={Object.values($tasks)} />
 	{:else}
 		<div class="empty">
+			<div class="sq">
+				<Icon icon="ph:list-checks" class="ic lg" aria-hidden="true" />
+			</div>
 			<h2>No tasks yet</h2>
 			<p>Tasks appear here when you or scottyctl run an action on an app.</p>
 		</div>

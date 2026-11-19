@@ -235,7 +235,7 @@
 
 /* ---- 5. Sidebar: counts, collapsed rail, scrolling ------------------------------------------- */
 /* counts: a light oval behind the number; .urgent = a blue oval for the one count that needs you.
-   Contrast: white on the translucent oval 11:1, blue-dark on blue-light 5.4:1. No `display` here on purpose:
+   Contrast: white on the translucent oval 11:1, white on blue 6.4:1 (Nina, 2026-11-19). No `display` here on purpose:
    the collapsed rail hides .count with its own rule, and a display set here would win against it. */
 :is([data-app-style='rebrush'], [data-product='subtool']) .side .item .count {
 	margin-left: auto;
@@ -252,8 +252,8 @@
 	font-variant-numeric: tabular-nums;
 }
 :is([data-app-style='rebrush'], [data-product='subtool']) .side .item .count.urgent {
-	background: var(--color-blue-light);
-	color: var(--color-blue-dark);
+	background: var(--color-blue);
+	color: var(--color-white);
 }
 /* a window too low for the navigation scrolls it; the entries keep their height instead of squeezing the icons */
 :is([data-app-style='rebrush'], [data-product='subtool']) .side nav {
