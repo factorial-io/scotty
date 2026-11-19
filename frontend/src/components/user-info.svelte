@@ -3,7 +3,7 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { authMode, userInfo } from '../stores/sessionStore';
 	import { authService } from '../lib/authService';
-	import { getUserInitials } from '#lib/gravatar.ts';
+	import { getGravatarUrl, getUserInitials } from '#lib/gravatar.ts';
 	import { theme, type ThemeChoice } from '../stores/themeStore';
 
 	let { version = '' }: { version?: string } = $props();
@@ -23,6 +23,16 @@
 				: 'Development mode, no sign-in'
 	);
 
+	// IdP picture first, then Gravatar (d=404 so a missing one falls back to the initials).
+	let picture = $derived(
+		$userInfo?.picture || ($userInfo?.email ? getGravatarUrl($userInfo.email, 64, '404') : '')
+	);
+	let pictureFailed = $state(false);
+	$effect(() => {
+		void picture;
+		pictureFailed = false;
+	});
+
 	const themes: { value: ThemeChoice; label: string; icon: string }[] = [
 		{ value: 'light', label: 'Light', icon: 'ph:sun' },
 		{ value: 'dark', label: 'Dark', icon: 'ph:moon' },
@@ -31,7 +41,18 @@
 </script>
 
 <div class="user">
-	<div class="av" aria-hidden="true">{getUserInitials(name, $userInfo?.email)}</div>
+	<div class="av" aria-hidden="true">
+		{#if picture && !pictureFailed}
+			<img
+				src={picture}
+				alt=""
+				referrerpolicy="no-referrer"
+				onerror={() => (pictureFailed = true)}
+			/>
+		{:else}
+			{getUserInitials(name, $userInfo?.email)}
+		{/if}
+	</div>
 	<div class="who">
 		<b>{name}</b><span>Scotty v{version}</span>
 	</div>
