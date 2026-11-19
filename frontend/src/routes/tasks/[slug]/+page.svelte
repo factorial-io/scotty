@@ -59,8 +59,9 @@
 <div class="ph">
 	<div class="ph-row">
 		<h1>
-			<span class="mono" style="font:inherit">{data.command}</span>{#if data.app_name}
-				on {data.app_name}{/if}
+			<span class="mono" style="font:inherit">{data.command}</span>{data.app_name
+				? ` on ${data.app_name}`
+				: ''}
 		</h1>
 	</div>
 	<div class="chips">
