@@ -19,6 +19,12 @@ fn resolve_follow_mode(requested_follow: bool, can_follow_live: bool) -> bool {
     requested_follow && can_follow_live
 }
 
+/// Docker `tail` for a requested line count: the last `n` lines, or `None`
+/// for every retained line since the container started.
+fn tail_for(lines: Option<u32>) -> Option<String> {
+    lines.map(|n| n.to_string())
+}
+
 /// Handle starting a log stream via WebSocket
 pub async fn handle_start_log_stream(
     state: &SharedAppState,
@@ -121,7 +127,7 @@ pub async fn handle_start_log_stream(
     );
 
     // Start the log streaming
-    let tail = request.lines.map(|n| n.to_string());
+    let tail = tail_for(request.lines);
     match state
         .logs_service
         .start_stream(
@@ -192,7 +198,18 @@ pub async fn handle_stop_log_stream(state: &SharedAppState, client_id: Uuid, str
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_follow_mode;
+    use super::{resolve_follow_mode, tail_for};
+
+    #[test]
+    fn line_count_becomes_tail() {
+        assert_eq!(tail_for(Some(500)).as_deref(), Some("500"));
+    }
+
+    #[test]
+    fn no_line_count_streams_all_retained_lines() {
+        // start_stream turns a missing tail into Docker's "all".
+        assert_eq!(tail_for(None), None);
+    }
 
     #[test]
     fn follow_preserved_when_container_can_stream_live() {
