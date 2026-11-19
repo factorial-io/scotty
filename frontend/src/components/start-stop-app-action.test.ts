@@ -60,6 +60,6 @@ describe('start-stop-app-action', () => {
 		tasks.set({ t1: { id: 't1', state: 'Failed', command: 'run' } as never });
 		flushSync();
 
-		expect(document.body.querySelector('.tooltip-error')).not.toBeNull();
+		expect(document.body.querySelector('button.failed')).not.toBeNull();
 	});
 });

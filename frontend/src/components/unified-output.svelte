@@ -117,21 +117,21 @@
 				<span class="text-gray-500">{lines.length} lines</span>
 			{/if}
 			{#if loading}
-				<span class="loading loading-spinner loading-sm"></span>
+				<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
 				<span class="text-gray-500">Streaming...</span>
 			{/if}
 		</div>
 	</div>
 
 	<div
-		class="mockup-code bg-black text-white text-xs overflow-auto"
+		class="output-box bg-black text-white text-xs overflow-auto"
 		style="max-height: {maxHeight}"
 		bind:this={outputContainer}
 		on:scroll={handleScroll}
 	>
 		{#if loading && lines.length === 0}
 			<div class="p-4 text-center text-gray-500">
-				<span class="loading loading-spinner loading-md"></span>
+				<Icon icon="ph:spinner" class="ic spin" aria-hidden="true" />
 				<div class="mt-2">Streaming...</div>
 			</div>
 		{:else}
@@ -184,19 +184,19 @@
 </div>
 
 <style>
-	.mockup-code {
+	.output-box {
 		border-radius: 0.5rem;
 		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 		line-height: 1.4;
 	}
 
-	.mockup-code pre {
+	.output-box pre {
 		margin: 0;
 		white-space: pre-wrap;
 		word-break: break-word;
 	}
 
-	.mockup-code pre[data-prefix]:before {
+	.output-box pre[data-prefix]:before {
 		content: attr(data-prefix);
 		display: inline-block;
 		text-align: right;
@@ -209,27 +209,27 @@
 	}
 
 	/* Scroll behavior */
-	.mockup-code {
+	.output-box {
 		scroll-behavior: smooth;
 	}
 
 	/* Custom scrollbar for webkit browsers */
-	.mockup-code::-webkit-scrollbar {
+	.output-box::-webkit-scrollbar {
 		width: 8px;
 		height: 8px;
 	}
 
-	.mockup-code::-webkit-scrollbar-track {
+	.output-box::-webkit-scrollbar-track {
 		background: #1f2937;
 		border-radius: 4px;
 	}
 
-	.mockup-code::-webkit-scrollbar-thumb {
+	.output-box::-webkit-scrollbar-thumb {
 		background: #4b5563;
 		border-radius: 4px;
 	}
 
-	.mockup-code::-webkit-scrollbar-thumb:hover {
+	.output-box::-webkit-scrollbar-thumb:hover {
 		background: #6b7280;
 	}
 </style>

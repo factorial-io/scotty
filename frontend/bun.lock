@@ -6,7 +6,7 @@
       "name": "frontend",
       "dependencies": {
         "@fontsource/inter": "^5.3.0",
-        "@fontsource/jetbrains-mono": "^5",
+        "@fontsource/jetbrains-mono": "^5.3.0",
         "@iconify-icons/ph": "^2.0.0",
         "@iconify/svelte": "^5.2.4",
         "@tailwindcss/typography": "^0.5.20",
@@ -21,7 +21,6 @@
         "@tailwindcss/vite": "^4.3.5",
         "@types/crypto-js": "^4.2.2",
         "@types/eslint": "^9.6.1",
-        "daisyui": "^5.7.50",
         "eslint": "^10.14.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-svelte": "^3.24.1",
@@ -273,8 +272,6 @@
     "crypto-js": ["crypto-js@4.2.0", "", {}, "sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q=="],
 
     "cssesc": ["cssesc@3.0.0", "", { "bin": { "cssesc": "bin/cssesc" } }, "sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg=="],
-
-    "daisyui": ["daisyui@5.7.50", "", {}, "sha512-+/LRqnTCoc7s/bJEKKwtJSwzeXCVdAmRdNmZeZzgHCaQ9PJyl7j+2V2U32GQDMyD+VDkP9e/+JGoC72Y1hLk7w=="],
 
     "data-urls": ["data-urls@8.0.0", "", { "dependencies": { "whatwg-mimetype": "^5.0.0", "whatwg-url": "^17.1.2" } }, "sha512-JQUCCK+/CAGbGGx618PlFZMXH81Jtj7t73CHv9dd/zVWvxgGT2zLFRjnKb+Ng46GIwcy+f7f88qd4duqllK+WQ=="],
 

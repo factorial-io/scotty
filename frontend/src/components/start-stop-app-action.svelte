@@ -52,14 +52,14 @@
 </script>
 
 {#if failed_task}
-	<div
-		class="tooltip tooltip-error tooltip-right"
-		data-tip={`Task failed: ${failed_task.command}. Check task details for output.`}
+	<button
+		class="ibtn boxed failed"
+		title={`Task failed: ${failed_task.command}. Check task details for output.`}
+		aria-label="Task failed, retry"
+		on:click={handleClick}
 	>
-		<button class="ibtn boxed failed" aria-label="Task failed, retry" on:click={handleClick}>
-			<Icon icon={errorIcon} class="ic" aria-hidden="true" />
-		</button>
-	</div>
+		<Icon icon={errorIcon} class="ic" aria-hidden="true" />
+	</button>
 {:else}
 	<button
 		class="ibtn boxed"

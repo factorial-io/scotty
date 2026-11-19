@@ -22,7 +22,6 @@
 		"@tailwindcss/vite": "^4.3.5",
 		"@types/crypto-js": "^4.2.2",
 		"@types/eslint": "^9.6.1",
-		"daisyui": "^5.7.50",
 		"eslint": "^10.14.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.24.1",
