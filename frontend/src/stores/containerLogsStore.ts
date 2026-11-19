@@ -1,6 +1,7 @@
 import { writable, derived, type Writable } from 'svelte/store';
 import type { OutputLine } from '../types';
 import type { WebSocketMessage } from '../generated/WebSocketMessage';
+import { trimToRange } from '../lib/logView';
 
 // Inline type guards for log stream messages
 function isLogsStreamStarted(
@@ -36,6 +37,8 @@ interface ContainerLogState {
 	streaming: boolean;
 	follow: boolean;
 	error: string | null;
+	/** Keep at most this many lines (newest win); null keeps all. */
+	maxLines: number | null;
 }
 
 interface ContainerLogsStore {
@@ -70,7 +73,8 @@ export function getContainerLogs(appName: string, serviceName: string) {
 				loading: false,
 				streaming: false,
 				follow: false,
-				error: null
+				error: null,
+				maxLines: null
 			}
 		);
 	});
@@ -79,7 +83,11 @@ export function getContainerLogs(appName: string, serviceName: string) {
 /**
  * Initialize container log state
  */
-export function initializeContainerLogs(appName: string, serviceName: string) {
+export function initializeContainerLogs(
+	appName: string,
+	serviceName: string,
+	maxLines: number | null = null
+) {
 	const key = getLogKey(appName, serviceName);
 	containerLogs.update((store) => ({
 		...store,
@@ -91,7 +99,8 @@ export function initializeContainerLogs(appName: string, serviceName: string) {
 			loading: false,
 			streaming: false,
 			follow: false,
-			error: null
+			error: null,
+			maxLines
 		}
 	}));
 }
@@ -157,7 +166,7 @@ export function addContainerLogLines(streamId: string, newLines: OutputLine[]) {
 			...store,
 			[key]: {
 				...currentState,
-				lines: [...currentState.lines, ...newLines]
+				lines: trimToRange([...currentState.lines, ...newLines], currentState.maxLines)
 			}
 		};
 	});
@@ -181,7 +190,8 @@ export function handleContainerLogsMessage(message: WebSocketMessage) {
 					appName: app_name,
 					serviceName: service_name,
 					lines: [],
-					error: null
+					error: null,
+					maxLines: null
 				}),
 				streamId: stream_id,
 				loading: true,
