@@ -13,12 +13,12 @@
 use std::path::Path;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, SubsecRound, Utc};
 use grantry::device::{Device, DeviceStatus};
 use grantry::store::{
     BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending, RefreshToken,
     RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
 };
+use jiff::{SignedDuration, Timestamp};
 use serde_json::Value;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
 use sqlx::{Row, SqlitePool};
@@ -119,23 +119,24 @@ impl SqliteStore {
 
 /// The current time at the stored precision, so a row read back equals the
 /// struct a write returned.
-fn now() -> DateTime<Utc> {
-    Utc::now().trunc_subsecs(3)
+fn now() -> Timestamp {
+    Timestamp::from_millisecond(Timestamp::now().as_millisecond())
+        .expect("the current time is a valid timestamp")
 }
 
-fn ms(at: DateTime<Utc>) -> i64 {
-    at.timestamp_millis()
+fn ms(at: Timestamp) -> i64 {
+    at.as_millisecond()
 }
 
-fn at(row: &SqliteRow, col: &str) -> Result<DateTime<Utc>, BackendError> {
+fn at(row: &SqliteRow, col: &str) -> Result<Timestamp, BackendError> {
     let ms: i64 = row.try_get(col)?;
-    DateTime::from_timestamp_millis(ms).ok_or_else(|| format!("bad timestamp in {col}").into())
+    Timestamp::from_millisecond(ms).map_err(|_| format!("bad timestamp in {col}").into())
 }
 
-fn at_opt(row: &SqliteRow, col: &str) -> Result<Option<DateTime<Utc>>, BackendError> {
+fn at_opt(row: &SqliteRow, col: &str) -> Result<Option<Timestamp>, BackendError> {
     let ms: Option<i64> = row.try_get(col)?;
     ms.map(|ms| {
-        DateTime::from_timestamp_millis(ms).ok_or_else(|| format!("bad timestamp in {col}").into())
+        Timestamp::from_millisecond(ms).map_err(|_| format!("bad timestamp in {col}").into())
     })
     .transpose()
 }
@@ -144,7 +145,7 @@ fn uuid(row: &SqliteRow, col: &str) -> Result<Uuid, BackendError> {
     Ok(Uuid::parse_str(row.try_get::<&str, _>(col)?)?)
 }
 
-fn new_grant(new: NewGrant<String>, now: DateTime<Utc>) -> Grant<String> {
+fn new_grant(new: NewGrant<String>, now: Timestamp) -> Grant<String> {
     Grant {
         id: Uuid::new_v4(),
         subject: new.subject,
@@ -296,7 +297,7 @@ impl OAuthStore for SqliteStore {
         &self,
         url: &str,
         document: Value,
-        expires_at: DateTime<Utc>,
+        expires_at: Timestamp,
     ) -> Result<(), BackendError> {
         sqlx::query(
             "INSERT INTO oauth_documents (url, document, expires_at) VALUES (?, ?, ?)
@@ -402,9 +403,9 @@ impl OAuthStore for SqliteStore {
         &self,
         approved: &Pending<String>,
         subject: &String,
-        lifetime: Duration,
+        lifetime: SignedDuration,
         code_hash: String,
-        code_ttl: Duration,
+        code_ttl: SignedDuration,
     ) -> Result<Grant<String>, BackendError> {
         let now = now();
         let grant = Grant {
@@ -585,7 +586,7 @@ impl OAuthStore for SqliteStore {
     async fn record_poll(
         &self,
         id: Uuid,
-        at: DateTime<Utc>,
+        at: Timestamp,
         interval_seconds: u32,
     ) -> Result<(), BackendError> {
         sqlx::query(
@@ -720,8 +721,8 @@ impl OAuthStore for SqliteStore {
     async fn sweep(&self) -> Result<u64, BackendError> {
         let now = now();
         let now_ms = ms(now);
-        let dead = ms(now - Duration::days(GRANT_RETENTION_DAYS));
-        let unused = ms(now - Duration::days(UNUSED_CLIENT_DAYS));
+        let dead = ms(now - SignedDuration::from_hours(GRANT_RETENTION_DAYS * 24));
+        let unused = ms(now - SignedDuration::from_hours(UNUSED_CLIENT_DAYS * 24));
         const DEAD: &str = "SELECT id FROM oauth_grants WHERE expires_at < ?1 OR revoked_at < ?1";
         let dead_codes = format!("DELETE FROM oauth_codes WHERE grant_id IN ({DEAD})");
         let dead_tokens = format!("DELETE FROM oauth_refresh_tokens WHERE grant_id IN ({DEAD})");
@@ -801,7 +802,7 @@ mod tests {
             state: Some("xyz".into()),
             code_challenge: "challenge".into(),
             resource: RESOURCE.into(),
-            ttl: Duration::minutes(10),
+            ttl: SignedDuration::from_mins(10),
         }
     }
 
@@ -811,7 +812,7 @@ mod tests {
             client_id: "scottyctl".into(),
             client_name: "scottyctl on host".into(),
             scope: "read offline_access".into(),
-            lifetime: Duration::days(30),
+            lifetime: SignedDuration::from_hours(30 * 24),
         }
     }
 
@@ -823,14 +824,14 @@ mod tests {
             device_code_hash: hash.into(),
             user_code: user_code.into(),
             interval_seconds: 5,
-            ttl: Duration::minutes(10),
+            ttl: SignedDuration::from_mins(10),
         }
     }
 
     /// Move `col` of every row of `table` `by` into the past.
-    async fn age(pool: &SqlitePool, table: &str, col: &str, by: Duration) {
+    async fn age(pool: &SqlitePool, table: &str, col: &str, by: SignedDuration) {
         sqlx::query(&format!("UPDATE {table} SET {col} = {col} - ?"))
-            .bind(by.num_milliseconds())
+            .bind(by.as_millis() as i64)
             .execute(pool)
             .await
             .unwrap();
@@ -871,9 +872,9 @@ mod tests {
             .create_grant_with_code(
                 &p,
                 &alice(),
-                Duration::days(30),
+                SignedDuration::from_hours(30 * 24),
                 "code-h".into(),
-                Duration::minutes(1),
+                SignedDuration::from_mins(1),
             )
             .await
             .unwrap();
@@ -982,7 +983,7 @@ mod tests {
             .await
             .unwrap());
 
-        let at = Utc::now();
+        let at = Timestamp::now();
         store.record_poll(device.id, at, 10).await.unwrap();
         let polled = store.find_device("d1").await.unwrap().unwrap();
         assert_eq!(polled.status, DeviceStatus::Approved);
@@ -1027,7 +1028,7 @@ mod tests {
             &store.pool,
             "oauth_devices",
             "expires_at",
-            Duration::minutes(11),
+            SignedDuration::from_mins(11),
         )
         .await;
         assert!(store
@@ -1055,9 +1056,9 @@ mod tests {
             .create_grant_with_code(
                 &p,
                 &alice(),
-                Duration::days(30),
+                SignedDuration::from_hours(30 * 24),
                 "code-h".into(),
-                Duration::minutes(1),
+                SignedDuration::from_mins(1),
             )
             .await
             .unwrap();
@@ -1131,7 +1132,11 @@ mod tests {
             .await
             .unwrap();
         store
-            .store_document("https://a/doc", json!({}), Utc::now() + Duration::hours(1))
+            .store_document(
+                "https://a/doc",
+                json!({}),
+                Timestamp::now() + SignedDuration::from_hours(1),
+            )
             .await
             .unwrap();
         assert_eq!(store.sweep().await.unwrap(), 0);
@@ -1144,9 +1149,9 @@ mod tests {
             .create_grant_with_code(
                 &p,
                 &alice(),
-                Duration::days(1),
+                SignedDuration::from_hours(24),
                 "code-h".into(),
-                Duration::minutes(1),
+                SignedDuration::from_mins(1),
             )
             .await
             .unwrap();
@@ -1177,17 +1182,17 @@ mod tests {
             ("oauth_documents", "expires_at"),
             ("oauth_clients", "created_at"),
         ] {
-            age(&pool, table, col, Duration::days(8)).await;
+            age(&pool, table, col, SignedDuration::from_hours(8 * 24)).await;
         }
         // `old` expired 31 days ago, `revoked` was revoked 31 days ago.
         sqlx::query("UPDATE oauth_grants SET expires_at = ? WHERE id = ?")
-            .bind(ms(Utc::now() - Duration::days(31)))
+            .bind(ms(Timestamp::now() - SignedDuration::from_hours(31 * 24)))
             .bind(old.id.to_string())
             .execute(&pool)
             .await
             .unwrap();
         sqlx::query("UPDATE oauth_grants SET revoked_at = ? WHERE id = ?")
-            .bind(ms(Utc::now() - Duration::days(31)))
+            .bind(ms(Timestamp::now() - SignedDuration::from_hours(31 * 24)))
             .bind(revoked.id.to_string())
             .execute(&pool)
             .await

@@ -57,10 +57,16 @@ fn connection(realm: &str, grant: Grant<String>) -> Connection {
         client_name: grant.client_name,
         scope: grant.scope,
         subject: grant.subject,
-        created_at: grant.created_at,
-        last_used_at: grant.last_refreshed_at,
-        expires_at: grant.expires_at,
+        created_at: utc(grant.created_at),
+        last_used_at: grant.last_refreshed_at.map(utc),
+        expires_at: utc(grant.expires_at),
     }
+}
+
+/// grantry's timestamps as the chrono type the API serializes and documents.
+fn utc(at: jiff::Timestamp) -> DateTime<Utc> {
+    DateTime::from_timestamp(at.as_second(), at.subsec_nanosecond() as u32)
+        .expect("a grant timestamp is in chrono's range")
 }
 
 fn backend_error(e: impl std::fmt::Display) -> StatusCode {

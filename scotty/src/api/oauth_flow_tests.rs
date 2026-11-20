@@ -446,7 +446,7 @@ fn forge(
     grant: &grantry::Grant<String>,
     resource: &str,
     kind: &str,
-    now: chrono::DateTime<chrono::Utc>,
+    now: jiff::Timestamp,
 ) -> String {
     let server = state.session_server.as_ref().unwrap();
     grantry::token::mint(
@@ -485,7 +485,7 @@ async fn test_session_token_accepted_and_revocation_rejected() {
 async fn test_session_token_wrong_kind_audience_or_expired_rejected() {
     let (server, state) = session_app().await;
     let (grant, _token) = issue_session(&state).await;
-    let now = chrono::Utc::now();
+    let now = jiff::Timestamp::now();
 
     let control = forge(&state, &grant, "scotty-api", "session", now);
     assert_eq!(status_with(&server, &control).await, 200);
@@ -501,7 +501,7 @@ async fn test_session_token_wrong_kind_audience_or_expired_rejected() {
         &grant,
         "scotty-api",
         "session",
-        now - chrono::Duration::hours(2),
+        now - jiff::SignedDuration::from_hours(2),
     );
     assert_eq!(status_with(&server, &expired).await, 401);
 }

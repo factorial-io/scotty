@@ -6,9 +6,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::Duration;
 use grantry::store::{BackendError, Events, Grant};
 use grantry::{Algorithm, Config, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects};
+use jiff::SignedDuration;
 use sqlx::SqlitePool;
 
 use super::fetch::EgressFetcher;
@@ -49,7 +49,7 @@ pub fn session_server(
         Signer::hmac(Algorithm::HS512, jwt_secret),
     );
     config.access_token_secs = ACCESS_TOKEN_SECS;
-    config.grant_lifetime = Duration::days(GRANT_LIFETIME_DAYS);
+    config.grant_lifetime = SignedDuration::from_hours(GRANT_LIFETIME_DAYS * 24);
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_SESSION)),
@@ -74,7 +74,7 @@ pub fn mcp_server(
         ScopeSpec::new(&MCP_SCOPES, &["read", "create", "manage"], "offline_access"),
         Signer::hmac(Algorithm::HS512, jwt_secret),
     );
-    config.grant_lifetime = Duration::days(GRANT_LIFETIME_DAYS);
+    config.grant_lifetime = SignedDuration::from_hours(GRANT_LIFETIME_DAYS * 24);
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_MCP)),
