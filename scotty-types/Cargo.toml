@@ -16,7 +16,7 @@ default = []
 [dependencies]
 # Only the minimal dependencies needed for type generation
 serde = { version = "1.0", default-features = false, features = ["derive", "std"] }
-chrono = { version = "0.4.45", default-features = false, features = ["clock", "std", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 uuid = { version = "1.8", default-features = false, features = ["v4", "serde"] }
 ts-rs = { version = "12.0", default-features = false, features = ["chrono-impl", "uuid-impl"] }
 base64.workspace = true
