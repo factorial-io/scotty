@@ -736,6 +736,38 @@ async fn test_device_lookup_by_any_user_but_not_service_accounts() {
 }
 
 #[tokio::test]
+async fn test_device_login_shows_the_host_name_scottyctl_sends() {
+    let (server, state) = session_app().await;
+    let response = server
+        .post("/oauth/device")
+        .json(&serde_json::json!({"hostname": "laptop"}))
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let user_code = response.json::<serde_json::Value>()["user_code"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let bob = session_for(&state, "bob@example.com").await;
+
+    let response = server
+        .get(&format!("/api/v1/authenticated/oauth/device/{user_code}"))
+        .add_header(axum::http::header::AUTHORIZATION, bearer(&bob))
+        .await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    assert_eq!(
+        response.json::<serde_json::Value>()["client_name"],
+        "scottyctl on laptop"
+    );
+}
+
+#[tokio::test]
+async fn test_device_login_starts_without_a_body() {
+    let (server, _state) = session_app().await;
+    let response = server.post("/oauth/device").await;
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+}
+
+#[tokio::test]
 async fn test_device_refresh_rotates_and_replay_revokes() {
     let (server, state) = session_app().await;
     let first = device_login(&server, &state).await;
