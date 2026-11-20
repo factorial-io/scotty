@@ -10,6 +10,8 @@ all-features = true
 
 [advisories]
 # Unmaintained crates are reported but only fail for direct dependencies.
+# This is why chrono (RUSTSEC-2026-0543) needs no exception: scotty uses jiff
+# (#996), and chrono only comes in via oauth2/openidconnect/rmcp/schemars/clokwerk.
 unmaintained = "workspace"
 yanked = "deny"
 ignore = [

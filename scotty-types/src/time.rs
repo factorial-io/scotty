@@ -189,6 +189,23 @@ mod tests {
         );
     }
 
+    // Before 1970 the sub-second part is negative in jiff; the digits must
+    // still come out as chrono printed them.
+    #[test]
+    fn pre_epoch_matches_chrono() {
+        for (input, wire) in [
+            ("1969-12-31T23:59:59.5Z", "\"1969-12-31T23:59:59.500Z\""),
+            (
+                "1969-12-31T23:59:59.000001Z",
+                "\"1969-12-31T23:59:59.000001Z\"",
+            ),
+            ("1960-01-01T00:00:00Z", "\"1960-01-01T00:00:00Z\""),
+        ] {
+            let t = T(input.parse().unwrap());
+            assert_eq!(serde_json::to_string(&t).unwrap(), wire);
+        }
+    }
+
     #[test]
     fn to_rfc3339_secs_matches_chrono() {
         let ts: Timestamp = "2026-11-20T14:39:16.999Z".parse().unwrap();

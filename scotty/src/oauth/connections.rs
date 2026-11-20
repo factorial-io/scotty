@@ -169,3 +169,36 @@ pub async fn revoke_connection_handler(
         .map_err(backend_error)?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Pins the connections API's timestamps to chrono's wire format.
+    #[test]
+    fn connection_timestamps_keep_the_wire_format() {
+        let connection = Connection {
+            id: Uuid::nil(),
+            kind: "mcp".into(),
+            client_id: "c".into(),
+            client_name: "C".into(),
+            redirect_host: None,
+            scope: "read".into(),
+            subject: "a@example.com".into(),
+            created_at: "2026-11-01T10:00:00.1Z".parse().unwrap(),
+            last_used_at: None,
+            expires_at: "2026-12-01T10:00:00Z".parse().unwrap(),
+        };
+        let json = serde_json::to_value(&connection).unwrap();
+        assert_eq!(json["created_at"], "2026-11-01T10:00:00.100Z");
+        assert_eq!(json["last_used_at"], serde_json::Value::Null);
+        assert_eq!(json["expires_at"], "2026-12-01T10:00:00Z");
+
+        let used = Connection {
+            last_used_at: Some("2026-11-02T10:00:00.123456Z".parse().unwrap()),
+            ..connection
+        };
+        let json = serde_json::to_value(&used).unwrap();
+        assert_eq!(json["last_used_at"], "2026-11-02T10:00:00.123456Z");
+    }
+}

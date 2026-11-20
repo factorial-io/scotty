@@ -311,18 +311,7 @@ async fn inspect_docker_container(
         .await?;
 
     let state = insights.state.clone().unwrap();
-    // Docker reports `0001-01-01T00:00:00Z` for a container that never
-    // started; anything unparseable is logged and treated as unknown.
-    let started_at = state
-        .started_at
-        .as_deref()
-        .and_then(|s| match s.parse::<jiff::Timestamp>() {
-            Ok(ts) => Some(ts),
-            Err(e) => {
-                tracing::warn!("Unparseable started_at {s:?} for {container_id}: {e}");
-                None
-            }
-        });
+    let started_at = parse_started_at(container_id, state.started_at.as_deref());
 
     let labels = insights.config.clone().unwrap().labels.unwrap();
     let service = labels.get("com.docker.compose.service").unwrap();
@@ -408,4 +397,38 @@ pub async fn collect_environment_from_app(
         }
     }
     Ok(environment)
+}
+
+/// Docker's `State.StartedAt`. Docker reports `0001-01-01T00:00:00Z` for a
+/// container that never started, which parses (as before the jiff
+/// migration). Anything unparseable is logged and treated as unknown.
+fn parse_started_at(container_id: &str, started_at: Option<&str>) -> Option<jiff::Timestamp> {
+    let s = started_at?;
+    match s.parse() {
+        Ok(ts) => Some(ts),
+        Err(e) => {
+            tracing::warn!("Unparseable started_at {s:?} for {container_id}: {e}");
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod started_at_tests {
+    use super::parse_started_at;
+
+    #[test]
+    fn parses_docker_timestamps() {
+        let ts = parse_started_at("c1", Some("2026-11-20T14:39:16.123456789Z")).unwrap();
+        assert_eq!(ts.to_string(), "2026-11-20T14:39:16.123456789Z");
+        let never = parse_started_at("c1", Some("0001-01-01T00:00:00Z")).unwrap();
+        assert_eq!(never.to_string(), "0001-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn missing_or_unparseable_is_none() {
+        assert_eq!(parse_started_at("c1", None), None);
+        assert_eq!(parse_started_at("c1", Some("")), None);
+        assert_eq!(parse_started_at("c1", Some("yesterday")), None);
+    }
 }
