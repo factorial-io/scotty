@@ -25,7 +25,8 @@ pub async fn sample_app_list_metrics(app_state: SharedAppState) {
         if let Some(last_checked) = app.last_checked {
             let age_seconds = jiff::Timestamp::now()
                 .duration_since(last_checked)
-                .as_secs() as f64;
+                .as_secs()
+                .max(0) as f64; // clock skew: a check "in the future" is age 0
             m.record_app_last_check_age(age_seconds);
         }
     }

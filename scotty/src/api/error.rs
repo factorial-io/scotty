@@ -144,7 +144,7 @@ fn describe_operation(operation: &scotty_core::apps::app_data::AppOperation) -> 
     format!(
         "{}{task} running since {}",
         operation.operation,
-        operation.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+        scotty_types::time::to_rfc3339_secs(&operation.started_at)
     )
 }
 

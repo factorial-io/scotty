@@ -14,17 +14,31 @@ use jiff::{
 use serde::{Deserialize, Deserializer, Serializer};
 
 fn print(ts: &Timestamp, local: bool) -> String {
-    let offset = if local {
-        TimeZone::system().to_offset(*ts)
+    if local {
+        // jiff caches the system zone, so this is cheap per call.
+        print_in(ts, &TimeZone::system())
     } else {
-        Offset::UTC
-    };
-    print_with(ts, offset)
+        print_with(ts, Offset::UTC)
+    }
+}
+
+/// The offset `tz` has at `ts`, as chrono's `DateTime<Local>` did: DST
+/// applies per instant, not per response.
+fn print_in(ts: &Timestamp, tz: &TimeZone) -> String {
+    print_with(ts, tz.to_offset(*ts))
 }
 
 /// chrono's `DateTime<Utc>::to_rfc3339()`: like serde, but `+00:00` for `Z`.
 pub fn to_rfc3339(ts: &Timestamp) -> String {
     printer(ts).timestamp_with_offset_to_string(ts, Offset::UTC)
+}
+
+/// chrono's `to_rfc3339_opts(SecondsFormat::Secs, true)`: UTC, whole
+/// seconds (truncated), `Z`. For human-readable messages.
+pub fn to_rfc3339_secs(ts: &Timestamp) -> String {
+    DateTimePrinter::new()
+        .precision(Some(0))
+        .timestamp_to_string(ts)
 }
 
 fn printer(ts: &Timestamp) -> DateTimePrinter {
@@ -48,7 +62,10 @@ fn print_with(ts: &Timestamp, offset: Offset) -> String {
 }
 
 macro_rules! module {
-    ($name:ident, $opt:ident, $local:expr) => {
+    ($name:ident, $opt:ident, $local:expr, $doc:literal) => {
+        #[doc = $doc]
+        ///
+        /// Use as `#[serde(with = "...")]` on a `Timestamp` field.
         pub mod $name {
             use super::*;
             pub fn serialize<S: Serializer>(ts: &Timestamp, s: S) -> Result<S::Ok, S::Error> {
@@ -58,7 +75,10 @@ macro_rules! module {
                 Timestamp::deserialize(d)
             }
         }
-        /// Use with `#[serde(default, with = ...)]`: a missing field is `None`.
+        #[doc = $doc]
+        ///
+        /// For an `Option<Timestamp>` field. Use with
+        /// `#[serde(default, with = "...")]`: a missing field is `None`.
         pub mod $opt {
             use super::*;
             pub fn serialize<S: Serializer>(
@@ -79,8 +99,20 @@ macro_rules! module {
     };
 }
 
-module!(utc, utc_opt, false);
-module!(local, local_opt, true);
+module!(
+    utc,
+    utc_opt,
+    false,
+    "UTC with `Z`, as chrono's `DateTime<Utc>` serialized. The default for timestamps."
+);
+module!(
+    local,
+    local_opt,
+    true,
+    "The server's local offset, as chrono's `DateTime<Local>` serialized. Only for \
+     the fields that were `DateTime<Local>`: `last_checked`, `next_check` and a \
+     container's `started_at`."
+);
 
 #[cfg(test)]
 mod tests {
@@ -120,6 +152,47 @@ mod tests {
         assert_eq!(print_with(&ts, berlin), "2026-11-20T15:39:16.100+01:00");
         assert_eq!(print_with(&ts, Offset::UTC), "2026-11-20T14:39:16.100Z");
         assert_eq!(print(&ts, true).parse::<Timestamp>().unwrap(), ts);
+    }
+
+    // A zone with DST: the offset follows each instant, summer and winter.
+    #[test]
+    fn local_follows_dst() {
+        let berlin = TimeZone::posix("CET-1CEST,M3.5.0,M10.5.0/3").unwrap();
+        let winter: Timestamp = "2026-01-15T12:00:00Z".parse().unwrap();
+        let summer: Timestamp = "2026-07-15T12:00:00Z".parse().unwrap();
+        assert_eq!(print_in(&winter, &berlin), "2026-01-15T13:00:00+01:00");
+        assert_eq!(print_in(&summer, &berlin), "2026-07-15T14:00:00+02:00");
+        // Across the switch on 2026-03-29 at 01:00 UTC.
+        let before: Timestamp = "2026-03-29T00:59:59Z".parse().unwrap();
+        let after: Timestamp = "2026-03-29T01:00:00Z".parse().unwrap();
+        assert_eq!(print_in(&before, &berlin), "2026-03-29T01:59:59+01:00");
+        assert_eq!(print_in(&after, &berlin), "2026-03-29T03:00:00+02:00");
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+    struct Opt {
+        #[serde(default, with = "utc_opt")]
+        at: Option<Timestamp>,
+    }
+
+    #[test]
+    fn opt_accepts_null_and_missing() {
+        let null: Opt = serde_json::from_str(r#"{"at": null}"#).unwrap();
+        assert_eq!(null, Opt { at: None });
+        let missing: Opt = serde_json::from_str("{}").unwrap();
+        assert_eq!(missing, Opt { at: None });
+        assert_eq!(serde_json::to_string(&missing).unwrap(), r#"{"at":null}"#);
+        let some: Opt = serde_json::from_str(r#"{"at": "2026-11-20T14:39:16.100Z"}"#).unwrap();
+        assert_eq!(
+            serde_json::to_string(&some).unwrap(),
+            r#"{"at":"2026-11-20T14:39:16.100Z"}"#
+        );
+    }
+
+    #[test]
+    fn to_rfc3339_secs_matches_chrono() {
+        let ts: Timestamp = "2026-11-20T14:39:16.999Z".parse().unwrap();
+        assert_eq!(to_rfc3339_secs(&ts), "2026-11-20T14:39:16Z");
     }
 
     #[test]

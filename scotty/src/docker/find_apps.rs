@@ -311,8 +311,18 @@ async fn inspect_docker_container(
         .await?;
 
     let state = insights.state.clone().unwrap();
-    let started_at_str = state.started_at.unwrap();
-    let started_at: jiff::Timestamp = started_at_str.parse().expect("Failed to parse datetime");
+    // Docker reports `0001-01-01T00:00:00Z` for a container that never
+    // started; anything unparseable is logged and treated as unknown.
+    let started_at = state
+        .started_at
+        .as_deref()
+        .and_then(|s| match s.parse::<jiff::Timestamp>() {
+            Ok(ts) => Some(ts),
+            Err(e) => {
+                tracing::warn!("Unparseable started_at {s:?} for {container_id}: {e}");
+                None
+            }
+        });
 
     let labels = insights.config.clone().unwrap().labels.unwrap();
     let service = labels.get("com.docker.compose.service").unwrap();
@@ -348,7 +358,7 @@ async fn inspect_docker_container(
         domains: loadbalancer_info.domains.clone(),
         use_tls: loadbalancer_info.tls_enabled,
         port: loadbalancer_info.port,
-        started_at: Some(started_at),
+        started_at,
         used_registry,
         basic_auth: match (
             loadbalancer_info.basic_auth_user,

@@ -68,6 +68,19 @@ pub fn sanitize_env_var_name(name: &str) -> String {
 mod tests {
     use super::*;
 
+    // Same output as the chrono-based version: the sign comes from the full
+    // duration, the digits from whole seconds.
+    #[test]
+    fn format_duration_edge_cases() {
+        let f = |d: SignedDuration| format_duration(&d);
+        assert_eq!(f(SignedDuration::ZERO), "00m 00s");
+        assert_eq!(f(SignedDuration::from_millis(500)), "00m 00s");
+        assert_eq!(f(SignedDuration::from_millis(-500)), "-00m 00s");
+        assert_eq!(f(SignedDuration::from_secs(-90)), "-01m 30s");
+        assert_eq!(f(SignedDuration::from_secs(3_725)), "01h 02m 05s");
+        assert_eq!(f(SignedDuration::from_secs(90_061)), "01d 01h 01m 01s");
+    }
+
     #[test]
     fn test_sanitize_env_var_name() {
         assert_eq!(sanitize_env_var_name("my-service"), "MY_SERVICE");

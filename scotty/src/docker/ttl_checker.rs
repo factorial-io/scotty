@@ -31,13 +31,13 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
         if let Some(started_at) = service.started_at {
             let service_start_time = started_at;
             let service_ttl = now.duration_since(service_start_time);
-            if service_ttl.as_secs() > app_ttl_seconds.into() {
+            // A start in the future (clock skew) counts as just started.
+            let elapsed = service_ttl.as_secs().max(0);
+            if elapsed > i64::from(app_ttl_seconds) {
                 needs_termination = true;
             } else {
-                remaining_ttl = std::cmp::max(
-                    app_ttl_seconds - service_ttl.as_secs() as u32,
-                    remaining_ttl,
-                );
+                // elapsed is within 0..=app_ttl_seconds here, so this fits.
+                remaining_ttl = std::cmp::max(app_ttl_seconds - elapsed as u32, remaining_ttl);
             }
             info!(
                 "{}.{} is running for {}; {} remaining before being stopped",

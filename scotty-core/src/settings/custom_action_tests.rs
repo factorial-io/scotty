@@ -353,4 +353,38 @@ mod tests {
             Some("Emergency revocation".to_string())
         );
     }
+
+    // Actions persisted in `.scotty.yml` before the jiff migration were
+    // written by chrono (`Z`, 0/3/6/9 fractional digits). They must still
+    // load, and be written back unchanged.
+    #[test]
+    fn chrono_written_action_round_trips() {
+        let yaml = r#"name: deploy-db
+description: Run migrations
+commands:
+  web:
+  - php artisan migrate
+permission: action_write
+created_by: user@example.com
+created_at: 2026-11-20T14:39:16.100Z
+status: approved
+reviewed_by: admin@example.com
+reviewed_at: 2026-11-20T15:00:00.123456Z
+expires_at: 2026-12-20T15:00:00.123456789Z
+"#;
+        let action: CustomAction = serde_norway::from_str(yaml).unwrap();
+        assert_eq!(
+            action.created_at,
+            "2026-11-20T14:39:16.1Z".parse::<Timestamp>().unwrap()
+        );
+        assert!(action.reviewed_at.is_some() && action.expires_at.is_some());
+        let written = serde_norway::to_string(&action).unwrap();
+        for line in [
+            "created_at: 2026-11-20T14:39:16.100Z",
+            "reviewed_at: 2026-11-20T15:00:00.123456Z",
+            "expires_at: 2026-12-20T15:00:00.123456789Z",
+        ] {
+            assert!(written.contains(line), "{line} not in:\n{written}");
+        }
+    }
 }
