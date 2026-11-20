@@ -217,12 +217,13 @@ fn id_token(issuer: &str, nonce: &str, email: Option<&str>) -> String {
             .set_email(Some(EndUserEmail::new(email.to_string())))
             .set_email_verified(Some(true));
     }
-    let now = chrono::Utc::now();
+    // openidconnect's claim times are chrono's; it converts from SystemTime.
+    let now = std::time::SystemTime::now();
     let claims = CoreIdTokenClaims::new(
         IssuerUrl::new(issuer.to_string()).unwrap(),
         vec![Audience::new(CLIENT_ID.to_string())],
-        now + chrono::Duration::minutes(5),
-        now,
+        (now + std::time::Duration::from_secs(300)).into(),
+        now.into(),
         standard,
         EmptyAdditionalClaims {},
     )
@@ -446,7 +447,7 @@ fn forge(
     grant: &grantry::Grant<String>,
     resource: &str,
     kind: &str,
-    now: chrono::DateTime<chrono::Utc>,
+    now: jiff::Timestamp,
 ) -> String {
     let server = state.session_server.as_ref().unwrap();
     grantry::token::mint(
@@ -485,7 +486,7 @@ async fn test_session_token_accepted_and_revocation_rejected() {
 async fn test_session_token_wrong_kind_audience_or_expired_rejected() {
     let (server, state) = session_app().await;
     let (grant, _token) = issue_session(&state).await;
-    let now = chrono::Utc::now();
+    let now = jiff::Timestamp::now();
 
     let control = forge(&state, &grant, "scotty-api", "session", now);
     assert_eq!(status_with(&server, &control).await, 200);
@@ -501,7 +502,7 @@ async fn test_session_token_wrong_kind_audience_or_expired_rejected() {
         &grant,
         "scotty-api",
         "session",
-        now - chrono::Duration::hours(2),
+        now - jiff::SignedDuration::from_hours(2),
     );
     assert_eq!(status_with(&server, &expired).await, 401);
 }
@@ -765,7 +766,7 @@ async fn test_device_refresh_after_absolute_lifetime_fails() {
     let tokens = device_login(&server, &state).await;
 
     // The grant reached its 30-day end.
-    let past = (chrono::Utc::now() - chrono::Duration::days(1)).timestamp_millis();
+    let past = (jiff::Timestamp::now() - jiff::SignedDuration::from_hours(24)).as_millisecond();
     sqlx::query("UPDATE oauth_grants SET expires_at = ?")
         .bind(past)
         .execute(state.oauth_db.as_ref().unwrap())

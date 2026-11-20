@@ -43,6 +43,7 @@ pub struct OutputLine {
     /// Timestamp when the line was received
     #[ts(type = "string")]
     #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
     pub timestamp: Timestamp,
     /// Type of stream (stdout or stderr)
     pub stream: OutputStreamType,
@@ -233,6 +234,7 @@ pub struct AppOperation {
     pub task_id: Option<Uuid>,
     #[ts(type = "string")]
     #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
     pub started_at: Timestamp,
 }
 
@@ -325,9 +327,11 @@ pub struct TaskDetails {
     pub state: State,
     #[ts(type = "string")]
     #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
     pub start_time: Timestamp,
     #[ts(type = "string | null")]
     #[serde(default, with = "time::utc_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub finish_time: Option<Timestamp>,
     pub last_exit_code: Option<i32>,
     pub app_name: Option<String>,

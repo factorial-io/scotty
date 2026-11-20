@@ -149,6 +149,8 @@ mod schema_tests {
             props["finish_time"],
             json!({"type": ["string", "null"], "format": "date-time"})
         );
-        assert_eq!(<jiff::Timestamp as TS>::name(&Default::default()), "string");
+        let decl = crate::TaskDetails::decl(&Default::default());
+        assert!(decl.contains("start_time: string,"), "{decl}");
+        assert!(decl.contains("finish_time: string | null,"), "{decl}");
     }
 }

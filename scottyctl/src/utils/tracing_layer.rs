@@ -45,7 +45,7 @@ where
         let line = event.metadata().line().unwrap_or(0);
 
         // Get current timestamp
-        let timestamp = jiff::Zoned::now().strftime("%Y-%m-%d %H:%M:%S%.3f");
+        let timestamp = jiff::ZonedDateTime::now().strftime("%Y-%m-%d %H:%M:%S%.3f");
 
         // Format the message with timestamp, level, etc.
         let formatted_msg = format!(

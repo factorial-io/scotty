@@ -67,6 +67,7 @@ pub struct CustomAction {
 
     /// When this action was created
     #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
     pub created_at: Timestamp,
 
     /// Current status in the approval workflow
@@ -82,6 +83,7 @@ pub struct CustomAction {
         skip_serializing_if = "Option::is_none",
         with = "time::utc_opt"
     )]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub reviewed_at: Option<Timestamp>,
 
     /// Comment from the reviewer
@@ -94,6 +96,7 @@ pub struct CustomAction {
         skip_serializing_if = "Option::is_none",
         with = "time::utc_opt"
     )]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub expires_at: Option<Timestamp>,
 }
 

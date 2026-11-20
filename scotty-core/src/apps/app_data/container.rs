@@ -59,6 +59,7 @@ pub struct ContainerState {
     pub use_tls: bool,
     pub port: Option<u32>,
     #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub started_at: Option<Timestamp>,
     pub used_registry: Option<String>,
     pub basic_auth: Option<(String, String)>,

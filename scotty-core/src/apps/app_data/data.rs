@@ -23,6 +23,7 @@ pub struct AppData {
     pub services: Vec<ContainerState>,
     pub settings: Option<AppSettings>,
     #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub last_checked: Option<Timestamp>,
     /// When the server's next scheduled app-state sweep is due, or `None` before the
     /// first sweep has run. Server-global rather than per-app: one scheduler job
@@ -31,6 +32,7 @@ pub struct AppData {
     /// inspects a single app between sweeps. `serde(default)` keeps the wire format
     /// compatible with clients that predate the field.
     #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub next_check: Option<Timestamp>,
     /// Whether the load balancer can reach this app. Only the proxy-network
     /// reconciler sets a definite value; every other construction path leaves
