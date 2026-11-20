@@ -6,6 +6,7 @@ use tracing::info;
 use crate::auth::cache::CachedTokenManager;
 use crate::auth::config::get_server_info;
 use crate::auth::device_flow::refresh_session;
+use crate::auth::StoredToken;
 use crate::context::ServerSettings;
 use crate::utils::ui::Ui;
 use owo_colors::OwoColorize;
@@ -16,7 +17,7 @@ use scotty_core::tasks::task_details::State;
 use scotty_core::version::VersionManager;
 use scotty_types::AppOperation;
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 /// The server refused a request because an operation is running on the app.
 /// `Display` is the server's message.
@@ -145,10 +146,17 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
         Err(_) => false, // If we can't check, assume OAuth is not supported
     };
 
-    // 3. Try stored OAuth token only if server supports OAuth. An expired
-    // one is refreshed on the 401 it gets (`send_with_refresh`).
+    // 3. Try stored OAuth token only if server supports OAuth. One whose
+    // stored expiry has passed is refreshed before it is used, so callers
+    // without a 401 retry (WebSocket commands, app:cp) get a valid token;
+    // REST calls still refresh on the 401 they get (`send_with_refresh`).
     if server_supports_oauth {
         if let Ok(Some(stored_token)) = get_cached_token_manager().load_for_server(&server.server) {
+            if is_expired(&stored_token, SystemTime::now()) {
+                if let Some(token) = refresh_stored_session(server).await {
+                    return Ok(token);
+                }
+            }
             return Ok(stored_token.access_token);
         }
     }
@@ -156,6 +164,17 @@ pub async fn get_auth_token(server: &ServerSettings) -> Result<String, anyhow::E
     Err(anyhow::anyhow!(
         "No authentication available. Run 'scottyctl auth:login' or set SCOTTY_ACCESS_TOKEN"
     ))
+}
+
+/// Margin before the stored expiry at which a token counts as expired, so
+/// it does not run out between this check and the server's.
+const EXPIRY_SKEW: Duration = Duration::from_secs(30);
+
+/// Whether `token` has a known expiry that has passed (or is about to) at `now`.
+fn is_expired(token: &StoredToken, now: SystemTime) -> bool {
+    token
+        .expires_at
+        .is_some_and(|expires_at| expires_at <= now + EXPIRY_SKEW)
 }
 
 /// Send `call` with `token`. On a 401, ask `refresh` once for a new token
@@ -633,6 +652,35 @@ mod tests {
         assert_eq!(progress_line(&p).as_deref(), Some("43% Pulling images"));
         p.status.clear();
         assert_eq!(progress_line(&p), None);
+    }
+
+    fn token_expiring_at(expires_at: Option<SystemTime>) -> StoredToken {
+        StoredToken {
+            access_token: "a".into(),
+            refresh_token: Some("r".into()),
+            expires_at,
+            user_email: "alice@example.com".into(),
+            user_name: "alice".into(),
+            server_url: "http://localhost".into(),
+        }
+    }
+
+    #[test]
+    fn stored_token_counts_as_expired_from_its_expiry_minus_skew() {
+        let now = SystemTime::now();
+        assert!(!is_expired(&token_expiring_at(None), now));
+        assert!(!is_expired(
+            &token_expiring_at(Some(now + Duration::from_secs(3600))),
+            now
+        ));
+        assert!(is_expired(
+            &token_expiring_at(Some(now + Duration::from_secs(10))),
+            now
+        ));
+        assert!(is_expired(
+            &token_expiring_at(Some(now - Duration::from_secs(1))),
+            now
+        ));
     }
 
     use std::sync::atomic::{AtomicUsize, Ordering};
