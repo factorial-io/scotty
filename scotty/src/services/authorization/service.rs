@@ -300,7 +300,7 @@ impl AuthorizationService {
                 name.to_string(),
                 ScopeConfig {
                     description: description.to_string(),
-                    created_at: chrono::Utc::now(),
+                    created_at: jiff::Timestamp::now(),
                 },
             );
             Ok(())

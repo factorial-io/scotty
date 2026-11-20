@@ -78,7 +78,7 @@ mod tests {
             stdin_sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now() - chrono::Duration::hours(2),
+            created_at: jiff::Timestamp::now() - jiff::SignedDuration::from_hours(2),
         };
 
         // Session created 2 hours ago should be expired with 1 hour TTL
@@ -100,7 +100,7 @@ mod tests {
             stdin_sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         };
 
         let info = session.to_info("/bin/bash".to_string());
@@ -209,7 +209,7 @@ mod tests {
             sender: tx,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         };
 
         // Test that input commands are transmitted correctly
@@ -257,7 +257,7 @@ mod tests {
             stdin_sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now() - chrono::Duration::seconds(3600),
+            created_at: jiff::Timestamp::now() - jiff::SignedDuration::from_secs(3600),
         };
 
         let ttl = std::time::Duration::from_secs(3600);
@@ -280,7 +280,7 @@ mod tests {
             stdin_sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now() - chrono::Duration::seconds(3601),
+            created_at: jiff::Timestamp::now() - jiff::SignedDuration::from_secs(3601),
         };
 
         let ttl = std::time::Duration::from_secs(3600);
@@ -379,7 +379,7 @@ mod tests {
             stdin_sender: tokio::sync::mpsc::channel(1).0,
             client_id: Uuid::new_v4(),
             tty: true,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         }
         .to_info("/bin/sh".to_string());
 
@@ -457,7 +457,7 @@ mod tests {
             stdin_sender: stdin_tx,
             client_id: Uuid::new_v4(),
             tty: false,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         };
 
         for cmd in [

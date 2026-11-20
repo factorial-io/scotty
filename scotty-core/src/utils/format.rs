@@ -1,13 +1,13 @@
-use chrono::TimeDelta;
+use jiff::SignedDuration;
 
-pub fn format_chrono_duration(duration: &TimeDelta) -> String {
-    let is_negative = duration < &TimeDelta::zero();
-    let duration = duration.abs();
+pub fn format_duration(duration: &SignedDuration) -> String {
+    let is_negative = duration.is_negative();
+    let total = duration.as_secs().unsigned_abs();
 
-    let days = duration.num_days();
-    let hours = duration.num_hours() % 24;
-    let minutes = duration.num_minutes() % 60;
-    let seconds = duration.num_seconds() % 60;
+    let days = total / 86_400;
+    let hours = total / 3_600 % 24;
+    let minutes = total / 60 % 60;
+    let seconds = total % 60;
 
     let mut segments = vec![];
     if days > 0 {

@@ -64,15 +64,15 @@ pub struct ShellSession {
     pub client_id: Uuid, // WebSocket client that owns this session
     /// Whether the exec runs with a tty
     pub tty: bool,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: jiff::Timestamp,
 }
 
 impl ShellSession {
     /// Check if session has expired based on TTL
     #[allow(dead_code)]
     pub fn is_expired(&self, ttl: std::time::Duration) -> bool {
-        let age = chrono::Utc::now() - self.created_at;
-        age.num_seconds() as u64 > ttl.as_secs()
+        let age = jiff::Timestamp::now().duration_since(self.created_at);
+        age.as_secs() as u64 > ttl.as_secs()
     }
 
     /// Convert to ShellSessionInfo for WebSocket messages
@@ -447,7 +447,7 @@ impl ShellService {
             stdin_sender: stdin_tx,
             client_id,
             tty,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         };
 
         // Store session
@@ -985,7 +985,7 @@ impl ShellService {
             sender,
             client_id,
             tty,
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         };
         self.active_sessions
             .write()

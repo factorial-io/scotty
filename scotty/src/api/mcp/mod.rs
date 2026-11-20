@@ -154,7 +154,7 @@ impl AppSummary {
             operation: app.operation.as_ref().map(|o| RunningOperation {
                 operation: o.operation.clone(),
                 task_id: o.task_id.map(|id| id.to_string()),
-                started_at: o.started_at.to_rfc3339(),
+                started_at: o.started_at.to_string(),
             }),
         }
     }
@@ -465,8 +465,8 @@ impl ScottyMcp {
             state: wire_name(&task.state),
             app_name: task.app_name.clone(),
             last_exit_code: task.last_exit_code,
-            started: task.start_time.to_rfc3339(),
-            finished: task.finish_time.map(|t| t.to_rfc3339()),
+            started: task.start_time.to_string(),
+            finished: task.finish_time.map(|t| t.to_string()),
             output: shown.iter().map(|l| l.content.clone()).collect(),
             output_lines_omitted: task
                 .output

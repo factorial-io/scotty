@@ -8,7 +8,6 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Extension, Json,
 };
-use chrono::{DateTime, Utc};
 use grantry::Grant;
 use scotty_core::authorization::Permission;
 use serde::{Deserialize, Serialize};
@@ -34,10 +33,13 @@ pub struct Connection {
     pub scope: String,
     /// The user's email.
     pub subject: String,
-    pub created_at: DateTime<Utc>,
+    #[schema(value_type = String, format = DateTime)]
+    pub created_at: jiff::Timestamp,
     /// The last refresh.
-    pub last_used_at: Option<DateTime<Utc>>,
-    pub expires_at: DateTime<Utc>,
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub last_used_at: Option<jiff::Timestamp>,
+    #[schema(value_type = String, format = DateTime)]
+    pub expires_at: jiff::Timestamp,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -57,16 +59,10 @@ fn connection(realm: &str, grant: Grant<String>) -> Connection {
         client_name: grant.client_name,
         scope: grant.scope,
         subject: grant.subject,
-        created_at: utc(grant.created_at),
-        last_used_at: grant.last_refreshed_at.map(utc),
-        expires_at: utc(grant.expires_at),
+        created_at: grant.created_at,
+        last_used_at: grant.last_refreshed_at,
+        expires_at: grant.expires_at,
     }
-}
-
-/// grantry's timestamps as the chrono type the API serializes and documents.
-fn utc(at: jiff::Timestamp) -> DateTime<Utc> {
-    DateTime::from_timestamp(at.as_second(), at.subsec_nanosecond() as u32)
-        .expect("a grant timestamp is in chrono's range")
 }
 
 fn backend_error(e: impl std::fmt::Display) -> StatusCode {

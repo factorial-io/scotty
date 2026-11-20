@@ -16,7 +16,7 @@ publish = false
 [workspace.dependencies]
 anyhow = "1.0.89"
 axum = { version = "0.8.0", default-features = false, features = ["http1", "http2", "tokio", "tower-log", "matched-path", "json", "ws", "macros"] }
-bollard = { version = "0.21.0", default-features = false, features = ["ssl", "chrono", "http", "pipe"] }
+bollard = { version = "0.21.0", default-features = false, features = ["ssl", "http", "pipe"] }
 bollard-stubs = "1.53.1-rc.29.3.1"
 bytes = "1"
 config = { version = "0.15.0", default-features = false, features = ["yaml", "toml"] }
@@ -52,7 +52,7 @@ init-tracing-opentelemetry = { version = "0.44.0", default-features = false, fea
 axum-tracing-opentelemetry = { version = "0.42.0", default-features = false }
 opentelemetry-otlp = { version = "0.33.0", default-features = false, features = ["metrics"] }
 
-utoipa = { version = "6.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa = { version = "6.0", features = ["axum_extras", "uuid"] }
 utoipa-swagger-ui = { version = "10.0", default-features = false, features = ["axum"] }
 utoipa-redoc = { version = "7.0", default-features = false, features = ["axum"] }
 utoipa-rapidoc = { version = "7.0", default-features = false, features = ["axum"] }
@@ -71,7 +71,6 @@ clokwerk = { version = "0.4.0", default-features = false, features = ["async"] }
 walkdir = "2.5.0"
 ignore = "0.4"
 tar = "0.4"
-chrono = { version = "0.4.38", default-features = false, features = ["clock", "std", "serde"] }
 tokio-stream = { version = "0.1.16", default-features = false }
 serde_norway = "0.9.42"
 regex = { version = "1.11.0", default-features = false, features = ["std", "perf"] }
@@ -99,8 +98,7 @@ num_cpus = "1.16"
 flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
 wiremock = "0.6"
 grantry = { version = "=0.6.0", default-features = false, features = ["axum"] }
-# grantry's public time types (Timestamp, SignedDuration).
-jiff = { version = "1", default-features = false, features = ["std"] }
+jiff = { version = "1", default-features = false, features = ["std", "serde"] }
 # `macros` only for `migrate!`; queries are runtime `sqlx::query`, no `query!`.
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "migrate", "macros", "runtime-tokio"] }
 

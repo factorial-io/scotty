@@ -6,14 +6,14 @@
  * scotty-core library.
  */
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
 use uuid::Uuid;
 
 // Re-export core types for easier access
-pub use chrono;
+pub use jiff;
 pub use serde;
 pub use ts_rs;
 pub use uuid;
@@ -41,7 +41,8 @@ pub enum OutputStreamType {
 pub struct OutputLine {
     /// Timestamp when the line was received
     #[ts(type = "string")]
-    pub timestamp: DateTime<Utc>,
+    #[schema(value_type = String, format = DateTime)]
+    pub timestamp: Timestamp,
     /// Type of stream (stdout or stderr)
     pub stream: OutputStreamType,
     /// The actual content of the line
@@ -53,7 +54,7 @@ pub struct OutputLine {
 impl OutputLine {
     pub fn new(stream: OutputStreamType, content: String, sequence: u64) -> Self {
         Self {
-            timestamp: chrono::Utc::now(),
+            timestamp: Timestamp::now(),
             stream,
             content,
             sequence,
@@ -230,7 +231,8 @@ pub struct AppOperation {
     #[ts(type = "string | null")]
     pub task_id: Option<Uuid>,
     #[ts(type = "string")]
-    pub started_at: DateTime<Utc>,
+    #[schema(value_type = String, format = DateTime)]
+    pub started_at: Timestamp,
 }
 
 // Task types
@@ -321,9 +323,11 @@ pub struct TaskDetails {
     pub command: String,
     pub state: State,
     #[ts(type = "string")]
-    pub start_time: DateTime<Utc>,
+    #[schema(value_type = String, format = DateTime)]
+    pub start_time: Timestamp,
     #[ts(type = "string | null")]
-    pub finish_time: Option<DateTime<Utc>>,
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub finish_time: Option<Timestamp>,
     pub last_exit_code: Option<i32>,
     pub app_name: Option<String>,
     pub output_collection_active: bool,
@@ -354,7 +358,7 @@ impl Default for TaskDetails {
             id: uuid::Uuid::new_v4(),
             command: "".to_string(),
             state: State::Running,
-            start_time: chrono::Utc::now(),
+            start_time: Timestamp::now(),
             finish_time: None,
             last_exit_code: None,
             app_name: None,
@@ -374,7 +378,7 @@ impl TaskDetails {
             id,
             command,
             state: State::Running,
-            start_time: chrono::Utc::now(),
+            start_time: Timestamp::now(),
             finish_time: None,
             last_exit_code: None,
             app_name,
@@ -398,7 +402,7 @@ impl TaskDetails {
             id,
             command,
             state: State::Running,
-            start_time: chrono::Utc::now(),
+            start_time: Timestamp::now(),
             finish_time: None,
             last_exit_code: None,
             app_name,

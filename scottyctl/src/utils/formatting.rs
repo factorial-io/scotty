@@ -1,5 +1,5 @@
-use chrono::{DateTime, TimeDelta, Utc};
-use scotty_core::{apps::app_data::AppStatus, utils::format::format_chrono_duration};
+use jiff::{SignedDuration, Timestamp};
+use scotty_core::{apps::app_data::AppStatus, utils::format::format_duration};
 use scotty_types::AppOperation;
 use serde_json::Value;
 
@@ -44,19 +44,19 @@ pub fn format_custom_action_details(action: &Value) -> String {
     output
 }
 
-pub fn format_since(duration: &Option<TimeDelta>) -> String {
+pub fn format_since(duration: &Option<SignedDuration>) -> String {
     match duration {
-        Some(d) => format_chrono_duration(d),
+        Some(d) => format_duration(d),
         None => "N/A".to_string(),
     }
 }
 
 /// One line for `app:info`: what runs on the app, since when, and its task.
-pub fn format_operation(op: &AppOperation, now: DateTime<Utc>) -> String {
+pub fn format_operation(op: &AppOperation, now: Timestamp) -> String {
     let mut line = format!(
         "Operation: {} running since {}",
         op.operation,
-        format_since(&Some(now - op.started_at))
+        format_since(&Some(now.duration_since(op.started_at)))
     );
     if let Some(task_id) = op.task_id {
         line += &format!(" (task {task_id})");
@@ -86,26 +86,25 @@ pub fn colored_by_status(name: &str, status: &AppStatus) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
 
     fn op(task_id: Option<uuid::Uuid>) -> AppOperation {
         AppOperation {
             operation: "rebuild".into(),
             task_id,
-            started_at: Utc::now() - Duration::minutes(3),
+            started_at: Timestamp::now() - SignedDuration::from_mins(3),
         }
     }
 
     #[test]
     fn operation_line_names_operation_and_task() {
         let id = uuid::Uuid::nil();
-        let line = format_operation(&op(Some(id)), Utc::now());
+        let line = format_operation(&op(Some(id)), Timestamp::now());
         assert!(
             line.starts_with("Operation: rebuild running since "),
             "{line}"
         );
         assert!(line.ends_with(&format!("(task {id})")), "{line}");
-        assert!(!format_operation(&op(None), Utc::now()).contains("task"));
+        assert!(!format_operation(&op(None), Timestamp::now()).contains("task"));
     }
 
     #[test]

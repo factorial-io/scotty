@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
@@ -69,7 +68,7 @@ pub struct AuthConfigForSave {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScopeConfig {
     pub description: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: jiff::Timestamp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

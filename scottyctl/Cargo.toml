@@ -15,7 +15,8 @@ serde_json.workspace = true
 clap_complete.workspace = true
 tokio.workspace = true
 clap.workspace = true
-chrono.workspace = true
+# Local time for log lines needs the system time zone.
+jiff = { workspace = true, features = ["tz-system", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
 base64.workspace = true
 owo-colors.workspace = true
 reqwest.workspace = true

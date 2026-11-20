@@ -36,12 +36,12 @@ impl From<SchedulerInterval> for clokwerk::Interval {
         }
     }
 }
-impl From<SchedulerInterval> for chrono::Duration {
+impl From<SchedulerInterval> for jiff::SignedDuration {
     fn from(val: SchedulerInterval) -> Self {
         match val {
-            SchedulerInterval::Seconds(s) => chrono::Duration::seconds(s as i64),
-            SchedulerInterval::Minutes(m) => chrono::Duration::minutes(m as i64),
-            SchedulerInterval::Hours(h) => chrono::Duration::hours(h as i64),
+            SchedulerInterval::Seconds(s) => jiff::SignedDuration::from_secs(s as i64),
+            SchedulerInterval::Minutes(m) => jiff::SignedDuration::from_mins(m as i64),
+            SchedulerInterval::Hours(h) => jiff::SignedDuration::from_hours(h as i64),
         }
     }
 }

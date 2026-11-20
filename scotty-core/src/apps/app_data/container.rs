@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use bollard_stubs::models::ContainerStateStatusEnum;
-use chrono::TimeDelta;
+use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::{ToResponse, ToSchema};
 
@@ -58,7 +58,8 @@ pub struct ContainerState {
     pub domains: Vec<String>,
     pub use_tls: bool,
     pub port: Option<u32>,
-    pub started_at: Option<chrono::DateTime<chrono::Local>>,
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub started_at: Option<Timestamp>,
     pub used_registry: Option<String>,
     pub basic_auth: Option<(String, String)>,
     /// Exit code reported by Docker for a stopped container, when available.
@@ -119,9 +120,9 @@ impl ContainerState {
         )
     }
 
-    pub fn running_since(&self) -> Option<TimeDelta> {
+    pub fn running_since(&self) -> Option<SignedDuration> {
         self.started_at
-            .map(|started_at| chrono::Local::now() - started_at)
+            .map(|started_at| Timestamp::now().duration_since(started_at))
     }
 
     pub fn get_urls(&self) -> Vec<String> {

@@ -4,7 +4,7 @@ use crate::api::error::AppError;
 use crate::docker::destroy_app::destroy_app;
 use crate::{app_state::SharedAppState, docker::stop_app::force_stop_app};
 use scotty_core::apps::app_data::{AppData, AppStatus, AppTtl};
-use scotty_core::utils::format::format_chrono_duration;
+use scotty_core::utils::format::format_duration;
 
 #[instrument(skip(app_state))]
 pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::Result<()> {
@@ -21,7 +21,7 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
         return Ok(());
     }
     let app_ttl_seconds: u32 = app_ttl.into();
-    let now = chrono::Local::now();
+    let now = jiff::Timestamp::now();
     let mut needs_termination = false;
     let mut remaining_ttl = 0;
     for service in &app.services {
@@ -30,12 +30,12 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
         }
         if let Some(started_at) = service.started_at {
             let service_start_time = started_at;
-            let service_ttl = now - service_start_time;
-            if service_ttl.num_seconds() > app_ttl_seconds.into() {
+            let service_ttl = now.duration_since(service_start_time);
+            if service_ttl.as_secs() > app_ttl_seconds.into() {
                 needs_termination = true;
             } else {
                 remaining_ttl = std::cmp::max(
-                    app_ttl_seconds - service_ttl.num_seconds() as u32,
+                    app_ttl_seconds - service_ttl.as_secs() as u32,
                     remaining_ttl,
                 );
             }
@@ -43,8 +43,8 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
                 "{}.{} is running for {}; {} remaining before being stopped",
                 app.name,
                 service.service,
-                format_chrono_duration(&service_ttl),
-                format_chrono_duration(&chrono::Duration::seconds(remaining_ttl as i64))
+                format_duration(&service_ttl),
+                format_duration(&jiff::SignedDuration::from_secs(remaining_ttl as i64))
             );
         }
     }
@@ -103,7 +103,7 @@ mod tests {
             services: vec![ContainerState {
                 service: "web".into(),
                 status: ContainerStatus::Running,
-                started_at: Some(chrono::Local::now() - chrono::Duration::hours(2)),
+                started_at: Some(jiff::Timestamp::now() - jiff::SignedDuration::from_hours(2)),
                 ..Default::default()
             }],
             ..Default::default()

@@ -1,7 +1,6 @@
 use bollard::container::LogOutput;
 use bollard::query_parameters::LogsOptions;
 use bollard::Docker;
-use chrono::Utc;
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -112,7 +111,7 @@ impl LogOutputConverter {
         }
 
         let output_line = OutputLine {
-            timestamp: timestamp.unwrap_or_else(Utc::now),
+            timestamp: timestamp.unwrap_or_else(jiff::Timestamp::now),
             stream: stream_type,
             content: clean_content,
             sequence: self.sequence,
@@ -525,15 +524,15 @@ impl LogStreamingService {
 
 /// Extract Docker timestamp from log line if present
 /// Docker format: "2024-01-15T10:30:45.123456789Z message content"
-fn extract_docker_timestamp(content: &str) -> (Option<chrono::DateTime<Utc>>, String) {
+fn extract_docker_timestamp(content: &str) -> (Option<jiff::Timestamp>, String) {
     // Check if line starts with a timestamp
     if content.len() > 30 && &content[..1] == "2" {
         // Try to find the end of the timestamp (usually a space after 'Z')
         if let Some(pos) = content.find(" ") {
             let timestamp_str = &content[..pos];
-            if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(timestamp_str) {
+            if let Ok(timestamp) = timestamp_str.parse::<jiff::Timestamp>() {
                 let clean_content = content[pos + 1..].to_string();
-                return (Some(timestamp.with_timezone(&Utc)), clean_content);
+                return (Some(timestamp), clean_content);
             }
         }
     }

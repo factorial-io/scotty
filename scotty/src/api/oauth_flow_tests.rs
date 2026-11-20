@@ -217,12 +217,13 @@ fn id_token(issuer: &str, nonce: &str, email: Option<&str>) -> String {
             .set_email(Some(EndUserEmail::new(email.to_string())))
             .set_email_verified(Some(true));
     }
-    let now = chrono::Utc::now();
+    // openidconnect's claim times are chrono's; it converts from SystemTime.
+    let now = std::time::SystemTime::now();
     let claims = CoreIdTokenClaims::new(
         IssuerUrl::new(issuer.to_string()).unwrap(),
         vec![Audience::new(CLIENT_ID.to_string())],
-        now + chrono::Duration::minutes(5),
-        now,
+        (now + std::time::Duration::from_secs(300)).into(),
+        now.into(),
         standard,
         EmptyAdditionalClaims {},
     )
@@ -765,7 +766,7 @@ async fn test_device_refresh_after_absolute_lifetime_fails() {
     let tokens = device_login(&server, &state).await;
 
     // The grant reached its 30-day end.
-    let past = (chrono::Utc::now() - chrono::Duration::days(1)).timestamp_millis();
+    let past = (jiff::Timestamp::now() - jiff::SignedDuration::from_hours(24)).as_millisecond();
     sqlx::query("UPDATE oauth_grants SET expires_at = ?")
         .bind(past)
         .execute(state.oauth_db.as_ref().unwrap())
