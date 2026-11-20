@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{info, warn};
@@ -84,7 +83,7 @@ impl ConfigManager {
                 "default".to_string(),
                 ScopeConfig {
                     description: "Default scope".to_string(),
-                    created_at: Utc::now(),
+                    created_at: jiff::Timestamp::now(),
                 },
             )]),
             roles: HashMap::from([

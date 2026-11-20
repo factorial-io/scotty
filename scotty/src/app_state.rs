@@ -108,7 +108,7 @@ impl AppLocks {
             AppOperation {
                 operation: operation.to_string(),
                 task_id: None,
-                started_at: chrono::Utc::now(),
+                started_at: jiff::Timestamp::now(),
             },
         );
         Ok(AppLock {
@@ -227,16 +227,15 @@ impl AppState {
     }
 
     /// Records when the next scheduled app-state sweep is due.
-    pub fn set_next_app_check(&self, at: chrono::DateTime<chrono::Local>) {
-        self.next_app_check.store(at.timestamp(), Ordering::Relaxed);
+    pub fn set_next_app_check(&self, at: jiff::Timestamp) {
+        self.next_app_check.store(at.as_second(), Ordering::Relaxed);
     }
 
     /// The next scheduled app-state sweep, or `None` if no sweep has run yet.
-    pub fn next_app_check_at(&self) -> Option<chrono::DateTime<chrono::Local>> {
+    pub fn next_app_check_at(&self) -> Option<jiff::Timestamp> {
         match self.next_app_check.load(Ordering::Relaxed) {
             0 => None,
-            timestamp => chrono::DateTime::from_timestamp(timestamp, 0)
-                .map(|dt| dt.with_timezone(&chrono::Local)),
+            timestamp => jiff::Timestamp::from_second(timestamp).ok(),
         }
     }
 

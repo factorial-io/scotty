@@ -188,7 +188,7 @@ fn display_log_line(line: &OutputLine, cmd: &LogsCommand, ui: &crate::utils::ui:
     let show_timestamps = cmd.timestamps;
 
     let timestamp_str = if show_timestamps {
-        line.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+        line.timestamp.strftime("%Y-%m-%d %H:%M:%S%.3f").to_string()
     } else {
         String::new()
     };

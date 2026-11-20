@@ -376,7 +376,6 @@ dependencies = [
  "base64 0.22.1",
  "bollard-stubs",
  "bytes",
- "chrono",
  "futures-core",
  "futures-util",
  "hex",
@@ -411,7 +410,6 @@ version = "1.53.1-rc.29.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce412eb6f7096743011dc3cb5c674caeb24ced61d8c498fe07cf7998a4fea889"
 dependencies = [
- "chrono",
  "serde",
  "serde_json",
  "serde_repr",
@@ -3926,6 +3924,7 @@ dependencies = [
  "http-body-util",
  "include_dir",
  "init-tracing-opentelemetry",
+ "jiff",
  "jsonschema",
  "maplit",
  "mime_guess",
@@ -3986,11 +3985,11 @@ dependencies = [
  "bollard",
  "bollard-stubs",
  "cargo-husky",
- "chrono",
  "clap",
  "clokwerk",
  "deunicode",
  "futures-util",
+ "jiff",
  "owo-colors",
  "readonly",
  "reqwest 0.13.5",
@@ -4023,7 +4022,7 @@ name = "scotty-types"
 version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
- "chrono",
+ "jiff",
  "serde",
  "serde_json",
  "ts-rs",
@@ -4038,7 +4037,6 @@ dependencies = [
  "anyhow",
  "base64 0.23.1",
  "bytes",
- "chrono",
  "clap",
  "clap_complete",
  "crossterm",
@@ -4046,6 +4044,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "ignore",
+ "jiff",
  "open",
  "owo-colors",
  "reqwest 0.13.5",
@@ -5364,7 +5363,7 @@ version = "12.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8"
 dependencies = [
- "chrono",
+ "jiff",
  "thiserror 2.0.21",
  "ts-rs-macros",
  "uuid",

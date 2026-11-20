@@ -1,4 +1,3 @@
-use chrono::Utc;
 use std::collections::HashMap;
 use tracing::info;
 
@@ -52,7 +51,7 @@ impl FallbackService {
                 "default".to_string(),
                 ScopeConfig {
                     description: "Default scope for all users".to_string(),
-                    created_at: Utc::now(),
+                    created_at: jiff::Timestamp::now(),
                 },
             )]),
             roles: HashMap::from([

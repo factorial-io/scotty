@@ -188,7 +188,7 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     let mut result = format!("Info for {}\n{}", app_data.name, table);
 
     if let Some(op) = &app_data.operation {
-        result += &format!("\n{}", format_operation(op, chrono::Utc::now()));
+        result += &format!("\n{}", format_operation(op, jiff::Timestamp::now()));
     }
 
     if let Some(settings) = &app_data.settings {

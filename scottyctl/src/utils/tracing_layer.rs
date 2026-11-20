@@ -1,5 +1,4 @@
 use crate::utils::ui::Ui;
-use chrono::Local;
 use owo_colors::OwoColorize;
 use std::sync::Arc;
 use tracing::{Event, Level, Subscriber};
@@ -46,8 +45,7 @@ where
         let line = event.metadata().line().unwrap_or(0);
 
         // Get current timestamp
-        let now = Local::now();
-        let timestamp = now.format("%Y-%m-%d %H:%M:%S%.3f");
+        let timestamp = jiff::Zoned::now().strftime("%Y-%m-%d %H:%M:%S%.3f");
 
         // Format the message with timestamp, level, etc.
         let formatted_msg = format!(

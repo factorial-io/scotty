@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use bollard::query_parameters::InspectContainerOptions;
-use chrono::{DateTime, Local};
 use futures_util::future::join_all;
 use scotty_core::apps::{
     app_data::{AppData, AppSettings, AppStatus, ContainerState},
@@ -143,7 +142,7 @@ pub async fn inspect_app(
     );
 
     // Set the last_checked timestamp to the current time
-    app_data.last_checked = Some(chrono::Local::now());
+    app_data.last_checked = Some(jiff::Timestamp::now());
     // Read the scheduler's next due time rather than computing `now + interval`: this
     // function also runs for manual actions between sweeps, which must not shift the
     // reported next check.
@@ -313,11 +312,7 @@ async fn inspect_docker_container(
 
     let state = insights.state.clone().unwrap();
     let started_at_str = state.started_at.unwrap();
-    let parsed_date =
-        DateTime::parse_from_rfc3339(&started_at_str).expect("Failed to parse datetime");
-
-    // Convert the UTC DateTime to local time
-    let local_date: DateTime<Local> = parsed_date.with_timezone(&Local);
+    let started_at: jiff::Timestamp = started_at_str.parse().expect("Failed to parse datetime");
 
     let labels = insights.config.clone().unwrap().labels.unwrap();
     let service = labels.get("com.docker.compose.service").unwrap();
@@ -353,7 +348,7 @@ async fn inspect_docker_container(
         domains: loadbalancer_info.domains.clone(),
         use_tls: loadbalancer_info.tls_enabled,
         port: loadbalancer_info.port,
-        started_at: Some(local_date),
+        started_at: Some(started_at),
         used_registry,
         basic_auth: match (
             loadbalancer_info.basic_auth_user,

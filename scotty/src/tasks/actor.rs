@@ -327,12 +327,12 @@ impl TaskActor {
         }
         self.details.state = state;
         self.details.output_collection_active = false;
-        let finish_time = chrono::Utc::now();
+        let finish_time = jiff::Timestamp::now();
         self.details.finish_time = Some(finish_time);
 
         let duration_secs = finish_time
-            .signed_duration_since(self.details.start_time)
-            .num_milliseconds() as f64
+            .duration_since(self.details.start_time)
+            .as_millis() as f64
             / 1000.0;
         metrics::metrics().record_task_finished(duration_secs, failed);
         true

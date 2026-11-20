@@ -144,9 +144,7 @@ fn describe_operation(operation: &scotty_core::apps::app_data::AppOperation) -> 
     format!(
         "{}{task} running since {}",
         operation.operation,
-        operation
-            .started_at
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        operation.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     )
 }
 
@@ -324,7 +322,7 @@ mod tests {
     #[tokio::test]
     async fn operation_in_progress_is_409_naming_the_holder() {
         let task_id = Uuid::new_v4();
-        let started_at = chrono::Utc::now();
+        let started_at = jiff::Timestamp::now();
         let response = AppError::OperationInProgress {
             app: "shop".into(),
             operation: scotty_core::apps::app_data::AppOperation {
@@ -349,7 +347,7 @@ mod tests {
         );
         assert_eq!(body["operation"]["operation"], "rebuild");
         assert_eq!(body["operation"]["task_id"], task_id.to_string());
-        let started: chrono::DateTime<chrono::Utc> =
+        let started: jiff::Timestamp =
             serde_json::from_value(body["operation"]["started_at"].clone()).unwrap();
         assert_eq!(started, started_at);
     }

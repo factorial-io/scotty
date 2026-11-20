@@ -10,7 +10,9 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use grantry::Grant;
+use jiff::Timestamp;
 use scotty_core::authorization::Permission;
+use scotty_types::time;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use uuid::Uuid;
@@ -20,6 +22,13 @@ use super::store::{active_grants, REALM_MCP};
 use crate::api::basic_auth::CurrentUser;
 use crate::app_state::SharedAppState;
 use crate::services::authorization::decision::Target;
+
+/// grantry speaks chrono; the API speaks jiff with chrono's wire format.
+// ponytail: goes away once grantry moves to jiff.
+fn ts(at: DateTime<Utc>) -> Timestamp {
+    Timestamp::new(at.timestamp(), at.timestamp_subsec_nanos() as i32)
+        .expect("chrono timestamps fit in jiff's range")
+}
 
 /// One active connection.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -34,10 +43,13 @@ pub struct Connection {
     pub scope: String,
     /// The user's email.
     pub subject: String,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::utc")]
+    pub created_at: Timestamp,
     /// The last refresh.
-    pub last_used_at: Option<DateTime<Utc>>,
-    pub expires_at: DateTime<Utc>,
+    #[serde(with = "time::utc_opt")]
+    pub last_used_at: Option<Timestamp>,
+    #[serde(with = "time::utc")]
+    pub expires_at: Timestamp,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -57,9 +69,9 @@ fn connection(realm: &str, grant: Grant<String>) -> Connection {
         client_name: grant.client_name,
         scope: grant.scope,
         subject: grant.subject,
-        created_at: grant.created_at,
-        last_used_at: grant.last_refreshed_at,
-        expires_at: grant.expires_at,
+        created_at: ts(grant.created_at),
+        last_used_at: grant.last_refreshed_at.map(ts),
+        expires_at: ts(grant.expires_at),
     }
 }
 

@@ -163,21 +163,21 @@ fn create_test_scopes() -> HashMap<String, ScopeConfig> {
         "admin-scope".to_string(),
         ScopeConfig {
             description: "Admin scope".to_string(),
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         },
     );
     scopes.insert(
         "dev-scope".to_string(),
         ScopeConfig {
             description: "Development scope".to_string(),
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         },
     );
     scopes.insert(
         "default".to_string(),
         ScopeConfig {
             description: "Default scope".to_string(),
-            created_at: chrono::Utc::now(),
+            created_at: jiff::Timestamp::now(),
         },
     );
     scopes
