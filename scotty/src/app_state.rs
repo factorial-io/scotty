@@ -290,6 +290,7 @@ impl AppState {
                     pool.clone(),
                     secret.expose_secret().as_bytes(),
                     auth_service.clone(),
+                    &settings.api.oauth,
                 )),
                 Some(oauth::server::mcp_server(
                     pool.clone(),

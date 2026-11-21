@@ -131,6 +131,7 @@ pub async fn create_test_app_state_with_policy_dir(
                     pool.clone(),
                     secret.expose_secret().as_bytes(),
                     auth_service.clone(),
+                    &settings.api.oauth,
                 );
                 let mcp = crate::oauth::server::mcp_server(
                     pool.clone(),

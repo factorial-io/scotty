@@ -1,4 +1,5 @@
 use super::rate_limiting::RateLimitingConfig;
+use super::scheduler_interval::SchedulerInterval;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
@@ -42,6 +43,13 @@ pub struct OAuthSettings {
     /// fallback and a deprecation warning is logged at startup.
     #[serde(default)]
     pub frontend_base_url: Option<String>,
+    /// Longest validity of a session token (web and CLI access tokens).
+    #[serde(default = "default_session_lifetime")]
+    pub session_lifetime: SchedulerInterval,
+    /// Absolute lifetime of a session grant: after it, `scottyctl` must log
+    /// in again, refreshes or not.
+    #[serde(default = "default_cli_session_lifetime")]
+    pub cli_session_lifetime: SchedulerInterval,
 }
 
 impl Default for OAuthSettings {
@@ -53,6 +61,8 @@ impl Default for OAuthSettings {
             client_secret: None,
             device_flow_enabled: default_device_flow_enabled(),
             frontend_base_url: None,
+            session_lifetime: default_session_lifetime(),
+            cli_session_lifetime: default_cli_session_lifetime(),
         }
     }
 }
@@ -106,14 +116,49 @@ fn default_device_flow_enabled() -> bool {
     true
 }
 
+fn default_session_lifetime() -> SchedulerInterval {
+    SchedulerInterval::Hours(12)
+}
+
+fn default_cli_session_lifetime() -> SchedulerInterval {
+    SchedulerInterval::Days(30)
+}
+
+/// Upper bound of `api.oauth.cli_session_lifetime` (and so of the session
+/// lifetime, which may not exceed it).
+const MAX_SESSION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(365 * 86400);
+
 /// Default public base URL used when neither `api.base_url` nor the
 /// deprecated `api.oauth.frontend_base_url` is configured.
 pub const DEFAULT_BASE_URL: &str = "http://localhost:21342";
 
 impl ApiServer {
-    /// Startup checks of the oauth mode: `api.jwt_secret` must be set and
-    /// long enough.
+    /// Startup checks of the oauth settings: both session lifetimes greater
+    /// than zero, the token one not longer than the CLI one (a token cannot
+    /// outlive its grant); in oauth mode `api.jwt_secret` set and long enough.
     pub fn validate_oauth(&self) -> Result<(), String> {
+        let session = std::time::Duration::from(self.oauth.session_lifetime.clone());
+        let cli = std::time::Duration::from(self.oauth.cli_session_lifetime.clone());
+        if session.is_zero() || cli.is_zero() {
+            return Err(format!(
+                "api.oauth.session_lifetime ({}) and api.oauth.cli_session_lifetime ({}) \
+                 must be greater than zero",
+                self.oauth.session_lifetime, self.oauth.cli_session_lifetime
+            ));
+        }
+        if cli > MAX_SESSION_LIFETIME {
+            return Err(format!(
+                "api.oauth.cli_session_lifetime ({}) must not be longer than 365d",
+                self.oauth.cli_session_lifetime
+            ));
+        }
+        if session > cli {
+            return Err(format!(
+                "api.oauth.session_lifetime ({}) must not be longer than \
+                 api.oauth.cli_session_lifetime ({})",
+                self.oauth.session_lifetime, self.oauth.cli_session_lifetime
+            ));
+        }
         if self.auth_mode != AuthMode::OAuth {
             return Ok(());
         }
@@ -330,6 +375,52 @@ mod tests {
         api.jwt_secret = None;
         api.auth_mode = AuthMode::Bearer;
         assert!(api.validate_oauth().is_ok(), "only oauth mode needs it");
+    }
+
+    #[test]
+    fn test_session_lifetimes_default_and_validation() {
+        let mut api = ApiServer::default();
+        assert_eq!(api.oauth.session_lifetime.to_string(), "12h");
+        assert_eq!(api.oauth.cli_session_lifetime.to_string(), "30d");
+        assert!(api.validate_oauth().is_ok());
+
+        api.oauth.session_lifetime = SchedulerInterval::Hours(0);
+        assert!(api
+            .validate_oauth()
+            .unwrap_err()
+            .contains("greater than zero"));
+        api.oauth.session_lifetime = SchedulerInterval::Hours(12);
+        api.oauth.cli_session_lifetime = SchedulerInterval::Days(0);
+        assert!(api
+            .validate_oauth()
+            .unwrap_err()
+            .contains("greater than zero"));
+
+        api.oauth.cli_session_lifetime = SchedulerInterval::Hours(1);
+        assert!(api.validate_oauth().unwrap_err().contains("longer than"));
+        api.oauth.cli_session_lifetime = SchedulerInterval::Minutes(720);
+        assert!(api.validate_oauth().is_ok(), "equal lifetimes are fine");
+
+        api.oauth.cli_session_lifetime = SchedulerInterval::Days(365);
+        assert!(api.validate_oauth().is_ok());
+        api.oauth.cli_session_lifetime = SchedulerInterval::Days(366);
+        assert!(api.validate_oauth().unwrap_err().contains("365d"));
+
+        assert_ne!(api.auth_mode, AuthMode::OAuth, "checked in every auth mode");
+    }
+
+    #[test]
+    fn test_session_lifetime_parses_interval_notation() {
+        let parse = |value: &str| {
+            serde_json::from_value::<OAuthSettings>(
+                serde_json::json!({ "cli_session_lifetime": value }),
+            )
+        };
+        assert_eq!(parse("7d").unwrap().cli_session_lifetime.to_string(), "7d");
+        assert!(parse("7 days").is_err());
+        assert!(parse("d").is_err());
+        assert!(parse("").is_err());
+        assert!(parse("7ä").is_err());
     }
 
     #[test]

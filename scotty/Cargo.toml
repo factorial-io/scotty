@@ -108,3 +108,4 @@ tokio-test = "0.4.4"
 rsa = { version = "0.9", features = ["getrandom"] }
 wiremock = "0.6"
 tokio-tungstenite.workspace = true
+grantry = { workspace = true, features = ["conformance"] }

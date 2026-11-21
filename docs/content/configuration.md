@@ -70,6 +70,8 @@ api:
     client_id: "your_client_id"
     client_secret: "your_client_secret"
     device_flow_enabled: true
+    session_lifetime: "12h"
+    cli_session_lifetime: "30d"
 ```
 
 * `bind_address`: The address and port the server listens on.
@@ -95,6 +97,8 @@ api:
   * `client_secret`: OAuth application client secret from your OIDC provider
   * `redirect_url` (optional): OAuth callback URL sent to the provider; it must match the redirect URI registered there. When unset, Scotty uses `{base_url}/api/oauth/callback` (see `base_url`). Set it only if the provider must call back on a different URL; a relative value is ignored with a warning at startup.
   * `device_flow_enabled`: Whether `scottyctl auth:login` works (default `true`). Scotty runs the device login itself and users approve it on Scotty's `/device` page; the provider's device grant is not used. When `false`, `/oauth/device` returns 404.
+  * `session_lifetime`: How long a session token (web UI and `scottyctl` access token) is valid. Default `"12h"`. Written as a number followed by `s`, `m`, `h` or `d`.
+  * `cli_session_lifetime`: Absolute lifetime of a login: after it, `scottyctl` must run `auth:login` again, however often it refreshed. It bounds web logins too, which are not refreshed and so normally end with their session token. Default `"30d"`, same notation, at most `"365d"`. Must not be shorter than `session_lifetime`. Scotty does not start if either value is zero, the CLI lifetime is longer than 365 days or shorter than the session lifetime; this is checked in every auth mode, not only `oauth`. Changes apply to logins after the restart. MCP lifetimes are fixed (15-minute tokens, 30-day connections).
   * `frontend_base_url`: **Deprecated** — use `api.base_url` instead. Post-authentication redirects now use `api.base_url`. If this setting is still present it is used as a fallback when `api.base_url` is unset, and a deprecation warning is logged at startup; if both are set, `api.base_url` wins.
 
 **Hybrid Authentication:** When `auth_mode` is `oauth`, you can optionally configure `bearer_tokens` to enable service account access alongside OAuth for human users. This allows:
@@ -1043,6 +1047,8 @@ SCOTTY__API__JWT_SECRET=<generated secret>
 | `api.oauth.client_secret`                         | `SCOTTY__API__OAUTH__CLIENT_SECRET`                      |
 | `api.oauth.redirect_url`                          | `SCOTTY__API__OAUTH__REDIRECT_URL`                       |
 | `api.oauth.frontend_base_url` (deprecated)        | `SCOTTY__API__OAUTH__FRONTEND_BASE_URL`                  |
+| `api.oauth.session_lifetime`                      | `SCOTTY__API__OAUTH__SESSION_LIFETIME`                   |
+| `api.oauth.cli_session_lifetime`                  | `SCOTTY__API__OAUTH__CLI_SESSION_LIFETIME`               |
 | `docker.registries.example_registry.password`     | `SCOTTY__DOCKER__REGISTRIES__EXAMPLE_REGISTRY__PASSWORD` |
 | `apps.domain_suffix`                              | `SCOTTY__APPS__DOMAIN_SUFFIX`                            |
 | `load_balancer_type`                              | `SCOTTY__LOAD_BALANCER_TYPE`                             |

@@ -17,9 +17,9 @@ three kinds of credentials:
 
 | Who | How they log in | Token | Lifetime |
 |---|---|---|---|
-| Web UI | OIDC login in the browser | session token (audience `scotty-api`) | 12 h, no refresh |
-| `scottyctl` | device login, approved on Scotty's `/device` page | session token plus refresh token | 12 h access token, refreshed silently, 30-day limit |
-| MCP clients (claude.ai, Claude Code) | authorization code with PKCE, approved on Scotty's consent page | MCP token (audience `{base_url}/mcp`) plus refresh token | 15 min access token, rotating refresh, 30-day limit |
+| Web UI | OIDC login in the browser | session token (audience `scotty-api`) | 12 h (`session_lifetime`), no refresh |
+| `scottyctl` | device login, approved on Scotty's `/device` page | session token plus refresh token | 12 h access token, refreshed silently, 30-day limit (`cli_session_lifetime`) |
+| MCP clients (claude.ai, Claude Code) | authorization code with PKCE, approved on Scotty's consent page | MCP token (audience `{base_url}/mcp`) plus refresh token | 15 min access token, rotating refresh, 30-day limit (fixed) |
 
 Every token belongs to a *grant*. Scotty checks on every request that the
 grant is still active, so logout and revocation take effect at once. Configured
@@ -79,7 +79,7 @@ must log in again after 12 h.
 6. The frontend picks up the session token once through `/oauth/exchange` and
    keeps it in `sessionStorage`.
 
-The session token is valid for 12 hours. When it expires or is revoked, the
+The session token is valid for `api.oauth.session_lifetime` (default 12 hours). When it expires or is revoked, the
 frontend sends the user to log in again (silently, if the provider session is
 still alive). Logout calls `POST /api/v1/authenticated/logout`, which revokes
 the grant.
@@ -97,8 +97,9 @@ run by Scotty itself. The OIDC provider is not involved.
 
 When the access token expires, `scottyctl` refreshes it on the next 401 and
 retries the request once. Each refresh rotates the refresh token. Reusing an
-old refresh token revokes the whole session. After 30 days the session ends
-and you log in again.
+old refresh token revokes the whole session. After
+`api.oauth.cli_session_lifetime` (default 30 days) the session ends and you
+log in again.
 
 The CLI session has the scope `api offline_access` (it gets a refresh token);
 the browser session has `api` only and no refresh token.
@@ -312,7 +313,7 @@ The tools it offers are described in [MCP Server](mcp.md).
    and the scopes it asks for. Untick scopes you do not want to grant, then
    approve or deny.
 5. The client receives a 15-minute access token and a rotating refresh token.
-   The connection lasts at most 30 days.
+   The connection lasts at most 30 days. Both lifetimes are fixed.
 
 ### Scopes
 
@@ -773,7 +774,7 @@ accounts use a bearer token in `SCOTTY_ACCESS_TOKEN`.
 - **Grant check on every request** - logout and revocation take effect at once
 - **Audience and kind** - session tokens work only on the REST API, MCP tokens only on `/mcp`
 - **Refresh rotation** - reusing a refresh token revokes the grant
-- **Absolute lifetime** - CLI and MCP grants end after 30 days
+- **Absolute lifetime** - CLI grants end after `api.oauth.cli_session_lifetime` (default 30 days), MCP grants after 30 days
 - **Secure storage** - the web session token is stored in `sessionStorage` (cleared when the tab closes)
 
 ## Troubleshooting

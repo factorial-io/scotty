@@ -811,6 +811,40 @@ async fn test_device_refresh_after_absolute_lifetime_fails() {
 }
 
 #[tokio::test]
+async fn test_configured_session_lifetimes_reach_the_session_server() {
+    let settings: crate::settings::config::Settings = Config::builder()
+        .add_source(config::File::with_name("tests/test_oauth_auth"))
+        .set_override("api.oauth.session_lifetime", "2h")
+        .unwrap()
+        .set_override("api.oauth.cli_session_lifetime", "7d")
+        .unwrap()
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
+    let state = create_test_app_state_with_settings(settings, None).await;
+
+    let (grant, tokens) = state
+        .session_server
+        .as_ref()
+        .unwrap()
+        .issue_grant(
+            &"alice@example.com".to_string(),
+            "scottyctl",
+            "scottyctl",
+            "api",
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(tokens.expires_in, 2 * 3600);
+    assert_eq!(
+        grant.expires_at.duration_since(grant.created_at),
+        jiff::SignedDuration::from_hours(7 * 24)
+    );
+}
+
+#[tokio::test]
 async fn test_device_token_rejects_unknown_grant_type() {
     let (server, _state) = session_app().await;
     let response = server

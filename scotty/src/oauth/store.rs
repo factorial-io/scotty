@@ -15,8 +15,8 @@ use std::path::Path;
 use async_trait::async_trait;
 use grantry::device::{Device, DeviceStatus};
 use grantry::store::{
-    BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending, RefreshToken,
-    RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
+    expires_at, BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending,
+    RefreshToken, RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
 };
 use jiff::{SignedDuration, Timestamp};
 use serde_json::Value;
@@ -145,8 +145,8 @@ fn uuid(row: &SqliteRow, col: &str) -> Result<Uuid, BackendError> {
     Ok(Uuid::parse_str(row.try_get::<&str, _>(col)?)?)
 }
 
-fn new_grant(new: NewGrant<String>, now: Timestamp) -> Grant<String> {
-    Grant {
+fn new_grant(new: NewGrant<String>, now: Timestamp) -> Result<Grant<String>, BackendError> {
+    Ok(Grant {
         id: Uuid::new_v4(),
         subject: new.subject,
         client_id: new.client_id,
@@ -154,11 +154,11 @@ fn new_grant(new: NewGrant<String>, now: Timestamp) -> Grant<String> {
         redirect_uri: String::new(),
         scope: new.scope,
         created_at: now,
-        expires_at: now + new.lifetime,
+        expires_at: expires_at(now, new.lifetime)?,
         last_refreshed_at: None,
         revoked_at: None,
         revoke_reason: None,
-    }
+    })
 }
 
 fn client_from(row: &SqliteRow) -> Result<RegisteredClient, BackendError> {
@@ -325,7 +325,7 @@ impl OAuthStore for SqliteStore {
             resource: new.resource,
             subject: None,
             created_at: now,
-            expires_at: now + new.ttl,
+            expires_at: expires_at(now, new.ttl)?,
         };
         sqlx::query(
             "INSERT INTO oauth_pending
@@ -419,7 +419,7 @@ impl OAuthStore for SqliteStore {
                     lifetime,
                 },
                 now,
-            )
+            )?
         };
         let mut tx = self.pool.begin().await?;
         self.insert_grant(&mut tx, &grant).await?;
@@ -436,7 +436,7 @@ impl OAuthStore for SqliteStore {
         .bind(&approved.redirect_uri)
         .bind(&approved.resource)
         .bind(&approved.code_challenge)
-        .bind(ms(now + code_ttl))
+        .bind(ms(expires_at(now, code_ttl)?))
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
@@ -478,7 +478,7 @@ impl OAuthStore for SqliteStore {
     }
 
     async fn create_grant(&self, new: NewGrant<String>) -> Result<Grant<String>, BackendError> {
-        let grant = new_grant(new, now());
+        let grant = new_grant(new, now())?;
         let mut conn = self.pool.acquire().await?;
         self.insert_grant(&mut conn, &grant).await?;
         Ok(grant)
@@ -497,7 +497,7 @@ impl OAuthStore for SqliteStore {
             last_polled_at: None,
             subject: None,
             created_at: now,
-            expires_at: now + new.ttl,
+            expires_at: expires_at(now, new.ttl)?,
         };
         // One statement: inserts only while no live row of this realm holds
         // the user code.
@@ -620,7 +620,7 @@ impl OAuthStore for SqliteStore {
         if done.rows_affected() != 1 {
             return Ok(None); // dropping `tx` rolls back
         }
-        let grant = new_grant(grant, now);
+        let grant = new_grant(grant, now)?;
         self.insert_grant(&mut tx, &grant).await?;
         tx.commit().await?;
         Ok(Some(grant))
@@ -814,6 +814,15 @@ mod tests {
             scope: "read offline_access".into(),
             lifetime: SignedDuration::from_hours(30 * 24),
         }
+    }
+
+    #[tokio::test]
+    async fn sqlite_store_conforms() {
+        let (_dir, pool) = pool().await;
+        let store = SqliteStore::new(pool, REALM_SESSION);
+        grantry::conformance::check_core(&store, alice(), "bob@example.com".into()).await;
+        grantry::conformance::check_issued_grants(&store, alice()).await;
+        grantry::conformance::check_devices(&store, alice()).await;
     }
 
     fn new_device(hash: &str, user_code: &str) -> NewDevice {

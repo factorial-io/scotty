@@ -518,7 +518,12 @@ async fn session_kept(auth: Arc<AuthorizationService>, user: &str) -> bool {
     let pool = scotty::oauth::store::open(dir.path().join("s.sqlite"))
         .await
         .unwrap();
-    let server = scotty::oauth::server::session_server(pool, b"characterization-secret", auth);
+    let server = scotty::oauth::server::session_server(
+        pool,
+        b"characterization-secret",
+        auth,
+        &Default::default(),
+    );
     server
         .issue_grant(user.to_string(), "scotty-web", "Scotty web", "api")
         .await
