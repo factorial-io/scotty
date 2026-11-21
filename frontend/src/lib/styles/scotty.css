@@ -502,12 +502,6 @@ button {
 	letter-spacing: 0.48px;
 	min-width: 0;
 }
-.crumbs a {
-	text-decoration: none;
-}
-.crumbs a:hover {
-	text-decoration: underline;
-}
 .crumbs img {
 	width: 10px;
 	height: 10px;
@@ -794,10 +788,6 @@ th.num {
 }
 td a.name {
 	font-weight: 600;
-	text-decoration: none;
-}
-td a.name:hover {
-	text-decoration: underline;
 }
 .svcs {
 	display: flex;

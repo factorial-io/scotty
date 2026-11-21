@@ -184,7 +184,7 @@
 						{#if i > 0}<img src={chevron} alt="" />{/if}
 						{#if i < crumbs.length - 1}
 							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-							<a href={c.href}>{c.label}</a>
+							<a class="link" href={c.href}>{c.label}</a>
 						{:else}
 							<span aria-current="page">{c.label}</span>
 						{/if}
