@@ -24,6 +24,13 @@ export interface MappedPayload {
 export function globToRegExp(pattern: string): RegExp {
 	let re = '';
 	let braces = 0;
+	// An unclosed `{` is literal (globset rejects it; the server stays authoritative).
+	const stack: number[] = [];
+	for (let i = 0; i < pattern.length; i++) {
+		if (pattern[i] === '{') stack.push(i);
+		else if (pattern[i] === '}') stack.pop();
+	}
+	const unclosed = new Set(stack);
 	for (let i = 0; i < pattern.length; i++) {
 		const c = pattern[i];
 		if (pattern.startsWith('**/', i)) {
@@ -36,18 +43,20 @@ export function globToRegExp(pattern: string): RegExp {
 			re += '[^/]*';
 		} else if (c === '?') {
 			re += '[^/]';
-		} else if (c === '[' && pattern.indexOf(']', i + 2) > 0) {
+		} else if (c === '[') {
 			const neg = pattern[i + 1] === '!';
-			const end = pattern.indexOf(']', i + (neg ? 3 : 2));
-			if (end > 0) {
-				const body = pattern.slice(i + (neg ? 2 : 1), end).replace(/[\\\]^]/g, '\\$&');
-				// a class never matches `/`; a positive one just can't contain it
-				re += neg ? `[^/${body}]` : `(?!/)[${body}]`;
-				i = end;
+			const start = i + 1 + (neg ? 1 : 0);
+			// like globset, a `]` right after `[` / `[!` is a class member
+			const end = pattern.indexOf(']', start + 1);
+			if (end < 0) {
+				re += '\\[';
 				continue;
 			}
-			re += '\\[';
-		} else if (c === '{') {
+			const body = pattern.slice(start, end).replace(/[\\\]^]/g, '\\$&');
+			// a class never matches `/`; a positive one just can't contain it
+			re += neg ? `[^/${body}]` : `(?!/)[${body}]`;
+			i = end;
+		} else if (c === '{' && !unclosed.has(i)) {
 			braces++;
 			re += '(?:';
 		} else if (c === '}' && braces > 0) {
@@ -129,9 +138,26 @@ export function missingRequired(mappedNames: string[], required: string[]): stri
 	});
 }
 
-/** Unpacks a zip in the browser; directory entries are skipped. */
-export async function readZip(zip: Blob): Promise<RawEntries> {
-	const all = unzipSync(new Uint8Array(await zip.arrayBuffer()));
+/** Client hint (design D5); the server's `api.create_app_max_size` decides. */
+export const MAX_BODY = 50 * 1024 * 1024;
+
+/**
+ * Unpacks a zip in the browser; directory entries are skipped. Refuses a zip whose
+ * declared uncompressed sizes sum above `limit`, before extracting anything.
+ */
+export async function readZip(zip: Blob, limit = MAX_BODY): Promise<RawEntries> {
+	let total = 0;
+	const all = unzipSync(new Uint8Array(await zip.arrayBuffer()), {
+		filter: (file) => {
+			total += file.originalSize;
+			if (total > limit) {
+				throw new Error(
+					`the zip unpacks to more than ${Math.round(limit / 1024 / 1024)} MB`
+				);
+			}
+			return true;
+		}
+	});
 	return Object.fromEntries(Object.entries(all).filter(([path]) => !path.endsWith('/')));
 }
 
@@ -166,11 +192,13 @@ export async function encodeFiles(
 	entries: RawEntries,
 	files: MappedPayload['files']
 ): Promise<FileEntry[]> {
-	return Promise.all(
-		files.map(async (f) => ({
+	const out: FileEntry[] = [];
+	for (const f of files) {
+		out.push({
 			name: f.name,
 			content: toBase64(await gzip(entries[f.source])),
 			compressed: true
-		}))
-	);
+		});
+	}
+	return out;
 }

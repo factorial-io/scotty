@@ -12,6 +12,7 @@
 	import { setTitle } from '../../../stores/titleStore';
 	import { slugify, slugifyIsExact } from '../../../lib/slugify';
 	import {
+		MAX_BODY,
 		encodeFiles,
 		mapPayloadPaths,
 		missingRequired,
@@ -27,9 +28,6 @@
 		CreateAppRequest,
 		RunningAppContext
 	} from '../../../types';
-
-	/** Client hint only (design D5); the server's `api.create_app_max_size` decides. */
-	const MAX_BODY = 50 * 1024 * 1024;
 
 	type Value = string | number | boolean | null | undefined;
 
@@ -77,9 +75,12 @@
 	let exists = $derived(!!slug && $apps.some((a) => a.name === slug));
 	let matched = $derived(slug ? $apps.find((a) => a.name === slug) : undefined);
 	let presetFor = '';
+	let parsedTtl = $derived(parseTtl(ttl));
+	// An existing app's directory may already hold the required files (the server decides).
 	let blocked = $derived(
-		missing.length > 0 ||
-			(!!upload && upload.mapped.rejected.length + upload.mapped.unmatched.length > 0)
+		(missing.length > 0 && !matched) ||
+			(!!upload && upload.mapped.rejected.length + upload.mapped.unmatched.length > 0) ||
+			parsedTtl === null
 	);
 
 	// Updating starts from the app's settings, applied once when a match first appears.
@@ -144,10 +145,13 @@
 		input.value = ''; // picking the same file again re-reads it
 	}
 
-	function parseTtl(s: string): AppTtl {
-		const m = /^(\d+)([hd])$/i.exec(s.trim());
-		if (!m) return 'Forever';
-		return m[2].toLowerCase() === 'h' ? { Hours: Number(m[1]) } : { Days: Number(m[1]) };
+	/** `null` for anything but `<n>h`, `<n>d` or `forever`, letter case ignored. */
+	function parseTtl(s: string): AppTtl | null {
+		const v = s.trim().toLowerCase();
+		if (v === 'forever') return 'Forever';
+		const m = /^([1-9]\d*)([hd])$/.exec(v);
+		if (!m) return null;
+		return m[2] === 'h' ? { Hours: Number(m[1]) } : { Days: Number(m[1]) };
 	}
 
 	/** Typed values; empty optional fields are left out so the blueprint default applies. */
@@ -168,7 +172,7 @@
 
 	async function onsubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!blueprint || blocked || submitting) return;
+		if (!blueprint || !parsedTtl || blocked || submitting) return;
 		const inexact = !!appName && !slugifyIsExact(appName);
 		if (
 			(exists || inexact) &&
@@ -197,7 +201,7 @@
 					disallow_robots: true,
 					destroy_on_ttl: false,
 					app_blueprint: blueprint.name,
-					time_to_live: parseTtl(ttl),
+					time_to_live: parsedTtl,
 					basic_auth: authUser && authPass ? [authUser, authPass] : null,
 					scopes: [scope]
 				},
@@ -342,7 +346,12 @@
 
 			<label for="ttl">Time to live</label>
 			<div>
-				<input id="ttl" bind:value={ttl} required pattern="[1-9][0-9]*[hd]|forever" />
+				<input
+					id="ttl"
+					bind:value={ttl}
+					required
+					pattern="[1-9][0-9]*[hdHD]|[Ff][Oo][Rr][Ee][Vv][Ee][Rr]"
+				/>
 				<p class="help">
 					Hours (<span class="mono">12h</span>), days (<span class="mono">7d</span>) or
 					<span class="mono">forever</span>.
@@ -417,7 +426,11 @@
 							>
 						</p>
 					{/if}
-					{#if upload && missing.length}
+					{#if matched && missing.length}
+						<p class="help warn">
+							<span class="mono">{missing.join(', ')}</span> must already exist in the app.
+						</p>
+					{:else if upload && missing.length}
 						<p class="help err">
 							Required but missing: <span class="mono">{missing.join(', ')}</span>
 						</p>

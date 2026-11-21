@@ -39,6 +39,19 @@ describe('globToRegExp', () => {
 		expect(matches('data/[!ab].json', 'data/a.json')).toBe(false);
 		expect(matches('data[!a]x', 'data/x')).toBe(false);
 	});
+	it('takes a leading ] as a class member, like globset', () => {
+		for (const c of [']', 'a', 'b', 'c']) expect(matches('[]abc]', c)).toBe(true);
+		expect(matches('[]abc]', 'd')).toBe(false);
+		expect(matches('[!]a]', 'b')).toBe(true);
+		expect(matches('[!]a]', ']')).toBe(false);
+		expect(matches('a[b', 'a[b')).toBe(true);
+	});
+	it('treats an unclosed { and a stray } literally', () => {
+		expect(matches('a{b,c', 'a{b,c')).toBe(true);
+		expect(matches('a{b,c', 'ab')).toBe(false);
+		expect(matches('a}b', 'a}b')).toBe(true);
+		expect(matches('{a,b}}', 'a}')).toBe(true);
+	});
 });
 
 describe('mapPayloadPaths', () => {
@@ -168,6 +181,17 @@ describe('readZip + encodeFiles', () => {
 				if (native) proto.toBase64 = native;
 			}
 		}
+	});
+});
+
+describe('readZip size limit', () => {
+	it('refuses a zip above the limit before unpacking', async () => {
+		const zip = zipSync({
+			'a.txt': strToU8('x'.repeat(100)),
+			'b.txt': strToU8('y'.repeat(100))
+		});
+		await expect(readZip(new Blob([zip]), 150)).rejects.toThrow(/more than/);
+		expect(Object.keys(await readZip(new Blob([zip]), 200))).toHaveLength(2);
 	});
 });
 

@@ -239,9 +239,22 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
         }
     }
     for entry in &t.payload_required {
-        payload_glob(entry).map_err(|e| format!("invalid required payload entry {entry}: {e}"))?;
-        // Wildcard entries are not checked against the payload (needs glob-subset logic).
+        let glob = payload_glob(entry)
+            .map_err(|e| format!("invalid required payload entry {entry}: {e}"))?;
+        // A wildcard entry is checked with one path it matches; if the sample
+        // misses the entry's own glob, skip rather than refuse the blueprint.
         if entry.contains(['*', '?', '[', '{']) {
+            let sample = sample_path(entry);
+            if glob.compile_matcher().is_match(&sample)
+                && !t
+                    .payload
+                    .iter()
+                    .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(&sample)))
+            {
+                return Err(format!(
+                    "required payload entry {entry} matches no path the payload patterns accept"
+                ));
+            }
             continue;
         }
         let fits = t
@@ -331,6 +344,91 @@ fn payload_glob(pattern: &str) -> Result<globset::Glob, globset::Error> {
         .build()
 }
 
+/// One path a glob plausibly matches: `*`, `**` and `?` become `x`, a class
+/// its first allowed character, `{a,b}` its first alternative. Callers check
+/// the result against the glob, so a wrong guess is harmless.
+fn sample_path(glob: &str) -> String {
+    let chars: Vec<char> = glob.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '*' => {
+                while chars.get(i + 1) == Some(&'*') {
+                    i += 1;
+                }
+                out.push('x');
+            }
+            '?' => out.push('x'),
+            '\\' if i + 1 < chars.len() => {
+                i += 1;
+                out.push(chars[i]);
+            }
+            '[' => {
+                let negated = matches!(chars.get(i + 1), Some('!' | '^'));
+                let start = i + 1 + usize::from(negated);
+                // A `]` right after the opening is a member, not the end.
+                let end = (start + 1..chars.len())
+                    .find(|&j| chars[j] == ']')
+                    .unwrap_or(chars.len());
+                let class = &chars[start.min(end)..end];
+                out.push(if negated {
+                    ['x', 'y', 'z', '_']
+                        .into_iter()
+                        .find(|c| !class.contains(c))
+                        .unwrap_or('x')
+                } else {
+                    class.first().copied().unwrap_or('x')
+                });
+                i = end;
+            }
+            '{' => {
+                let mut depth = 0;
+                let mut first_end = None;
+                let mut j = i;
+                while j < chars.len() {
+                    match chars[j] {
+                        '{' => depth += 1,
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
+                        ',' if depth == 1 && first_end.is_none() => first_end = Some(j),
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                let alt: String = chars[i + 1..first_end.unwrap_or(j).min(chars.len())]
+                    .iter()
+                    .collect();
+                out.push_str(&sample_path(&alt));
+                i = j;
+            }
+            c => out.push(c),
+        }
+        i += 1;
+    }
+    out
+}
+
+/// Paths of the files under `dir`, relative to it with `/` separators.
+/// Unreadable entries are left out.
+pub fn relative_files(dir: &std::path::Path) -> Vec<String> {
+    walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .filter_map(|e| {
+            let rel = e.path().strip_prefix(dir).ok()?;
+            let parts: Option<Vec<&str>> =
+                rel.components().map(|c| c.as_os_str().to_str()).collect();
+            Some(parts?.join("/"))
+        })
+        .collect()
+}
+
 /// Content hash of a templated blueprint: its contract plus all its files.
 pub fn content_hash(t: &BlueprintTemplate) -> String {
     use sha2::{Digest, Sha256};
@@ -369,6 +467,7 @@ pub fn apply(
     app_name: &str,
     settings: &AppSettings,
     files: &FileList,
+    existing_files: &[String],
 ) -> Result<(AppSettings, FileList), AppError> {
     let empty = Map::new();
     let params = inputs.parameters.unwrap_or(&empty);
@@ -381,7 +480,7 @@ pub fn apply(
         return Ok((settings.clone(), files.clone()));
     };
     validate_parameters(t, params, settings)?;
-    let merged = merge_files(t, files)?;
+    let merged = merge_files(t, files, existing_files)?;
     let mut settings = settings.clone();
     keep_generated(t, inputs.existing, &mut settings);
     resolve_environment(t, params, inputs.image, app_name, &mut settings)?;
@@ -414,8 +513,14 @@ fn is_compose_variant(path: &std::path::Path) -> bool {
 }
 
 /// D5: caller files may only land on payload paths; blueprint files are added
-/// and may not be replaced.
-pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList, AppError> {
+/// and may not be replaced. `existing` lists the files already in the app's
+/// directory on an update (empty for a new app); they count only towards the
+/// required entries.
+pub fn merge_files(
+    t: &BlueprintTemplate,
+    caller: &FileList,
+    existing: &[String],
+) -> Result<FileList, AppError> {
     let mut builder = GlobSetBuilder::new();
     for pattern in &t.payload {
         builder.add(
@@ -438,6 +543,15 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
                 .map_err(|e| AppError::BadRequest(format!("invalid required payload entry: {e}")))
         })
         .collect::<Result<Vec<_>, _>>()?;
+    // Only files a caller could have uploaded count, not `.scotty.yml` or compose files.
+    let uploadable = existing
+        .iter()
+        .filter(|n| payload.is_match(n.as_str()) && !is_compose_file(n) && !is_env_file(n));
+    for name in uploadable {
+        for (m, r) in met.iter_mut().zip(&required) {
+            *m |= r.is_match(name);
+        }
+    }
     for f in &caller.files {
         let name = f.name.trim_start_matches("./");
         let path = std::path::Path::new(name);
@@ -601,6 +715,7 @@ mod tests {
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
+            &[],
         )
         .unwrap();
         let (second, _) = apply(
@@ -613,6 +728,7 @@ mod tests {
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
+            &[],
         )
         .unwrap();
         let salt = |s: &AppSettings| s.environment.expose_all()["HASH_SALT"].clone();
@@ -631,6 +747,7 @@ mod tests {
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
+            &[],
         )
         .unwrap();
         assert_ne!(salt(&first), salt(&third));
@@ -654,6 +771,7 @@ mod tests {
             "demo",
             &AppSettings::default(),
             &FileList { files: vec![] },
+            &[],
         )
         .unwrap();
         assert!(fourth.environment.get("HASH_SALT").is_none());
@@ -672,6 +790,7 @@ mod tests {
             "demo",
             &caller,
             &FileList { files: vec![] },
+            &[],
         )
         .is_err());
     }
@@ -786,6 +905,7 @@ mod tests {
         let merged = merge_files(
             &atelier(),
             &caller(&["html/index.html", "./html/img/a.png"]),
+            &[],
         )
         .unwrap();
         let names: Vec<_> = merged.files.iter().map(|f| f.name.as_str()).collect();
@@ -815,12 +935,13 @@ mod tests {
             ("./html/../../x", ".."),
             ("html/./../x", ".."),
         ] {
-            let e = err(merge_files(&atelier(), &caller(&[name])));
+            let e = err(merge_files(&atelier(), &caller(&[name]), &[]));
             assert!(e.contains(why), "{name}: {e}");
         }
         let e = err(merge_files(
             &atelier(),
             &caller(&["html/a.html", "./html/A.html"]),
+            &[],
         ));
         assert!(e.contains("duplicate"), "{e}");
     }
@@ -828,11 +949,14 @@ mod tests {
     #[test]
     fn env_files_are_rejected() {
         for name in ["html/.env", "html/.env.production", "html/sub/.ENV"] {
-            let e = err(merge_files(&atelier(), &caller(&[name])));
+            let e = err(merge_files(&atelier(), &caller(&[name]), &[]));
             assert!(e.contains(".env") && e.contains(name), "{name}: {e}");
         }
         for name in ["html/env.js", "html/.envrc-docs.html"] {
-            assert!(merge_files(&atelier(), &caller(&[name])).is_ok(), "{name}");
+            assert!(
+                merge_files(&atelier(), &caller(&[name]), &[]).is_ok(),
+                "{name}"
+            );
         }
     }
 
@@ -840,11 +964,11 @@ mod tests {
     fn single_star_stays_in_one_directory() {
         let mut t = atelier();
         t.payload = vec!["html/*".into()];
-        assert!(merge_files(&t, &caller(&["html/index.html"])).is_ok());
-        let e = err(merge_files(&t, &caller(&["html/a/b.html"])));
+        assert!(merge_files(&t, &caller(&["html/index.html"]), &[]).is_ok());
+        let e = err(merge_files(&t, &caller(&["html/a/b.html"]), &[]));
         assert!(e.contains("payload"), "{e}");
         // Matching is case-sensitive, like the file system.
-        assert!(merge_files(&t, &caller(&["HTML/index.html"])).is_err());
+        assert!(merge_files(&t, &caller(&["HTML/index.html"]), &[]).is_err());
     }
 
     #[test]
@@ -881,16 +1005,16 @@ mod tests {
     fn no_payload_patterns_accept_nothing() {
         let mut t = atelier();
         t.payload.clear();
-        assert!(merge_files(&t, &caller(&["html/index.html"])).is_err());
+        assert!(merge_files(&t, &caller(&["html/index.html"]), &[]).is_err());
     }
 
     #[test]
     fn required_index_missing() {
         let mut t = atelier();
         t.payload_required = vec!["html/index.html".into()];
-        let e = err(merge_files(&t, &caller(&["html/about.html"])));
+        let e = err(merge_files(&t, &caller(&["html/about.html"]), &[]));
         assert!(e.contains("html/index.html"), "{e}");
-        let e = err(merge_files(&t, &caller(&[])));
+        let e = err(merge_files(&t, &caller(&[]), &[]));
         assert!(e.contains("html/index.html"), "{e}");
     }
 
@@ -898,7 +1022,7 @@ mod tests {
     fn required_path_present() {
         let mut t = atelier();
         t.payload_required = vec!["html/index.html".into()];
-        merge_files(&t, &caller(&["html/index.html", "html/img/a.png"])).unwrap();
+        merge_files(&t, &caller(&["html/index.html", "html/img/a.png"]), &[]).unwrap();
     }
 
     #[test]
@@ -913,9 +1037,10 @@ mod tests {
         merge_files(
             &t,
             &caller(&["data/a.json", "html/index.html", "html/b.html"]),
+            &[],
         )
         .unwrap();
-        let e = err(merge_files(&t, &caller(&["data/a.json"])));
+        let e = err(merge_files(&t, &caller(&["data/a.json"]), &[]));
         assert!(
             e.contains("html/index.html") && e.contains("html/b.html"),
             "{e}"
@@ -925,25 +1050,32 @@ mod tests {
 
     #[test]
     fn no_requirement_accepts_no_files() {
-        merge_files(&atelier(), &caller(&[])).unwrap();
+        merge_files(&atelier(), &caller(&[]), &[]).unwrap();
     }
 
     #[test]
     fn required_checked_at_startup() {
         let mut t = atelier();
-        t.payload_required = vec![
-            "html/index.html".into(),
-            "html/**".into(),
-            "data/*.json".into(),
-        ];
+        t.payload_required = vec!["html/index.html".into(), "html/**".into()];
         check_template(&t).unwrap();
         t.payload_required = vec!["index.html".into()];
         let e = check_template(&t).unwrap_err();
         assert!(e.contains("index.html"), "{e}");
         t.payload_required = vec!["html/[".into()];
         assert!(check_template(&t).is_err());
-        t.payload_required = vec!["html/*.{html,htm}".into()];
-        check_template(&t).unwrap();
+        for entry in [
+            "html/*.{html,htm}",
+            "html/**",
+            "html/[ab].html",
+            "html/[!x]?/**",
+        ] {
+            t.payload_required = vec![entry.into()];
+            check_template(&t).unwrap_or_else(|e| panic!("{entry}: {e}"));
+        }
+        // Wildcard entry outside the payload.
+        t.payload_required = vec!["data/*.json".into()];
+        let e = check_template(&t).unwrap_err();
+        assert!(e.contains("data/*.json"), "{e}");
         for entry in ["html/.env", "html/docker-compose.override.yml"] {
             t.payload_required = vec![entry.into()];
             let e = check_template(&t).unwrap_err();
@@ -976,5 +1108,60 @@ mod tests {
             json!(["html/index.html"])
         );
         assert_ne!(content_hash(&t), before);
+    }
+
+    #[test]
+    fn sample_paths() {
+        for (glob, want) in [
+            ("html/**", "html/x"),
+            ("html/**/index.html", "html/x/index.html"),
+            ("data/*.json", "data/x.json"),
+            ("a?c", "axc"),
+            ("html/[ab].html", "html/a.html"),
+            ("html/[!xy].html", "html/z.html"),
+            ("html/*.{html,htm}", "html/x.html"),
+            ("{a/{b,c},d}", "a/b"),
+        ] {
+            assert_eq!(sample_path(glob), want, "{glob}");
+        }
+    }
+
+    // 9.1
+    #[test]
+    fn update_without_files_counts_existing_files() {
+        let mut t = atelier();
+        t.payload_required = vec!["html/index.html".into()];
+        merge_files(&t, &caller(&[]), &["html/index.html".into()]).unwrap();
+        // Existing files only count towards required entries.
+        let e = err(merge_files(
+            &t,
+            &caller(&["docker-compose.yml"]),
+            &["html/index.html".into()],
+        ));
+        assert!(e.contains("compose"), "{e}");
+        // Non-payload files in the app directory never meet a required entry.
+        t.payload_required = vec!["**".into()];
+        let existing = [".scotty.yml".into(), "docker-compose.yml".into()];
+        assert!(merge_files(&t, &caller(&[]), &existing).is_err());
+    }
+
+    #[test]
+    fn new_app_without_files_is_rejected() {
+        let mut t = atelier();
+        t.payload_required = vec!["html/index.html".into()];
+        let e = err(merge_files(&t, &caller(&[]), &[]));
+        assert!(e.contains("html/index.html"), "{e}");
+    }
+
+    #[test]
+    fn relative_files_lists_nested_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("html/img")).unwrap();
+        std::fs::write(dir.path().join("html/index.html"), "").unwrap();
+        std::fs::write(dir.path().join("html/img/a.png"), "").unwrap();
+        std::fs::write(dir.path().join(".scotty.yml"), "").unwrap();
+        let mut files = relative_files(dir.path());
+        files.sort();
+        assert_eq!(files, [".scotty.yml", "html/img/a.png", "html/index.html"]);
     }
 }

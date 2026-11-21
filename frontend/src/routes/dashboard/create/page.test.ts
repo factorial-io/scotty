@@ -227,6 +227,37 @@ describe('create app page', () => {
 		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(true);
 	});
 
+	it('blocks an invalid TTL and accepts any letter case', async () => {
+		await render('static-html');
+		await pickFolder('my-site/index.html');
+		type('#app-name', 'site');
+		type('#ttl', '7 weeks');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(true);
+		await submit();
+		expect(lastRequest).toBeNull();
+
+		type('#ttl', '7D');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(false);
+		await submit();
+		expect(lastRequest!.settings.time_to_live).toEqual({ Days: 7 });
+
+		type('#ttl', 'FOREVER');
+		await submit();
+		expect(lastRequest!.settings.time_to_live).toBe('Forever');
+	});
+
+	it('notes unmet required files for an existing app and still submits', async () => {
+		apps.set([{ name: 'report-x' } as App]);
+		vi.mocked(askConfirm).mockResolvedValue(true);
+		await render('static-html');
+		type('#app-name', 'report-x');
+		expect(document.body.textContent).toContain('must already exist in the app');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(false);
+		await submit();
+		expect(askConfirm).toHaveBeenCalled();
+		expect(lastRequest!.files.files).toEqual([]);
+	});
+
 	it('confirms before updating an existing app', async () => {
 		apps.set([{ name: 'report-x' } as App]);
 		vi.mocked(askConfirm).mockResolvedValue(false);

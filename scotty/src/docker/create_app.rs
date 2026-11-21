@@ -181,13 +181,24 @@ pub async fn create_app(
         .app_blueprint
         .as_ref()
         .and_then(|b| app_state.settings.apps.blueprints.get(b));
-    let (settings, files) =
-        super::blueprint_template::apply(blueprint, &template, app_name, settings, files)?;
-    let (settings, files) = (&settings, &files);
-    let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");
+    // On an update, files already in the app count towards required payload.
+    let existing_files = match template.existing {
+        Some(_) => super::blueprint_template::relative_files(std::path::Path::new(&root_directory)),
+        None => vec![],
+    };
+    let (settings, files) = super::blueprint_template::apply(
+        blueprint,
+        &template,
+        app_name,
+        settings,
+        files,
+        &existing_files,
+    )?;
+    let (settings, files) = (&settings, &files);
+    let candidate = validate_app(app_state.clone(), settings, files).await?;
 
     let docker_compose_path = format!("{}/{}", root_directory, candidate.name);
     let app_data = AppData {

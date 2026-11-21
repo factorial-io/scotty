@@ -845,11 +845,12 @@ file is rejected. No patterns means no caller files.
 
 `template.payload_required` lists patterns (same matching rules) that must each
 match at least one uploaded file, otherwise the create request is rejected
-naming the missing entries. It applies to every create, including an update of
-an existing app. `static-html` sets `payload_required: ["html/index.html"]`, so
-a site without an index page is refused. At startup, an entry without `*`, `?`
-or `[` must match one of the `payload` patterns, otherwise Scotty refuses to
-start. Leave it out to accept a request without files.
+naming the missing entries. On an update of an existing app, files already in
+the app's directory count too, so a TTL change needs no upload. `static-html`
+sets `payload_required: ["html/index.html"]`, so a site without an index page is
+refused. At startup, every entry must match a path the `payload` patterns
+accept (for a wildcard entry, a sample path built from it), otherwise Scotty
+refuses to start. Leave it out to accept a request without files.
 
 ```yaml
 template:
