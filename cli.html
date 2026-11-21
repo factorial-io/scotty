@@ -502,7 +502,8 @@ that is still being created fails with 409; retry once the first finished.</p>
 <code>--param</code> instead.</p>
 <p>With a templated blueprint (<code>Templated: yes</code> in <code>blueprint:list</code>) no compose
 file is needed: <code>--folder</code> is optional and holds only the blueprint's payload
-(e.g. <code>html/</code> for <code>static-html</code>), and a compose file in it is rejected.
+(e.g. <code>html/</code> for <code>static-html</code>), and a compose file or a <code>.env</code> file in it is rejected.
+A blueprint can require files (<code>static-html</code> needs <code>html/index.html</code>); <code>blueprint:info</code> lists them and <code>app:create</code> fails naming any that are missing.
 <code>--param</code> sets the blueprint's parameters and <code>--image</code> picks one of its
 allowed images. <code>scottyctl blueprint:info &lt;BLUEPRINT&gt;</code> shows both, see
 <a href="configuration.html#templated-blueprints">Templated blueprints</a>.</p>

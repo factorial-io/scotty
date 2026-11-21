@@ -1005,8 +1005,20 @@ other image is rejected.</p>
 may upload with <code>--folder</code>. <code>*</code> and <code>?</code> match within one directory, so
 <code>html/*</code> accepts <code>html/index.html</code> but not <code>html/img/a.png</code>; <code>**</code> matches
 across directories. Matching is case-sensitive. A file outside these patterns, a path with <code>..</code> or
-an absolute path, a compose file, or a file that would replace a blueprint
+an absolute path, a compose file, a <code>.env</code> file (Scotty manages the app's
+environment itself), or a file that would replace a blueprint
 file is rejected. No patterns means no caller files.</p>
+<p><code>template.payload_required</code> lists patterns (same matching rules) that must each
+match at least one uploaded file, otherwise the create request is rejected
+naming the missing entries. On an update of an existing app, files already in
+the app's directory count too, so a TTL change needs no upload. <code>static-html</code>
+sets <code>payload_required: ["html/index.html"]</code>, so a site without an index page is
+refused. At startup, every entry must match a path the <code>payload</code> patterns
+accept (for a wildcard entry, a sample path built from it), otherwise Scotty
+refuses to start. Leave it out to accept a request without files.</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">template</span><span class="token punctuation">:</span>
+  <span class="token key atrule">payload</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"html/**"</span><span class="token punctuation">]</span>
+  <span class="token key atrule">payload_required</span><span class="token punctuation">:</span> <span class="token punctuation">[</span><span class="token string">"html/index.html"</span><span class="token punctuation">]</span></code></pre>
 <pre class="language-shell"><code class="language-shell">scottyctl app:create report-x --app-blueprint static-html <span class="token parameter variable">--folder</span> ./site
 scottyctl app:create cms --app-blueprint atelier <span class="token parameter variable">--ttl</span> forever <span class="token punctuation">\</span>
   <span class="token parameter variable">--param</span> <span class="token assign-left variable">ADMIN_PASS</span><span class="token operator">=</span>…</code></pre>

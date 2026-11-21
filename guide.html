@@ -63,6 +63,10 @@
         <span class="Nav-listItemLinkLabel"> What is Scotty not?</span>
       </a></li>
                                       <li class="Nav-listItem" style="--level: 1">
+            <a href="/guide.html#creating-an-app-from-the-dashboard" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> Creating an app from the dashboard</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
             <a href="/guide.html#want-to-start%3F" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Want to start?</span>
       </a></li>
@@ -157,6 +161,38 @@ scaling your apps.</p>
 Scotty does provide basic debugging capabilities including real-time log viewing
 (via CLI and web UI) and interactive shell access to containers via the CLI.</p>
 <p>Scotty wants to be a simple solution for a simple use-case.</p>
+<h2 id="creating-an-app-from-the-dashboard" tabindex="-1"><a class="header-anchor" href="#creating-an-app-from-the-dashboard">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Creating an app from the dashboard</h2>
+<p>Apps based on a <strong>templated blueprint</strong> (such as <code>static-html</code> or <code>atelier</code>) can be
+created without the CLI. On the apps list, click <strong>Create app</strong>; the button shows
+up when at least one blueprint you may use is templated. Blueprints that only
+validate a compose file you bring yourself stay CLI-only.</p>
+<ol>
+<li><strong>Pick a blueprint.</strong> The form follows it: one field per parameter, an image
+choice when the blueprint offers more than one, and a file upload when it
+takes files. Generated and derived parameters are filled in by Scotty and not shown.</li>
+<li><strong>Name the app</strong> and choose the scope, the time to live (<code>12h</code>, <code>7d</code> or <code>forever</code>)
+and optional basic auth. The name is normalised as on the server (<code>Report X</code>
+becomes <code>report-x</code>); if an app with that name exists, Scotty asks before updating it.</li>
+<li><strong>Upload the files</strong> as one zip file or one folder. Both are read in your browser.</li>
+</ol>
+<p>The uploaded folder's name, or a zip's single top-level folder, is dropped. When the
+blueprint accepts exactly one directory (<code>html/**</code> for <code>static-html</code>), the files are
+placed into it: a folder <code>my-site</code> with <code>index.html</code> and <code>img/a.png</code> becomes
+<code>html/index.html</code> and <code>html/img/a.png</code>. An upload that already contains <code>html/</code> is
+used as it is. Other blueprints get the paths unchanged.</p>
+<p>Before uploading, the form lists every file the blueprint would not accept and
+blocks the upload until you remove them. Compose files (<code>docker-compose.yml</code>,
+<code>compose.override.yaml</code>, ...) and env files (<code>.env</code>, <code>.env.local</code>, ...) are always
+refused, in any directory. <code>.DS_Store</code> files and <code>__MACOSX/</code> folders from Finder-made
+zips are dropped silently.</p>
+<p>A blueprint may also require files. The upload is then mandatory, and the form
+lists what is still missing; <code>static-html</code> requires <code>html/index.html</code>. When you
+update an existing app, files it already has count, so a missing file is only
+noted.</p>
+<p>After submitting, the dashboard shows the create task.</p>
 <h2 id="want-to-start%3F" tabindex="-1"><a class="header-anchor" href="#want-to-start%3F">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
