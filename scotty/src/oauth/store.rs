@@ -816,12 +816,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn out_of_range_grant_lifetime_is_an_error() {
-        let mut new = new_grant_for(alice());
-        new.lifetime = SignedDuration::MAX;
-        assert!(new_grant(new, Timestamp::now()).is_err());
-        assert!(new_grant(new_grant_for(alice()), Timestamp::now()).is_ok());
+    #[tokio::test]
+    async fn sqlite_store_conforms() {
+        let (_dir, pool) = pool().await;
+        let store = SqliteStore::new(pool, REALM_SESSION);
+        grantry::conformance::check_core(&store, alice(), "bob@example.com".into()).await;
+        grantry::conformance::check_issued_grants(&store, alice()).await;
+        grantry::conformance::check_devices(&store, alice()).await;
     }
 
     fn new_device(hash: &str, user_code: &str) -> NewDevice {
