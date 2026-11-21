@@ -15,8 +15,8 @@ use std::path::Path;
 use async_trait::async_trait;
 use grantry::device::{Device, DeviceStatus};
 use grantry::store::{
-    BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending, RefreshToken,
-    RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
+    expires_at, BackendError, Code, Grant, NewDevice, NewGrant, NewPending, OAuthStore, Pending,
+    RefreshToken, RegisteredClient, GRANT_RETENTION_DAYS, UNUSED_CLIENT_DAYS,
 };
 use jiff::{SignedDuration, Timestamp};
 use serde_json::Value;
@@ -146,9 +146,6 @@ fn uuid(row: &SqliteRow, col: &str) -> Result<Uuid, BackendError> {
 }
 
 fn new_grant(new: NewGrant<String>, now: Timestamp) -> Result<Grant<String>, BackendError> {
-    let expires_at = now
-        .checked_add(new.lifetime)
-        .map_err(|_| format!("grant lifetime {} out of range", new.lifetime))?;
     Ok(Grant {
         id: Uuid::new_v4(),
         subject: new.subject,
@@ -157,7 +154,7 @@ fn new_grant(new: NewGrant<String>, now: Timestamp) -> Result<Grant<String>, Bac
         redirect_uri: String::new(),
         scope: new.scope,
         created_at: now,
-        expires_at,
+        expires_at: expires_at(now, new.lifetime)?,
         last_refreshed_at: None,
         revoked_at: None,
         revoke_reason: None,
@@ -328,7 +325,7 @@ impl OAuthStore for SqliteStore {
             resource: new.resource,
             subject: None,
             created_at: now,
-            expires_at: now + new.ttl,
+            expires_at: expires_at(now, new.ttl)?,
         };
         sqlx::query(
             "INSERT INTO oauth_pending
@@ -439,7 +436,7 @@ impl OAuthStore for SqliteStore {
         .bind(&approved.redirect_uri)
         .bind(&approved.resource)
         .bind(&approved.code_challenge)
-        .bind(ms(now + code_ttl))
+        .bind(ms(expires_at(now, code_ttl)?))
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
@@ -500,7 +497,7 @@ impl OAuthStore for SqliteStore {
             last_polled_at: None,
             subject: None,
             created_at: now,
-            expires_at: now + new.ttl,
+            expires_at: expires_at(now, new.ttl)?,
         };
         // One statement: inserts only while no live row of this realm holds
         // the user code.
