@@ -9,7 +9,8 @@ vi.mock('../../stores/appsStore', async () => {
 
 import Page from './+page.svelte';
 import { apps } from '../../stores/appsStore';
-import type { App } from '../../types';
+import { authenticatedApiCall } from '#lib';
+import type { App, Blueprint } from '../../types';
 
 const app = (name: string, status: string) =>
 	({ name, status, services: [], settings: null, operation: null }) as unknown as App;
@@ -43,5 +44,29 @@ describe('apps list page', () => {
 		expect(input.value).toBe('');
 		expect(document.querySelector('.pill[aria-pressed="true"]')?.textContent).toMatch(/^All/);
 		expect(document.querySelectorAll('tbody tr')).toHaveLength(2);
+	});
+
+	describe('Create app entry point', () => {
+		const listing = (templated: boolean) => ({
+			blueprints: {
+				x: { name: 'static-html', description: '', actions: {}, templated } as Blueprint
+			}
+		});
+		async function render(response: unknown) {
+			vi.mocked(authenticatedApiCall).mockResolvedValueOnce(response);
+			apps.set([]);
+			component = mount(Page, { target: document.body });
+			await new Promise((r) => setTimeout(r, 0));
+			flushSync();
+			return document.querySelector<HTMLAnchorElement>('a[href="/dashboard/create"]');
+		}
+
+		it('is shown when the listing has a templated blueprint', async () => {
+			expect((await render(listing(true)))?.textContent?.trim()).toBe('Create app');
+		});
+
+		it('is hidden when the listing has no templated blueprint', async () => {
+			expect(await render(listing(false))).toBeNull();
+		});
 	});
 });
