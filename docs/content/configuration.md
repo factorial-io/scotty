@@ -69,7 +69,6 @@ api:
     oidc_issuer_url: "https://gitlab.com"
     client_id: "your_client_id"
     client_secret: "your_client_secret"
-    redirect_url: "http://localhost:21342/api/oauth/callback"
     device_flow_enabled: true
 ```
 
@@ -94,7 +93,7 @@ api:
   * `oidc_issuer_url`: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)
   * `client_id`: OAuth application client ID from your OIDC provider
   * `client_secret`: OAuth application client secret from your OIDC provider
-  * `redirect_url`: OAuth callback URL - must match your provider's configuration (backend endpoint)
+  * `redirect_url` (optional): OAuth callback URL sent to the provider; it must match the redirect URI registered there. When unset, Scotty uses `{base_url}/api/oauth/callback` (see `base_url`). Set it only if the provider must call back on a different URL; a relative value is ignored with a warning at startup.
   * `device_flow_enabled`: Whether `scottyctl auth:login` works (default `true`). Scotty runs the device login itself and users approve it on Scotty's `/device` page; the provider's device grant is not used. When `false`, `/oauth/device` returns 404.
   * `frontend_base_url`: **Deprecated** — use `api.base_url` instead. Post-authentication redirects now use `api.base_url`. If this setting is still present it is used as a fallback when `api.base_url` is unset, and a deprecation warning is logged at startup; if both are set, `api.base_url` wins.
 

@@ -24,8 +24,11 @@ pub enum AuthMode {
 #[allow(unused)]
 #[readonly::make]
 pub struct OAuthSettings {
-    #[serde(default = "default_oauth_redirect_url")]
-    pub redirect_url: String,
+    /// OAuth callback URL sent to the identity provider. Optional: when
+    /// unset or not absolute, [`ApiServer::oauth_redirect_url`] derives it
+    /// from the public base URL.
+    #[serde(default)]
+    pub redirect_url: Option<String>,
     pub oidc_issuer_url: Option<String>,
     pub client_id: Option<String>,
     #[serde(skip_serializing)]
@@ -44,7 +47,7 @@ pub struct OAuthSettings {
 impl Default for OAuthSettings {
     fn default() -> Self {
         Self {
-            redirect_url: default_oauth_redirect_url(),
+            redirect_url: None,
             oidc_issuer_url: None,
             client_id: None,
             client_secret: None,
@@ -97,10 +100,6 @@ pub const MIN_JWT_SECRET_LEN: usize = 64;
 
 fn default_database_path() -> String {
     "data/scotty.sqlite".to_string()
-}
-
-fn default_oauth_redirect_url() -> String {
-    "/oauth2/start".to_string()
 }
 
 fn default_device_flow_enabled() -> bool {
@@ -158,6 +157,25 @@ impl ApiServer {
         self.configured_base_url().is_none()
     }
 
+    /// The OAuth callback URL sent to the identity provider: the configured
+    /// `api.oauth.redirect_url` if it is an absolute URL, else
+    /// `{public_base_url}/api/oauth/callback`. Comes from settings only,
+    /// never from request data.
+    pub fn oauth_redirect_url(&self) -> String {
+        self.explicit_oauth_redirect_url()
+            .filter(|url| is_absolute_url(url))
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{}/api/oauth/callback", self.public_base_url()))
+    }
+
+    fn explicit_oauth_redirect_url(&self) -> Option<&str> {
+        self.oauth
+            .redirect_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|url| !url.is_empty())
+    }
+
     fn frontend_base_url(&self) -> Option<&str> {
         self.oauth.frontend_base_url.as_deref()
     }
@@ -207,10 +225,7 @@ impl ApiServer {
                 ));
             }
             Some(configured) => {
-                let parses_with_host = url::Url::parse(&configured)
-                    .map(|url| url.host_str().is_some())
-                    .unwrap_or(false);
-                if !parses_with_host {
+                if !is_absolute_url(&configured) {
                     warnings.push(format!(
                         "the configured public base URL ('{}') is not a valid absolute URL \
                          (missing 'https://' scheme?). OAuth redirects and the stopped-app \
@@ -221,8 +236,27 @@ impl ApiServer {
             }
         }
 
+        if let Some(redirect) = self
+            .explicit_oauth_redirect_url()
+            .filter(|url| !is_absolute_url(url))
+        {
+            warnings.push(format!(
+                "api.oauth.redirect_url ('{}') is not an absolute URL and is ignored; \
+                 using '{}'. Remove the setting or set an absolute URL.",
+                redirect,
+                self.oauth_redirect_url()
+            ));
+        }
+
         warnings
     }
+}
+
+/// Whether `url` parses as an absolute URL with a host.
+fn is_absolute_url(url: &str) -> bool {
+    url::Url::parse(url)
+        .map(|url| url.host_str().is_some())
+        .unwrap_or(false)
 }
 
 impl Default for ApiServer {
@@ -372,6 +406,81 @@ mod tests {
         let warnings = api_server(Some("scotty.example.com"), None).base_url_config_warnings();
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("not a valid absolute URL"));
+    }
+
+    fn with_redirect(mut api: ApiServer, redirect_url: Option<&str>) -> ApiServer {
+        api.oauth.redirect_url = redirect_url.map(str::to_string);
+        api
+    }
+
+    #[test]
+    fn test_oauth_redirect_url_derived_when_unset() {
+        let api = api_server(Some("https://scotty.example.com/"), None);
+        assert_eq!(
+            api.oauth_redirect_url(),
+            "https://scotty.example.com/api/oauth/callback"
+        );
+        let api = api_server(None, Some("https://legacy.example.com"));
+        assert_eq!(
+            api.oauth_redirect_url(),
+            "https://legacy.example.com/api/oauth/callback"
+        );
+        let api = api_server(None, None);
+        assert_eq!(
+            api.oauth_redirect_url(),
+            format!("{DEFAULT_BASE_URL}/api/oauth/callback")
+        );
+    }
+
+    #[test]
+    fn test_oauth_redirect_url_ignores_relative_and_empty_values() {
+        for value in [
+            "/oauth2/start",
+            "  ",
+            "scotty.example.com/api/oauth/callback",
+        ] {
+            let api = with_redirect(
+                api_server(Some("https://scotty.example.com"), None),
+                Some(value),
+            );
+            assert_eq!(
+                api.oauth_redirect_url(),
+                "https://scotty.example.com/api/oauth/callback"
+            );
+        }
+        let api = with_redirect(
+            api_server(None, Some("https://legacy.example.com/")),
+            Some("/oauth2/start"),
+        );
+        assert_eq!(
+            api.oauth_redirect_url(),
+            "https://legacy.example.com/api/oauth/callback"
+        );
+    }
+
+    #[test]
+    fn test_oauth_redirect_url_explicit_absolute_wins() {
+        let api = with_redirect(
+            api_server(Some("https://scotty.example.com"), None),
+            Some("https://auth.example.com/api/oauth/callback"),
+        );
+        assert_eq!(
+            api.oauth_redirect_url(),
+            "https://auth.example.com/api/oauth/callback"
+        );
+        assert!(api.base_url_config_warnings().is_empty());
+    }
+
+    #[test]
+    fn test_warning_for_relative_oauth_redirect_url() {
+        let api = with_redirect(
+            api_server(Some("https://scotty.example.com"), None),
+            Some("/oauth2/start"),
+        );
+        let warnings = api.base_url_config_warnings();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("api.oauth.redirect_url"));
+        assert!(warnings[0].contains("https://scotty.example.com/api/oauth/callback"));
     }
 
     #[test]

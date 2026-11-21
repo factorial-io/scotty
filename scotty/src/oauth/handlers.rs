@@ -59,7 +59,7 @@ pub async fn start_authorization_flow(
 
     // Only the configured redirect URL: a caller-chosen one would also pick
     // where the `session_id` (redeemable for a token) is sent afterwards.
-    let redirect_url = app_state.settings.api.oauth.redirect_url.clone();
+    let redirect_url = app_state.settings.api.oauth_redirect_url();
 
     debug!("Using redirect URL for authorization: {}", redirect_url);
 
