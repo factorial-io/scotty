@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use grantry::store::{BackendError, Events, Grant};
 use grantry::{Algorithm, Config, NoFetch, Recheck, ScopeSpec, Server, Signer, Subjects};
 use jiff::SignedDuration;
+use scotty_core::settings::api_server::OAuthSettings;
 use sqlx::SqlitePool;
 
 use super::fetch::EgressFetcher;
@@ -19,8 +20,7 @@ pub const SESSION_RESOURCE: &str = "scotty-api";
 pub const SESSION_KIND: &str = "session";
 pub const WEB_CLIENT_ID: &str = "scotty-web";
 pub const CLI_CLIENT_ID: &str = "scottyctl";
-const ACCESS_TOKEN_SECS: u64 = 12 * 3600;
-const GRANT_LIFETIME_DAYS: i64 = 30;
+const MCP_GRANT_LIFETIME_DAYS: i64 = 30;
 
 pub const MCP_KIND: &str = "mcp";
 /// The MCP scopes (spec: Scopes narrow the user's permissions).
@@ -36,11 +36,13 @@ pub fn mcp_resource(base: &str) -> String {
     format!("{base}/mcp")
 }
 
-/// Build the session server over the `session` realm of `pool`.
+/// Build the session server over the `session` realm of `pool`, with the
+/// token and grant lifetimes of `oauth`.
 pub fn session_server(
     pool: SqlitePool,
     jwt_secret: &[u8],
     auth_service: Arc<AuthorizationService>,
+    oauth: &OAuthSettings,
 ) -> SessionServer {
     let mut config = Config::new(
         SESSION_RESOURCE,
@@ -48,8 +50,8 @@ pub fn session_server(
         ScopeSpec::new(&["api", "offline_access"], &["api"], "offline_access"),
         Signer::hmac(Algorithm::HS512, jwt_secret),
     );
-    config.access_token_secs = ACCESS_TOKEN_SECS;
-    config.grant_lifetime = SignedDuration::from_hours(GRANT_LIFETIME_DAYS * 24);
+    config.access_token_secs = std::time::Duration::from(oauth.session_lifetime.clone()).as_secs();
+    config.grant_lifetime = oauth.cli_session_lifetime.clone().into();
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_SESSION)),
@@ -74,7 +76,7 @@ pub fn mcp_server(
         ScopeSpec::new(&MCP_SCOPES, &["read", "create", "manage"], "offline_access"),
         Signer::hmac(Algorithm::HS512, jwt_secret),
     );
-    config.grant_lifetime = SignedDuration::from_hours(GRANT_LIFETIME_DAYS * 24);
+    config.grant_lifetime = SignedDuration::from_hours(MCP_GRANT_LIFETIME_DAYS * 24);
     Server::new(
         config,
         Arc::new(SqliteStore::new(pool, REALM_MCP)),
