@@ -69,23 +69,83 @@ fn verification_uri(state: &SharedAppState) -> String {
     format!("{}/device", super::frontend_base(state))
 }
 
+/// The longest client name grantry stores.
+const MAX_CLIENT_NAME_CHARS: usize = 100;
+
+/// The optional body of a device login start.
+#[derive(Debug, Default, Deserialize, utoipa::ToSchema)]
+pub struct DeviceStartRequest {
+    /// The host name of the machine scottyctl runs on; shown on the approval
+    /// page and in the connections list as `scottyctl on <hostname>`.
+    #[serde(default)]
+    pub hostname: Option<String>,
+}
+
+/// The `hostname` of a start request: a JSON or form body. scottyctl up to
+/// 0.6 sends `{}`, other clients may send nothing; both mean no host name.
+fn device_hostname(headers: &HeaderMap, body: &[u8]) -> Option<String> {
+    let content_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    if content_type.starts_with("application/x-www-form-urlencoded") {
+        url::form_urlencoded::parse(body)
+            .find(|(k, _)| k == "hostname")
+            .map(|(_, v)| v.into_owned())
+    } else {
+        serde_json::from_slice::<DeviceStartRequest>(body)
+            .ok()?
+            .hostname
+    }
+}
+
+/// The client name a device login is stored and shown under. The server
+/// fixes the `scottyctl` prefix, so a caller can only name the machine, not
+/// pose as another client; control characters are dropped and the name is
+/// capped at grantry's limit.
+fn cli_client_name(hostname: Option<&str>) -> String {
+    let prefix = format!("{CLI_CLIENT_NAME} on ");
+    let host: String = hostname
+        .unwrap_or_default()
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(MAX_CLIENT_NAME_CHARS - prefix.chars().count())
+        .collect();
+    if host.is_empty() {
+        CLI_CLIENT_NAME.to_string()
+    } else {
+        prefix + &host
+    }
+}
+
 /// Start a device login (RFC 8628 §3.1)
 #[utoipa::path(
     post,
     path = "/oauth/device",
+    request_body(content = Option<DeviceStartRequest>, description = "The machine scottyctl runs on (optional)"),
     responses(
         (status = 200, description = "Device login started", body = DeviceFlowResponse),
         (status = 404, description = "Device login not enabled", body = ErrorResponse)
     ),
     tag = "OAuth"
 )]
-pub async fn start_device_flow(State(state): State<SharedAppState>) -> Response {
+pub async fn start_device_flow(
+    State(state): State<SharedAppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let Some(server) = device_server(&state) else {
         return not_enabled();
     };
     super::metrics::record_device_flow_start();
+    let client_name = cli_client_name(device_hostname(&headers, &body).as_deref());
     let started = match server
-        .start_device(CLI_CLIENT_ID, CLI_CLIENT_NAME, CLI_SCOPE)
+        .start_device(CLI_CLIENT_ID, &client_name, CLI_SCOPE)
         .await
     {
         Ok(started) => started,
@@ -355,4 +415,48 @@ pub async fn deny_device_handler(
         .map_err(backend_error)?
         .map(|_| StatusCode::NO_CONTENT)
         .ok_or(StatusCode::NOT_FOUND)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn json_headers() -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers
+    }
+
+    #[test]
+    fn hostname_is_read_from_json_or_form_and_missing_otherwise() {
+        assert_eq!(
+            device_hostname(&json_headers(), br#"{"hostname":"laptop"}"#).as_deref(),
+            Some("laptop")
+        );
+        assert_eq!(device_hostname(&json_headers(), b"{}"), None);
+        assert_eq!(device_hostname(&HeaderMap::new(), b""), None);
+        let mut form = HeaderMap::new();
+        form.insert(
+            header::CONTENT_TYPE,
+            "application/x-www-form-urlencoded".parse().unwrap(),
+        );
+        assert_eq!(
+            device_hostname(&form, b"hostname=build%20box").as_deref(),
+            Some("build box")
+        );
+    }
+
+    #[test]
+    fn client_name_names_the_machine_under_a_fixed_prefix() {
+        assert_eq!(cli_client_name(None), "scottyctl");
+        assert_eq!(cli_client_name(Some(" \t\n")), "scottyctl");
+        assert_eq!(cli_client_name(Some("laptop")), "scottyctl on laptop");
+        assert_eq!(
+            cli_client_name(Some("evil\nhost\u{7}  name")),
+            "scottyctl on evilhost name"
+        );
+        let long = cli_client_name(Some(&"x".repeat(500)));
+        assert_eq!(long.chars().count(), MAX_CLIENT_NAME_CHARS);
+        assert!(long.starts_with("scottyctl on x"));
+    }
 }

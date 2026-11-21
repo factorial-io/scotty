@@ -67,7 +67,7 @@ use crate::oauth::consent::{
 use crate::oauth::device::{
     __path_approve_device_handler, __path_deny_device_handler, __path_get_device_handler,
     approve_device_handler, deny_device_handler, device_token, get_device_handler,
-    start_device_flow, DeviceDecision, DeviceInfo,
+    start_device_flow, DeviceDecision, DeviceInfo, DeviceStartRequest,
 };
 use crate::oauth::handlers::{
     exchange_session_for_token, handle_oauth_callback, start_authorization_flow,
@@ -228,7 +228,7 @@ use scotty_core::admin::{
             AppStatus, AppTtl, ServicePortMapping, RunningAppContext, LoadBalancerConnectivity,
             AppOperation, TaskProgress, StepProgress, StepState, TransferProgress, TransferPhase,
             OAuthConfig, ServerInfo, AuthMode, DeviceFlowResponse, TokenResponse, CallbackQuery,
-            DeviceInfo, DeviceDecision,
+            DeviceInfo, DeviceDecision, DeviceStartRequest,
             ConsentInfo, ConsentApproval, ConsentRedirect, Connection,
             ScopeInfo, UserScopesResponse,
             // Admin API schemas

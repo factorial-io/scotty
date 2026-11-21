@@ -33,7 +33,7 @@ impl DeviceFlowClient {
         tracing::info!("Starting device flow at {}", device_url);
 
         self.client
-            .post_json::<serde_json::Value, DeviceFlowResponse>(&device_url, &serde_json::json!({}))
+            .post_json::<serde_json::Value, DeviceFlowResponse>(&device_url, &start_request_body())
             .await
             .map_err(|_| AuthError::ServerError)
     }
@@ -66,6 +66,16 @@ impl DeviceFlowClient {
                 Err(e) => return Err(e),
             }
         }
+    }
+}
+
+/// The body of a device login start: this machine's host name, so the
+/// approval page and the connections list can tell machines apart. Without
+/// one the server shows plain `scottyctl`.
+fn start_request_body() -> serde_json::Value {
+    match whoami::fallible::hostname() {
+        Ok(hostname) if !hostname.trim().is_empty() => serde_json::json!({ "hostname": hostname }),
+        _ => serde_json::json!({}),
     }
 }
 
