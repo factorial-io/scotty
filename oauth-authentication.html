@@ -193,19 +193,19 @@ three kinds of credentials:</p>
 <td>Web UI</td>
 <td>OIDC login in the browser</td>
 <td>session token (audience <code>scotty-api</code>)</td>
-<td>12 h, no refresh</td>
+<td>12 h (<code>session_lifetime</code>), no refresh</td>
 </tr>
 <tr>
 <td><code>scottyctl</code></td>
 <td>device login, approved on Scotty's <code>/device</code> page</td>
 <td>session token plus refresh token</td>
-<td>12 h access token, refreshed silently, 30-day limit</td>
+<td>12 h access token, refreshed silently, 30-day limit (<code>cli_session_lifetime</code>)</td>
 </tr>
 <tr>
 <td>MCP clients (claude.ai, Claude Code)</td>
 <td>authorization code with PKCE, approved on Scotty's consent page</td>
 <td>MCP token (audience <code>{base_url}/mcp</code>) plus refresh token</td>
-<td>15 min access token, rotating refresh, 30-day limit</td>
+<td>15 min access token, rotating refresh, 30-day limit (fixed)</td>
 </tr>
 </tbody>
 </table>
@@ -270,7 +270,7 @@ addresses it has verified (GitLab does): roles are assigned by email.</li>
 <li>The frontend picks up the session token once through <code>/oauth/exchange</code> and
 keeps it in <code>sessionStorage</code>.</li>
 </ol>
-<p>The session token is valid for 12 hours. When it expires or is revoked, the
+<p>The session token is valid for <code>api.oauth.session_lifetime</code> (default 12 hours). When it expires or is revoked, the
 frontend sends the user to log in again (silently, if the provider session is
 still alive). Logout calls <code>POST /api/v1/authenticated/logout</code>, which revokes
 the grant.</p>
@@ -289,8 +289,9 @@ and a refresh token.</li>
 </ol>
 <p>When the access token expires, <code>scottyctl</code> refreshes it on the next 401 and
 retries the request once. Each refresh rotates the refresh token. Reusing an
-old refresh token revokes the whole session. After 30 days the session ends
-and you log in again.</p>
+old refresh token revokes the whole session. After
+<code>api.oauth.cli_session_lifetime</code> (default 30 days) the session ends and you
+log in again.</p>
 <p>The CLI session has the scope <code>api offline_access</code> (it gets a refresh token);
 the browser session has <code>api</code> only and no refresh token.</p>
 <p>Turn the device login off with <code>api.oauth.device_flow_enabled: false</code>. Then
@@ -525,7 +526,7 @@ not logged in, you log in first.</li>
 and the scopes it asks for. Untick scopes you do not want to grant, then
 approve or deny.</li>
 <li>The client receives a 15-minute access token and a rotating refresh token.
-The connection lasts at most 30 days.</li>
+The connection lasts at most 30 days. Both lifetimes are fixed.</li>
 </ol>
 <h3 id="scopes" tabindex="-1"><a class="header-anchor" href="#scopes">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -1018,7 +1019,7 @@ accounts use a bearer token in <code>SCOTTY_ACCESS_TOKEN</code>.</p>
 <li><strong>Grant check on every request</strong> - logout and revocation take effect at once</li>
 <li><strong>Audience and kind</strong> - session tokens work only on the REST API, MCP tokens only on <code>/mcp</code></li>
 <li><strong>Refresh rotation</strong> - reusing a refresh token revokes the grant</li>
-<li><strong>Absolute lifetime</strong> - CLI and MCP grants end after 30 days</li>
+<li><strong>Absolute lifetime</strong> - CLI grants end after <code>api.oauth.cli_session_lifetime</code> (default 30 days), MCP grants after 30 days</li>
 <li><strong>Secure storage</strong> - the web session token is stored in <code>sessionStorage</code> (cleared when the tab closes)</li>
 </ul>
 <h2 id="troubleshooting-1" tabindex="-1"><a class="header-anchor" href="#troubleshooting-1">

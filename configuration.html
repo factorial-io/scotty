@@ -181,7 +181,9 @@ to deliver the traces or metrics.</li>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_client_id"</span>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_client_secret"</span>
-    <span class="token key atrule">device_flow_enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
+    <span class="token key atrule">device_flow_enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+    <span class="token key atrule">session_lifetime</span><span class="token punctuation">:</span> <span class="token string">"12h"</span>
+    <span class="token key atrule">cli_session_lifetime</span><span class="token punctuation">:</span> <span class="token string">"30d"</span></code></pre>
 <ul>
 <li><code>bind_address</code>: The address and port the server listens on.</li>
 <li><code>bearer_tokens</code>: <strong>Required for bearer authentication</strong>. Map of logical token identifiers to secure bearer tokens. <strong>Security Note</strong>: Never store actual bearer tokens in configuration files - use placeholder values and override with environment variables (see security best practices below).</li>
@@ -210,6 +212,8 @@ same limit also caps the decompressed size of each individual file.</li>
 <li><code>client_secret</code>: OAuth application client secret from your OIDC provider</li>
 <li><code>redirect_url</code> (optional): OAuth callback URL sent to the provider; it must match the redirect URI registered there. When unset, Scotty uses <code>{base_url}/api/oauth/callback</code> (see <code>base_url</code>). Set it only if the provider must call back on a different URL; a relative value is ignored with a warning at startup.</li>
 <li><code>device_flow_enabled</code>: Whether <code>scottyctl auth:login</code> works (default <code>true</code>). Scotty runs the device login itself and users approve it on Scotty's <code>/device</code> page; the provider's device grant is not used. When <code>false</code>, <code>/oauth/device</code> returns 404.</li>
+<li><code>session_lifetime</code>: How long a session token (web UI and <code>scottyctl</code> access token) is valid. Default <code>"12h"</code>. Written as a number followed by <code>s</code>, <code>m</code>, <code>h</code> or <code>d</code>.</li>
+<li><code>cli_session_lifetime</code>: Absolute lifetime of a login: after it, <code>scottyctl</code> must run <code>auth:login</code> again, however often it refreshed. It bounds web logins too, which are not refreshed and so normally end with their session token. Default <code>"30d"</code>, same notation, at most <code>"365d"</code>. Must not be shorter than <code>session_lifetime</code>. Scotty does not start if either value is zero, the CLI lifetime is longer than 365 days or shorter than the session lifetime; this is checked in every auth mode, not only <code>oauth</code>. Changes apply to logins after the restart. MCP lifetimes are fixed (15-minute tokens, 30-day connections).</li>
 <li><code>frontend_base_url</code>: <strong>Deprecated</strong> — use <code>api.base_url</code> instead. Post-authentication redirects now use <code>api.base_url</code>. If this setting is still present it is used as a fallback when <code>api.base_url</code> is unset, and a deprecation warning is logged at startup; if both are set, <code>api.base_url</code> wins.</li>
 </ul>
 </li>
@@ -1221,6 +1225,14 @@ underscores and prefix the key with <code>SCOTTY__</code>.</p>
 <tr>
 <td><code>api.oauth.frontend_base_url</code> (deprecated)</td>
 <td><code>SCOTTY__API__OAUTH__FRONTEND_BASE_URL</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.session_lifetime</code></td>
+<td><code>SCOTTY__API__OAUTH__SESSION_LIFETIME</code></td>
+</tr>
+<tr>
+<td><code>api.oauth.cli_session_lifetime</code></td>
+<td><code>SCOTTY__API__OAUTH__CLI_SESSION_LIFETIME</code></td>
 </tr>
 <tr>
 <td><code>docker.registries.example_registry.password</code></td>
