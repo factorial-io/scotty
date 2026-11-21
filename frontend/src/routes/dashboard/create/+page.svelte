@@ -14,6 +14,7 @@
 	import {
 		encodeFiles,
 		mapPayloadPaths,
+		missingRequired,
 		readFolder,
 		readZip,
 		type MappedPayload,
@@ -56,6 +57,10 @@
 	let images = $derived(template?.images ?? []);
 	let image = $derived(images.includes(imageChoice) ? imageChoice : images[0]);
 	let patterns = $derived(template?.payload ?? []);
+	let payloadRequired = $derived(template?.payload_required ?? []);
+	let missing = $derived(
+		missingRequired(upload?.mapped.files.map((f) => f.name) ?? [], payloadRequired)
+	);
 	let scopes = $derived(
 		$permissions
 			.filter(
@@ -71,7 +76,8 @@
 	let slug = $derived(slugify(appName));
 	let exists = $derived(!!slug && $apps.some((a) => a.name === slug));
 	let blocked = $derived(
-		!!upload && upload.mapped.rejected.length + upload.mapped.unmatched.length > 0
+		missing.length > 0 ||
+			(!!upload && upload.mapped.rejected.length + upload.mapped.unmatched.length > 0)
 	);
 
 	function choose(name: string) {
@@ -375,6 +381,11 @@
 					<p class="help">
 						Accepted paths: <span class="mono">{patterns.join(', ')}</span>
 					</p>
+					{#if payloadRequired.length}
+						<p class="help">
+							Required: <span class="mono">{payloadRequired.join(', ')}</span>
+						</p>
+					{/if}
 					{#if uploadError}<p class="help err">{uploadError}</p>{/if}
 					{#if upload?.mapped.rejected.length}
 						<p class="help err">
@@ -387,6 +398,11 @@
 							Not accepted by the blueprint: <span class="mono"
 								>{upload.mapped.unmatched.join(', ')}</span
 							>
+						</p>
+					{/if}
+					{#if upload && missing.length}
+						<p class="help err">
+							Required but missing: <span class="mono">{missing.join(', ')}</span>
 						</p>
 					{/if}
 				</div>

@@ -231,6 +231,21 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
     for pattern in &t.payload {
         payload_glob(pattern).map_err(|e| format!("invalid payload pattern {pattern}: {e}"))?;
     }
+    for entry in &t.payload_required {
+        payload_glob(entry).map_err(|e| format!("invalid required payload entry {entry}: {e}"))?;
+        // Wildcard entries are not checked against the payload (needs glob-subset logic).
+        if !entry.contains(['*', '?', '[']) {
+            let fits = t
+                .payload
+                .iter()
+                .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(entry)));
+            if !fits {
+                return Err(format!(
+                    "required payload entry {entry} matches none of the payload patterns"
+                ));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -396,6 +411,16 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
         .map_err(|e| AppError::BadRequest(format!("invalid payload patterns: {e}")))?;
 
     let mut files = t.files.clone();
+    let mut met = vec![false; t.payload_required.len()];
+    let required = t
+        .payload_required
+        .iter()
+        .map(|r| {
+            payload_glob(r)
+                .map(|g| g.compile_matcher())
+                .map_err(|e| AppError::BadRequest(format!("invalid required payload entry: {e}")))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     for f in &caller.files {
         let name = f.name.trim_start_matches("./");
         let path = std::path::Path::new(name);
@@ -425,10 +450,26 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
         if let Some(reason) = reason {
             return Err(AppError::BadRequest(format!("file {}: {reason}", f.name)));
         }
+        for (m, r) in met.iter_mut().zip(&required) {
+            *m |= r.is_match(name);
+        }
         files.push(File {
             name: name.to_string(),
             ..f.clone()
         });
+    }
+    let unmet: Vec<_> = t
+        .payload_required
+        .iter()
+        .zip(&met)
+        .filter(|(_, m)| !**m)
+        .map(|(r, _)| r.as_str())
+        .collect();
+    if !unmet.is_empty() {
+        return Err(AppError::BadRequest(format!(
+            "missing required files: {}",
+            unmet.join(", ")
+        )));
     }
     Ok(FileList { files })
 }
@@ -446,6 +487,7 @@ mod tests {
             parameters: Some(schema),
             images: vec!["img:1".into(), "img:2".into()],
             payload: vec!["html/**".into()],
+            payload_required: vec![],
             domain_suffix: None,
         }
     }
@@ -823,5 +865,83 @@ mod tests {
         let mut t = atelier();
         t.payload.clear();
         assert!(merge_files(&t, &caller(&["html/index.html"])).is_err());
+    }
+
+    #[test]
+    fn required_index_missing() {
+        let mut t = atelier();
+        t.payload_required = vec!["html/index.html".into()];
+        let e = err(merge_files(&t, &caller(&["html/about.html"])));
+        assert!(e.contains("html/index.html"), "{e}");
+        let e = err(merge_files(&t, &caller(&[])));
+        assert!(e.contains("html/index.html"), "{e}");
+    }
+
+    #[test]
+    fn required_path_present() {
+        let mut t = atelier();
+        t.payload_required = vec!["html/index.html".into()];
+        merge_files(&t, &caller(&["html/index.html", "html/img/a.png"])).unwrap();
+    }
+
+    #[test]
+    fn required_glob_and_all_unmet_named() {
+        let mut t = atelier();
+        t.payload = vec!["data/*.json".into(), "html/**".into()];
+        t.payload_required = vec![
+            "data/*.json".into(),
+            "html/index.html".into(),
+            "html/b.html".into(),
+        ];
+        merge_files(
+            &t,
+            &caller(&["data/a.json", "html/index.html", "html/b.html"]),
+        )
+        .unwrap();
+        let e = err(merge_files(&t, &caller(&["data/a.json"])));
+        assert!(
+            e.contains("html/index.html") && e.contains("html/b.html"),
+            "{e}"
+        );
+        assert!(!e.contains("data/*.json"), "{e}");
+    }
+
+    #[test]
+    fn no_requirement_accepts_no_files() {
+        merge_files(&atelier(), &caller(&[])).unwrap();
+    }
+
+    #[test]
+    fn required_checked_at_startup() {
+        let mut t = atelier();
+        t.payload_required = vec![
+            "html/index.html".into(),
+            "html/**".into(),
+            "data/*.json".into(),
+        ];
+        check_template(&t).unwrap();
+        t.payload_required = vec!["index.html".into()];
+        let e = check_template(&t).unwrap_err();
+        assert!(e.contains("index.html"), "{e}");
+        t.payload_required = vec!["html/[".into()];
+        assert!(check_template(&t).is_err());
+    }
+
+    #[test]
+    fn payload_required_hash_and_serialization() {
+        let mut t = atelier();
+        let v = serde_json::to_value(&t).unwrap();
+        assert!(v.get("payload_required").is_none());
+        // Same hash as before the field existed: the serialized contract is unchanged.
+        let mut legacy = v.clone();
+        legacy.as_object_mut().unwrap().remove("payload_required");
+        assert_eq!(v, legacy);
+        let before = content_hash(&t);
+        t.payload_required = vec!["html/index.html".into()];
+        assert_eq!(
+            serde_json::to_value(&t).unwrap()["payload_required"],
+            json!(["html/index.html"])
+        );
+        assert_ne!(content_hash(&t), before);
     }
 }

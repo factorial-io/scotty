@@ -114,6 +114,12 @@ fn format_template(template: &BlueprintTemplate) -> String {
     for glob in &template.payload {
         out.push_str(&format!("  ▹ {glob}\n"));
     }
+    if !template.payload_required.is_empty() {
+        out.push_str("\nRequired files (must be part of --folder):\n");
+        for glob in &template.payload_required {
+            out.push_str(&format!("  ▹ {glob}\n"));
+        }
+    }
     out
 }
 
@@ -278,6 +284,7 @@ mod tests {
                 }
             })),
             images: vec!["img:1".into(), "img:latest".into()],
+            payload_required: vec!["html/index.html".into()],
             ..Default::default()
         };
         let out = format_template(&template);
@@ -289,6 +296,8 @@ mod tests {
             "img:1",
             "img:latest",
             "none",
+            "Required files",
+            "html/index.html",
         ] {
             assert!(out.contains(needle), "missing {needle}:\n{out}");
         }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
-import { encodeFiles, globToRegExp, mapPayloadPaths, readZip } from './blueprintPayload';
+import {
+	encodeFiles,
+	globToRegExp,
+	mapPayloadPaths,
+	missingRequired,
+	readZip
+} from './blueprintPayload';
 
 const matches = (pattern: string, path: string) => globToRegExp(pattern).test(path);
 const names = (r: ReturnType<typeof mapPayloadPaths>) => r.files.map((f) => f.name);
@@ -148,5 +154,19 @@ describe('readZip + encodeFiles', () => {
 				if (native) proto.toBase64 = native;
 			}
 		}
+	});
+});
+
+describe('missingRequired', () => {
+	it('checks a literal and a glob against mapped names', () => {
+		expect(missingRequired(['html/about.html'], ['html/index.html'])).toEqual([
+			'html/index.html'
+		]);
+		expect(missingRequired(['html/index.html'], ['html/index.html'])).toEqual([]);
+		expect(missingRequired(['data/a.json'], ['data/*.json'])).toEqual([]);
+		expect(missingRequired(['data/a.txt', 'data/x/b.json'], ['data/*.json'])).toEqual([
+			'data/*.json'
+		]);
+		expect(missingRequired([], ['x'])).toEqual(['x']);
 	});
 });

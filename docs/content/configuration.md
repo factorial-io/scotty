@@ -843,6 +843,20 @@ an absolute path, a compose file, a `.env` file (Scotty manages the app's
 environment itself), or a file that would replace a blueprint
 file is rejected. No patterns means no caller files.
 
+`template.payload_required` lists patterns (same matching rules) that must each
+match at least one uploaded file, otherwise the create request is rejected
+naming the missing entries. It applies to every create, including an update of
+an existing app. `static-html` sets `payload_required: ["html/index.html"]`, so
+a site without an index page is refused. At startup, an entry without `*`, `?`
+or `[` must match one of the `payload` patterns, otherwise Scotty refuses to
+start. Leave it out to accept a request without files.
+
+```yaml
+template:
+  payload: ["html/**"]
+  payload_required: ["html/index.html"]
+```
+
 ```shell
 scottyctl app:create report-x --app-blueprint static-html --folder ./site
 scottyctl app:create cms --app-blueprint atelier --ttl forever \

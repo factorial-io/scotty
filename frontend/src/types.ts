@@ -107,6 +107,8 @@ export interface BlueprintTemplate {
 	images: string[];
 	/** Glob patterns for caller files; empty means no upload. */
 	payload: string[];
+	/** Patterns each needing at least one matching file; omitted when empty. */
+	payload_required?: string[];
 	domain_suffix?: string | null;
 }
 

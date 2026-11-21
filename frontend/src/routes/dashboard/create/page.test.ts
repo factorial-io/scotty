@@ -39,7 +39,12 @@ const blueprints: Record<string, Blueprint> = {
 		description: 'Serves static HTML',
 		actions: {},
 		templated: true,
-		template: { parameters: null, images: ['nginx:1'], payload: ['html/**'] }
+		template: {
+			parameters: null,
+			images: ['nginx:1'],
+			payload: ['html/**'],
+			payload_required: ['html/index.html']
+		}
 	},
 	atelier: {
 		name: 'atelier',
@@ -90,6 +95,17 @@ function type(sel: string, value: string) {
 	input.value = value;
 	input.dispatchEvent(new Event('input'));
 	flushSync();
+}
+async function pickFolder(...paths: string[]) {
+	const files = paths.map((p) => {
+		const f = new File(['x'], p.slice(p.lastIndexOf('/') + 1));
+		Object.defineProperty(f, 'webkitRelativePath', { value: p });
+		return f;
+	});
+	const folder = $('input[webkitdirectory]');
+	Object.defineProperty(folder, 'files', { value: files, configurable: true });
+	folder.dispatchEvent(new Event('change', { bubbles: true }));
+	await settle();
 }
 async function submit() {
 	$<HTMLFormElement>('form').requestSubmit();
@@ -165,6 +181,7 @@ describe('create app page', () => {
 	it('presets a single scope and sends defaults, basic auth and no image for one image', async () => {
 		await render('static-html');
 		expect($<HTMLSelectElement>('#scope').value).toBe('default');
+		await pickFolder('my-site/index.html');
 		type('#app-name', 'site');
 		type('#auth-user', 'alice');
 		type('input[aria-label="Basic auth password"]', 'secret');
@@ -214,6 +231,7 @@ describe('create app page', () => {
 		apps.set([{ name: 'report-x' } as App]);
 		vi.mocked(askConfirm).mockResolvedValue(false);
 		await render('static-html');
+		await pickFolder('my-site/index.html');
 		type('#app-name', 'Report X');
 		expect(document.body.textContent).toContain('Created as report-x');
 		await submit();
@@ -239,5 +257,26 @@ describe('create app page', () => {
 		expect(document.body.textContent).toContain('SITE_NAME is too long');
 		expect($('#param-SITE_NAME').value).toBe('Demo');
 		expect(goto).not.toHaveBeenCalled();
+	});
+
+	it('requires the upload: lists the required path and blocks submit', async () => {
+		await render('static-html');
+		type('#app-name', 'site');
+		expect(document.body.textContent).toContain('html/index.html');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(true);
+		await submit();
+		expect(lastRequest).toBeNull();
+	});
+
+	it('flags a folder without index and accepts one with index', async () => {
+		await render('static-html');
+		type('#app-name', 'site');
+		await pickFolder('my-site/about.html');
+		expect(document.body.textContent).toContain('Required but missing');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(true);
+
+		await pickFolder('my-site/index.html');
+		expect(document.body.textContent).not.toContain('Required but missing');
+		expect($<HTMLButtonElement>('button[type="submit"]').disabled).toBe(false);
 	});
 });

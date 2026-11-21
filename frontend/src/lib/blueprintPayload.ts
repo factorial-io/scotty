@@ -96,6 +96,14 @@ export function mapPayloadPaths(
 	return result;
 }
 
+/** Required patterns that no mapped file name matches. */
+export function missingRequired(mappedNames: string[], required: string[]): string[] {
+	return required.filter((p) => {
+		const re = globToRegExp(p);
+		return !mappedNames.some((n) => re.test(n));
+	});
+}
+
 /** Unpacks a zip in the browser; directory entries are skipped. */
 export async function readZip(zip: Blob): Promise<RawEntries> {
 	const all = unzipSync(new Uint8Array(await zip.arrayBuffer()));
