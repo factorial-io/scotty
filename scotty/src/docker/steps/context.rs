@@ -203,6 +203,7 @@ impl Context {
             task: (*self.task_snapshot()).clone(),
             app_data: AppData {
                 operation: self.app_state.app_locks.current(&self.app_data.name),
+                ttl_expires_at: self.app_data.ttl_expiry(),
                 ..self.app_data.clone()
             },
         }

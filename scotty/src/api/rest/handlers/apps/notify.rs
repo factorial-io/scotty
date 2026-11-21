@@ -87,9 +87,10 @@ pub async fn add_notification_handler(
         ));
     }
 
-    let app = app.add_notifications(&service_ids);
+    let mut app = app.add_notifications(&service_ids);
     app.save_settings().await?;
     state.apps.update_app(app.clone()).await?;
+    crate::services::apps::returned(&state, &mut app);
 
     Ok(SecureJson(app))
 }
@@ -130,9 +131,10 @@ pub async fn remove_notification_handler(
         return Err(AppError::AppSettingsNotFound(app_name));
     }
 
-    let app = app.remove_notifications(&service_ids);
+    let mut app = app.remove_notifications(&service_ids);
     app.save_settings().await?;
     state.apps.update_app(app.clone()).await?;
+    crate::services::apps::returned(&state, &mut app);
 
     Ok(SecureJson(app))
 }

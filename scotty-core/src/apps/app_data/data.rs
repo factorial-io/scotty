@@ -45,6 +45,13 @@ pub struct AppData {
     /// lock registry when the app is returned, never stored in the app list.
     #[serde(default)]
     pub operation: Option<AppOperation>,
+    /// When the TTL checker stops or destroys the app, from `ttl_expiry`.
+    /// Filled like `operation` when the app is returned, never stored in the
+    /// app list. An absolute time, so cached copies and clients do not go
+    /// stale.
+    #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub ttl_expires_at: Option<Timestamp>,
 }
 
 impl Default for AppData {
@@ -73,6 +80,7 @@ impl Default for AppData {
             next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
             operation: None,
+            ttl_expires_at: None,
         }
     }
 }
@@ -109,6 +117,7 @@ impl AppData {
             next_check: None,
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
             operation: None,
+            ttl_expires_at: None,
         }
     }
 
@@ -121,6 +130,29 @@ impl AppData {
             .as_ref()
             .map(|s| s.time_to_live.clone())
             .unwrap_or(AppTtl::Days(7))
+    }
+
+    /// When the app's TTL runs out: the earliest start of a running service
+    /// plus the TTL, as any service running longer than the TTL ends the app.
+    /// `None` for `Forever` or without a running service.
+    pub fn ttl_expiry(&self) -> Option<Timestamp> {
+        let ttl = self.get_ttl();
+        if ttl == AppTtl::Forever {
+            return None;
+        }
+        let ttl = SignedDuration::from_secs(u32::from(ttl).into());
+        self.services
+            .iter()
+            .filter(|s| s.is_running())
+            .filter_map(|s| s.started_at)
+            .min()
+            .and_then(|started| started.checked_add(ttl).ok())
+    }
+
+    /// Whether the TTL checker destroys the app instead of stopping it.
+    pub fn destroys_on_ttl(&self) -> bool {
+        self.status != AppStatus::Unsupported
+            && self.settings.as_ref().is_some_and(|s| s.destroy_on_ttl)
     }
 
     pub fn running_since(&self) -> Option<SignedDuration> {
@@ -244,5 +276,89 @@ impl AppData {
         };
         app_data.save_settings().await?;
         Ok(app_data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::apps::app_data::ContainerStatus;
+
+    fn service(status: ContainerStatus, hours_ago: i64) -> ContainerState {
+        ContainerState {
+            status,
+            started_at: Some(Timestamp::now() - SignedDuration::from_hours(hours_ago)),
+            ..Default::default()
+        }
+    }
+
+    fn app(ttl: AppTtl, services: Vec<ContainerState>) -> AppData {
+        AppData {
+            services,
+            settings: Some(AppSettings {
+                time_to_live: ttl,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn expiry_counts_from_the_earliest_running_service() {
+        let a = app(
+            AppTtl::Hours(10),
+            vec![
+                service(ContainerStatus::Running, 1),
+                service(ContainerStatus::Running, 3),
+                service(ContainerStatus::Exited, 9),
+            ],
+        );
+        let started = a.services[1].started_at.unwrap();
+        assert_eq!(
+            a.ttl_expiry(),
+            Some(started + SignedDuration::from_hours(10))
+        );
+    }
+
+    #[test]
+    fn no_expiry_when_forever_or_not_running() {
+        let running = vec![service(ContainerStatus::Running, 1)];
+        assert_eq!(app(AppTtl::Forever, running).ttl_expiry(), None);
+        let stopped = vec![service(ContainerStatus::Exited, 1)];
+        assert_eq!(app(AppTtl::Days(7), stopped).ttl_expiry(), None);
+        assert_eq!(app(AppTtl::Days(7), vec![]).ttl_expiry(), None);
+    }
+
+    #[test]
+    fn huge_ttl_does_not_overflow() {
+        let a = app(
+            AppTtl::Days(u32::MAX),
+            vec![service(ContainerStatus::Running, 1)],
+        );
+        assert!(a.ttl_expiry().is_some_and(|e| e > Timestamp::now()));
+    }
+
+    #[test]
+    fn app_without_settings_uses_seven_days_and_is_stopped() {
+        let a = AppData {
+            services: vec![service(ContainerStatus::Running, 0)],
+            ..Default::default()
+        };
+        let started = a.services[0].started_at.unwrap();
+        assert_eq!(
+            a.ttl_expiry(),
+            Some(started + SignedDuration::from_hours(168))
+        );
+        assert!(!a.destroys_on_ttl());
+    }
+
+    #[test]
+    fn destroys_only_supported_apps_with_the_setting() {
+        let mut a = app(AppTtl::Days(1), vec![]);
+        assert!(!a.destroys_on_ttl());
+        a.settings.as_mut().unwrap().destroy_on_ttl = true;
+        assert!(a.destroys_on_ttl());
+        a.status = AppStatus::Unsupported;
+        assert!(!a.destroys_on_ttl());
     }
 }

@@ -12,7 +12,9 @@
 		permissionsLoading,
 		loadUserPermissions
 	} from '../../../stores/permissionStore';
-	import type { App, AppTtl, TaskDetail } from '../../../types';
+	import type { App, TaskDetail } from '../../../types';
+	import { time } from '../../../stores/time';
+	import { endOfLife, formatLifetime, formatTtl } from '../../../lib/lifetime';
 	import TasksTable from '../../../components/tasks-table.svelte';
 	import { tasks } from '../../../stores/tasksStore';
 	import { getApp, apps } from '../../../stores/appsStore';
@@ -106,16 +108,6 @@
 		})
 	);
 
-	function format_ttl(ttlData: AppTtl) {
-		if (typeof ttlData === 'string') {
-			return ttlData;
-		} else if (ttlData.Days) {
-			return `${ttlData.Days} days`;
-		} else {
-			return `${ttlData.Hours} hours`;
-		}
-	}
-
 	function format_value(value: unknown) {
 		return value === null || value === undefined || value === '' ? 'None' : value;
 	}
@@ -198,8 +190,9 @@
 		<AppConnectivityPill connectivity={data.load_balancer_connectivity} />
 		{#if data.settings?.time_to_live}
 			<span class="tag"
-				><Icon icon="ph:clock" class="ic sm" aria-hidden="true" />Time to live: {format_ttl(
-					data.settings.time_to_live
+				><Icon icon="ph:clock" class="ic sm" aria-hidden="true" />{formatLifetime(
+					data,
+					$time
 				)}</span
 			>
 		{/if}
@@ -329,7 +322,7 @@
 			</div>
 			<div>
 				<dt>Time to live</dt>
-				<dd>{format_ttl(data.settings.time_to_live)}</dd>
+				<dd>{formatTtl(data.settings.time_to_live)}, then {endOfLife(data)}</dd>
 			</div>
 			<div>
 				<dt>Middlewares</dt>

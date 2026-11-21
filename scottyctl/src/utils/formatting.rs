@@ -1,5 +1,8 @@
 use jiff::{SignedDuration, Timestamp};
-use scotty_core::{apps::app_data::AppStatus, utils::format::format_duration};
+use scotty_core::{
+    apps::app_data::{AppData, AppStatus, AppTtl},
+    utils::format::format_duration,
+};
 use scotty_types::AppOperation;
 use serde_json::Value;
 
@@ -64,6 +67,27 @@ pub fn format_operation(op: &AppOperation, now: Timestamp) -> String {
     line
 }
 
+/// The `Lifetime:` line of `app:info`: the TTL, whether the app is then
+/// stopped or destroyed, and how long it has left.
+pub fn format_lifetime(app: &AppData, now: Timestamp) -> String {
+    let ttl = match app.get_ttl() {
+        AppTtl::Forever => return "Lifetime: forever".into(),
+        AppTtl::Days(d) => format!("{d}d"),
+        AppTtl::Hours(h) => format!("{h}h"),
+    };
+    let end = if app.destroys_on_ttl() {
+        "destroyed"
+    } else {
+        "stopped"
+    };
+    let left = match app.ttl_expires_at {
+        None => "(not running)".to_string(),
+        Some(at) if at <= now => "(due now)".to_string(),
+        Some(at) => format!("in {}", format_duration(&at.duration_since(now))),
+    };
+    format!("Lifetime: {ttl}, then {end} {left}")
+}
+
 /// Status cell of `app:list`, marked with the running operation, if any.
 pub fn status_with_operation(status: &AppStatus, operation: &Option<AppOperation>) -> String {
     match operation {
@@ -105,6 +129,37 @@ mod tests {
         );
         assert!(line.ends_with(&format!("(task {id})")), "{line}");
         assert!(!format_operation(&op(None), Timestamp::now()).contains("task"));
+    }
+
+    #[test]
+    fn lifetime_line() {
+        use scotty_core::apps::app_data::AppSettings;
+        let now = Timestamp::now();
+        let app = |ttl, destroy, expires: Option<i64>| AppData {
+            settings: Some(AppSettings {
+                time_to_live: ttl,
+                destroy_on_ttl: destroy,
+                ..Default::default()
+            }),
+            ttl_expires_at: expires.map(|h| now + SignedDuration::from_hours(h)),
+            ..Default::default()
+        };
+        assert_eq!(
+            format_lifetime(&app(AppTtl::Days(14), true, Some(334)), now),
+            "Lifetime: 14d, then destroyed in 13d 22h 00m 00s"
+        );
+        assert_eq!(
+            format_lifetime(&app(AppTtl::Hours(12), false, None), now),
+            "Lifetime: 12h, then stopped (not running)"
+        );
+        assert_eq!(
+            format_lifetime(&app(AppTtl::Hours(12), false, Some(-1)), now),
+            "Lifetime: 12h, then stopped (due now)"
+        );
+        assert_eq!(
+            format_lifetime(&app(AppTtl::Forever, true, None), now),
+            "Lifetime: forever"
+        );
     }
 
     #[test]

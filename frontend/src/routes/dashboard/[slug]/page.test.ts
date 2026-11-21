@@ -53,6 +53,7 @@ describe('app detail page', () => {
 			settings: {
 				app_blueprint: 'nginx-lagoon',
 				time_to_live: { Days: 7 },
+				destroy_on_ttl: true,
 				basic_auth: null,
 				environment: null,
 				middlewares: [],
@@ -60,8 +61,30 @@ describe('app detail page', () => {
 			}
 		} as unknown as App);
 		const tags = [...document.querySelectorAll('.tag')].map((t) => t.textContent?.trim());
-		expect(tags).toEqual(['Time to live: 7 days', 'Blueprint: nginx-lagoon']);
+		expect(tags).toEqual([
+			'Lifetime: 7 days, then destroyed (not running)',
+			'Blueprint: nginx-lagoon'
+		]);
+		expect(document.body.textContent).toContain('7 days, then destroyed');
 		expect(document.querySelector('.chips .st .w')?.textContent).toBe('Running');
+	});
+
+	it('counts down to the end of the lifetime of a running app', () => {
+		const in3Days = new Date(Date.now() + 3 * 86400_000 + 3600_000).toISOString();
+		render({
+			...app(),
+			settings: {
+				time_to_live: { Days: 7 },
+				destroy_on_ttl: false,
+				basic_auth: null,
+				environment: null,
+				middlewares: [],
+				registry: null
+			},
+			ttl_expires_at: in3Days
+		} as unknown as App);
+		const tags = [...document.querySelectorAll('.tag')].map((t) => t.textContent?.trim());
+		expect(tags[0]).toBe('Lifetime: 7 days, then stopped in 3 d');
 	});
 
 	it('names the running operation, links its task and disables the actions', () => {

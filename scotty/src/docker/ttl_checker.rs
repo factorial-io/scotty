@@ -3,7 +3,7 @@ use tracing::{info, instrument};
 use crate::api::error::AppError;
 use crate::docker::destroy_app::destroy_app;
 use crate::{app_state::SharedAppState, docker::stop_app::force_stop_app};
-use scotty_core::apps::app_data::{AppData, AppStatus, AppTtl};
+use scotty_core::apps::app_data::AppData;
 use scotty_core::utils::format::format_duration;
 
 #[instrument(skip(app_state))]
@@ -15,50 +15,30 @@ pub async fn check_app_ttl(app_state: SharedAppState, app: &AppData) -> anyhow::
         );
         return Ok(());
     }
-    let app_ttl = app.get_ttl();
-    if app_ttl == AppTtl::Forever {
-        info!("Ignoring {} as it is allowed to live forever", &app.name);
+    let Some(expires_at) = app.ttl_expiry() else {
+        info!(
+            "Ignoring {}: it lives forever or has no running service",
+            &app.name
+        );
+        return Ok(());
+    };
+    let remaining = expires_at.duration_since(jiff::Timestamp::now());
+    if !remaining.is_negative() {
+        info!(
+            "{} has {} remaining before its TTL ends",
+            app.name,
+            format_duration(&remaining)
+        );
         return Ok(());
     }
-    let app_ttl_seconds: u32 = app_ttl.into();
-    let now = jiff::Timestamp::now();
-    let mut needs_termination = false;
-    let mut remaining_ttl = 0;
-    for service in &app.services {
-        if !service.is_running() {
-            continue;
-        }
-        if let Some(started_at) = service.started_at {
-            let service_start_time = started_at;
-            let service_ttl = now.duration_since(service_start_time);
-            // A start in the future (clock skew) counts as just started.
-            let elapsed = service_ttl.as_secs().max(0);
-            if elapsed > i64::from(app_ttl_seconds) {
-                needs_termination = true;
-            } else {
-                // elapsed is within 0..=app_ttl_seconds here, so this fits.
-                remaining_ttl = std::cmp::max(app_ttl_seconds - elapsed as u32, remaining_ttl);
-            }
-            info!(
-                "{}.{} is running for {}; {} remaining before being stopped",
-                app.name,
-                service.service,
-                format_duration(&service_ttl),
-                format_duration(&jiff::SignedDuration::from_secs(remaining_ttl as i64))
-            );
-        }
-    }
-    if needs_termination {
-        let destroy = app.status != AppStatus::Unsupported
-            && app.settings.as_ref().is_some_and(|s| s.destroy_on_ttl);
-        info!(
-            "{} app, because TTL {} reached for {}",
-            if destroy { "Destroying" } else { "Stopping" },
-            app_ttl_seconds,
-            app.name
-        );
-        terminate(app_state, app, destroy).await?;
-    }
+    let destroy = app.destroys_on_ttl();
+    info!(
+        "{} app, because TTL {:?} reached for {}",
+        if destroy { "Destroying" } else { "Stopping" },
+        app.get_ttl(),
+        app.name
+    );
+    terminate(app_state, app, destroy).await?;
     Ok(())
 }
 
@@ -87,7 +67,7 @@ async fn terminate(app_state: SharedAppState, app: &AppData, destroy: bool) -> a
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scotty_core::apps::app_data::{ContainerState, ContainerStatus};
+    use scotty_core::apps::app_data::{AppTtl, ContainerState, ContainerStatus};
 
     /// A running app whose TTL ran out an hour ago; its compose file does
     /// not exist, so a stop task fails fast without docker.
@@ -130,6 +110,19 @@ mod tests {
         check_app_ttl(state.clone(), &app).await.unwrap();
         let tasks = state.task_manager.get_task_list().await;
         assert_eq!(tasks.len(), 1, "stopped on the next check");
+    }
+
+    #[tokio::test]
+    async fn app_within_its_ttl_is_left_running() {
+        let state = crate::api::test_utils::create_test_app_state_with_config(
+            "tests/test_bearer_auth",
+            None,
+        )
+        .await;
+        let mut app = expired_app();
+        app.settings.as_mut().unwrap().time_to_live = AppTtl::Hours(3);
+        check_app_ttl(state.clone(), &app).await.unwrap();
+        assert!(state.task_manager.get_task_list().await.is_empty());
     }
 
     /// The app is taken between the check and the stop: skipped, not an
