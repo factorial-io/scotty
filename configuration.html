@@ -181,7 +181,6 @@ to deliver the traces or metrics.</li>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_client_id"</span>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_client_secret"</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
     <span class="token key atrule">device_flow_enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span></code></pre>
 <ul>
 <li><code>bind_address</code>: The address and port the server listens on.</li>
@@ -209,7 +208,7 @@ same limit also caps the decompressed size of each individual file.</li>
 <li><code>oidc_issuer_url</code>: OIDC provider URL (e.g., "https://gitlab.com", "https://auth0.com", etc.)</li>
 <li><code>client_id</code>: OAuth application client ID from your OIDC provider</li>
 <li><code>client_secret</code>: OAuth application client secret from your OIDC provider</li>
-<li><code>redirect_url</code>: OAuth callback URL - must match your provider's configuration (backend endpoint)</li>
+<li><code>redirect_url</code> (optional): OAuth callback URL sent to the provider; it must match the redirect URI registered there. When unset, Scotty uses <code>{base_url}/api/oauth/callback</code> (see <code>base_url</code>). Set it only if the provider must call back on a different URL; a relative value is ignored with a warning at startup.</li>
 <li><code>device_flow_enabled</code>: Whether <code>scottyctl auth:login</code> works (default <code>true</code>). Scotty runs the device login itself and users approve it on Scotty's <code>/device</code> page; the provider's device grant is not used. When <code>false</code>, <code>/oauth/device</code> returns 404.</li>
 <li><code>frontend_base_url</code>: <strong>Deprecated</strong> — use <code>api.base_url</code> instead. Post-authentication redirects now use <code>api.base_url</code>. If this setting is still present it is used as a fallback when <code>api.base_url</code> is unset, and a deprecation warning is logged at startup; if both are set, <code>api.base_url</code> wins.</li>
 </ul>

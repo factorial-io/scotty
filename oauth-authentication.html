@@ -235,7 +235,8 @@ logins stop working after the upgrade. Log in again in the web UI and run
 <li><strong>Set <code>api.jwt_secret</code>.</strong> Scotty does not start in <code>oauth</code> mode without it,
 or with fewer than 64 bytes.</li>
 <li><strong><code>/oauth/authorize</code> ignores <code>redirect_uri</code>.</strong> The provider always gets
-<code>api.oauth.redirect_url</code>, and the browser always returns to the frontend's
+Scotty's configured callback URL (<code>api.oauth.redirect_url</code>, by default
+<code>{api.base_url}/api/oauth/callback</code>), and the browser always returns to the frontend's
 <code>/oauth/callback</code>.</li>
 <li><strong>Keep the database on a volume.</strong> See <a href="#persistent-database">Persistent database</a>.</li>
 <li><strong>The provider application needs less.</strong> It only needs the scopes
@@ -359,8 +360,7 @@ revoked.</p>
   <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>  <span class="token comment"># or your OIDC provider URL</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_id"</span>
-    <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span></code></pre>
+    <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span></code></pre>
 <p><strong>Provider-specific examples:</strong></p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token comment"># GitLab</span>
 <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
@@ -437,16 +437,16 @@ periodically.</p>
         <span aria-hidden="true">#</span>
       </a> Understanding OAuth URLs</h3>
 <p>Scotty uses two different URL configurations for OAuth:</p>
-<h4 id="redirect_url---backend-oauth-callback" tabindex="-1"><a class="header-anchor" href="#redirect_url---backend-oauth-callback">
+<h4 id="redirect_url---backend-oauth-callback-(optional)" tabindex="-1"><a class="header-anchor" href="#redirect_url---backend-oauth-callback-(optional)">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
-      </a> <code>redirect_url</code> - Backend OAuth Callback</h4>
+      </a> <code>redirect_url</code> - Backend OAuth Callback (optional)</h4>
 <ul>
 <li><strong>Purpose</strong>: The OAuth callback endpoint where the OIDC provider redirects after user authentication</li>
 <li><strong>Used by</strong>: OIDC provider (GitLab, Auth0, etc.)</li>
 <li><strong>Must match</strong>: The redirect URI configured in your OIDC provider's OAuth application settings</li>
-<li><strong>Example</strong>: <code>http://localhost:21342/api/oauth/callback</code></li>
-<li><strong>Format</strong>: Full URL to Scotty's backend <code>/api/oauth/callback</code> endpoint</li>
+<li><strong>Default</strong>: <code>{api.base_url}/api/oauth/callback</code>, e.g. <code>https://scotty.example.com/api/oauth/callback</code>. Usually you do not set it.</li>
+<li><strong>Format</strong>: Full absolute URL to Scotty's backend <code>/api/oauth/callback</code> endpoint. A relative value (such as the old default <code>/oauth2/start</code>) is ignored with a warning at startup.</li>
 </ul>
 <h4 id="api.base_url---public-base-url-of-scotty" tabindex="-1"><a class="header-anchor" href="#api.base_url---public-base-url-of-scotty">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -462,8 +462,7 @@ periodically.</p>
 <p><strong>Production Example:</strong></p>
 <pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">api</span><span class="token punctuation">:</span>
   <span class="token key atrule">base_url</span><span class="token punctuation">:</span> <span class="token string">"https://scotty.example.com"</span>
-  <span class="token key atrule">oauth</span><span class="token punctuation">:</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"https://scotty.example.com/api/oauth/callback"</span></code></pre>
+  <span class="token comment"># oauth.redirect_url defaults to https://scotty.example.com/api/oauth/callback</span></code></pre>
 <p><strong>Important</strong>: Both URLs must match your production domain. Using <code>localhost</code> in production will break the OAuth flow — Scotty logs a warning at startup when <code>api.base_url</code> is not configured and the <code>localhost</code> default is in effect.</p>
 <blockquote>
 <p><strong>Deprecated:</strong> older releases used <code>api.oauth.frontend_base_url</code> for the post-login redirect. It still works as a fallback when <code>api.base_url</code> is unset, but logs a deprecation warning at startup; if both are set, <code>api.base_url</code> wins. Having two separately-configured URLs caused hard-to-diagnose bugs (e.g. the stopped-app landing page losing its "return to app" state when the two origins differed), which is why they were consolidated.</p>
@@ -711,7 +710,6 @@ can set the header themselves and pick their own rate-limit key.</p>
     <span class="token key atrule">oidc_issuer_url</span><span class="token punctuation">:</span> <span class="token string">"https://gitlab.com"</span>
     <span class="token key atrule">client_id</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_id"</span>
     <span class="token key atrule">client_secret</span><span class="token punctuation">:</span> <span class="token string">"your_oidc_application_secret"</span>
-    <span class="token key atrule">redirect_url</span><span class="token punctuation">:</span> <span class="token string">"http://localhost:21342/api/oauth/callback"</span>
 
   <span class="token comment"># Bearer tokens for service accounts (checked first)</span>
   <span class="token key atrule">bearer_tokens</span><span class="token punctuation">:</span>
