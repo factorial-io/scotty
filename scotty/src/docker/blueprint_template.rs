@@ -364,6 +364,13 @@ pub fn is_compose_file(name: &str) -> bool {
     is_valid_config_file(name) || is_compose_variant(std::path::Path::new(name))
 }
 
+/// A `.env` file or variant such as `.env.production`, in any directory.
+/// Scotty writes the app's environment itself, so callers may not ship one.
+pub fn is_env_file(name: &str) -> bool {
+    let base = name.rsplit('/').next().unwrap_or("").to_ascii_lowercase();
+    base == ".env" || base.starts_with(".env.")
+}
+
 fn is_compose_variant(path: &std::path::Path) -> bool {
     let name = path
         .file_name()
@@ -401,6 +408,8 @@ pub fn merge_files(t: &BlueprintTemplate, caller: &FileList) -> Result<FileList,
             Some("path contains ..")
         } else if is_compose_file(name) {
             Some("compose files are supplied by the blueprint")
+        } else if is_env_file(name) {
+            Some(".env files are managed by Scotty")
         } else if t.files.iter().any(|b| b.name.eq_ignore_ascii_case(name)) {
             Some("would replace a blueprint file")
         } else if files[t.files.len()..]
@@ -755,6 +764,17 @@ mod tests {
             &caller(&["html/a.html", "./html/A.html"]),
         ));
         assert!(e.contains("duplicate"), "{e}");
+    }
+
+    #[test]
+    fn env_files_are_rejected() {
+        for name in ["html/.env", "html/.env.production", "html/sub/.ENV"] {
+            let e = err(merge_files(&atelier(), &caller(&[name])));
+            assert!(e.contains(".env") && e.contains(name), "{name}: {e}");
+        }
+        for name in ["html/env.js", "html/.envrc-docs.html"] {
+            assert!(merge_files(&atelier(), &caller(&[name])).is_ok(), "{name}");
+        }
     }
 
     #[test]

@@ -839,7 +839,8 @@ other image is rejected.
 may upload with `--folder`. `*` and `?` match within one directory, so
 `html/*` accepts `html/index.html` but not `html/img/a.png`; `**` matches
 across directories. Matching is case-sensitive. A file outside these patterns, a path with `..` or
-an absolute path, a compose file, or a file that would replace a blueprint
+an absolute path, a compose file, a `.env` file (Scotty manages the app's
+environment itself), or a file that would replace a blueprint
 file is rejected. No patterns means no caller files.
 
 ```shell
