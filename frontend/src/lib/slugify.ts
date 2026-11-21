@@ -19,3 +19,7 @@ export function slugify(s: string): string {
 	}
 	return slug.endsWith('-') ? slug.slice(0, -1) : slug;
 }
+
+/** False when non-ASCII characters survive folding, so the server may normalise differently. */
+export const slugifyIsExact = (s: string): boolean =>
+	!/\P{ASCII}/u.test(s.normalize('NFKD').replace(/\p{M}/gu, ''));

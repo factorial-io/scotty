@@ -231,19 +231,36 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
     for pattern in &t.payload {
         payload_glob(pattern).map_err(|e| format!("invalid payload pattern {pattern}: {e}"))?;
     }
+    if t.payload.is_empty() {
+        if let Some(entry) = t.payload_required.first() {
+            return Err(format!(
+                "required payload entry {entry} but the blueprint accepts no payload"
+            ));
+        }
+    }
     for entry in &t.payload_required {
         payload_glob(entry).map_err(|e| format!("invalid required payload entry {entry}: {e}"))?;
         // Wildcard entries are not checked against the payload (needs glob-subset logic).
-        if !entry.contains(['*', '?', '[']) {
-            let fits = t
-                .payload
-                .iter()
-                .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(entry)));
-            if !fits {
-                return Err(format!(
-                    "required payload entry {entry} matches none of the payload patterns"
-                ));
-            }
+        if entry.contains(['*', '?', '[', '{']) {
+            continue;
+        }
+        let fits = t
+            .payload
+            .iter()
+            .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(entry)));
+        if !fits {
+            return Err(format!(
+                "required payload entry {entry} matches none of the payload patterns"
+            ));
+        }
+        // merge_files rejects these from callers, so no request could meet the entry.
+        if is_compose_file(entry)
+            || is_env_file(entry)
+            || t.files.iter().any(|f| f.name.eq_ignore_ascii_case(entry))
+        {
+            return Err(format!(
+                "required payload entry {entry} is a file callers may not send"
+            ));
         }
     }
     Ok(())
@@ -925,6 +942,22 @@ mod tests {
         assert!(e.contains("index.html"), "{e}");
         t.payload_required = vec!["html/[".into()];
         assert!(check_template(&t).is_err());
+        t.payload_required = vec!["html/*.{html,htm}".into()];
+        check_template(&t).unwrap();
+        for entry in ["html/.env", "html/docker-compose.override.yml"] {
+            t.payload_required = vec![entry.into()];
+            let e = check_template(&t).unwrap_err();
+            assert!(e.contains(entry), "{entry}: {e}");
+        }
+    }
+
+    #[test]
+    fn required_without_payload_fails_at_startup() {
+        let mut t = atelier();
+        t.payload.clear();
+        t.payload_required = vec!["html/*.html".into()];
+        let e = check_template(&t).unwrap_err();
+        assert!(e.contains("html/*.html"), "{e}");
     }
 
     #[test]

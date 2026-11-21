@@ -19,10 +19,11 @@ export interface MappedPayload {
 /**
  * globset with `literal_separator(true)`: `*` and `?` stay within a segment,
  * `**` spans segments, case-sensitive.
- * ponytail: no `[...]` classes or `{a,b}` alternation; add when a blueprint uses them.
+ * Also `[abc]` / `[!abc]` classes (never matching `/`) and `{a,b}` alternation.
  */
 export function globToRegExp(pattern: string): RegExp {
 	let re = '';
+	let braces = 0;
 	for (let i = 0; i < pattern.length; i++) {
 		const c = pattern[i];
 		if (pattern.startsWith('**/', i)) {
@@ -35,6 +36,25 @@ export function globToRegExp(pattern: string): RegExp {
 			re += '[^/]*';
 		} else if (c === '?') {
 			re += '[^/]';
+		} else if (c === '[' && pattern.indexOf(']', i + 2) > 0) {
+			const neg = pattern[i + 1] === '!';
+			const end = pattern.indexOf(']', i + (neg ? 3 : 2));
+			if (end > 0) {
+				const body = pattern.slice(i + (neg ? 2 : 1), end).replace(/[\\\]^]/g, '\\$&');
+				// a class never matches `/`; a positive one just can't contain it
+				re += neg ? `[^/${body}]` : `(?!/)[${body}]`;
+				i = end;
+				continue;
+			}
+			re += '\\[';
+		} else if (c === '{') {
+			braces++;
+			re += '(?:';
+		} else if (c === '}' && braces > 0) {
+			braces--;
+			re += ')';
+		} else if (c === ',' && braces > 0) {
+			re += '|';
 		} else {
 			re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
 		}
@@ -75,7 +95,12 @@ export function mapPayloadPaths(
 
 	const top = (p: string) => (p.includes('/') ? p.slice(0, p.indexOf('/')) : null);
 	const shared = entries.length > 0 && top(entries[0].name);
-	if (source === 'folder' || (shared && entries.every((e) => top(e.name) === shared))) {
+	// A top folder that itself starts a payload pattern is payload, not a wrapper.
+	const isPayloadDir = patterns.some((p) => p.startsWith(`${shared}/`));
+	if (
+		source === 'folder' ||
+		(shared && !isPayloadDir && entries.every((e) => top(e.name) === shared))
+	) {
 		entries = entries.map((e) => ({ ...e, name: e.name.slice(e.name.indexOf('/') + 1) }));
 	}
 

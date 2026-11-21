@@ -10,7 +10,7 @@
 	import { authMode } from '../../../stores/userStore';
 	import { askConfirm } from '../../../stores/confirmStore';
 	import { setTitle } from '../../../stores/titleStore';
-	import { slugify } from '../../../lib/slugify';
+	import { slugify, slugifyIsExact } from '../../../lib/slugify';
 	import {
 		encodeFiles,
 		mapPayloadPaths,
@@ -75,10 +75,24 @@
 	let scope = $derived(scopes.includes(scopeChoice) ? scopeChoice : (scopes[0] ?? ''));
 	let slug = $derived(slugify(appName));
 	let exists = $derived(!!slug && $apps.some((a) => a.name === slug));
+	let matched = $derived(slug ? $apps.find((a) => a.name === slug) : undefined);
+	let presetFor = '';
 	let blocked = $derived(
 		missing.length > 0 ||
 			(!!upload && upload.mapped.rejected.length + upload.mapped.unmatched.length > 0)
 	);
+
+	// Updating starts from the app's settings, applied once when a match first appears.
+	$effect(() => {
+		if (!matched || presetFor === matched.name) return;
+		presetFor = matched.name;
+		const st = matched.settings;
+		if (!st) return;
+		if (st.scopes?.[0]) scopeChoice = st.scopes[0];
+		const t = st.time_to_live;
+		ttl = t === 'Forever' ? 'forever' : 'Days' in t ? `${t.Days}d` : `${t.Hours}h`;
+		[authUser, authPass] = st.basic_auth ?? ['', ''];
+	});
 
 	function choose(name: string) {
 		chosen = name;
@@ -155,11 +169,14 @@
 	async function onsubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!blueprint || blocked || submitting) return;
+		const inexact = !!appName && !slugifyIsExact(appName);
 		if (
-			exists &&
+			(exists || inexact) &&
 			!(await askConfirm({
 				title: `Update ${slug}?`,
-				body: `An app named ${slug} already exists. Creating it from ${blueprint.name} updates that app with these settings and files.`,
+				body: exists
+					? `An app named ${slug} already exists. Creating it from ${blueprint.name} updates that app; the scope, TTL, basic auth and files from this form replace its own.`
+					: `The server may normalise "${appName}" differently than this page (${slug}). If an app with the server's name exists, it is updated and the scope, TTL, basic auth and files from this form replace its own.`,
 				confirmLabel: 'Update app'
 			}))
 		)

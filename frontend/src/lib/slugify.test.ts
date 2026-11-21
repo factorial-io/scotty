@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slugify } from './slugify';
+import { slugify, slugifyIsExact } from './slugify';
 
 // Cases from scotty-core/src/utils/slugify.rs.
 describe('slugify', () => {
@@ -29,5 +29,13 @@ describe('slugify', () => {
 		expect(slugify('---')).toBe('');
 		expect(slugify('!@#$%')).toBe('');
 		expect(slugify('   ')).toBe('');
+	});
+});
+
+describe('slugifyIsExact', () => {
+	it('is false only when non-ASCII survives folding', () => {
+		expect(slugifyIsExact('Report X')).toBe(true);
+		expect(slugifyIsExact('café')).toBe(true);
+		expect(slugifyIsExact('Große Seite')).toBe(false);
 	});
 });

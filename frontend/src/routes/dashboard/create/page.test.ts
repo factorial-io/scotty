@@ -245,6 +245,49 @@ describe('create app page', () => {
 		expect(lastRequest!.app_name).toBe('Report X');
 	});
 
+	it('confirms when the name cannot be normalised exactly, even without a match', async () => {
+		vi.mocked(askConfirm).mockResolvedValue(false);
+		await render('static-html');
+		await pickFolder('my-site/index.html');
+		type('#app-name', 'Große Seite');
+		await submit();
+		expect(askConfirm).toHaveBeenCalledWith(
+			expect.objectContaining({ body: expect.stringContaining('Große Seite') })
+		);
+		expect(lastRequest).toBeNull();
+	});
+
+	it('presets scope, TTL and basic auth from a matching app', async () => {
+		permissions.set([
+			{ name: 'default', description: '', permissions: ['create'] },
+			{ name: 'client-a', description: '', permissions: ['create'] }
+		]);
+		apps.set([
+			{
+				name: 'report-x',
+				settings: {
+					scopes: ['client-a'],
+					time_to_live: 'Forever',
+					basic_auth: ['u', 'p']
+				}
+			} as unknown as App
+		]);
+		vi.mocked(askConfirm).mockResolvedValue(true);
+		await render('static-html');
+		await pickFolder('my-site/index.html');
+		type('#app-name', 'report-x');
+		expect($<HTMLSelectElement>('#scope').value).toBe('client-a');
+		expect($('#ttl').value).toBe('forever');
+		expect($('#auth-user').value).toBe('u');
+		expect($('input[aria-label="Basic auth password"]').value).toBe('p');
+		await submit();
+		expect(lastRequest!.settings).toMatchObject({
+			scopes: ['client-a'],
+			time_to_live: 'Forever',
+			basic_auth: ['u', 'p']
+		});
+	});
+
 	it('keeps the values and shows the server message when create fails', async () => {
 		api.mockImplementation(async (url) => {
 			if (url === 'blueprints') return { blueprints };

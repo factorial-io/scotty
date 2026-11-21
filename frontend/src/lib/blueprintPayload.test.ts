@@ -29,6 +29,16 @@ describe('globToRegExp', () => {
 		expect(matches('html/**', 'HTML/index.html')).toBe(false);
 		expect(matches('a.b', 'axb')).toBe(false);
 	});
+	it('supports classes and alternation', () => {
+		expect(matches('data/*.{json,csv}', 'data/a.json')).toBe(true);
+		expect(matches('data/*.{json,csv}', 'data/b.csv')).toBe(true);
+		expect(matches('data/*.{json,csv}', 'data/c.txt')).toBe(false);
+		expect(matches('data/[ab].json', 'data/a.json')).toBe(true);
+		expect(matches('data/[ab].json', 'data/c.json')).toBe(false);
+		expect(matches('data/[!ab].json', 'data/c.json')).toBe(true);
+		expect(matches('data/[!ab].json', 'data/a.json')).toBe(false);
+		expect(matches('data[!a]x', 'data/x')).toBe(false);
+	});
 });
 
 describe('mapPayloadPaths', () => {
@@ -44,6 +54,10 @@ describe('mapPayloadPaths', () => {
 	it('does not prefix a zip already shaped like the payload', () => {
 		const r = mapPayloadPaths(['site/html/index.html'], ['html/**'], 'zip');
 		expect(names(r)).toEqual(['html/index.html']);
+	});
+	it('keeps a zip top folder that starts a payload pattern', () => {
+		const r = mapPayloadPaths(['data/a.json'], ['html/**', 'data/*.json'], 'zip');
+		expect(names(r)).toEqual(['data/a.json']);
 	});
 	it('strips a zip top folder only when every entry shares it', () => {
 		const flat = mapPayloadPaths(['index.html', 'img/a.png'], ['html/**'], 'zip');
