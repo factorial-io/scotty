@@ -53,6 +53,7 @@ describe('app detail page', () => {
 			settings: {
 				app_blueprint: 'nginx-lagoon',
 				time_to_live: { Days: 7 },
+				destroy_on_ttl: true,
 				basic_auth: null,
 				environment: null,
 				middlewares: [],
@@ -60,7 +61,11 @@ describe('app detail page', () => {
 			}
 		} as unknown as App);
 		const tags = [...document.querySelectorAll('.tag')].map((t) => t.textContent?.trim());
-		expect(tags).toEqual(['Time to live: 7 days', 'Blueprint: nginx-lagoon']);
+		expect(tags).toEqual([
+			'Lifetime: 7 days, then destroyed (not running)',
+			'Blueprint: nginx-lagoon'
+		]);
+		expect(document.body.textContent).toContain('7 days, then destroyed');
 		expect(document.querySelector('.chips .st .w')?.textContent).toBe('Running');
 	});
 

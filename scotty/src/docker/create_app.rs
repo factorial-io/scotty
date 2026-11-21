@@ -204,6 +204,7 @@ pub async fn create_app(
         // observed the app's proxy network.
         load_balancer_connectivity: Default::default(),
         operation: None,
+        ttl_expires_at: None,
     };
     let notification = Message::new(MessageType::AppCreated, &app_data);
     let settings = settings.clone();

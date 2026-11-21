@@ -36,6 +36,7 @@ export interface ServicePortMapping {
 export interface AppSettings {
 	public_services: ServicePortMapping[];
 	time_to_live: AppTtl;
+	destroy_on_ttl: boolean;
 	domain: string;
 	registry: string;
 	disallow_robots: boolean;
@@ -60,6 +61,8 @@ export interface App {
 	load_balancer_connectivity: LoadBalancerConnectivity;
 	/** The operation running on the app; null when idle. */
 	operation: AppOperation | null;
+	/** When the TTL checker stops or destroys the app; null when forever or not running. */
+	ttl_expires_at: string | null;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
 // The old interface with stdout/stderr is deprecated

@@ -5,7 +5,7 @@ use tabled::{builder::Builder, settings::Style};
 use crate::{
     api::{get, wait_for_task, with_busy_wait},
     context::{AppContext, ServerSettings},
-    utils::formatting::{format_operation, format_since},
+    utils::formatting::{format_lifetime, format_operation, format_since},
 };
 use scotty_core::{
     apps::app_data::{AppData, LoadBalancerConnectivity},
@@ -226,6 +226,7 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
             result += &format!("\nScopes: {}", settings.scopes.join(", "));
         }
     }
+    result += &format!("\n{}", format_lifetime(app_data, jiff::Timestamp::now()));
 
     // Only worth a line when the server actually observed something. `Unknown`
     // means no reconciliation pass has seen this app yet (or the server predates

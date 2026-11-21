@@ -364,16 +364,23 @@ pub async fn get(state: &SharedAppState, user_id: &str, app: &str) -> Result<App
         .get_app(&app)
         .await
         .ok_or(AppError::AppNotFound(app))?;
-    app_data.operation = state.app_locks.current(&app_data.name);
+    returned(state, &mut app_data);
     Ok(app_data)
 }
 
-/// `apps` with each app's running operation filled in from the lock registry.
+/// `apps` with each app's running operation and TTL expiry filled in.
 fn with_operations(state: &SharedAppState, mut apps: AppDataVec) -> AppDataVec {
     for app in &mut apps.apps {
-        app.operation = state.app_locks.current(&app.name);
+        returned(state, app);
     }
     apps
+}
+
+/// Fill the fields computed when an app is returned: its running operation,
+/// from the lock registry, and its TTL expiry.
+fn returned(state: &SharedAppState, app: &mut AppData) {
+    app.operation = state.app_locks.current(&app.name);
+    app.ttl_expires_at = app.ttl_expiry();
 }
 
 /// A task, with its output, if `user_id` may see it (task-visibility spec).
