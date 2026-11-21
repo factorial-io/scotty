@@ -525,6 +525,10 @@ index the app.
 <p>The <code>--destroy-on-ttl</code> argument will destroy the app after the specified ttl
 instead of just stopping it. Suitable for apps that are not expected to be used
 for a long time.</p>
+<p>The ttl counts from the start of the app's earliest-started running service, so
+a restart starts it again. <code>app:info</code> shows it as a <code>Lifetime:</code> line, for
+example <code>Lifetime: 14d, then destroyed in 13d 22h 05m 10s</code>,
+<code>Lifetime: 12h, then stopped (not running)</code> or <code>Lifetime: forever</code>.</p>
 <p>The <code>--autowake</code> argument (requires <code>--basic-auth</code>) lets anyone holding the app's
 basic-auth credentials start the stopped app just by visiting its domain, without
 a Scotty login. See <a href="default-backend.html#autowake">Default backend &amp; landing page</a>.</p>
