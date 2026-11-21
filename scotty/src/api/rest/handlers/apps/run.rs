@@ -209,7 +209,7 @@ pub async fn adopt_app_handler(
     }
     let environment = collect_environment_from_app(&state, &app_data).await?;
     let environment_secret = SecretHashMap::from_hashmap(environment);
-    let app_data = app_data
+    let mut app_data = app_data
         .create_settings_from_runtime(&environment_secret)
         .await?;
 
@@ -239,5 +239,6 @@ pub async fn adopt_app_handler(
         }
     }
 
+    crate::services::apps::returned(&state, &mut app_data);
     Ok(SecureJson(app_data))
 }

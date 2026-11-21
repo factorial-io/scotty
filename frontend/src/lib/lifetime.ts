@@ -3,7 +3,8 @@ import { formatRelativeTime } from './relative-time';
 
 export function formatTtl(ttl: AppTtl): string {
 	if (typeof ttl === 'string') return ttl;
-	return ttl.Days ? `${ttl.Days} days` : `${ttl.Hours} hours`;
+	const [n, unit] = ttl.Days ? [ttl.Days, 'day'] : [ttl.Hours, 'hour'];
+	return `${n} ${unit}${n === 1 ? '' : 's'}`;
 }
 
 /** What the TTL checker does at the end: mirrors the server's rule. */

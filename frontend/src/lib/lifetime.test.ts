@@ -22,7 +22,7 @@ describe('formatLifetime', () => {
 	});
 	it('never destroys an unsupported app', () => {
 		const a = { ...app({ Days: 1 }, true, null), status: 'Unsupported' } as App;
-		expect(formatLifetime(a, now)).toBe('Lifetime: 1 days, then stopped (not running)');
+		expect(formatLifetime(a, now)).toBe('Lifetime: 1 day, then stopped (not running)');
 	});
 	it('shows forever', () => {
 		expect(formatLifetime(app('Forever', true, null), now)).toBe('Lifetime: Forever');

@@ -378,7 +378,7 @@ fn with_operations(state: &SharedAppState, mut apps: AppDataVec) -> AppDataVec {
 
 /// Fill the fields computed when an app is returned: its running operation,
 /// from the lock registry, and its TTL expiry.
-fn returned(state: &SharedAppState, app: &mut AppData) {
+pub(crate) fn returned(state: &SharedAppState, app: &mut AppData) {
     app.operation = state.app_locks.current(&app.name);
     app.ttl_expires_at = app.ttl_expiry();
 }
