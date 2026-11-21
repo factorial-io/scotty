@@ -125,6 +125,10 @@ fn default_cli_session_lifetime() -> SchedulerInterval {
     SchedulerInterval::Days(30)
 }
 
+/// Upper bound of `api.oauth.cli_session_lifetime` (and so of the session
+/// lifetime, which may not exceed it).
+const MAX_SESSION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(365 * 86400);
+
 /// Default public base URL used when neither `api.base_url` nor the
 /// deprecated `api.oauth.frontend_base_url` is configured.
 pub const DEFAULT_BASE_URL: &str = "http://localhost:21342";
@@ -141,6 +145,12 @@ impl ApiServer {
                 "api.oauth.session_lifetime ({}) and api.oauth.cli_session_lifetime ({}) \
                  must be greater than zero",
                 self.oauth.session_lifetime, self.oauth.cli_session_lifetime
+            ));
+        }
+        if cli > MAX_SESSION_LIFETIME {
+            return Err(format!(
+                "api.oauth.cli_session_lifetime ({}) must not be longer than 365d",
+                self.oauth.cli_session_lifetime
             ));
         }
         if session > cli {
@@ -356,6 +366,13 @@ mod tests {
         assert!(api.validate_oauth().unwrap_err().contains("longer than"));
         api.oauth.cli_session_lifetime = SchedulerInterval::Minutes(720);
         assert!(api.validate_oauth().is_ok(), "equal lifetimes are fine");
+
+        api.oauth.cli_session_lifetime = SchedulerInterval::Days(365);
+        assert!(api.validate_oauth().is_ok());
+        api.oauth.cli_session_lifetime = SchedulerInterval::Days(366);
+        assert!(api.validate_oauth().unwrap_err().contains("365d"));
+
+        assert_ne!(api.auth_mode, AuthMode::OAuth, "checked in every auth mode");
     }
 
     #[test]

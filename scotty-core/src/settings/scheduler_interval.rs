@@ -74,3 +74,26 @@ impl std::fmt::Display for SchedulerInterval {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn days_convert_to_every_duration_type() {
+        let d = SchedulerInterval::Days(2);
+        assert_eq!(
+            std::time::Duration::from(d.clone()),
+            std::time::Duration::from_secs(2 * 86400)
+        );
+        assert_eq!(
+            jiff::SignedDuration::from(d.clone()),
+            jiff::SignedDuration::from_hours(48)
+        );
+        assert!(matches!(
+            clokwerk::Interval::from(d.clone()),
+            clokwerk::Interval::Days(2)
+        ));
+        assert_eq!(d.to_string(), "2d");
+    }
+}
