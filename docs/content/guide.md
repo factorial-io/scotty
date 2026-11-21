@@ -63,8 +63,13 @@ blocks the upload until you remove them. Compose files (`docker-compose.yml`,
 `compose.override.yaml`, ...) and env files (`.env`, `.env.local`, ...) are always
 refused, in any directory. `.DS_Store` files and `__MACOSX/` folders from Finder-made
 zips are dropped silently.
-A blueprint may also require files, in which case the upload is mandatory and the
-form lists what is still missing; `static-html` requires `html/index.html`. After submitting, the dashboard shows the create task.
+
+A blueprint may also require files. The upload is then mandatory, and the form
+lists what is still missing; `static-html` requires `html/index.html`. When you
+update an existing app, files it already has count, so a missing file is only
+noted.
+
+After submitting, the dashboard shows the create task.
 
 ## Want to start?
 

@@ -417,7 +417,9 @@ fn sample_path(glob: &str) -> String {
 }
 
 /// Paths of the files under `dir`, relative to it with `/` separators.
-/// Unreadable entries are left out.
+/// Unreadable entries are left out. Symlinks are neither followed nor listed
+/// (`WalkDir` default, `is_file()` is false for them), so a link can never meet
+/// a required payload entry; keep it that way.
 pub fn relative_files(dir: &std::path::Path) -> Vec<String> {
     walkdir::WalkDir::new(dir)
         .into_iter()

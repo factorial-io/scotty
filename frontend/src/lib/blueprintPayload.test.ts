@@ -13,6 +13,18 @@ const matches = (pattern: string, path: string) => globToRegExp(pattern).test(pa
 const names = (r: ReturnType<typeof mapPayloadPaths>) => r.files.map((f) => f.name);
 
 describe('globToRegExp', () => {
+	// Expected values were taken from the server's globset (literal_separator).
+	it.each([
+		['html/a**b', 'html/ab', true],
+		['html/a**b', 'html/axb', true],
+		['html/a**b', 'html/ax/yb', false],
+		['html/{a,{b,c}}', 'html/a', true],
+		['html/{a,{b,c}}', 'html/b', true],
+		['html/{a,{b,c}}', 'html/c', true],
+		['html/{a,{b,c}}', 'html/{b,c}', false]
+	])('matches globset: %s vs %s', (pattern, path, want) => {
+		expect(matches(pattern, path)).toBe(want);
+	});
 	it('keeps * and ? within one segment', () => {
 		expect(matches('html/*', 'html/index.html')).toBe(true);
 		expect(matches('html/*', 'html/a/b.html')).toBe(false);
