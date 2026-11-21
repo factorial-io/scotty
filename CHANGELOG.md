@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/factorial-io/scotty/compare/v0.6.0...v0.7.0) (2026-11-21)
+
+
+### Features
+
+* configurable session and CLI grant lifetimes ([#1011](https://github.com/factorial-io/scotty/issues/1011)) ([bdf90f2](https://github.com/factorial-io/scotty/commit/bdf90f20e07b27a237c3535ebb43cb10e89adf50))
+* show app lifetime and remaining time in app:info and the dashboard ([#1010](https://github.com/factorial-io/scotty/issues/1010)) ([077636d](https://github.com/factorial-io/scotty/commit/077636dba2521a3a5839a19d70719abc8c8127fa))
+
+
+### Bug Fixes
+
+* **deps:** migrate from chrono to jiff ([#1001](https://github.com/factorial-io/scotty/issues/1001)) ([2863b18](https://github.com/factorial-io/scotty/commit/2863b181d051e47fbb9182016d9f27d2b8dbde34))
+* **deps:** update rust crate jsonschema to 0.62.0 ([#1006](https://github.com/factorial-io/scotty/issues/1006)) ([0e1f6e4](https://github.com/factorial-io/scotty/commit/0e1f6e465ed26ac8887ff8080754d4efb69c46e2))
+* derive the OAuth redirect URL from the public base URL ([#1009](https://github.com/factorial-io/scotty/issues/1009)) ([e02f4ee](https://github.com/factorial-io/scotty/commit/e02f4eedca59426683548af7456c2466e4495bcf)), closes [#562](https://github.com/factorial-io/scotty/issues/562)
+* **frontend:** use the design system link style for all text links ([#1013](https://github.com/factorial-io/scotty/issues/1013)) ([ea3f4a2](https://github.com/factorial-io/scotty/commit/ea3f4a24d68eb4026682dc38ba835e397ed466c2))
+* refresh expired sessions for WebSocket/app:cp and name the machine on device logins ([#1004](https://github.com/factorial-io/scotty/issues/1004)) ([6d642d5](https://github.com/factorial-io/scotty/commit/6d642d5f833304e129927809e9b7d24c353cccda))
+
 ## [0.6.0](https://github.com/factorial-io/scotty/compare/v0.5.0...v0.6.0) (2026-11-20)
 
 
