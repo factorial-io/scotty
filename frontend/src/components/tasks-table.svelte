@@ -31,8 +31,9 @@
 			{#each sorted as task (task.id)}
 				<tr>
 					<td
-						><a class="name mono" href={resolve('/tasks/[slug]', { slug: task.id })}
-							>{task.id}</a
+						><a
+							class="link name mono"
+							href={resolve('/tasks/[slug]', { slug: task.id })}>{task.id}</a
 						></td
 					>
 					{#if withApp}

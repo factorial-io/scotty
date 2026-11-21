@@ -274,7 +274,7 @@
 						<td>
 							{#if permissions.logs}
 								<a
-									class="name"
+									class="link name"
 									href={resolve('/dashboard/[slug]/[service]', {
 										slug: data.name,
 										service: service.service
