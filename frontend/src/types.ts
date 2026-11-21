@@ -85,8 +85,40 @@ export interface BlueprintAction {
 	permission?: string;
 }
 
+/** The flat JSON Schema subset a templated blueprint may declare for its parameters. */
+export interface BlueprintParameterProperty {
+	type: 'string' | 'number' | 'integer' | 'boolean';
+	title?: string;
+	description?: string;
+	default?: string | number | boolean;
+	enum?: (string | number)[];
+	/** Set by the server for generated and derived parameters; forms skip these. */
+	readOnly?: boolean;
+}
+
+export interface BlueprintParameterSchema {
+	type?: 'object';
+	properties?: Record<string, BlueprintParameterProperty>;
+	required?: string[];
+}
+
+export interface BlueprintTemplate {
+	parameters: BlueprintParameterSchema | null;
+	images: string[];
+	/** Glob patterns for caller files; empty means no upload. */
+	payload: string[];
+	/** Patterns each needing at least one matching file; omitted when empty. */
+	payload_required?: string[];
+	domain_suffix?: string | null;
+}
+
 export interface Blueprint {
+	name: string;
+	description: string;
 	actions: Record<string, BlueprintAction>;
+	/** True for directory blueprints, which can create apps; false for validation-only ones. */
+	templated: boolean;
+	template?: BlueprintTemplate;
 }
 
 export interface BlueprintsResponse {
@@ -97,6 +129,31 @@ export interface CustomAction {
 	name: string;
 	description: string;
 	permission?: string;
+}
+
+/** One uploaded file; `content` is base64, of gzip data when `compressed`. */
+export interface FileEntry {
+	name: string;
+	content: string;
+	compressed: boolean;
+}
+
+/** `AppSettings` as the create endpoint takes it. */
+export type CreateAppSettings = Omit<AppSettings, 'registry' | 'environment'> & {
+	registry: string | null;
+	environment: Record<string, string>;
+	notify: unknown[];
+};
+
+/** Body of `POST apps/create`; the response is a `RunningAppContext` (task id in `task.id`). */
+export interface CreateAppRequest {
+	app_name: string;
+	settings: CreateAppSettings;
+	files: { files: FileEntry[] };
+	custom_domains: { domain: string; service: string }[];
+	requested_scopes: string[];
+	blueprint_parameters?: Record<string, string | number | boolean>;
+	image?: string;
 }
 
 export interface RunningAppContext {

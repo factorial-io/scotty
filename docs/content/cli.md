@@ -347,7 +347,8 @@ With only `create:<blueprint>`, `--custom-domain`, `--env`, `--env-file`,
 
 With a templated blueprint (`Templated: yes` in `blueprint:list`) no compose
 file is needed: `--folder` is optional and holds only the blueprint's payload
-(e.g. `html/` for `static-html`), and a compose file in it is rejected.
+(e.g. `html/` for `static-html`), and a compose file or a `.env` file in it is rejected.
+A blueprint can require files (`static-html` needs `html/index.html`); `blueprint:info` lists them and `app:create` fails naming any that are missing.
 `--param` sets the blueprint's parameters and `--image` picks one of its
 allowed images. `scottyctl blueprint:info <BLUEPRINT>` shows both, see
 [Templated blueprints](configuration.md#templated-blueprints).

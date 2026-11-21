@@ -173,6 +173,10 @@ pub struct BlueprintTemplate {
     /// Glob patterns for caller files. Empty means no caller files.
     #[serde(default)]
     pub payload: Vec<String>,
+    /// Patterns (same rules as `payload`) that each must match at least one
+    /// caller file, e.g. `html/index.html`. Empty means no requirement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub payload_required: Vec<String>,
     /// Overrides `apps.domain_suffix` for apps from this blueprint.
     #[serde(default)]
     pub domain_suffix: Option<String>,

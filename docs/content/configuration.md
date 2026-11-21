@@ -839,8 +839,24 @@ other image is rejected.
 may upload with `--folder`. `*` and `?` match within one directory, so
 `html/*` accepts `html/index.html` but not `html/img/a.png`; `**` matches
 across directories. Matching is case-sensitive. A file outside these patterns, a path with `..` or
-an absolute path, a compose file, or a file that would replace a blueprint
+an absolute path, a compose file, a `.env` file (Scotty manages the app's
+environment itself), or a file that would replace a blueprint
 file is rejected. No patterns means no caller files.
+
+`template.payload_required` lists patterns (same matching rules) that must each
+match at least one uploaded file, otherwise the create request is rejected
+naming the missing entries. On an update of an existing app, files already in
+the app's directory count too, so a TTL change needs no upload. `static-html`
+sets `payload_required: ["html/index.html"]`, so a site without an index page is
+refused. At startup, every entry must match a path the `payload` patterns
+accept (for a wildcard entry, a sample path built from it), otherwise Scotty
+refuses to start. Leave it out to accept a request without files.
+
+```yaml
+template:
+  payload: ["html/**"]
+  payload_required: ["html/index.html"]
+```
 
 ```shell
 scottyctl app:create report-x --app-blueprint static-html --folder ./site

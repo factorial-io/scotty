@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import Icon from '@iconify/svelte';
+	import { authenticatedApiCall } from '#lib';
 	import { apps, loadApps } from '../../stores/appsStore';
 	import { setTitle } from '../../stores/titleStore';
 	import StartStopAppAction from '../../components/start-stop-app-action.svelte';
@@ -17,10 +18,12 @@
 		type SortKey,
 		type StatusFilter
 	} from '../../lib/appList';
+	import type { BlueprintsResponse } from '../../types';
 
 	let search = $state('');
 	let statusFilter = $state<StatusFilter>('All');
 	let sortBy = $state<SortKey>('status');
+	let canCreate = $state(false);
 
 	let counts = $derived(countByFilter($apps));
 	let list = $derived(listApps($apps, search, statusFilter, sortBy));
@@ -33,14 +36,30 @@
 	onMount(() => {
 		setTitle('Apps');
 		loadApps();
+		authenticatedApiCall('blueprints')
+			.then((r) => {
+				canCreate = Object.values((r as BlueprintsResponse).blueprints).some(
+					(b) => b.templated
+				);
+			})
+			.catch(() => {}); // no listing, no entry point
 	});
 </script>
 
 <div class="ph">
-	<div class="ph-row"><h1>Apps</h1></div>
+	<div class="ph-row">
+		<h1>Apps</h1>
+		{#if canCreate}
+			<div class="acts">
+				<a class="btn filled primary" href={resolve('/dashboard/create')}>
+					<Icon icon="ph:plus" class="ic sm" aria-hidden="true" />Create app
+				</a>
+			</div>
+		{/if}
+	</div>
 	<p class="lead">
 		Every app this Scotty server knows about. Start, stop and open them from here; create new
-		ones with <span class="mono">scottyctl app:create</span>.
+		ones from a blueprint here or with <span class="mono">scottyctl app:create</span>.
 	</p>
 </div>
 

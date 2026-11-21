@@ -181,13 +181,30 @@ pub async fn create_app(
         .app_blueprint
         .as_ref()
         .and_then(|b| app_state.settings.apps.blueprints.get(b));
-    let (settings, files) =
-        super::blueprint_template::apply(blueprint, &template, app_name, settings, files)?;
-    let (settings, files) = (&settings, &files);
-    let candidate = validate_app(app_state.clone(), settings, files).await?;
     let root_directory = app_state.settings.apps.root_folder.clone();
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");
+    // On an update, files already in the app count towards required payload.
+    // Only listed when the blueprint requires files; the walk is blocking I/O.
+    let has_required = blueprint
+        .and_then(|b| b.template.as_ref())
+        .is_some_and(|t| !t.payload_required.is_empty());
+    let existing_files = if template.existing.is_some() && has_required {
+        let dir = std::path::PathBuf::from(&root_directory);
+        tokio::task::spawn_blocking(move || super::blueprint_template::relative_files(&dir)).await?
+    } else {
+        vec![]
+    };
+    let (settings, files) = super::blueprint_template::apply(
+        blueprint,
+        &template,
+        app_name,
+        settings,
+        files,
+        &existing_files,
+    )?;
+    let (settings, files) = (&settings, &files);
+    let candidate = validate_app(app_state.clone(), settings, files).await?;
 
     let docker_compose_path = format!("{}/{}", root_directory, candidate.name);
     let app_data = AppData {

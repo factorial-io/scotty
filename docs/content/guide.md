@@ -37,6 +37,40 @@ Scotty does provide basic debugging capabilities including real-time log viewing
 
 Scotty wants to be a simple solution for a simple use-case.
 
+## Creating an app from the dashboard
+
+Apps based on a **templated blueprint** (such as `static-html` or `atelier`) can be
+created without the CLI. On the apps list, click **Create app**; the button shows
+up when at least one blueprint you may use is templated. Blueprints that only
+validate a compose file you bring yourself stay CLI-only.
+
+1. **Pick a blueprint.** The form follows it: one field per parameter, an image
+   choice when the blueprint offers more than one, and a file upload when it
+   takes files. Generated and derived parameters are filled in by Scotty and not shown.
+2. **Name the app** and choose the scope, the time to live (`12h`, `7d` or `forever`)
+   and optional basic auth. The name is normalised as on the server (`Report X`
+   becomes `report-x`); if an app with that name exists, Scotty asks before updating it.
+3. **Upload the files** as one zip file or one folder. Both are read in your browser.
+
+The uploaded folder's name, or a zip's single top-level folder, is dropped. When the
+blueprint accepts exactly one directory (`html/**` for `static-html`), the files are
+placed into it: a folder `my-site` with `index.html` and `img/a.png` becomes
+`html/index.html` and `html/img/a.png`. An upload that already contains `html/` is
+used as it is. Other blueprints get the paths unchanged.
+
+Before uploading, the form lists every file the blueprint would not accept and
+blocks the upload until you remove them. Compose files (`docker-compose.yml`,
+`compose.override.yaml`, ...) and env files (`.env`, `.env.local`, ...) are always
+refused, in any directory. `.DS_Store` files and `__MACOSX/` folders from Finder-made
+zips are dropped silently.
+
+A blueprint may also require files. The upload is then mandatory, and the form
+lists what is still missing; `static-html` requires `html/index.html`. When you
+update an existing app, files it already has count, so a missing file is only
+noted.
+
+After submitting, the dashboard shows the create task.
+
 ## Want to start?
 
 Check out the following sections:

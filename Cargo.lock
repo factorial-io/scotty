@@ -4022,6 +4022,7 @@ dependencies = [
  "utoipa-redoc",
  "utoipa-swagger-ui",
  "uuid",
+ "walkdir",
  "wiremock",
 ]
 
