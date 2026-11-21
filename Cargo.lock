@@ -1598,7 +1598,7 @@ dependencies = [
  "bytes",
  "hex",
  "hmac 0.12.1",
- "jiff 1.0.1",
+ "jiff 1.0.2",
  "jsonwebtoken",
  "rand 0.9.5",
  "serde",
@@ -2247,12 +2247,12 @@ dependencies = [
 
 [[package]]
 name = "jiff"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5d126d72eb017f10b302e73bdeca446bea405ee449af4d9e7866d6b082d83e"
+checksum = "c5e77cbfb9fff4798e283c2d69dff39fc2c45e7da017e5ce95b654e46ea41236"
 dependencies = [
  "jiff-core 1.0.1",
- "jiff-static 1.0.1",
+ "jiff-static 1.0.2",
  "jiff-tzdb-platform 1.0.0",
  "log",
  "portable-atomic",
@@ -2293,9 +2293,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0127e9bde3c6130d6169e7d8d68676e4be69c4bf7573c308b6f960a5089c428"
+checksum = "e9067a0b23e5be3147d56b2dcf652b18e6b1364caca93fb157653b6fbcab23a9"
 dependencies = [
  "jiff-core 1.0.1",
  "proc-macro2",
@@ -3975,7 +3975,7 @@ dependencies = [
  "http-body-util",
  "include_dir",
  "init-tracing-opentelemetry",
- "jiff 1.0.1",
+ "jiff 1.0.2",
  "jsonschema",
  "maplit",
  "mime_guess",
@@ -4040,7 +4040,7 @@ dependencies = [
  "clokwerk",
  "deunicode",
  "futures-util",
- "jiff 1.0.1",
+ "jiff 1.0.2",
  "owo-colors",
  "readonly",
  "reqwest 0.13.5",
@@ -4073,7 +4073,7 @@ name = "scotty-types"
 version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
- "jiff 1.0.1",
+ "jiff 1.0.2",
  "serde",
  "serde_json",
  "ts-rs",
@@ -4095,7 +4095,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "ignore",
- "jiff 1.0.1",
+ "jiff 1.0.2",
  "open",
  "owo-colors",
  "reqwest 0.13.5",
