@@ -597,8 +597,16 @@ async fn connections_list_own_or_all_for_admins() {
     assert_eq!(mcp_row["scope"], "read offline_access");
     assert_eq!(mcp_row["subject"], "alice@example.com");
     assert!(mcp_row["last_used_at"].is_null());
-    assert!(chrono::DateTime::parse_from_rfc3339(mcp_row["created_at"].as_str().unwrap()).is_ok());
-    assert!(chrono::DateTime::parse_from_rfc3339(mcp_row["expires_at"].as_str().unwrap()).is_ok());
+    assert!(mcp_row["created_at"]
+        .as_str()
+        .unwrap()
+        .parse::<jiff::Timestamp>()
+        .is_ok());
+    assert!(mcp_row["expires_at"]
+        .as_str()
+        .unwrap()
+        .parse::<jiff::Timestamp>()
+        .is_ok());
     let cli_row = own.iter().find(|c| c["kind"] == "cli").unwrap();
     assert_eq!(cli_row["client_id"], "scottyctl");
     assert!(cli_row["redirect_host"].is_null());

@@ -1,4 +1,4 @@
-use chrono::TimeDelta;
+use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::{ToResponse, ToSchema};
@@ -22,15 +22,18 @@ pub struct AppData {
     pub docker_compose_path: String,
     pub services: Vec<ContainerState>,
     pub settings: Option<AppSettings>,
-    pub last_checked: Option<chrono::DateTime<chrono::Local>>,
+    #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub last_checked: Option<Timestamp>,
     /// When the server's next scheduled app-state sweep is due, or `None` before the
     /// first sweep has run. Server-global rather than per-app: one scheduler job
     /// inspects every app. It is read from the scheduler instead of extrapolated from
     /// `last_checked`, because `last_checked` also moves when a manual run/stop/rebuild
     /// inspects a single app between sweeps. `serde(default)` keeps the wire format
     /// compatible with clients that predate the field.
-    #[serde(default)]
-    pub next_check: Option<chrono::DateTime<chrono::Local>>,
+    #[serde(default, with = "scotty_types::time::local_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub next_check: Option<Timestamp>,
     /// Whether the load balancer can reach this app. Only the proxy-network
     /// reconciler sets a definite value; every other construction path leaves
     /// it `Unknown`, which is honest rather than optimistic. `serde(default)`
@@ -120,8 +123,8 @@ impl AppData {
             .unwrap_or(AppTtl::Days(7))
     }
 
-    pub fn running_since(&self) -> Option<TimeDelta> {
-        let mut since: Option<TimeDelta> = None;
+    pub fn running_since(&self) -> Option<SignedDuration> {
+        let mut since: Option<SignedDuration> = None;
         for service in &self.services {
             if let Some(delta) = service.running_since() {
                 since = Some(delta);

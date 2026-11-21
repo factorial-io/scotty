@@ -140,8 +140,8 @@ impl TaskManager {
     /// Drop terminal tasks whose finish time is older than the TTL.
     #[instrument(skip(self))]
     pub async fn run_cleanup_task(&self, interval: SchedulerInterval) {
-        let ttl: chrono::Duration = interval.into();
-        let now = chrono::Utc::now();
+        let ttl: jiff::SignedDuration = interval.into();
+        let now = jiff::Timestamp::now();
         let mut tasks = self.tasks.write().await;
         let before = tasks.len();
         tasks.retain(|_, rx| {
@@ -149,7 +149,7 @@ impl TaskManager {
             task.state == State::Running
                 || task
                     .finish_time
-                    .is_none_or(|t| now.signed_duration_since(t) <= ttl)
+                    .is_none_or(|t| now.duration_since(t) <= ttl)
         });
         if tasks.len() != before {
             debug!("Cleaned up {} finished tasks", before - tasks.len());

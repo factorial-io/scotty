@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
-use chrono::DateTime;
 use http_body_util::BodyExt;
 use scotty_core::{
     apps::{
@@ -248,8 +247,8 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
         id: Uuid::new_v4(),
         command: "test-command".to_string(),
         state: State::Finished,
-        start_time: DateTime::from(std::time::SystemTime::now()),
-        finish_time: Some(DateTime::from(std::time::SystemTime::now())),
+        start_time: jiff::Timestamp::now(),
+        finish_time: Some(jiff::Timestamp::now()),
         last_exit_code: Some(0),
         app_name: Some("test-app".to_string()),
         output_collection_active: false,

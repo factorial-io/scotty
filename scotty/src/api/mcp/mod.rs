@@ -33,6 +33,7 @@ use scotty_core::output::{OutputLine, OutputStreamType};
 use scotty_core::settings::loadbalancer::LoadBalancerType;
 use scotty_core::tasks::task_details::State;
 use scotty_core::utils::{format::format_bytes, slugify::slugify};
+use scotty_types::time::to_rfc3339;
 use serde::{Deserialize, Serialize};
 
 use crate::app_state::SharedAppState;
@@ -154,7 +155,7 @@ impl AppSummary {
             operation: app.operation.as_ref().map(|o| RunningOperation {
                 operation: o.operation.clone(),
                 task_id: o.task_id.map(|id| id.to_string()),
-                started_at: o.started_at.to_rfc3339(),
+                started_at: to_rfc3339(&o.started_at),
             }),
         }
     }
@@ -465,8 +466,8 @@ impl ScottyMcp {
             state: wire_name(&task.state),
             app_name: task.app_name.clone(),
             last_exit_code: task.last_exit_code,
-            started: task.start_time.to_rfc3339(),
-            finished: task.finish_time.map(|t| t.to_rfc3339()),
+            started: to_rfc3339(&task.start_time),
+            finished: task.finish_time.as_ref().map(to_rfc3339),
             output: shown.iter().map(|l| l.content.clone()).collect(),
             output_lines_omitted: task
                 .output

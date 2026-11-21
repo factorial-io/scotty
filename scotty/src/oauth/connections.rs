@@ -8,9 +8,10 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Extension, Json,
 };
-use chrono::{DateTime, Utc};
 use grantry::Grant;
+use jiff::Timestamp;
 use scotty_core::authorization::Permission;
+use scotty_types::time;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use uuid::Uuid;
@@ -34,10 +35,16 @@ pub struct Connection {
     pub scope: String,
     /// The user's email.
     pub subject: String,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
+    pub created_at: Timestamp,
     /// The last refresh.
-    pub last_used_at: Option<DateTime<Utc>>,
-    pub expires_at: DateTime<Utc>,
+    #[serde(with = "time::utc_opt")]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub last_used_at: Option<Timestamp>,
+    #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
+    pub expires_at: Timestamp,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -161,4 +168,37 @@ pub async fn revoke_connection_handler(
         .await
         .map_err(backend_error)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Pins the connections API's timestamps to chrono's wire format.
+    #[test]
+    fn connection_timestamps_keep_the_wire_format() {
+        let connection = Connection {
+            id: Uuid::nil(),
+            kind: "mcp".into(),
+            client_id: "c".into(),
+            client_name: "C".into(),
+            redirect_host: None,
+            scope: "read".into(),
+            subject: "a@example.com".into(),
+            created_at: "2026-11-01T10:00:00.1Z".parse().unwrap(),
+            last_used_at: None,
+            expires_at: "2026-12-01T10:00:00Z".parse().unwrap(),
+        };
+        let json = serde_json::to_value(&connection).unwrap();
+        assert_eq!(json["created_at"], "2026-11-01T10:00:00.100Z");
+        assert_eq!(json["last_used_at"], serde_json::Value::Null);
+        assert_eq!(json["expires_at"], "2026-12-01T10:00:00Z");
+
+        let used = Connection {
+            last_used_at: Some("2026-11-02T10:00:00.123456Z".parse().unwrap()),
+            ..connection
+        };
+        let json = serde_json::to_value(&used).unwrap();
+        assert_eq!(json["last_used_at"], "2026-11-02T10:00:00.123456Z");
+    }
 }

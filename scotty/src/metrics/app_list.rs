@@ -1,5 +1,4 @@
 use crate::app_state::SharedAppState;
-use chrono::Local;
 use tracing::debug;
 
 /// Sample AppList metrics and record them
@@ -24,8 +23,10 @@ pub async fn sample_app_list_metrics(app_state: SharedAppState) {
 
         // Record health check age if available
         if let Some(last_checked) = app.last_checked {
-            let now = Local::now();
-            let age_seconds = (now - last_checked).num_seconds() as f64;
+            let age_seconds = jiff::Timestamp::now()
+                .duration_since(last_checked)
+                .as_secs()
+                .max(0) as f64; // clock skew: a check "in the future" is age 0
             m.record_app_last_check_age(age_seconds);
         }
     }

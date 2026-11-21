@@ -32,7 +32,7 @@ pub async fn list_scopes_handler(
         .map(|(name, config)| ScopeInfo {
             name,
             description: config.description,
-            created_at: config.created_at.to_rfc3339(),
+            created_at: scotty_types::time::to_rfc3339(&config.created_at),
         })
         .collect();
 

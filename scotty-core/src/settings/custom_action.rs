@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
+use scotty_types::time;
 use serde::{Deserialize, Serialize};
 
 use crate::authorization::Permission;
@@ -65,7 +66,9 @@ pub struct CustomAction {
     pub created_by: String,
 
     /// When this action was created
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::utc")]
+    #[schema(value_type = String, format = DateTime)]
+    pub created_at: Timestamp,
 
     /// Current status in the approval workflow
     pub status: ActionStatus,
@@ -75,16 +78,26 @@ pub struct CustomAction {
     pub reviewed_by: Option<String>,
 
     /// When this action was reviewed
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reviewed_at: Option<DateTime<Utc>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::utc_opt"
+    )]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub reviewed_at: Option<Timestamp>,
 
     /// Comment from the reviewer
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub review_comment: Option<String>,
 
     /// When this action expires (if TTL is configured)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::utc_opt"
+    )]
+    #[schema(value_type = Option<String>, format = DateTime)]
+    pub expires_at: Option<Timestamp>,
 }
 
 impl CustomAction {
@@ -102,7 +115,7 @@ impl CustomAction {
             commands,
             permission,
             created_by,
-            created_at: Utc::now(),
+            created_at: Timestamp::now(),
             status: ActionStatus::Pending,
             reviewed_by: None,
             reviewed_at: None,
@@ -112,7 +125,7 @@ impl CustomAction {
     }
 
     /// Create a new custom action with expiration
-    pub fn with_expiration(mut self, expires_at: DateTime<Utc>) -> Self {
+    pub fn with_expiration(mut self, expires_at: Timestamp) -> Self {
         self.expires_at = Some(expires_at);
         self
     }
@@ -121,7 +134,7 @@ impl CustomAction {
     pub fn approve(&mut self, reviewer: String, comment: Option<String>) {
         self.status = ActionStatus::Approved;
         self.reviewed_by = Some(reviewer);
-        self.reviewed_at = Some(Utc::now());
+        self.reviewed_at = Some(Timestamp::now());
         self.review_comment = comment;
     }
 
@@ -129,7 +142,7 @@ impl CustomAction {
     pub fn reject(&mut self, reviewer: String, comment: Option<String>) {
         self.status = ActionStatus::Rejected;
         self.reviewed_by = Some(reviewer);
-        self.reviewed_at = Some(Utc::now());
+        self.reviewed_at = Some(Timestamp::now());
         self.review_comment = comment;
     }
 
@@ -137,7 +150,7 @@ impl CustomAction {
     pub fn revoke(&mut self, reviewer: String, comment: Option<String>) {
         self.status = ActionStatus::Revoked;
         self.reviewed_by = Some(reviewer);
-        self.reviewed_at = Some(Utc::now());
+        self.reviewed_at = Some(Timestamp::now());
         self.review_comment = comment;
     }
 
@@ -148,7 +161,7 @@ impl CustomAction {
 
     /// Check whether this action has a TTL that has already passed.
     pub fn is_expired(&self) -> bool {
-        matches!(self.expires_at, Some(expires_at) if Utc::now() > expires_at)
+        matches!(self.expires_at, Some(expires_at) if Timestamp::now() > expires_at)
     }
 
     /// Check if this action can be executed.

@@ -4,7 +4,7 @@
 mod tests {
     use super::super::custom_action::*;
     use crate::authorization::Permission;
-    use chrono::Utc;
+    use jiff::{SignedDuration, Timestamp};
     use std::collections::HashMap;
 
     fn create_test_action() -> CustomAction {
@@ -17,7 +17,7 @@ mod tests {
             commands,
             permission: Permission::ActionWrite,
             created_by: "developer@example.com".to_string(),
-            created_at: Utc::now(),
+            created_at: Timestamp::now(),
             status: ActionStatus::Pending,
             reviewed_by: None,
             reviewed_at: None,
@@ -108,7 +108,7 @@ mod tests {
         let mut action = create_test_action();
         action.status = ActionStatus::Approved;
         action.reviewed_by = Some("admin@example.com".to_string());
-        action.reviewed_at = Some(Utc::now());
+        action.reviewed_at = Some(Timestamp::now());
         action.review_comment = Some("Looks good!".to_string());
 
         let json = serde_json::to_string(&action).unwrap();
@@ -270,13 +270,11 @@ mod tests {
 
     #[test]
     fn test_can_execute_approved_but_past_expiration_returns_false() {
-        use chrono::Duration;
-
         let mut action = create_test_action();
         action.approve("admin@example.com".to_string(), None);
 
         // Set expiration to 1 hour ago
-        action.expires_at = Some(Utc::now() - Duration::hours(1));
+        action.expires_at = Some(Timestamp::now() - SignedDuration::from_hours(1));
 
         assert_eq!(action.status, ActionStatus::Approved);
         assert!(
@@ -287,13 +285,11 @@ mod tests {
 
     #[test]
     fn test_can_execute_approved_with_future_expiration_returns_true() {
-        use chrono::Duration;
-
         let mut action = create_test_action();
         action.approve("admin@example.com".to_string(), None);
 
         // Set expiration to 1 hour from now
-        action.expires_at = Some(Utc::now() + Duration::hours(1));
+        action.expires_at = Some(Timestamp::now() + SignedDuration::from_hours(1));
 
         assert_eq!(action.status, ActionStatus::Approved);
         assert!(
@@ -304,16 +300,14 @@ mod tests {
 
     #[test]
     fn test_is_expired() {
-        use chrono::Duration;
-
         let mut action = create_test_action();
         // No expiry set -> never expired.
         assert!(!action.is_expired(), "Action without TTL is never expired");
 
-        action.expires_at = Some(Utc::now() + Duration::hours(1));
+        action.expires_at = Some(Timestamp::now() + SignedDuration::from_hours(1));
         assert!(!action.is_expired(), "Future expiry is not expired yet");
 
-        action.expires_at = Some(Utc::now() - Duration::hours(1));
+        action.expires_at = Some(Timestamp::now() - SignedDuration::from_hours(1));
         assert!(action.is_expired(), "Past expiry is expired");
     }
 
@@ -358,5 +352,39 @@ mod tests {
             action.review_comment,
             Some("Emergency revocation".to_string())
         );
+    }
+
+    // Actions persisted in `.scotty.yml` before the jiff migration were
+    // written by chrono (`Z`, 0/3/6/9 fractional digits). They must still
+    // load, and be written back unchanged.
+    #[test]
+    fn chrono_written_action_round_trips() {
+        let yaml = r#"name: deploy-db
+description: Run migrations
+commands:
+  web:
+  - php artisan migrate
+permission: action_write
+created_by: user@example.com
+created_at: 2026-11-20T14:39:16.100Z
+status: approved
+reviewed_by: admin@example.com
+reviewed_at: 2026-11-20T15:00:00.123456Z
+expires_at: 2026-12-20T15:00:00.123456789Z
+"#;
+        let action: CustomAction = serde_norway::from_str(yaml).unwrap();
+        assert_eq!(
+            action.created_at,
+            "2026-11-20T14:39:16.1Z".parse::<Timestamp>().unwrap()
+        );
+        assert!(action.reviewed_at.is_some() && action.expires_at.is_some());
+        let written = serde_norway::to_string(&action).unwrap();
+        for line in [
+            "created_at: 2026-11-20T14:39:16.100Z",
+            "reviewed_at: 2026-11-20T15:00:00.123456Z",
+            "expires_at: 2026-12-20T15:00:00.123456789Z",
+        ] {
+            assert!(written.contains(line), "{line} not in:\n{written}");
+        }
     }
 }

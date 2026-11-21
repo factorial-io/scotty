@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use bollard::query_parameters::InspectContainerOptions;
-use chrono::{DateTime, Local};
 use futures_util::future::join_all;
 use scotty_core::apps::{
     app_data::{AppData, AppSettings, AppStatus, ContainerState},
@@ -143,7 +142,7 @@ pub async fn inspect_app(
     );
 
     // Set the last_checked timestamp to the current time
-    app_data.last_checked = Some(chrono::Local::now());
+    app_data.last_checked = Some(jiff::Timestamp::now());
     // Read the scheduler's next due time rather than computing `now + interval`: this
     // function also runs for manual actions between sweeps, which must not shift the
     // reported next check.
@@ -312,12 +311,7 @@ async fn inspect_docker_container(
         .await?;
 
     let state = insights.state.clone().unwrap();
-    let started_at_str = state.started_at.unwrap();
-    let parsed_date =
-        DateTime::parse_from_rfc3339(&started_at_str).expect("Failed to parse datetime");
-
-    // Convert the UTC DateTime to local time
-    let local_date: DateTime<Local> = parsed_date.with_timezone(&Local);
+    let started_at = parse_started_at(container_id, state.started_at.as_deref());
 
     let labels = insights.config.clone().unwrap().labels.unwrap();
     let service = labels.get("com.docker.compose.service").unwrap();
@@ -353,7 +347,7 @@ async fn inspect_docker_container(
         domains: loadbalancer_info.domains.clone(),
         use_tls: loadbalancer_info.tls_enabled,
         port: loadbalancer_info.port,
-        started_at: Some(local_date),
+        started_at,
         used_registry,
         basic_auth: match (
             loadbalancer_info.basic_auth_user,
@@ -403,4 +397,38 @@ pub async fn collect_environment_from_app(
         }
     }
     Ok(environment)
+}
+
+/// Docker's `State.StartedAt`. Docker reports `0001-01-01T00:00:00Z` for a
+/// container that never started, which parses (as before the jiff
+/// migration). Anything unparseable is logged and treated as unknown.
+fn parse_started_at(container_id: &str, started_at: Option<&str>) -> Option<jiff::Timestamp> {
+    let s = started_at?;
+    match s.parse() {
+        Ok(ts) => Some(ts),
+        Err(e) => {
+            tracing::warn!("Unparseable started_at {s:?} for {container_id}: {e}");
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod started_at_tests {
+    use super::parse_started_at;
+
+    #[test]
+    fn parses_docker_timestamps() {
+        let ts = parse_started_at("c1", Some("2026-11-20T14:39:16.123456789Z")).unwrap();
+        assert_eq!(ts.to_string(), "2026-11-20T14:39:16.123456789Z");
+        let never = parse_started_at("c1", Some("0001-01-01T00:00:00Z")).unwrap();
+        assert_eq!(never.to_string(), "0001-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn missing_or_unparseable_is_none() {
+        assert_eq!(parse_started_at("c1", None), None);
+        assert_eq!(parse_started_at("c1", Some("")), None);
+        assert_eq!(parse_started_at("c1", Some("yesterday")), None);
+    }
 }

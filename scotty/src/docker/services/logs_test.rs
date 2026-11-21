@@ -69,7 +69,7 @@ mod tests {
             test_buffer.push(OutputLine {
                 stream: OutputStreamType::Stdout,
                 content: format!("Line {}", i),
-                timestamp: chrono::Utc::now(),
+                timestamp: jiff::Timestamp::now(),
                 sequence: i as u64,
             });
         }
@@ -86,8 +86,6 @@ mod tests {
     #[test]
     fn test_docker_timestamp_format() {
         // Test that we understand Docker's timestamp format
-        use chrono::DateTime;
-
         let docker_log = "2024-01-15T10:30:00.123456789Z Hello World";
 
         // Docker uses RFC3339 format with nanosecond precision
@@ -96,7 +94,7 @@ mod tests {
             let content = content.trim();
 
             // Try to parse the timestamp
-            let parsed = DateTime::parse_from_rfc3339(timestamp_str);
+            let parsed = timestamp_str.parse::<jiff::Timestamp>();
             assert!(parsed.is_ok());
             assert_eq!(content, "Hello World");
         }
