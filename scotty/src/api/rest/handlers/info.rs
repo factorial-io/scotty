@@ -17,7 +17,7 @@ pub async fn info_handler(State(state): State<SharedAppState>) -> impl IntoRespo
         AuthMode::OAuth => Some(OAuthConfig {
             enabled: true,
             provider: "oidc".to_string(),
-            redirect_url: state.settings.api.oauth.redirect_url.clone(),
+            redirect_url: state.settings.api.oauth_redirect_url(),
             oidc_issuer_url: state.settings.api.oauth.oidc_issuer_url.clone(),
             client_id: state.settings.api.oauth.client_id.clone(),
             device_flow_enabled: state.settings.api.oauth.device_flow_enabled,

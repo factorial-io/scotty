@@ -48,7 +48,8 @@ That has changed:
 - **Set `api.jwt_secret`.** Scotty does not start in `oauth` mode without it,
   or with fewer than 64 bytes.
 - **`/oauth/authorize` ignores `redirect_uri`.** The provider always gets
-  `api.oauth.redirect_url`, and the browser always returns to the frontend's
+  Scotty's configured callback URL (`api.oauth.redirect_url`, by default
+  `{api.base_url}/api/oauth/callback`), and the browser always returns to the frontend's
   `/oauth/callback`.
 - **Keep the database on a volume.** See [Persistent database](#persistent-database).
 - **The provider application needs less.** It only needs the scopes
@@ -154,7 +155,6 @@ api:
     oidc_issuer_url: "https://gitlab.com"  # or your OIDC provider URL
     client_id: "your_oidc_application_id"
     client_secret: "your_oidc_application_secret"
-    redirect_url: "http://localhost:21342/api/oauth/callback"
 ```
 
 **Provider-specific examples:**
@@ -244,12 +244,12 @@ periodically.
 
 Scotty uses two different URL configurations for OAuth:
 
-#### `redirect_url` - Backend OAuth Callback
+#### `redirect_url` - Backend OAuth Callback (optional)
 - **Purpose**: The OAuth callback endpoint where the OIDC provider redirects after user authentication
 - **Used by**: OIDC provider (GitLab, Auth0, etc.)
 - **Must match**: The redirect URI configured in your OIDC provider's OAuth application settings
-- **Example**: `http://localhost:21342/api/oauth/callback`
-- **Format**: Full URL to Scotty's backend `/api/oauth/callback` endpoint
+- **Default**: `{api.base_url}/api/oauth/callback`, e.g. `https://scotty.example.com/api/oauth/callback`. Usually you do not set it.
+- **Format**: Full absolute URL to Scotty's backend `/api/oauth/callback` endpoint. A relative value (such as the old default `/oauth2/start`) is ignored with a warning at startup.
 
 #### `api.base_url` - Public Base URL of Scotty
 - **Purpose**: The public base URL of Scotty, where users are redirected after OAuth completes
@@ -262,8 +262,7 @@ Scotty uses two different URL configurations for OAuth:
 ```yaml
 api:
   base_url: "https://scotty.example.com"
-  oauth:
-    redirect_url: "https://scotty.example.com/api/oauth/callback"
+  # oauth.redirect_url defaults to https://scotty.example.com/api/oauth/callback
 ```
 
 **Important**: Both URLs must match your production domain. Using `localhost` in production will break the OAuth flow — Scotty logs a warning at startup when `api.base_url` is not configured and the `localhost` default is in effect.
@@ -476,7 +475,6 @@ api:
     oidc_issuer_url: "https://gitlab.com"
     client_id: "your_oidc_application_id"
     client_secret: "your_oidc_application_secret"
-    redirect_url: "http://localhost:21342/api/oauth/callback"
 
   # Bearer tokens for service accounts (checked first)
   bearer_tokens:
