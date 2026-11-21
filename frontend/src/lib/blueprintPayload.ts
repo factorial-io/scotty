@@ -19,8 +19,10 @@ export interface MappedPayload {
 /**
  * globset with `literal_separator(true)`: `*` and `?` stay within a segment,
  * `**` spans segments, case-sensitive.
- * Also `[abc]` / `[!abc]` classes (never matching `/`) and `{a,b}` alternation.
+ * Also `[abc]` / `[!abc]` / `[^abc]` classes, `\\c` escapes, (never matching `/`) and `{a,b}` alternation.
  */
+const escapeRe = (c: string) => c.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+
 export function globToRegExp(pattern: string): RegExp {
 	let re = '';
 	let braces = 0;
@@ -43,16 +45,26 @@ export function globToRegExp(pattern: string): RegExp {
 			re += '[^/]*';
 		} else if (c === '?') {
 			re += '[^/]';
+		} else if (c === '\\' && i + 1 < pattern.length) {
+			re += escapeRe(pattern[++i]);
 		} else if (c === '[') {
-			const neg = pattern[i + 1] === '!';
+			const neg = pattern[i + 1] === '!' || pattern[i + 1] === '^';
 			const start = i + 1 + (neg ? 1 : 0);
-			// like globset, a `]` right after `[` / `[!` is a class member
-			const end = pattern.indexOf(']', start + 1);
-			if (end < 0) {
+			// like globset, a `]` right after `[` / `[!` is a class member; `\c` is a literal c
+			let end = start;
+			let body = '';
+			while (end < pattern.length && (end === start || pattern[end] !== ']')) {
+				if (pattern[end] === '\\' && end + 1 < pattern.length) {
+					body += escapeRe(pattern[++end]);
+				} else {
+					body += pattern[end].replace(/[\\\]^]/g, '\\$&');
+				}
+				end++;
+			}
+			if (end >= pattern.length) {
 				re += '\\[';
 				continue;
 			}
-			const body = pattern.slice(start, end).replace(/[\\\]^]/g, '\\$&');
 			// a class never matches `/`; a positive one just can't contain it
 			re += neg ? `[^/${body}]` : `(?!/)[${body}]`;
 			i = end;
@@ -65,7 +77,7 @@ export function globToRegExp(pattern: string): RegExp {
 		} else if (c === ',' && braces > 0) {
 			re += '|';
 		} else {
-			re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+			re += escapeRe(c);
 		}
 	}
 	return new RegExp(`^${re}$`);
@@ -103,12 +115,12 @@ export function mapPayloadPaths(
 	let entries = rawPaths.filter((p) => !isJunk(p)).map((p) => ({ source: p, name: p }));
 
 	const top = (p: string) => (p.includes('/') ? p.slice(0, p.indexOf('/')) : null);
-	const shared = entries.length > 0 && top(entries[0].name);
+	const shared = entries.length > 0 ? top(entries[0].name) : null;
 	// A top folder that itself starts a payload pattern is payload, not a wrapper.
-	const isPayloadDir = patterns.some((p) => p.startsWith(`${shared}/`));
+	const isPayloadDir = shared !== null && patterns.some((p) => p.startsWith(`${shared}/`));
 	if (
 		source === 'folder' ||
-		(shared && !isPayloadDir && entries.every((e) => top(e.name) === shared))
+		(shared !== null && !isPayloadDir && entries.every((e) => top(e.name) === shared))
 	) {
 		entries = entries.map((e) => ({ ...e, name: e.name.slice(e.name.indexOf('/') + 1) }));
 	}
@@ -162,9 +174,13 @@ export async function readZip(zip: Blob, limit = MAX_BODY): Promise<RawEntries> 
 }
 
 /** Reads a `<input type="file" webkitdirectory>` pick, keyed by `webkitRelativePath`. */
-export async function readFolder(files: Iterable<File>): Promise<RawEntries> {
+export async function readFolder(files: Iterable<File>, limit = MAX_BODY): Promise<RawEntries> {
+	const list = [...files];
+	if (list.reduce((sum, f) => sum + f.size, 0) > limit) {
+		throw new Error(`the folder is larger than ${Math.round(limit / 1024 / 1024)} MB`);
+	}
 	const entries: RawEntries = {};
-	for (const f of files) {
+	for (const f of list) {
 		entries[f.webkitRelativePath || f.name] = new Uint8Array(await f.arrayBuffer());
 	}
 	return entries;

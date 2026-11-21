@@ -245,11 +245,14 @@ pub fn check_template(t: &BlueprintTemplate) -> Result<(), String> {
         // misses the entry's own glob, skip rather than refuse the blueprint.
         if entry.contains(['*', '?', '[', '{']) {
             let sample = sample_path(entry);
-            if glob.compile_matcher().is_match(&sample)
-                && !t
-                    .payload
-                    .iter()
-                    .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(&sample)))
+            if !glob.compile_matcher().is_match(&sample) {
+                tracing::warn!(
+                    "required payload entry {entry} is not checked against the payload patterns"
+                );
+            } else if !t
+                .payload
+                .iter()
+                .any(|p| payload_glob(p).is_ok_and(|g| g.compile_matcher().is_match(&sample)))
             {
                 return Err(format!(
                     "required payload entry {entry} matches no path the payload patterns accept"
@@ -565,7 +568,7 @@ pub fn merge_files(
         } else if is_compose_file(name) {
             Some("compose files are supplied by the blueprint")
         } else if is_env_file(name) {
-            Some(".env files are managed by Scotty")
+            Some(".env files are managed by Scotty (exclude them with .scottyignore)")
         } else if t.files.iter().any(|b| b.name.eq_ignore_ascii_case(name)) {
             Some("would replace a blueprint file")
         } else if files[t.files.len()..]

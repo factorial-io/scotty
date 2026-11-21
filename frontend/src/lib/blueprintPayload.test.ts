@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 import {
 	encodeFiles,
 	globToRegExp,
 	mapPayloadPaths,
 	missingRequired,
+	readFolder,
 	readZip
 } from './blueprintPayload';
 
@@ -192,6 +193,29 @@ describe('readZip size limit', () => {
 		});
 		await expect(readZip(new Blob([zip]), 150)).rejects.toThrow(/more than/);
 		expect(Object.keys(await readZip(new Blob([zip]), 200))).toHaveLength(2);
+	});
+});
+
+describe('readFolder size limit', () => {
+	it('refuses a folder above the limit before reading', async () => {
+		const files = [new File(['x'.repeat(100)], 'a.txt'), new File(['y'.repeat(100)], 'b.txt')];
+		const spy = vi.spyOn(files[0], 'arrayBuffer');
+		await expect(readFolder(files, 150)).rejects.toThrow(/larger than/);
+		expect(spy).not.toHaveBeenCalled();
+		expect(Object.keys(await readFolder(files, 200))).toHaveLength(2);
+	});
+});
+
+describe('globToRegExp escapes and negation', () => {
+	it('treats \\c as a literal c', () => {
+		expect(matches('a\\*b', 'a*b')).toBe(true);
+		expect(matches('a\\*b', 'axb')).toBe(false);
+		expect(matches('a[\\]]b', 'a]b')).toBe(true);
+	});
+	it('supports [^...] like [!...]', () => {
+		expect(matches('data/[^ab].json', 'data/c.json')).toBe(true);
+		expect(matches('data/[^ab].json', 'data/a.json')).toBe(false);
+		expect(matches('data/[^ab].json', 'data//.json')).toBe(false);
 	});
 });
 

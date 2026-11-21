@@ -93,7 +93,7 @@ const $ = <T extends Element = HTMLInputElement>(sel: string) => document.queryS
 function type(sel: string, value: string) {
 	const input = $(sel);
 	input.value = value;
-	input.dispatchEvent(new Event('input'));
+	input.dispatchEvent(new Event('input', { bubbles: true }));
 	flushSync();
 }
 async function pickFolder(...paths: string[]) {
@@ -317,6 +317,26 @@ describe('create app page', () => {
 			time_to_live: 'Forever',
 			basic_auth: ['u', 'p']
 		});
+	});
+
+	it('presets only untouched fields when apps load after the user typed', async () => {
+		permissions.set([
+			{ name: 'default', description: '', permissions: ['create'] },
+			{ name: 'client-a', description: '', permissions: ['create'] }
+		]);
+		await render('static-html');
+		type('#app-name', 'report-x');
+		type('#ttl', '12h');
+		apps.set([
+			{
+				name: 'report-x',
+				settings: { scopes: ['client-a'], time_to_live: 'Forever', basic_auth: ['u', 'p'] }
+			} as unknown as App
+		]);
+		await settle();
+		expect($('#ttl').value).toBe('12h');
+		expect($<HTMLSelectElement>('#scope').value).toBe('client-a');
+		expect($('#auth-user').value).toBe('u');
 	});
 
 	it('keeps the values and shows the server message when create fails', async () => {

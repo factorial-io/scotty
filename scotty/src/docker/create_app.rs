@@ -185,9 +185,15 @@ pub async fn create_app(
     let app_folder = slugify(app_name);
     let root_directory = format!("{root_directory}/{app_folder}");
     // On an update, files already in the app count towards required payload.
-    let existing_files = match template.existing {
-        Some(_) => super::blueprint_template::relative_files(std::path::Path::new(&root_directory)),
-        None => vec![],
+    // Only listed when the blueprint requires files; the walk is blocking I/O.
+    let has_required = blueprint
+        .and_then(|b| b.template.as_ref())
+        .is_some_and(|t| !t.payload_required.is_empty());
+    let existing_files = if template.existing.is_some() && has_required {
+        let dir = std::path::PathBuf::from(&root_directory);
+        tokio::task::spawn_blocking(move || super::blueprint_template::relative_files(&dir)).await?
+    } else {
+        vec![]
     };
     let (settings, files) = super::blueprint_template::apply(
         blueprint,

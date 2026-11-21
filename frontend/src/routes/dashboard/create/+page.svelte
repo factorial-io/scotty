@@ -75,6 +75,8 @@
 	let exists = $derived(!!slug && $apps.some((a) => a.name === slug));
 	let matched = $derived(slug ? $apps.find((a) => a.name === slug) : undefined);
 	let presetFor = '';
+	// Fields the user edited; a preset from a matching app leaves them alone.
+	let touched = { scope: false, ttl: false, auth: false };
 	let parsedTtl = $derived(parseTtl(ttl));
 	// An existing app's directory may already hold the required files (the server decides).
 	let blocked = $derived(
@@ -89,10 +91,11 @@
 		presetFor = matched.name;
 		const st = matched.settings;
 		if (!st) return;
-		if (st.scopes?.[0]) scopeChoice = st.scopes[0];
+		if (st.scopes?.[0] && !touched.scope) scopeChoice = st.scopes[0];
 		const t = st.time_to_live;
-		ttl = t === 'Forever' ? 'forever' : 'Days' in t ? `${t.Days}d` : `${t.Hours}h`;
-		[authUser, authPass] = st.basic_auth ?? ['', ''];
+		if (!touched.ttl)
+			ttl = t === 'Forever' ? 'forever' : 'Days' in t ? `${t.Days}d` : `${t.Hours}h`;
+		if (!touched.auth) [authUser, authPass] = st.basic_auth ?? ['', ''];
 	});
 
 	function choose(name: string) {
@@ -214,11 +217,12 @@
 				...(images.length > 1 ? { image } : {})
 			};
 			const body = JSON.stringify(request);
+			const bytes = new TextEncoder().encode(body).length;
 			if (
-				body.length > MAX_BODY &&
+				bytes > MAX_BODY &&
 				!(await askConfirm({
 					title: 'Send a large upload?',
-					body: `The request is ${Math.round(body.length / 1024 / 1024)} MB. Scotty usually accepts up to 50 MB and may reject it.`,
+					body: `The request is ${Math.round(bytes / 1024 / 1024)} MB. Scotty usually accepts up to 50 MB and may reject it.`,
 					confirmLabel: 'Send anyway'
 				}))
 			)
@@ -287,7 +291,10 @@
 				<select
 					id="scope"
 					value={scope}
-					onchange={(e) => (scopeChoice = e.currentTarget.value)}
+					onchange={(e) => {
+						scopeChoice = e.currentTarget.value;
+						touched.scope = true;
+					}}
 					required
 				>
 					{#each scopes as s (s)}<option value={s}>{s}</option>{/each}
@@ -349,6 +356,7 @@
 				<input
 					id="ttl"
 					bind:value={ttl}
+					oninput={() => (touched.ttl = true)}
 					required
 					pattern="[1-9][0-9]*[hdHD]|[Ff][Oo][Rr][Ee][Vv][Ee][Rr]"
 				/>
@@ -363,6 +371,7 @@
 				<input
 					id="auth-user"
 					bind:value={authUser}
+					oninput={() => (touched.auth = true)}
 					placeholder="User"
 					aria-label="Basic auth user"
 					required={!!authPass}
@@ -371,6 +380,7 @@
 				<input
 					type="password"
 					bind:value={authPass}
+					oninput={() => (touched.auth = true)}
 					placeholder="Password"
 					aria-label="Basic auth password"
 					required={!!authUser}
@@ -404,6 +414,7 @@
 								>{upload.label}: {upload.mapped.files.length} files</span
 							>{/if}
 					</div>
+					<p class="help">Pick the folder that contains your site.</p>
 					<p class="help">
 						Accepted paths: <span class="mono">{patterns.join(', ')}</span>
 					</p>
