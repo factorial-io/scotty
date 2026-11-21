@@ -145,8 +145,11 @@ fn uuid(row: &SqliteRow, col: &str) -> Result<Uuid, BackendError> {
     Ok(Uuid::parse_str(row.try_get::<&str, _>(col)?)?)
 }
 
-fn new_grant(new: NewGrant<String>, now: Timestamp) -> Grant<String> {
-    Grant {
+fn new_grant(new: NewGrant<String>, now: Timestamp) -> Result<Grant<String>, BackendError> {
+    let expires_at = now
+        .checked_add(new.lifetime)
+        .map_err(|_| format!("grant lifetime {} out of range", new.lifetime))?;
+    Ok(Grant {
         id: Uuid::new_v4(),
         subject: new.subject,
         client_id: new.client_id,
@@ -154,11 +157,11 @@ fn new_grant(new: NewGrant<String>, now: Timestamp) -> Grant<String> {
         redirect_uri: String::new(),
         scope: new.scope,
         created_at: now,
-        expires_at: now + new.lifetime,
+        expires_at,
         last_refreshed_at: None,
         revoked_at: None,
         revoke_reason: None,
-    }
+    })
 }
 
 fn client_from(row: &SqliteRow) -> Result<RegisteredClient, BackendError> {
@@ -419,7 +422,7 @@ impl OAuthStore for SqliteStore {
                     lifetime,
                 },
                 now,
-            )
+            )?
         };
         let mut tx = self.pool.begin().await?;
         self.insert_grant(&mut tx, &grant).await?;
@@ -478,7 +481,7 @@ impl OAuthStore for SqliteStore {
     }
 
     async fn create_grant(&self, new: NewGrant<String>) -> Result<Grant<String>, BackendError> {
-        let grant = new_grant(new, now());
+        let grant = new_grant(new, now())?;
         let mut conn = self.pool.acquire().await?;
         self.insert_grant(&mut conn, &grant).await?;
         Ok(grant)
@@ -620,7 +623,7 @@ impl OAuthStore for SqliteStore {
         if done.rows_affected() != 1 {
             return Ok(None); // dropping `tx` rolls back
         }
-        let grant = new_grant(grant, now);
+        let grant = new_grant(grant, now)?;
         self.insert_grant(&mut tx, &grant).await?;
         tx.commit().await?;
         Ok(Some(grant))
@@ -814,6 +817,14 @@ mod tests {
             scope: "read offline_access".into(),
             lifetime: SignedDuration::from_hours(30 * 24),
         }
+    }
+
+    #[test]
+    fn out_of_range_grant_lifetime_is_an_error() {
+        let mut new = new_grant_for(alice());
+        new.lifetime = SignedDuration::MAX;
+        assert!(new_grant(new, Timestamp::now()).is_err());
+        assert!(new_grant(new_grant_for(alice()), Timestamp::now()).is_ok());
     }
 
     fn new_device(hash: &str, user_code: &str) -> NewDevice {
