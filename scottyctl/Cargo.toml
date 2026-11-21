@@ -39,7 +39,7 @@ tokio-stream.workspace = true
 urlencoding.workspace = true
 bytes.workspace = true
 tempfile = "3.23"
-whoami = { version = "1.6", default-features = false }
+whoami = { version = "2.0", default-features = false }
 
 [lib]
 name = "scottyctl"
