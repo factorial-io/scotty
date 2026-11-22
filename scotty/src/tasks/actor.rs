@@ -345,7 +345,7 @@ impl TaskActor {
             self.last_broadcast = Some(Instant::now());
             self.pending_broadcast = false;
             // Only clients allowed to see this task get the update.
-            let message = WebSocketMessage::TaskInfoUpdated((*snapshot).clone());
+            let message = WebSocketMessage::TaskInfoUpdated(Box::new((*snapshot).clone()));
             for (client_id, user) in self.messenger.authenticated_clients().await {
                 let user_id = AuthorizationService::get_user_id_for_authorization(&user);
                 if self.auth.can_view_task(&user_id, &snapshot).await {

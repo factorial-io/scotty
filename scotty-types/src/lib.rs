@@ -324,6 +324,13 @@ pub struct TaskDetails {
     #[ts(type = "string")]
     pub id: Uuid,
     pub command: String,
+    /// Name of the app operation that created the task (`create`, `run`,
+    /// `stop`, `ttl-stop`, `rebuild`, `purge`, `destroy`, `ttl-destroy`,
+    /// `action:<name>`). Set at creation and never changed; `None` for tasks
+    /// not created by an app operation. Unlike `command`, which follows the
+    /// step running last.
+    #[serde(default)]
+    pub operation: Option<String>,
     pub state: State,
     #[ts(type = "string")]
     #[serde(with = "time::utc")]
@@ -362,6 +369,7 @@ impl Default for TaskDetails {
         Self {
             id: uuid::Uuid::new_v4(),
             command: "".to_string(),
+            operation: None,
             state: State::Running,
             start_time: Timestamp::now(),
             finish_time: None,
@@ -382,6 +390,7 @@ impl TaskDetails {
         Self {
             id,
             command,
+            operation: None,
             state: State::Running,
             start_time: Timestamp::now(),
             finish_time: None,
@@ -406,6 +415,7 @@ impl TaskDetails {
         Self {
             id,
             command,
+            operation: None,
             state: State::Running,
             start_time: Timestamp::now(),
             finish_time: None,
@@ -665,7 +675,7 @@ pub enum WebSocketMessage {
     AppListUpdated,
     AppInfoUpdated(String),
     TaskListUpdated,
-    TaskInfoUpdated(TaskDetails),
+    TaskInfoUpdated(Box<TaskDetails>),
     Error(String),
 
     // Authentication messages

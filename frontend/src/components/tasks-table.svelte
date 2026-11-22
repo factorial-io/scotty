@@ -3,6 +3,7 @@
 	import TimeAgo from './time-ago.svelte';
 	import TaskStatusPill from './task-status-pill.svelte';
 	import { formatDuration } from '../lib/duration';
+	import { operationTitle } from '../lib/operationTitle';
 	import type { TaskDetail } from '../types';
 
 	let { taskList = [], withApp = true }: { taskList?: TaskDetail[]; withApp?: boolean } =
@@ -21,7 +22,7 @@
 			<tr>
 				<th>Task</th>
 				{#if withApp}<th>App</th>{/if}
-				<th>Command</th>
+				<th>Operation</th>
 				<th>Status</th>
 				<th class="num">Started</th>
 				<th class="num">Duration</th>
@@ -29,6 +30,7 @@
 		</thead>
 		<tbody>
 			{#each sorted as task (task.id)}
+				{@const title = operationTitle(task.operation, task.app_name)}
 				<tr>
 					<td
 						><a
@@ -47,7 +49,7 @@
 							{:else}<span class="meta">—</span>{/if}
 						</td>
 					{/if}
-					<td class="mono">{task.command}</td>
+					{#if title}<td>{title}</td>{:else}<td class="mono">{task.command}</td>{/if}
 					<td><TaskStatusPill status={task.state} /></td>
 					<td class="num mono"><TimeAgo dateString={task.start_time} /></td>
 					<td class="num mono"

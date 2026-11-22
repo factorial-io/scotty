@@ -29,7 +29,12 @@ afterEach(() => {
 	errorMessage.set(null);
 });
 
-function render(props: { lines: OutputLine[]; live: boolean; stopped?: boolean }) {
+function render(props: {
+	lines: OutputLine[];
+	live: boolean;
+	stopped?: boolean;
+	onRangeChange?: (range: number | null) => void;
+}) {
 	component = mount(LogViewer, { target: document.body, props });
 	flushSync();
 }
@@ -158,6 +163,18 @@ describe('log-viewer follow, pause and full screen', () => {
 		render({ lines: [mk('bye')], live: false, stopped: true });
 		expect(q<HTMLInputElement>('.switch input').disabled).toBe(true);
 		expect(document.body.textContent).toContain('1 of 1 lines · container stopped');
+	});
+
+	it('offers the line range only when the caller handles it', () => {
+		render({ lines: [mk('x')], live: false });
+		expect(document.body.querySelector('select[aria-label="How many lines"]')).toBeNull();
+		unmount(component!);
+		const onRangeChange = vi.fn();
+		render({ lines: [mk('x')], live: false, onRangeChange });
+		const select = q<HTMLSelectElement>('select[aria-label="How many lines"]');
+		select.value = 'all';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		expect(onRangeChange).toHaveBeenCalledWith(null);
 	});
 
 	it('leaves full screen on Escape', () => {

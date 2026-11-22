@@ -670,7 +670,8 @@ kbd {
 }
 .progress {
 	height: 4px;
-	background: var(--color-bg-light);
+	/* The track must read against the page, so the bar shows how much is left. */
+	background: var(--color-app-border);
 	width: 100%;
 	max-width: 220px;
 	margin-top: 6px;

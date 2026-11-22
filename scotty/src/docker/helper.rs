@@ -887,6 +887,62 @@ mod tests {
         assert_eq!(task.progress.fraction, 1.0);
     }
 
+    /// Runs `name` with two subprocess steps and returns the task as seen
+    /// after each step started, plus the terminal task.
+    async fn two_commands(name: &str) -> (Vec<TaskDetails>, TaskDetails) {
+        let app_state = test_app_state().await;
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let (state, seen_op) = (app_state.clone(), seen.clone());
+        let running = run_operation(
+            app_state.clone(),
+            &gone_app("named"),
+            OperationSpec::exclusive(name),
+            &[],
+            None,
+            move |ctx| async move {
+                let mut rx = state.task_manager.subscribe(&ctx.task.id()).await.unwrap();
+                for command in ["docker compose pull", "docker compose build"] {
+                    ctx.task.writer().step_started(command).await;
+                    let task = wait_for(&mut rx, |t| t.command == command).await;
+                    seen_op.lock().unwrap().push(task);
+                }
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(running.task.operation.as_deref(), Some(name));
+        let task = wait_terminal(&app_state, running.task.id).await;
+        let seen = seen.lock().unwrap().clone();
+        (seen, task)
+    }
+
+    #[tokio::test]
+    async fn operation_stays_while_command_follows_the_steps() {
+        let (seen, task) = two_commands("rebuild").await;
+        let pairs: Vec<_> = seen
+            .iter()
+            .map(|t| (t.operation.as_deref(), t.command.as_str()))
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                (Some("rebuild"), "docker compose pull"),
+                (Some("rebuild"), "docker compose build")
+            ]
+        );
+        assert_eq!(task.operation.as_deref(), Some("rebuild"));
+    }
+
+    #[tokio::test]
+    async fn custom_action_task_carries_its_action_name() {
+        let (seen, task) = two_commands("action:drush:uli").await;
+        assert!(seen
+            .iter()
+            .all(|t| t.operation.as_deref() == Some("action:drush:uli")));
+        assert_eq!(task.operation.as_deref(), Some("action:drush:uli"));
+    }
+
     #[tokio::test]
     async fn failed_step_leaves_later_steps_pending() {
         use StepState::*;

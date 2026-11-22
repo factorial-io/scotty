@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import UnifiedOutput from '../../../components/unified-output.svelte';
+	import LogViewer from '../../../components/log-viewer.svelte';
+	import TaskProgress from '../../../components/task-progress.svelte';
 	import TaskStatusPill from '../../../components/task-status-pill.svelte';
 	import TimeAgo from '../../../components/time-ago.svelte';
 	import { tasks } from '../../../stores/tasksStore';
@@ -15,6 +16,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { setTitle } from '../../../stores/titleStore';
 	import { apps } from '../../../stores/appsStore';
+	import { operationTitle } from '../../../lib/operationTitle';
 
 	export let data: TaskDetail;
 
@@ -31,9 +33,10 @@
 		}
 	}
 
-	onMount(() => {
-		setTitle(`Task ${data.id}`);
+	$: title = operationTitle(data.operation, data.app_name);
+	$: setTitle(title ?? `Task ${data.id}`);
 
+	onMount(() => {
 		// Initialize task output state
 		initializeTaskOutput(data.id);
 	});
@@ -59,9 +62,13 @@
 <div class="ph">
 	<div class="ph-row">
 		<h1>
-			<span class="mono" style="font:inherit">{data.command}</span>{data.app_name
-				? ` on ${data.app_name}`
-				: ''}
+			{#if title}
+				{title}
+			{:else}
+				<span class="mono" style="font:inherit">{data.command}</span>{data.app_name
+					? ` on ${data.app_name}`
+					: ''}
+			{/if}
 		</h1>
 	</div>
 	<div class="chips">
@@ -99,14 +106,32 @@
 		<dt>Finished</dt>
 		<dd class="mono">{data.finish_time ? fmt(data.finish_time) : '—'}</dd>
 	</div>
+	<div>
+		<dt>Last command</dt>
+		<dd class="mono last-command">{data.command || '—'}</dd>
+	</div>
 </dl>
+
+<div class="full-progress"><TaskProgress taskId={data.id} /></div>
 
 <section class="sec">
 	<div class="sec-h"><h2>Output</h2></div>
-	<UnifiedOutput
+	<LogViewer
 		lines={$taskOutput.lines}
-		heading=""
-		loading={$taskOutput.loading}
-		maxHeight="600px"
+		live={data.state === 'Running' && $taskOutput.subscribed}
 	/>
 </section>
+
+<style>
+	.last-command {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.full-progress {
+		margin-top: 16px;
+	}
+	.full-progress :global(.progress) {
+		max-width: none;
+		height: 6px;
+	}
+</style>

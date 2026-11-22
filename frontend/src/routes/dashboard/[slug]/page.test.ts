@@ -89,7 +89,7 @@ describe('app detail page', () => {
 
 	it('names the running operation, links its task and disables the actions', () => {
 		render(app({ operation: 'run', task_id: 't1', started_at: '2020-01-01T00:00:00Z' }));
-		expect(document.body.textContent).toMatch(/Run running since .*ago/);
+		expect(document.body.textContent).toMatch(/Starting app \S+, started .*ago/);
 		const link = document.body.querySelector<HTMLAnchorElement>('a[href$="/tasks/t1"]');
 		expect(link?.textContent).toBe('Follow the task output');
 		for (const name of ['Stop', 'Rebuild', 'Purge']) expect(button(name)?.disabled).toBe(true);
@@ -97,7 +97,7 @@ describe('app detail page', () => {
 
 	it('enables the actions while idle', () => {
 		render(app());
-		expect(document.body.textContent).not.toMatch(/running since/);
+		expect(document.querySelector('.banner')).toBeNull();
 		for (const name of ['Stop', 'Rebuild', 'Purge']) expect(button(name)?.disabled).toBe(false);
 	});
 

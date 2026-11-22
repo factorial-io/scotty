@@ -10,16 +10,10 @@
 	import { storePendingLandingStart } from '../../../lib/landingResume';
 	import { apps, runApp, updateAppInfo } from '../../../stores/appsStore';
 	import { tasks } from '../../../stores/tasksStore';
-	import {
-		getTaskOutput,
-		initializeTaskOutput,
-		setTaskOutputSubscribed
-	} from '../../../stores/taskOutputStore';
-	import { webSocketStore } from '../../../stores/webSocketStore';
-	import UnifiedOutput from '../../../components/unified-output.svelte';
 	import TaskProgress from '../../../components/task-progress.svelte';
 	import type { App } from '../../../types';
 	import { setTitle } from '../../../stores/titleStore';
+	import { operationTitle } from '../../../lib/operationTitle';
 
 	export let data: { appName: string; returnUrl: string | null; autostart: boolean };
 
@@ -29,11 +23,8 @@
 	let appInfo: App | null = null;
 	let appError: string | null = null;
 	let taskId: string | null = null;
-	let taskOutputRequested = false;
 	let redirectCountdown = 3;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-
-	$: taskOutput = taskId ? getTaskOutput(taskId) : null;
 
 	// The store copy follows AppInfoUpdated, so an operation started elsewhere shows up here.
 	$: app = $apps.find((a) => a.name === data.appName) ?? appInfo;
@@ -48,21 +39,13 @@
 	}
 	$: if (state === 'starting' && taskState === 'Failed') {
 		state = 'error';
-		appError = 'App failed to start. Check the output below for details.';
+		appError = 'App failed to start. The task shows its output.';
 	}
 
 	// An operation started elsewhere brought the app up.
 	$: if (state === 'idle' && app && !operation && app.status === 'Running' && safeReturnUrl) {
 		state = 'ready';
 		startRedirectCountdown(safeReturnUrl);
-	}
-
-	// Request task output streaming when authenticated and task is active
-	$: {
-		if ($isAuthenticated && taskId && !taskOutputRequested) {
-			webSocketStore.requestTaskOutputStream(taskId, true);
-			taskOutputRequested = true;
-		}
 	}
 
 	onMount(() => {
@@ -92,18 +75,10 @@
 	}
 
 	onDestroy(() => {
-		cleanupTask();
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 		}
 	});
-
-	function cleanupTask() {
-		if (taskId) {
-			webSocketStore.stopTaskOutputStream(taskId);
-			setTaskOutputSubscribed(taskId, false);
-		}
-	}
 
 	async function loadAppInfo() {
 		try {
@@ -160,8 +135,6 @@
 		try {
 			const id = await runApp(data.appName);
 			taskId = id;
-			// Collected so the output can be shown if the start fails.
-			initializeTaskOutput(id);
 		} catch (err) {
 			state = 'error';
 			appError = err instanceof Error ? err.message : 'Failed to start app';
@@ -183,11 +156,9 @@
 	}
 
 	function handleRetry() {
-		cleanupTask();
 		state = 'idle';
 		appError = null;
 		taskId = null;
-		taskOutputRequested = false;
 	}
 
 	/**
@@ -245,25 +216,24 @@
 	<title>Start {data.appName} - Scotty</title>
 </svelte:head>
 
-<AuthFrame center={!(appError && state === 'error')}>
+<AuthFrame center>
 	{#if appError && state === 'error'}
 		<h1>Failed to start {data.appName}</h1>
 		<div class="banner err">
 			<Icon icon="ph:warning-circle" class="ic" aria-hidden="true" />
 			<div class="txt"><b>The start did not finish</b><span>{appError}</span></div>
 		</div>
+		{#if taskId}<div class="progress-center"><TaskProgress {taskId} /></div>{/if}
 		<div class="acts">
-			<a href={resolve('/dashboard')} class="btn outline">Go to dashboard</a>
+			{#if taskId}
+				<a href={resolve('/tasks/[slug]', { slug: taskId })} class="btn outline"
+					>Show task</a
+				>
+			{:else}
+				<a href={resolve('/dashboard')} class="btn outline">Go to dashboard</a>
+			{/if}
 			<button class="btn filled primary" on:click={handleRetry}>Try again</button>
 		</div>
-		{#if taskId && taskOutput && $taskOutput}
-			<UnifiedOutput
-				lines={$taskOutput.lines}
-				heading=""
-				loading={$taskOutput.loading}
-				maxHeight="400px"
-			/>
-		{/if}
 	{:else if state === 'ready'}
 		<div class="ok-mark" style="color:var(--color-status-success)">
 			<Icon icon="ph:check-circle" class="ic lg" aria-hidden="true" />
@@ -297,7 +267,8 @@
 		{#if operation}
 			<p class="meta">
 				<Icon icon="ph:spinner" class="ic sm spin" aria-hidden="true" />
-				{operation.operation} is running
+				{operationTitle(operation.operation, data.appName) ??
+					`${operation.operation} is running`}
 			</p>
 			{#if operation.task_id}
 				<div class="progress-center"><TaskProgress taskId={operation.task_id} /></div>

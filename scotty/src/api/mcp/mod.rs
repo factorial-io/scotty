@@ -287,6 +287,9 @@ pub struct TaskInfo {
     /// `Running`, `Finished` or `Failed`.
     pub state: String,
     pub app_name: Option<String>,
+    /// The app operation that created the task, e.g. `rebuild` or
+    /// `action:<name>`; absent for tasks not created by an app operation.
+    pub operation: Option<String>,
     pub last_exit_code: Option<i32>,
     pub started: String,
     pub finished: Option<String>,
@@ -465,6 +468,7 @@ impl ScottyMcp {
             task_id: task.id.to_string(),
             state: wire_name(&task.state),
             app_name: task.app_name.clone(),
+            operation: task.operation.clone(),
             last_exit_code: task.last_exit_code,
             started: to_rfc3339(&task.start_time),
             finished: task.finish_time.as_ref().map(to_rfc3339),

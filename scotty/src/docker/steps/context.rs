@@ -143,6 +143,7 @@ impl Context {
             .task_manager
             .create_task(TaskDetails {
                 app_name: Some(app_data.name.clone()),
+                operation: Some(operation.clone()),
                 requested_by: access.requested_by,
                 action_permission: access.action_permission,
                 progress: plan(steps),

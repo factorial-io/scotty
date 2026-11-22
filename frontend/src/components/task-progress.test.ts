@@ -42,7 +42,7 @@ describe('task-progress', () => {
 		document.body.innerHTML = '';
 	});
 
-	function render(props: { taskId: string; kind?: string; details?: boolean }) {
+	function render(props: { taskId: string; kind?: string; app?: string; details?: boolean }) {
 		component = mount(TaskProgress, { target: document.body, props });
 		flushSync();
 	}
@@ -55,20 +55,26 @@ describe('task-progress', () => {
 		tasks.set({ t1: task(0.25, 'Pulling images') });
 		render({ taskId: 't1', kind: 'rebuild' });
 
-		expect(line()).toBe('rebuild · Pulling images · 25 %');
+		expect(line()).toBe('Rebuilding app · Pulling images · 25 %');
 		expect(bar().getAttribute('aria-valuenow')).toBe('25');
 		expect(document.body.querySelector('details')).toBeNull();
 
 		tasks.set({ t1: task(0.6, 'Starting containers') });
 		flushSync();
-		expect(line()).toBe('rebuild · Starting containers · 60 %');
+		expect(line()).toBe('Rebuilding app · Starting containers · 60 %');
 		expect(bar().getAttribute('aria-valuenow')).toBe('60');
 	});
 
-	it('floors the percent and names custom actions without the prefix', () => {
+	it('floors the percent and words custom actions with the app', () => {
 		tasks.set({ t1: task(0.999, 'Finishing') });
-		render({ taskId: 't1', kind: 'action:drush cr' });
-		expect(line()).toBe('drush cr · Finishing · 99 %');
+		render({ taskId: 't1', kind: 'action:drush cr', app: 'shop' });
+		expect(line()).toBe('Running custom action drush cr on shop · Finishing · 99 %');
+	});
+
+	it('shows an unknown operation as it is', () => {
+		tasks.set({ t1: task(0.5, 'Working') });
+		render({ taskId: 't1', kind: 'migrate' });
+		expect(line()).toBe('migrate · Working · 50 %');
 	});
 
 	it('omits the kind when none is given', () => {

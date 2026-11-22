@@ -246,6 +246,7 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
     let task_details = TaskDetails {
         id: Uuid::new_v4(),
         command: "test-command".to_string(),
+        operation: Some("action:drush:uli".to_string()),
         state: State::Finished,
         start_time: jiff::Timestamp::now(),
         finish_time: Some(jiff::Timestamp::now()),
@@ -304,6 +305,10 @@ async fn test_secure_json_masks_running_app_context_env_vars() {
     // Verify task details are unchanged (only checking the state as ID is dynamically generated)
     assert_eq!(secure_json_body["task"]["state"], json!("Finished"));
     assert_eq!(secure_json_body["task"]["command"], json!("test-command"));
+    assert_eq!(
+        secure_json_body["task"]["operation"],
+        json!("action:drush:uli")
+    );
 
     // Verify app name and other fields are unchanged
     assert_eq!(secure_json_body["app_data"]["name"], json!("test-app"));
