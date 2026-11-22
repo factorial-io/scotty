@@ -31,7 +31,7 @@
 
 	type Value = string | number | boolean | null | undefined;
 
-	let blueprints = $state<Blueprint[]>([]);
+	let blueprints = $state<(Blueprint & { id: string })[]>([]);
 	let loadError = $state<string | null>(null);
 	let chosen = $state('');
 	let params = $state<Record<string, Value>>({});
@@ -46,7 +46,7 @@
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
 
-	let blueprint = $derived(blueprints.find((b) => b.name === chosen));
+	let blueprint = $derived(blueprints.find((b) => b.id === chosen));
 	let template = $derived(blueprint?.template);
 	let properties = $derived(
 		Object.entries(template?.parameters?.properties ?? {}).filter(([, p]) => !p.readOnly)
@@ -100,8 +100,7 @@
 
 	function choose(name: string) {
 		chosen = name;
-		const props =
-			blueprints.find((b) => b.name === name)?.template?.parameters?.properties ?? {};
+		const props = blueprints.find((b) => b.id === name)?.template?.parameters?.properties ?? {};
 		params = Object.fromEntries(
 			Object.entries(props).map(([k, p]) => [
 				k,
@@ -118,11 +117,12 @@
 		loadApps().catch(() => {}); // the name-in-use warning only; the form works without it
 		try {
 			const result = (await authenticatedApiCall('blueprints')) as BlueprintsResponse;
-			blueprints = Object.values(result.blueprints).filter((b) => b.templated);
+			// The map key is what the server looks blueprints up by; `name` is only for display.
+			blueprints = Object.entries(result.blueprints)
+				.filter(([, b]) => b.templated)
+				.map(([id, b]) => ({ ...b, id }));
 			const wanted = page.url.searchParams.get('blueprint');
-			choose(
-				blueprints.some((b) => b.name === wanted) ? wanted! : (blueprints[0]?.name ?? '')
-			);
+			choose(blueprints.some((b) => b.id === wanted) ? wanted! : (blueprints[0]?.id ?? ''));
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : String(err);
 		}
@@ -203,7 +203,7 @@
 					middlewares: [],
 					disallow_robots: true,
 					destroy_on_ttl: false,
-					app_blueprint: blueprint.name,
+					app_blueprint: blueprint.id,
 					time_to_live: parsedTtl,
 					basic_auth: authUser && authPass ? [authUser, authPass] : null,
 					scopes: [scope]
@@ -258,14 +258,14 @@
 	<form class="sec create" {onsubmit}>
 		<fieldset class="scopes">
 			<legend>Blueprint</legend>
-			{#each blueprints as b (b.name)}
+			{#each blueprints as b (b.id)}
 				<label>
 					<input
 						type="radio"
 						name="blueprint"
-						value={b.name}
-						checked={chosen === b.name}
-						onchange={() => choose(b.name)}
+						value={b.id}
+						checked={chosen === b.id}
+						onchange={() => choose(b.id)}
 					/>
 					<span>{b.name}<span class="mono">{b.description}</span></span>
 				</label>

@@ -35,7 +35,7 @@ const permissions = permissionsStore as unknown as Writable<
 
 const blueprints: Record<string, Blueprint> = {
 	'static-html': {
-		name: 'static-html',
+		name: 'Static HTML',
 		description: 'Serves static HTML',
 		actions: {},
 		templated: true,
@@ -47,7 +47,7 @@ const blueprints: Record<string, Blueprint> = {
 		}
 	},
 	atelier: {
-		name: 'atelier',
+		name: 'Atelier',
 		description: 'An Atelier instance',
 		actions: {},
 		templated: true,
