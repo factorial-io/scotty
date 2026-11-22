@@ -213,15 +213,17 @@
 				</button>
 			{/each}
 		</div>
-		<select
-			aria-label="How many lines"
-			value={range === null ? 'all' : String(range)}
-			onchange={onRange}
-		>
-			{#each RANGES as [value, label] (value)}
-				<option {value}>{label}</option>
-			{/each}
-		</select>
+		{#if onRangeChange}
+			<select
+				aria-label="How many lines"
+				value={range === null ? 'all' : String(range)}
+				onchange={onRange}
+			>
+				{#each RANGES as [value, label] (value)}
+					<option {value}>{label}</option>
+				{/each}
+			</select>
+		{/if}
 		<span class="grow"></span>
 		<div class="tg">
 			<button

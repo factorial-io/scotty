@@ -614,6 +614,7 @@ async fn hidden_and_unknown_tasks_answer_alike() {
         .task_manager
         .create_task(scotty_core::tasks::task_details::TaskDetails {
             app_name: Some("atelier-demo".into()),
+            operation: Some("rebuild".into()),
             progress: scotty_types::TaskProgress {
                 fraction: 0.5,
                 status: "Pull images".into(),
@@ -638,6 +639,10 @@ async fn hidden_and_unknown_tasks_answer_alike() {
     .await;
     assert!(!is_error(&admin), "{admin}");
     assert_eq!(admin["structuredContent"]["state"], "Running", "{admin}");
+    assert_eq!(
+        admin["structuredContent"]["operation"], "rebuild",
+        "{admin}"
+    );
     let progress = &admin["structuredContent"]["progress"];
     assert_eq!(progress["fraction"], 0.5, "{admin}");
     assert_eq!(progress["status"], "Pull images", "{admin}");

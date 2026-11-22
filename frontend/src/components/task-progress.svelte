@@ -3,21 +3,24 @@
 	import { get } from 'svelte/store';
 	import { requestTaskDetails, tasks } from '../stores/tasksStore';
 	import type { StepState } from '../generated';
+	import { operationTitle } from '../lib/operationTitle';
 
 	interface Props {
 		taskId: string;
-		/** The app operation, e.g. `rebuild` or `action:drush cr`; leads the progress line. */
+		/** The app operation, e.g. `rebuild` or `action:drush cr`; leads the progress line, worded. */
 		kind?: string;
+		/** App name for the worded operation; leave out where the app is obvious. */
+		app?: string;
 		/** Offer the steps and the per-image pulls in a collapsed section below the line. */
 		details?: boolean;
 	}
 
-	let { taskId, kind, details = false }: Props = $props();
+	let { taskId, kind, app, details = false }: Props = $props();
 
 	let progress = $derived($tasks[taskId]?.progress);
 	// Floor, so the line never says 100 % before the task has finished.
 	let percent = $derived(progress ? Math.floor(progress.fraction * 100) : 0);
-	let label = $derived(kind?.startsWith('action:') ? kind.slice('action:'.length) : kind);
+	let label = $derived(kind ? (operationTitle(kind, app) ?? kind) : undefined);
 	let doneSteps = $derived(
 		progress
 			? progress.steps.filter((s) => s.state === 'done' || s.state === 'skipped').length

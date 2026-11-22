@@ -27,6 +27,7 @@
 	import { askConfirm } from '../../../stores/confirmStore';
 	import CustomActionsDropdown from '../../../components/custom-actions-dropdown.svelte';
 	import TaskProgress from '../../../components/task-progress.svelte';
+	import { operationTitle } from '../../../lib/operationTitle';
 
 	/** @type {import('./$types').PageData} */
 	export let data: App;
@@ -224,7 +225,8 @@
 		<Icon icon="ph:spinner" class="ic spin" aria-hidden="true" />
 		<div class="txt">
 			<b
-				>{cap(data.operation.operation)} running since <TimeAgo
+				>{operationTitle(data.operation.operation, data.name) ??
+					`${cap(data.operation.operation)} running`}, started <TimeAgo
 					dateString={data.operation.started_at}
 				/></b
 			>
@@ -239,11 +241,7 @@
 				{/if}</span
 			>
 			{#if data.operation.task_id}
-				<TaskProgress
-					taskId={data.operation.task_id}
-					kind={data.operation.operation}
-					details
-				/>
+				<TaskProgress taskId={data.operation.task_id} details />
 			{/if}
 		</div>
 	</div>

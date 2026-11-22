@@ -9,6 +9,7 @@
 	import { hasPermission, permissionsLoaded } from '../stores/permissionStore';
 	import type { App } from '../types';
 	import { showError } from '../stores/errorStore';
+	import { operationTitle } from '../lib/operationTitle';
 
 	export let app: App;
 
@@ -54,7 +55,7 @@
 {#if failed_task}
 	<button
 		class="ibtn boxed failed"
-		title={`Task failed: ${failed_task.command}. Check task details for output.`}
+		title={`Task failed: ${operationTitle(failed_task.operation, failed_task.app_name) ?? failed_task.command}. Check task details for output.`}
 		aria-label="Task failed, retry"
 		on:click={handleClick}
 	>
@@ -74,7 +75,8 @@
 		title={!isSupported()
 			? 'Not managed by Scotty'
 			: app.operation
-				? `${app.operation.operation} running`
+				? (operationTitle(app.operation.operation, name) ??
+					`${app.operation.operation} running`)
 				: status === 'Running'
 					? 'Stop'
 					: 'Start'}
