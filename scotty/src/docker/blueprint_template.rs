@@ -549,6 +549,8 @@ pub fn merge_files(
         })
         .collect::<Result<Vec<_>, _>>()?;
     // Only files a caller could have uploaded count, not `.scotty.yml` or compose files.
+    // Globs match case-sensitively (`HTML/index.html` does not meet `html/**`);
+    // only the compose and env checks ignore case.
     let uploadable = existing
         .iter()
         .filter(|n| payload.is_match(n.as_str()) && !is_compose_file(n) && !is_env_file(n));
@@ -1168,5 +1170,25 @@ mod tests {
         let mut files = relative_files(dir.path());
         files.sort();
         assert_eq!(files, [".scotty.yml", "html/img/a.png", "html/index.html"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn relative_files_skips_symlinks() {
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(outside.path().join("sub")).unwrap();
+        std::fs::write(outside.path().join("index.html"), "").unwrap();
+        std::fs::write(outside.path().join("sub/a.html"), "").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("html")).unwrap();
+        std::fs::write(dir.path().join("html/about.html"), "").unwrap();
+        let link = std::os::unix::fs::symlink;
+        link(
+            outside.path().join("index.html"),
+            dir.path().join("html/index.html"),
+        )
+        .unwrap();
+        link(outside.path().join("sub"), dir.path().join("html/sub")).unwrap();
+        assert_eq!(relative_files(dir.path()), ["html/about.html"]);
     }
 }

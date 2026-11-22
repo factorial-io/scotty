@@ -21,7 +21,11 @@ describe('globToRegExp', () => {
 		['html/{a,{b,c}}', 'html/a', true],
 		['html/{a,{b,c}}', 'html/b', true],
 		['html/{a,{b,c}}', 'html/c', true],
-		['html/{a,{b,c}}', 'html/{b,c}', false]
+		['html/{a,{b,c}}', 'html/{b,c}', false],
+		['{a/{b,c},d}', 'a/b', true],
+		['{a/{b,c},d}', 'a/c', true],
+		['{a/{b,c},d}', 'd', true],
+		['{a/{b,c},d}', 'a/d', false]
 	])('matches globset: %s vs %s', (pattern, path, want) => {
 		expect(matches(pattern, path)).toBe(want);
 	});
