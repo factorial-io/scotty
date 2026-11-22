@@ -112,7 +112,7 @@
 	</div>
 </dl>
 
-<TaskProgress taskId={data.id} />
+<div class="full-progress"><TaskProgress taskId={data.id} /></div>
 
 <section class="sec">
 	<div class="sec-h"><h2>Output</h2></div>
@@ -126,5 +126,12 @@
 	.last-command {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+	.full-progress {
+		margin-top: 16px;
+	}
+	.full-progress :global(.progress) {
+		max-width: none;
+		height: 6px;
 	}
 </style>
