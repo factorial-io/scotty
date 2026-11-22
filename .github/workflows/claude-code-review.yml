@@ -12,6 +12,9 @@ on:
 
 jobs:
   claude-review:
+    # Skip release-please PRs (authored by github-actions[bot]): only version
+    # bump + changelog, and claude-code-action rejects bot-initiated runs.
+    if: github.event.pull_request.user.login != 'github-actions[bot]'
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
