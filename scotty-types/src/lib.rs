@@ -675,7 +675,7 @@ pub enum WebSocketMessage {
     AppListUpdated,
     AppInfoUpdated(String),
     TaskListUpdated,
-    TaskInfoUpdated(TaskDetails),
+    TaskInfoUpdated(Box<TaskDetails>),
     Error(String),
 
     // Authentication messages

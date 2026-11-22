@@ -1,3 +1,6 @@
+// Operation names as the server passes them to run_operation
+// (scotty/src/docker/*.rs). A name missing here falls back to the
+// command; add it here and in operationTitle.test.ts.
 const VERBS: Record<string, string> = {
 	create: 'Creating',
 	run: 'Starting',
