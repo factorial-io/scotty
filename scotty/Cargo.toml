@@ -97,7 +97,7 @@ openidconnect = { version = "4.0", default-features = false, features = ["reqwes
 url.workspace = true
 grantry.workspace = true
 sqlx.workspace = true
-jsonschema = { version = "0.62.0", default-features = false }
+jsonschema = { version = "0.63.0", default-features = false }
 globset = "0.4.21"
 getrandom = "0.4"
 rmcp = { version = "3.9.0", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
