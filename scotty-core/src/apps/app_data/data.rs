@@ -52,6 +52,11 @@ pub struct AppData {
     #[serde(default, with = "scotty_types::time::local_opt")]
     #[schema(value_type = Option<String>, format = DateTime)]
     pub ttl_expires_at: Option<Timestamp>,
+    /// Effective blocked paths (global plus blueprint), from
+    /// `effective_blocked_paths`. Filled like `operation` when the app is
+    /// returned, never stored in the app list.
+    #[serde(default)]
+    pub blocked_paths: Vec<String>,
 }
 
 impl Default for AppData {
@@ -81,11 +86,22 @@ impl Default for AppData {
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
             operation: None,
             ttl_expires_at: None,
+            blocked_paths: Vec::new(),
         }
     }
 }
 
 impl AppData {
+    /// Blocked paths Scotty enforces for this app with the current config.
+    /// An app without Scotty settings gets no load balancer config from
+    /// Scotty, so nothing is blocked for it.
+    pub fn effective_blocked_paths(&self, apps: &crate::settings::apps::Apps) -> Vec<String> {
+        self.settings
+            .as_ref()
+            .map(|s| apps.blocked_paths_for(s.app_blueprint.as_deref()))
+            .unwrap_or_default()
+    }
+
     /// Constructs a new `AppData` instance with the provided name, directories, services, and settings.
     ///
     /// The application name is slugified, and the overall status is determined from the service states. The `last_checked` field is initialized to `None`.
@@ -118,6 +134,7 @@ impl AppData {
             load_balancer_connectivity: LoadBalancerConnectivity::default(),
             operation: None,
             ttl_expires_at: None,
+            blocked_paths: Vec::new(),
         }
     }
 

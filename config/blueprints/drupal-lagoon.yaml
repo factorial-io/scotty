@@ -9,6 +9,9 @@ apps:
                 - nginx
             public_services:
                 nginx: 8080
+            blocked_paths:
+                - /core/install.php
+                - /core/rebuild.php
             actions:
                 post_create:
                     description: "Run drush deploy after the application is created"

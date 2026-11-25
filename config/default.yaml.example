@@ -42,6 +42,11 @@ apps:
     domain_suffix: "your-domain.site"
     root_folder: "./apps"  # Path where apps are deployed
 
+    # Optional: path prefixes the load balancer answers with 403 for every app
+    # (Traefik only). Blueprints can add their own via `blocked_paths`.
+    # blocked_paths:
+    #     - /.git/
+
     # Optional: custom blueprints can be defined here or in separate files
     # blueprints:
     #     my-app:

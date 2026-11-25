@@ -38,6 +38,7 @@ const blueprints: Record<string, Blueprint> = {
 		name: 'Static HTML',
 		description: 'Serves static HTML',
 		actions: {},
+		blocked_paths: [],
 		templated: true,
 		template: {
 			parameters: null,
@@ -50,6 +51,7 @@ const blueprints: Record<string, Blueprint> = {
 		name: 'Atelier',
 		description: 'An Atelier instance',
 		actions: {},
+		blocked_paths: [],
 		templated: true,
 		template: {
 			parameters: {
@@ -71,6 +73,7 @@ const blueprints: Record<string, Blueprint> = {
 		name: 'nginx-lagoon',
 		description: 'Validation only',
 		actions: {},
+		blocked_paths: [],
 		templated: false
 	}
 };

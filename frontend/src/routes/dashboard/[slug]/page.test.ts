@@ -87,6 +87,24 @@ describe('app detail page', () => {
 		expect(tags[0]).toBe('Lifetime: 7 days, then stopped in 3 d');
 	});
 
+	it('lists the blocked paths in the settings', () => {
+		render({
+			...app(),
+			settings: {
+				time_to_live: 'Forever',
+				basic_auth: null,
+				environment: null,
+				middlewares: [],
+				registry: null
+			},
+			blocked_paths: ['/.git/', '/core/install.php']
+		} as unknown as App);
+		const row = [...document.querySelectorAll('dt')].find(
+			(dt) => dt.textContent === 'Blocked paths'
+		);
+		expect(row?.nextElementSibling?.textContent).toBe('/.git/, /core/install.php');
+	});
+
 	it('names the running operation, links its task and disables the actions', () => {
 		render(app({ operation: 'run', task_id: 't1', started_at: '2020-01-01T00:00:00Z' }));
 		expect(document.body.textContent).toMatch(/Starting app \S+, started .*ago/);

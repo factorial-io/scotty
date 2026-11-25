@@ -327,6 +327,10 @@
 				<dd>{format_value(data.settings.middlewares?.join(', '))}</dd>
 			</div>
 			<div>
+				<dt>Blocked paths</dt>
+				<dd>{format_value(data.blocked_paths?.join(', '))}</dd>
+			</div>
+			<div>
 				<dt>Environment</dt>
 				<dd><FormatEnvironmentVariables environment={data.settings.environment} /></dd>
 			</div>

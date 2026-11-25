@@ -222,6 +222,7 @@ pub async fn create_app(
         load_balancer_connectivity: Default::default(),
         operation: None,
         ttl_expires_at: None,
+        blocked_paths: Vec::new(),
     };
     let notification = Message::new(MessageType::AppCreated, &app_data);
     let settings = settings.clone();

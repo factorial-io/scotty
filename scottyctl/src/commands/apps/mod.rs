@@ -226,6 +226,12 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
             result += &format!("\nScopes: {}", settings.scopes.join(", "));
         }
     }
+    if app_data.settings.is_some() {
+        result += &format!(
+            "\nBlocked paths: {}",
+            format_blocked_paths(&app_data.blocked_paths)
+        );
+    }
     result += &format!("\n{}", format_lifetime(app_data, jiff::Timestamp::now()));
 
     // Only worth a line when the server actually observed something. `Unknown`
@@ -239,4 +245,42 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
     }
 
     Ok(result)
+}
+
+/// A list of blocked path prefixes, or `none`.
+pub fn format_blocked_paths(paths: &[String]) -> String {
+    if paths.is_empty() {
+        "none".to_string()
+    } else {
+        paths.join(", ")
+    }
+}
+
+#[cfg(test)]
+mod blocked_paths_tests {
+    use super::*;
+    use scotty_core::apps::app_data::AppSettings;
+
+    #[test]
+    fn app_info_lists_blocked_paths() {
+        let app = AppData {
+            name: "cms".into(),
+            settings: Some(AppSettings::default()),
+            blocked_paths: vec!["/.git/".into(), "/core/install.php".into()],
+            ..Default::default()
+        };
+        let out = format_app_info(&app).unwrap();
+        assert!(
+            out.contains("Blocked paths: /.git/, /core/install.php"),
+            "{out}"
+        );
+
+        let app = AppData {
+            blocked_paths: vec![],
+            ..app
+        };
+        assert!(format_app_info(&app)
+            .unwrap()
+            .contains("Blocked paths: none"));
+    }
 }

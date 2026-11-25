@@ -56,11 +56,22 @@ impl LoadBalancerImpl for HaproxyLoadBalancer {
     fn get_docker_compose_override(
         &self,
         global_settings: &Settings,
-        _app_name: &str,
+        app_name: &str,
         settings: &AppSettings,
         resolved_environment: &HashMap<String, String>,
         all_services: &[String],
     ) -> anyhow::Result<DockerComposeConfig> {
+        let blocked_paths = global_settings
+            .apps
+            .blocked_paths_for(settings.app_blueprint.as_deref());
+        if !blocked_paths.is_empty() {
+            tracing::warn!(
+                app = app_name,
+                ?blocked_paths,
+                "blocked paths are not enforced with HAProxy for app {app_name}"
+            );
+        }
+
         let mut config = DockerComposeConfig {
             services: HashMap::new(),
             networks: None,
@@ -306,5 +317,50 @@ mod tests {
         );
         assert!(redis_env.get("VHOST").is_none()); // No load balancer config
         assert!(redis_env.get("VPORT").is_none());
+    }
+
+    #[test]
+    fn test_haproxy_warns_about_blocked_paths() {
+        use std::sync::{Arc, Mutex};
+        #[derive(Clone, Default)]
+        struct Buf(Arc<Mutex<Vec<u8>>>);
+        impl std::io::Write for Buf {
+            fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(b);
+                Ok(b.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let buf = Buf::default();
+        let writer = buf.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+
+        let mut global_settings = Settings::default();
+        global_settings.apps.blocked_paths = vec!["/.git/".to_string()];
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            ..Default::default()
+        };
+        tracing::subscriber::with_default(subscriber, || {
+            HaproxyLoadBalancer
+                .get_docker_compose_override(
+                    &global_settings,
+                    "cms",
+                    &app_settings,
+                    &HashMap::new(),
+                    &[],
+                )
+                .unwrap();
+        });
+        let log = String::from_utf8(buf.0.lock().unwrap().clone()).unwrap();
+        assert!(
+            log.contains("WARN") && log.contains("not enforced with HAProxy for app cms"),
+            "{log}"
+        );
     }
 }
