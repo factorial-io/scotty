@@ -1,0 +1,36 @@
+apps:
+    blueprints:
+        laravel:
+            name: "Laravel"
+            description: "A Laravel application (cli, php-fpm, nginx); runs migrations and rebuilds caches on deploy"
+            required_services:
+                - cli
+                - php
+                - nginx
+            public_services:
+                nginx: 8080
+            actions:
+                post_create:
+                    description: "Prepare storage, migrate and rebuild caches after the application is created"
+                    commands:
+                        cli: &laravel_deploy
+                            - set -e
+                            - cd /app
+                            - mkdir -p storage/logs storage/framework/views storage/framework/sessions storage/framework/cache backups
+                            - chmod 777 storage/logs storage/framework/views storage/framework/sessions storage/framework/cache
+                            - php artisan migrate --force
+                            - php artisan optimize:clear
+                            - php artisan optimize
+                            - "[ -e public/storage ] || php artisan storage:link"
+                post_rebuild:
+                    description: "Prepare storage, migrate and rebuild caches after the application is rebuilt"
+                    commands:
+                        cli: *laravel_deploy
+                post_run:
+                    description: "Prepare storage, migrate and rebuild caches after the application started"
+                    commands:
+                        cli: *laravel_deploy
+                laravel:deploy:
+                    description: "Prepare storage, run migrations and rebuild caches"
+                    commands:
+                        cli: *laravel_deploy
