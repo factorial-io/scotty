@@ -48,7 +48,9 @@ RUN cargo build --release --locked -p scotty -p scottyctl
 FROM debian:bookworm-slim
 ARG APP=/app
 
+# upgrade first: Debian security fixes land before the next base image rebuild
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get --no-install-recommends install -y curl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 
