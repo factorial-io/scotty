@@ -89,6 +89,8 @@ async fn app_and_blueprint_responses_show_blocked_paths() {
         info("cms").await["blocked_paths"],
         json!(["/.git/", "/core/install.php", "/core/rebuild.php"])
     );
+    // The test config uses Traefik, the only load balancer that enforces them.
+    assert_eq!(info("cms").await["blocked_paths_enforced"], json!(true));
     assert_eq!(
         info("shop").await["blocked_paths"],
         json!(["/.git/", "/core/install.php"])

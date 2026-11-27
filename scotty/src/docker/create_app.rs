@@ -223,6 +223,7 @@ pub async fn create_app(
         operation: None,
         ttl_expires_at: None,
         blocked_paths: Vec::new(),
+        blocked_paths_enforced: false,
     };
     let notification = Message::new(MessageType::AppCreated, &app_data);
     let settings = settings.clone();

@@ -57,6 +57,11 @@ pub struct AppData {
     /// returned, never stored in the app list.
     #[serde(default)]
     pub blocked_paths: Vec<String>,
+    /// Whether the load balancer enforces `blocked_paths`. Only Traefik does;
+    /// with HAProxy the list is shown but not applied. Filled when the app is
+    /// returned.
+    #[serde(default)]
+    pub blocked_paths_enforced: bool,
 }
 
 impl Default for AppData {
@@ -87,6 +92,7 @@ impl Default for AppData {
             operation: None,
             ttl_expires_at: None,
             blocked_paths: Vec::new(),
+            blocked_paths_enforced: false,
         }
     }
 }
@@ -135,6 +141,7 @@ impl AppData {
             operation: None,
             ttl_expires_at: None,
             blocked_paths: Vec::new(),
+            blocked_paths_enforced: false,
         }
     }
 

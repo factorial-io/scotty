@@ -65,6 +65,8 @@ export interface App {
 	ttl_expires_at: string | null;
 	/** Path prefixes the load balancer refuses for the app (global plus blueprint). */
 	blocked_paths: string[];
+	/** Whether the load balancer enforces blocked_paths (only Traefik does). */
+	blocked_paths_enforced: boolean;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
 // The old interface with stdout/stderr is deprecated

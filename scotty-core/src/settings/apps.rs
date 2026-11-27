@@ -61,7 +61,10 @@ impl Apps {
 
     /// Every blocked path entry ends up in a Traefik rule and a Compose
     /// label, so only a safe path character set is allowed (no backtick,
-    /// no `$`), and `/` alone would block the whole app.
+    /// no `$`), and `/` alone would block the whole app. Traefik decodes and
+    /// cleans the request path before matching, so entries must be in that
+    /// form too: no `%` escapes, no empty, `.` or `..` segments. Such entries
+    /// would never match and only look like protection.
     pub fn check_blocked_paths(&self) -> Result<(), String> {
         let origins = std::iter::once(("the global list".to_string(), &self.blocked_paths)).chain(
             self.blueprints
@@ -70,14 +73,30 @@ impl Apps {
         );
         for (origin, entries) in origins {
             for entry in entries {
-                let valid = entry.len() > 1
-                    && entry.starts_with('/')
-                    && entry
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || "/._~%-".contains(c));
-                if !valid {
+                let Some(rest) = entry.strip_prefix('/') else {
                     return Err(format!(
-                        "invalid blocked path {entry:?} in {origin}: must start with '/', not be '/' alone and contain only letters, digits and / . _ ~ - %"
+                        "invalid blocked path {entry:?} in {origin}: must start with '/'"
+                    ));
+                };
+                if rest.is_empty() {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: '/' alone would block the whole app"
+                    ));
+                }
+                if !entry
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "/._~-".contains(c))
+                {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: may contain only letters, digits and / . _ ~ - (write it decoded, without % escapes)"
+                    ));
+                }
+                // A trailing '/' leaves an empty last segment, which is fine.
+                let segments: Vec<&str> = rest.split('/').collect();
+                let (_, inner) = segments.split_last().unwrap_or((&"", &[]));
+                if inner.contains(&"") || segments.iter().any(|s| *s == "." || *s == "..") {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: must not contain '//', '.' or '..' segments, Traefik cleans those from requests so the entry would never match"
                     ));
                 }
             }
@@ -153,5 +172,21 @@ mod tests {
         assert!(err.contains("global"), "{err}");
         assert!(apps(&["/a$b"], &[]).check_blocked_paths().is_err());
         assert!(apps(&["core"], &[]).check_blocked_paths().is_err());
+        // Traefik decodes and cleans paths, so these could never match.
+        for bad in [
+            "/core%2Finstall.php",
+            "//core",
+            "/core//x",
+            "/a/./b",
+            "/a/../b",
+            "/..",
+            "/.",
+        ] {
+            let err = apps(&[bad], &[]).check_blocked_paths().unwrap_err();
+            assert!(err.contains(bad), "{err}");
+        }
+        assert!(apps(&["/.well-known/", "/a/b.c/", "/~x"], &[])
+            .check_blocked_paths()
+            .is_ok());
     }
 }

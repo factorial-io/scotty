@@ -97,12 +97,36 @@ describe('app detail page', () => {
 				middlewares: [],
 				registry: null
 			},
-			blocked_paths: ['/.git/', '/core/install.php']
+			blocked_paths: ['/.git/', '/core/install.php'],
+			blocked_paths_enforced: true
 		} as unknown as App);
 		const row = [...document.querySelectorAll('dt')].find(
 			(dt) => dt.textContent === 'Blocked paths'
 		);
-		expect(row?.nextElementSibling?.textContent).toBe('/.git/, /core/install.php');
+		expect(row?.nextElementSibling?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+			'/.git/, /core/install.php (current config, applies after the next rebuild)'
+		);
+	});
+
+	it('says when blocked paths are not enforced', () => {
+		render({
+			...app(),
+			settings: {
+				time_to_live: 'Forever',
+				basic_auth: null,
+				environment: null,
+				middlewares: [],
+				registry: null
+			},
+			blocked_paths: ['/.git/'],
+			blocked_paths_enforced: false
+		} as unknown as App);
+		const row = [...document.querySelectorAll('dt')].find(
+			(dt) => dt.textContent === 'Blocked paths'
+		);
+		expect(row?.nextElementSibling?.textContent).toContain(
+			'(not enforced: the load balancer is not Traefik)'
+		);
 	});
 
 	it('names the running operation, links its task and disables the actions', () => {

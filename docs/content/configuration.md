@@ -562,15 +562,25 @@ apps:
   the app page in the dashboard and `scottyctl blueprint:info` show them.
 * They are read from the current configuration whenever Scotty generates the
   load balancer config of an app: on create, run and rebuild. After changing
-  them, rebuild (or stop and run) the apps that should pick them up.
+  them, rebuild (or stop and run) the apps that should pick them up. The list
+  shown for an app is the current configuration, not what is deployed.
 * Matching is a plain, case-sensitive string prefix: `/core/install.php` also
   blocks `/core/install.php/foo`, and `/.git` also blocks `/.github`. End
   directory entries with `/`. The query string is ignored.
 * Entries must start with `/`, must not be `/` alone and may only contain
-  letters, digits and `/ . _ ~ - %`. Otherwise Scotty refuses to start.
+  letters, digits and `/ . _ ~ -`. Write them decoded: Traefik decodes and
+  cleans the request path before matching, so `%` escapes, `//` and `.` or
+  `..` segments could never match and are rejected. Otherwise Scotty refuses
+  to start.
 * Only Traefik enforces blocked paths, and it needs Traefik v3 (`ipallowlist`
   and path sanitizing, so `//core/install.php` is blocked too). With
-  `HaproxyConfig` they are ignored and Scotty logs a warning.
+  `HaproxyConfig` they are ignored and Scotty logs a warning; `app:info` and
+  the dashboard mark them as not enforced.
+* Traefik refuses the request with an `ipallowlist` middleware whose only
+  range is `255.255.255.255/32`. Scotty sets no `ipStrategy` on it, so Traefik
+  matches the connection's remote address and ignores `X-Forwarded-For`; a
+  client can't get past it with a spoofed header, also not behind a CDN with
+  forwarded-header trust on the entrypoint.
 * Apps Scotty doesn't manage (no Scotty settings) get no blocked paths.
 
 ### Docker settings

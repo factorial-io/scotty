@@ -231,6 +231,14 @@ pub fn format_app_info(app_data: &AppData) -> anyhow::Result<String> {
             "\nBlocked paths: {}",
             format_blocked_paths(&app_data.blocked_paths)
         );
+        if !app_data.blocked_paths.is_empty() {
+            // The list comes from the current config, not from what is deployed.
+            result += if app_data.blocked_paths_enforced {
+                " (current config, applies after the next rebuild)"
+            } else {
+                " (not enforced: the load balancer is not Traefik)"
+            };
+        }
     }
     result += &format!("\n{}", format_lifetime(app_data, jiff::Timestamp::now()));
 
@@ -271,9 +279,16 @@ mod blocked_paths_tests {
         };
         let out = format_app_info(&app).unwrap();
         assert!(
-            out.contains("Blocked paths: /.git/, /core/install.php"),
+            out.contains("Blocked paths: /.git/, /core/install.php (not enforced"),
             "{out}"
         );
+        let enforced = AppData {
+            blocked_paths_enforced: true,
+            ..app.clone()
+        };
+        assert!(format_app_info(&enforced)
+            .unwrap()
+            .contains("/core/install.php (current config, applies after the next rebuild)"));
 
         let app = AppData {
             blocked_paths: vec![],
