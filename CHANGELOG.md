@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/factorial-io/scotty/compare/v0.6.0...v0.7.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* templated blueprints now reject .env files (.env, .env.*) in any directory of the uploaded payload, also for scottyctl app:create --folder. Exclude them with .scottyignore.
+
+### Features
+
+* add laravel blueprint ([996d563](https://github.com/factorial-io/scotty/commit/996d5639ceb9a9b4bb12d26b3009d2981794f874))
+* configurable session and CLI grant lifetimes ([#1011](https://github.com/factorial-io/scotty/issues/1011)) ([bdf90f2](https://github.com/factorial-io/scotty/commit/bdf90f20e07b27a237c3535ebb43cb10e89adf50))
+* create apps from templated blueprints in the dashboard ([#1014](https://github.com/factorial-io/scotty/issues/1014)) ([50c92eb](https://github.com/factorial-io/scotty/commit/50c92eb06ca6f165f03bc86d11c3d067221d62d9))
+* **loadbalancer:** block configured path prefixes at the proxy ([#1029](https://github.com/factorial-io/scotty/issues/1029)) ([6879c22](https://github.com/factorial-io/scotty/commit/6879c2252f97894293c8fce3b92ed6978528387a))
+* name tasks by their operation and show task output in the log viewer ([#1017](https://github.com/factorial-io/scotty/issues/1017)) ([ae3a7e0](https://github.com/factorial-io/scotty/commit/ae3a7e08ef9bfb53a85a3a554fb2763fea7a4e34))
+* show app lifetime and remaining time in app:info and the dashboard ([#1010](https://github.com/factorial-io/scotty/issues/1010)) ([077636d](https://github.com/factorial-io/scotty/commit/077636dba2521a3a5839a19d70719abc8c8127fa))
+
+
+### Bug Fixes
+
+* **deps:** migrate from chrono to jiff ([#1001](https://github.com/factorial-io/scotty/issues/1001)) ([2863b18](https://github.com/factorial-io/scotty/commit/2863b181d051e47fbb9182016d9f27d2b8dbde34))
+* **deps:** update cookie to 0.18.3 (RUSTSEC-2026-0594) ([ab17fe3](https://github.com/factorial-io/scotty/commit/ab17fe35d47411a707fed9b9b0be97fef89eeec8))
+* **deps:** update rust crate jsonschema to 0.62.0 ([#1006](https://github.com/factorial-io/scotty/issues/1006)) ([0e1f6e4](https://github.com/factorial-io/scotty/commit/0e1f6e465ed26ac8887ff8080754d4efb69c46e2))
+* **deps:** update rust crate jsonschema to 0.63.0 ([#1018](https://github.com/factorial-io/scotty/issues/1018)) ([f24a001](https://github.com/factorial-io/scotty/commit/f24a001e7e187f4979f6273b8920fa47482af0ed))
+* derive the OAuth redirect URL from the public base URL ([#1009](https://github.com/factorial-io/scotty/issues/1009)) ([e02f4ee](https://github.com/factorial-io/scotty/commit/e02f4eedca59426683548af7456c2466e4495bcf)), closes [#562](https://github.com/factorial-io/scotty/issues/562)
+* **docker:** upgrade runtime image packages for security fixes ([09546d7](https://github.com/factorial-io/scotty/commit/09546d7b6481479e67a17ca063ac3cb789b6145c))
+* **frontend:** use the design system link style for all text links ([#1013](https://github.com/factorial-io/scotty/issues/1013)) ([ea3f4a2](https://github.com/factorial-io/scotty/commit/ea3f4a24d68eb4026682dc38ba835e397ed466c2))
+* refresh expired sessions for WebSocket/app:cp and name the machine on device logins ([#1004](https://github.com/factorial-io/scotty/issues/1004)) ([6d642d5](https://github.com/factorial-io/scotty/commit/6d642d5f833304e129927809e9b7d24c353cccda))
+* send the blueprint key from the create page, plus review follow-ups ([#1016](https://github.com/factorial-io/scotty/issues/1016)) ([52a673f](https://github.com/factorial-io/scotty/commit/52a673f6a6712c135f9f7279663c970155ab8ddc))
+
+
+### CI
+
+* skip Claude code review on release-please PRs ([28f39b3](https://github.com/factorial-io/scotty/commit/28f39b36b7f50252f70c26db63fc92d3d76a51f6))
+
 ## [0.6.0](https://github.com/factorial-io/scotty/compare/v0.5.0...v0.6.0) (2026-11-20)
 
 
