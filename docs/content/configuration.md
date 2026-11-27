@@ -537,6 +537,51 @@ apps:
   is aborted, its task fails and the app's operation lock is released. The
   default is `1h`. Override it with `SCOTTY__APPS__MAX_OPERATION_DURATION`. See
   [Operations](operations.md).
+* `blocked_paths` Path prefixes the load balancer refuses for every app, e.g.
+  `["/.git/"]`. The default is empty. See [Blocked paths](#blocked-paths).
+
+#### Blocked paths
+
+Requests whose path starts with a blocked prefix are answered by the load
+balancer with `403 Forbidden` and never reach the app, on every host of every
+public service of the app. Basic auth is not asked first.
+
+```yaml
+apps:
+  blocked_paths:
+    - /.git/
+  blueprints:
+    drupal-lagoon:
+      blocked_paths:
+        - /core/install.php
+        - /core/rebuild.php
+```
+
+* An app's blocked paths are `apps.blocked_paths` plus the `blocked_paths` of
+  its blueprint. A blueprint can't remove global entries. `scottyctl app:info`,
+  the app page in the dashboard and `scottyctl blueprint:info` show them.
+* They are read from the current configuration whenever Scotty generates the
+  load balancer config of an app: on create, run and rebuild. After changing
+  them, rebuild (or stop and run) the apps that should pick them up. The list
+  shown for an app is the current configuration, not what is deployed.
+* Matching is a plain, case-sensitive string prefix: `/core/install.php` also
+  blocks `/core/install.php/foo`, and `/.git` also blocks `/.github`. End
+  directory entries with `/`. The query string is ignored.
+* Entries must start with `/`, must not be `/` alone and may only contain
+  letters, digits and `/ . _ ~ -`. Write them decoded: Traefik decodes and
+  cleans the request path before matching, so `%` escapes, `//` and `.` or
+  `..` segments could never match and are rejected. Otherwise Scotty refuses
+  to start.
+* Only Traefik enforces blocked paths, and it needs Traefik v3 (`ipallowlist`
+  and path sanitizing, so `//core/install.php` is blocked too). With
+  `HaproxyConfig` they are ignored and Scotty logs a warning; `app:info` and
+  the dashboard mark them as not enforced.
+* Traefik refuses the request with an `ipallowlist` middleware whose only
+  range is `255.255.255.255/32`. Scotty sets no `ipStrategy` on it, so Traefik
+  matches the connection's remote address and ignores `X-Forwarded-For`; a
+  client can't get past it with a spoofed header, also not behind a CDN with
+  forwarded-header trust on the entrypoint.
+* Apps Scotty doesn't manage (no Scotty settings) get no blocked paths.
 
 ### Docker settings
 
@@ -723,6 +768,9 @@ apps:
     run on that service.
   * `permission` The permission needed to run the action on demand, e.g.
     `action_read` or `action_write`. The default is `action_write`.
+* `blocked_paths` Path prefixes the load balancer refuses for apps created from
+  the blueprint, in addition to `apps.blocked_paths`. See
+  [Blocked paths](#blocked-paths).
 
 #### Environment Variables in Blueprint Actions
 

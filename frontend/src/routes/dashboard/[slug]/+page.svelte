@@ -327,6 +327,17 @@
 				<dd>{format_value(data.settings.middlewares?.join(', '))}</dd>
 			</div>
 			<div>
+				<dt>Blocked paths</dt>
+				<dd>
+					{format_value(data.blocked_paths?.join(', '))}
+					{#if data.blocked_paths?.length}
+						{data.blocked_paths_enforced
+							? '(current config, applies after the next rebuild)'
+							: '(not enforced: the load balancer is not Traefik)'}
+					{/if}
+				</dd>
+			</div>
+			<div>
 				<dt>Environment</dt>
 				<dd><FormatEnvironmentVariables environment={data.settings.environment} /></dd>
 			</div>

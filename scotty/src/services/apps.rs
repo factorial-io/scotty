@@ -377,10 +377,13 @@ fn with_operations(state: &SharedAppState, mut apps: AppDataVec) -> AppDataVec {
 }
 
 /// Fill the fields computed when an app is returned: its running operation,
-/// from the lock registry, and its TTL expiry.
+/// from the lock registry, its TTL expiry, its effective blocked paths and
+/// whether the load balancer enforces them.
 pub(crate) fn returned(state: &SharedAppState, app: &mut AppData) {
     app.operation = state.app_locks.current(&app.name);
     app.ttl_expires_at = app.ttl_expiry();
+    app.blocked_paths = app.effective_blocked_paths(&state.settings.apps);
+    app.blocked_paths_enforced = state.settings.load_balancer_type == LoadBalancerType::Traefik;
 }
 
 /// A task, with its output, if `user_id` may see it (task-visibility spec).

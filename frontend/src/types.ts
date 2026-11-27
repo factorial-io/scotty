@@ -63,6 +63,10 @@ export interface App {
 	operation: AppOperation | null;
 	/** When the TTL checker stops or destroys the app; null when forever or not running. */
 	ttl_expires_at: string | null;
+	/** Path prefixes the load balancer refuses for the app (global plus blueprint). */
+	blocked_paths: string[];
+	/** Whether the load balancer enforces blocked_paths (only Traefik does). */
+	blocked_paths_enforced: boolean;
 }
 // TaskDetail is now imported from generated types (TaskDetails)
 // The old interface with stdout/stderr is deprecated
@@ -119,10 +123,14 @@ export interface Blueprint {
 	/** True for directory blueprints, which can create apps; false for validation-only ones. */
 	templated: boolean;
 	template?: BlueprintTemplate;
+	/** Path prefixes blocked for apps from this blueprint, in addition to the global ones. */
+	blocked_paths: string[];
 }
 
 export interface BlueprintsResponse {
 	blueprints: Record<string, Blueprint>;
+	/** Path prefixes blocked for every app. */
+	global_blocked_paths: string[];
 }
 
 export interface CustomAction {

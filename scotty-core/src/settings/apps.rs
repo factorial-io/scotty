@@ -19,6 +19,9 @@ pub struct Apps {
     /// An operation running longer than this is aborted and its app unlocked.
     #[serde(default = "default_max_operation_duration")]
     pub max_operation_duration: SchedulerInterval,
+    /// Path prefixes the load balancer refuses for every app.
+    #[serde(default)]
+    pub blocked_paths: Vec<String>,
 }
 
 fn default_max_operation_duration() -> SchedulerInterval {
@@ -42,6 +45,64 @@ impl Apps {
             })
             .map_or(&self.domain_suffix, |s| s)
     }
+
+    /// Effective blocked paths of an app: the global list plus the list of
+    /// its blueprint, deduplicated and sorted. Read from the current config,
+    /// so an unknown blueprint contributes nothing.
+    pub fn blocked_paths_for(&self, blueprint: Option<&str>) -> Vec<String> {
+        let from_blueprint = blueprint
+            .and_then(|name| self.blueprints.get(name))
+            .map(|bp| bp.blocked_paths.as_slice())
+            .unwrap_or_default();
+        let set: std::collections::BTreeSet<&String> =
+            self.blocked_paths.iter().chain(from_blueprint).collect();
+        set.into_iter().cloned().collect()
+    }
+
+    /// Every blocked path entry ends up in a Traefik rule and a Compose
+    /// label, so only a safe path character set is allowed (no backtick,
+    /// no `$`), and `/` alone would block the whole app. Traefik decodes and
+    /// cleans the request path before matching, so entries must be in that
+    /// form too: no `%` escapes, no empty, `.` or `..` segments. Such entries
+    /// would never match and only look like protection.
+    pub fn check_blocked_paths(&self) -> Result<(), String> {
+        let origins = std::iter::once(("the global list".to_string(), &self.blocked_paths)).chain(
+            self.blueprints
+                .iter()
+                .map(|(name, bp)| (format!("blueprint {name}"), &bp.blocked_paths)),
+        );
+        for (origin, entries) in origins {
+            for entry in entries {
+                let Some(rest) = entry.strip_prefix('/') else {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: must start with '/'"
+                    ));
+                };
+                if rest.is_empty() {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: '/' alone would block the whole app"
+                    ));
+                }
+                if !entry
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "/._~-".contains(c))
+                {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: may contain only letters, digits and / . _ ~ - (write it decoded, without % escapes)"
+                    ));
+                }
+                // A trailing '/' leaves an empty last segment, which is fine.
+                let segments: Vec<&str> = rest.split('/').collect();
+                let (_, inner) = segments.split_last().unwrap_or((&"", &[]));
+                if inner.contains(&"") || segments.iter().any(|s| *s == "." || *s == "..") {
+                    return Err(format!(
+                        "invalid blocked path {entry:?} in {origin}: must not contain '//', '.' or '..' segments, Traefik cleans those from requests so the entry would never match"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for Apps {
@@ -53,6 +114,79 @@ impl Default for Apps {
             blueprints: HashMap::new(),
             blueprint_domain_suffixes: HashMap::new(),
             max_operation_duration: default_max_operation_duration(),
+            blocked_paths: Vec::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::app_blueprint::AppBlueprint;
+
+    fn apps(global: &[&str], bp: &[&str]) -> Apps {
+        let blueprint = AppBlueprint {
+            blocked_paths: bp.iter().map(|s| s.to_string()).collect(),
+            ..serde_norway::from_str(
+                "{name: d, description: d, actions: {}, required_services: []}",
+            )
+            .unwrap()
+        };
+        Apps {
+            blocked_paths: global.iter().map(|s| s.to_string()).collect(),
+            blueprints: HashMap::from([("drupal".to_string(), blueprint)]),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn blocked_paths_union_dedup_sorted() {
+        let a = apps(
+            &["/core/install.php", "/.git/"],
+            &["/core/rebuild.php", "/core/install.php"],
+        );
+        assert_eq!(
+            a.blocked_paths_for(Some("drupal")),
+            vec!["/.git/", "/core/install.php", "/core/rebuild.php"]
+        );
+    }
+
+    #[test]
+    fn blocked_paths_global_only_without_or_unknown_blueprint() {
+        let a = apps(&["/.git/"], &["/core/install.php"]);
+        assert_eq!(a.blocked_paths_for(None), vec!["/.git/"]);
+        assert_eq!(a.blocked_paths_for(Some("gone")), vec!["/.git/"]);
+    }
+
+    #[test]
+    fn blocked_paths_validation() {
+        assert!(apps(&["/.git/"], &["/core/install.php"])
+            .check_blocked_paths()
+            .is_ok());
+        let err = apps(&[], &["/"]).check_blocked_paths().unwrap_err();
+        assert!(
+            err.contains("\"/\"") && err.contains("blueprint drupal"),
+            "{err}"
+        );
+        let err = apps(&["/core/`x`"], &[]).check_blocked_paths().unwrap_err();
+        assert!(err.contains("global"), "{err}");
+        assert!(apps(&["/a$b"], &[]).check_blocked_paths().is_err());
+        assert!(apps(&["core"], &[]).check_blocked_paths().is_err());
+        // Traefik decodes and cleans paths, so these could never match.
+        for bad in [
+            "/core%2Finstall.php",
+            "//core",
+            "/core//x",
+            "/a/./b",
+            "/a/../b",
+            "/..",
+            "/.",
+        ] {
+            let err = apps(&[bad], &[]).check_blocked_paths().unwrap_err();
+            assert!(err.contains(bad), "{err}");
+        }
+        assert!(apps(&["/.well-known/", "/a/b.c/", "/~x"], &[])
+            .check_blocked_paths()
+            .is_ok());
     }
 }

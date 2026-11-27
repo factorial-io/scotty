@@ -28,5 +28,6 @@ pub async fn blueprints_handler(
     let user = AuthorizationService::get_user_id_for_authorization(&auth_context.user);
     Json(AppBlueprintList {
         blueprints: apps::blueprints(&state, &user, Target::Global),
+        global_blocked_paths: state.settings.apps.blocked_paths.clone(),
     })
 }

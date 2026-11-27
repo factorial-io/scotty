@@ -168,6 +168,14 @@ pub async fn blueprint_info(
             "Required Services: {}\n",
             blueprint.required_services.join(", ")
         ));
+        output.push_str(&format!(
+            "Blocked paths (blueprint): {}\n",
+            super::apps::format_blocked_paths(&blueprint.blocked_paths)
+        ));
+        output.push_str(&format!(
+            "Blocked paths (global): {}\n",
+            super::apps::format_blocked_paths(&blueprints.global_blocked_paths)
+        ));
 
         // Display public services if any
         if let Some(public_services) = &blueprint.public_services {

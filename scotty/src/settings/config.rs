@@ -140,6 +140,11 @@ impl Settings {
             }
         }
 
+        settings
+            .apps
+            .check_blocked_paths()
+            .map_err(ConfigError::Message)?;
+
         // Check if we should serve the frontend.
         // We check for special strings here, so we can override and disable
         // config via environment variables, even if set in the default config

@@ -711,6 +711,7 @@ mod tests {
             public_services: None,
             template: Some(atelier()),
             templated: true,
+            blocked_paths: vec![],
         };
         let (first, _) = apply(
             Some(&bp),

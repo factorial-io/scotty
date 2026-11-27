@@ -205,6 +205,9 @@ impl Context {
             app_data: AppData {
                 operation: self.app_state.app_locks.current(&self.app_data.name),
                 ttl_expires_at: self.app_data.ttl_expiry(),
+                blocked_paths: self
+                    .app_data
+                    .effective_blocked_paths(&self.app_state.settings.apps),
                 ..self.app_data.clone()
             },
         }

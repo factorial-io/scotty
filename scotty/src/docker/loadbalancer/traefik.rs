@@ -14,10 +14,15 @@ use super::{app_proxy_network_name, ROBOTS_HEADER_VALUE};
 
 pub struct TraefikLoadBalancer;
 
+/// No client has this address, so an `ipallowlist` with it refuses everyone (403).
+const BLOCK_ALL_SOURCE_RANGE: &str = "255.255.255.255/32";
+/// Far above any rule-length default priority and the default backend.
+const BLOCKED_ROUTER_PRIORITY: u32 = 10000;
+
 impl LoadBalancerImpl for TraefikLoadBalancer {
     fn get_load_balancer_info(&self, insights: ContainerInspectResponse) -> LoadBalancerInfo {
         let re_host =
-            Regex::new(r"traefik\.http\.routers\.[a-z-0-9]*\.rule=Host\(`(.*)`\)").unwrap();
+            Regex::new(r"^traefik\.http\.routers\.[a-z0-9-]*\.rule=Host\(`([^`]*)`\)$").unwrap();
         let re_port =
             Regex::new(r"traefik\.http\.services\.[a-z-0-9]*\.loadbalancer.server.port=(.*)")
                 .unwrap();
@@ -89,6 +94,10 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             }
         }
 
+        let blocked_paths = global_settings
+            .apps
+            .blocked_paths_for(settings.app_blueprint.as_deref());
+
         // Then, add load balancer configuration for public services
         for service in &settings.public_services {
             // Get or create the service config (it may already exist from the all_services loop)
@@ -137,27 +146,68 @@ impl LoadBalancerImpl for TraefikLoadBalancer {
             // correct routing.
             labels.insert("traefik.docker.network".to_string(), app_network.clone());
 
+            // Blocked paths: a second, higher-priority router per domain whose
+            // only middleware is an allowlist no client matches, so Traefik
+            // answers 403 before the request reaches the app or basic auth.
+            let blocked_middleware = format!("{}--blocked", service_name);
+            let blocked_rule = blocked_paths
+                .iter()
+                .map(|p| format!("PathPrefix(`{p}`)"))
+                .collect::<Vec<_>>()
+                .join(" || ");
+            if !blocked_paths.is_empty() {
+                labels.insert(
+                    format!(
+                        "traefik.http.middlewares.{}.ipallowlist.sourcerange",
+                        blocked_middleware
+                    ),
+                    BLOCK_ALL_SOURCE_RANGE.to_string(),
+                );
+            }
+
             let domains = service.get_domains(&settings.domain);
             for (idx, domain) in domains.iter().enumerate() {
+                let router = format!("{}-{}", service_name, idx);
+                let blocked_router = format!("{}-blocked", router);
+                let mut routers = vec![&router];
+
                 labels.insert(
-                    format!("traefik.http.routers.{}-{}.rule", service_name, idx),
+                    format!("traefik.http.routers.{}.rule", router),
                     format!("Host(`{domain}`)"),
                 );
 
-                if global_settings.traefik.use_tls {
+                if !blocked_paths.is_empty() {
+                    routers.push(&blocked_router);
                     labels.insert(
-                        format!("traefik.http.routers.{}-{}.tls", service_name, idx),
-                        "true".to_string(),
+                        format!("traefik.http.routers.{}.rule", blocked_router),
+                        format!("Host(`{domain}`) && ({blocked_rule})"),
                     );
+                    labels.insert(
+                        format!("traefik.http.routers.{}.priority", blocked_router),
+                        BLOCKED_ROUTER_PRIORITY.to_string(),
+                    );
+                    labels.insert(
+                        format!("traefik.http.routers.{}.service", blocked_router),
+                        service_name.clone(),
+                    );
+                    labels.insert(
+                        format!("traefik.http.routers.{}.middlewares", blocked_router),
+                        blocked_middleware.clone(),
+                    );
+                }
 
-                    if let Some(certresolver) = &global_settings.traefik.certresolver {
+                if global_settings.traefik.use_tls {
+                    for r in &routers {
                         labels.insert(
-                            format!(
-                                "traefik.http.routers.{}-{}.tls.certresolver",
-                                service_name, idx
-                            ),
-                            certresolver.clone(),
+                            format!("traefik.http.routers.{}.tls", r),
+                            "true".to_string(),
                         );
+                        if let Some(certresolver) = &global_settings.traefik.certresolver {
+                            labels.insert(
+                                format!("traefik.http.routers.{}.tls.certresolver", r),
+                                certresolver.clone(),
+                            );
+                        }
                     }
                 }
             }
@@ -503,5 +553,103 @@ mod tests {
         );
         assert!(redis_config.labels.is_none()); // No load balancer labels
         assert!(redis_config.networks.is_none()); // No networks
+    }
+
+    fn blocked_override(use_tls: bool, global: &[&str]) -> HashMap<String, String> {
+        let mut global_settings = Settings {
+            traefik: TraefikSettings::new(
+                use_tls,
+                "proxy".into(),
+                Some("myresolver".into()),
+                vec![],
+                "traefik".into(),
+            ),
+            ..Default::default()
+        };
+        global_settings.apps.blocked_paths = global.iter().map(|s| s.to_string()).collect();
+        let app_settings = AppSettings {
+            domain: "example.com".to_string(),
+            public_services: vec![ServicePortMapping {
+                service: "web".to_string(),
+                port: 80,
+                domains: vec!["a.org".to_string(), "b.org".to_string()],
+            }],
+            basic_auth: Some(("user".to_string(), "pass".to_string())),
+            ..Default::default()
+        };
+        TraefikLoadBalancer
+            .get_docker_compose_override(
+                &global_settings,
+                "myapp",
+                &app_settings,
+                &HashMap::new(),
+                &["web".to_string()],
+            )
+            .unwrap()
+            .services
+            .remove("web")
+            .unwrap()
+            .labels
+            .unwrap()
+    }
+
+    #[test]
+    fn test_traefik_blocked_paths_add_deny_router_per_domain() {
+        let labels = blocked_override(true, &["/core/install.php", "/.git/"]);
+        let domains = ["a.org", "b.org"];
+        assert_eq!(
+            labels
+                .get("traefik.http.middlewares.web--myapp--blocked.ipallowlist.sourcerange")
+                .unwrap(),
+            "255.255.255.255/32"
+        );
+        for (idx, domain) in domains.iter().enumerate() {
+            let r = format!("traefik.http.routers.web--myapp-{idx}-blocked");
+            assert_eq!(
+                labels[&format!("{r}.rule")],
+                format!(
+                    "Host(`{domain}`) && (PathPrefix(`/.git/`) || PathPrefix(`/core/install.php`))"
+                )
+            );
+            assert_eq!(labels[&format!("{r}.priority")], "10000");
+            assert_eq!(labels[&format!("{r}.service")], "web--myapp");
+            // Only the block middleware: no basic auth prompt before the 403.
+            assert_eq!(labels[&format!("{r}.middlewares")], "web--myapp--blocked");
+            assert_eq!(labels[&format!("{r}.tls")], "true");
+            assert_eq!(labels[&format!("{r}.tls.certresolver")], "myresolver");
+            // The normal router is unchanged.
+            assert_eq!(
+                labels[&format!("traefik.http.routers.web--myapp-{idx}.rule")],
+                format!("Host(`{domain}`)")
+            );
+        }
+    }
+
+    #[test]
+    fn test_traefik_blocked_paths_without_tls() {
+        let labels = blocked_override(false, &["/.git/"]);
+        assert!(labels.contains_key("traefik.http.routers.web--myapp-0-blocked.rule"));
+        assert!(!labels.keys().any(|k| k.ends_with(".tls")));
+    }
+
+    #[test]
+    fn test_traefik_no_blocked_paths_no_deny_labels() {
+        let labels = blocked_override(true, &[]);
+        assert!(!labels.keys().any(|k| k.contains("blocked")), "{labels:?}");
+    }
+
+    #[test]
+    fn test_traefik_deny_routers_are_not_domains() {
+        let labels = blocked_override(true, &["/core/install.php"]);
+        let insights = ContainerInspectResponse {
+            config: Some(bollard_stubs::models::ContainerConfig {
+                labels: Some(labels),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let mut domains = TraefikLoadBalancer.get_load_balancer_info(insights).domains;
+        domains.sort();
+        assert_eq!(domains, vec!["a.org", "b.org"]);
     }
 }

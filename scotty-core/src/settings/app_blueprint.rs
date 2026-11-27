@@ -153,6 +153,9 @@ pub struct AppBlueprint {
     /// True for directory blueprints. Set by the loader, never read from YAML.
     #[serde(default, skip_deserializing)]
     pub templated: bool,
+    /// Path prefixes the load balancer refuses for apps from this blueprint.
+    #[serde(default)]
+    pub blocked_paths: Vec<String>,
 }
 
 /// The parts of a templated blueprint (`config/blueprints/<name>/`).
@@ -190,6 +193,10 @@ pub struct AppBlueprintValidationError {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
 pub struct AppBlueprintList {
     pub blueprints: HashMap<String, AppBlueprint>,
+    /// Blocked paths that apply to every app, in addition to each
+    /// blueprint's own `blocked_paths`.
+    #[serde(default)]
+    pub global_blocked_paths: Vec<String>,
 }
 
 // The error type has to implement Display

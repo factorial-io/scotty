@@ -241,6 +241,7 @@ mod tests {
                 ..Default::default()
             }),
             templated: true,
+            blocked_paths: vec![],
         };
         let mut apps = Apps {
             domain_suffix: "global.test".into(),
