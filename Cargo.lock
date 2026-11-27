@@ -3952,7 +3952,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scotty"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -4030,7 +4030,7 @@ dependencies = [
 
 [[package]]
 name = "scotty-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4066,14 +4066,14 @@ dependencies = [
 
 [[package]]
 name = "scotty-ts-generator"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "scotty-types",
 ]
 
 [[package]]
 name = "scotty-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "jiff 1.0.3",
@@ -4086,7 +4086,7 @@ dependencies = [
 
 [[package]]
 name = "scottyctl"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
