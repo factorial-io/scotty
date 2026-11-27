@@ -699,6 +699,50 @@ purge, destroy, custom actions) may run on an app. After that, the operation
 is aborted, its task fails and the app's operation lock is released. The
 default is <code>1h</code>. Override it with <code>SCOTTY__APPS__MAX_OPERATION_DURATION</code>. See
 <a href="operations.html">Operations</a>.</li>
+<li><code>blocked_paths</code> Path prefixes the load balancer refuses for every app, e.g.
+<code>["/.git/"]</code>. The default is empty. See <a href="#blocked-paths">Blocked paths</a>.</li>
+</ul>
+<h4 id="blocked-paths" tabindex="-1"><a class="header-anchor" href="#blocked-paths">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Blocked paths</h4>
+<p>Requests whose path starts with a blocked prefix are answered by the load
+balancer with <code>403 Forbidden</code> and never reach the app, on every host of every
+public service of the app. Basic auth is not asked first.</p>
+<pre class="language-yaml"><code class="language-yaml"><span class="token key atrule">apps</span><span class="token punctuation">:</span>
+  <span class="token key atrule">blocked_paths</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> /.git/
+  <span class="token key atrule">blueprints</span><span class="token punctuation">:</span>
+    <span class="token key atrule">drupal-lagoon</span><span class="token punctuation">:</span>
+      <span class="token key atrule">blocked_paths</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> /core/install.php
+        <span class="token punctuation">-</span> /core/rebuild.php</code></pre>
+<ul>
+<li>An app's blocked paths are <code>apps.blocked_paths</code> plus the <code>blocked_paths</code> of
+its blueprint. A blueprint can't remove global entries. <code>scottyctl app:info</code>,
+the app page in the dashboard and <code>scottyctl blueprint:info</code> show them.</li>
+<li>They are read from the current configuration whenever Scotty generates the
+load balancer config of an app: on create, run and rebuild. After changing
+them, rebuild (or stop and run) the apps that should pick them up. The list
+shown for an app is the current configuration, not what is deployed.</li>
+<li>Matching is a plain, case-sensitive string prefix: <code>/core/install.php</code> also
+blocks <code>/core/install.php/foo</code>, and <code>/.git</code> also blocks <code>/.github</code>. End
+directory entries with <code>/</code>. The query string is ignored.</li>
+<li>Entries must start with <code>/</code>, must not be <code>/</code> alone and may only contain
+letters, digits and <code>/ . _ ~ -</code>. Write them decoded: Traefik decodes and
+cleans the request path before matching, so <code>%</code> escapes, <code>//</code> and <code>.</code> or
+<code>..</code> segments could never match and are rejected. Otherwise Scotty refuses
+to start.</li>
+<li>Only Traefik enforces blocked paths, and it needs Traefik v3 (<code>ipallowlist</code>
+and path sanitizing, so <code>//core/install.php</code> is blocked too). With
+<code>HaproxyConfig</code> they are ignored and Scotty logs a warning; <code>app:info</code> and
+the dashboard mark them as not enforced.</li>
+<li>Traefik refuses the request with an <code>ipallowlist</code> middleware whose only
+range is <code>255.255.255.255/32</code>. Scotty sets no <code>ipStrategy</code> on it, so Traefik
+matches the connection's remote address and ignores <code>X-Forwarded-For</code>; a
+client can't get past it with a spoofed header, also not behind a CDN with
+forwarded-header trust on the entrypoint.</li>
+<li>Apps Scotty doesn't manage (no Scotty settings) get no blocked paths.</li>
 </ul>
 <h3 id="docker-settings" tabindex="-1"><a class="header-anchor" href="#docker-settings">
         <span class="u-hiddenVisually">Jump to heading</span>
@@ -890,6 +934,9 @@ run on that service.</li>
 <code>action_read</code> or <code>action_write</code>. The default is <code>action_write</code>.</li>
 </ul>
 </li>
+<li><code>blocked_paths</code> Path prefixes the load balancer refuses for apps created from
+the blueprint, in addition to <code>apps.blocked_paths</code>. See
+<a href="#blocked-paths">Blocked paths</a>.</li>
 </ul>
 <h4 id="environment-variables-in-blueprint-actions" tabindex="-1"><a class="header-anchor" href="#environment-variables-in-blueprint-actions">
         <span class="u-hiddenVisually">Jump to heading</span>
