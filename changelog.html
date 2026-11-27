@@ -94,6 +94,10 @@
             <a aria-current="page" href="/changelog.html" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> Changelog</span>
       </a><ul class="Nav-subList">                            <li class="Nav-listItem" style="--level: 1">
+            <a href="/changelog.html#0.7.0-(2026-11-27)" class="Nav-listItemLink">
+        <span class="Nav-listItemLinkLabel"> 0.7.0 (2026-11-27)</span>
+      </a></li>
+                                      <li class="Nav-listItem" style="--level: 1">
             <a href="/changelog.html#0.6.0-(2026-11-20)" class="Nav-listItemLink">
         <span class="Nav-listItemLinkLabel"> 0.6.0 (2026-11-20)</span>
       </a></li>
@@ -333,18 +337,63 @@
         <span aria-hidden="true">#</span>
       </a> Changelog</h1>
 <p>All notable changes to this project will be documented in this file.</p>
+<h2 id="0.7.0-(2026-11-27)" tabindex="-1"><a class="header-anchor" href="#0.7.0-(2026-11-27)">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> <a href="https://github.com/factorial-io/scotty/compare/v0.6.0...v0.7.0">0.7.0</a> (2026-11-27)</h2>
+<h3 id="%E2%9A%A0-breaking-changes" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> ⚠ BREAKING CHANGES</h3>
+<ul>
+<li>templated blueprints now reject .env files (.env, .env.*) in any directory of the uploaded payload, also for scottyctl app:create --folder. Exclude them with .scottyignore.</li>
+</ul>
+<h3 id="features" tabindex="-1"><a class="header-anchor" href="#features">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Features</h3>
+<ul>
+<li>add laravel blueprint (<a href="https://github.com/factorial-io/scotty/commit/996d5639ceb9a9b4bb12d26b3009d2981794f874">996d563</a>)</li>
+<li>configurable session and CLI grant lifetimes (<a href="https://github.com/factorial-io/scotty/issues/1011">#1011</a>) (<a href="https://github.com/factorial-io/scotty/commit/bdf90f20e07b27a237c3535ebb43cb10e89adf50">bdf90f2</a>)</li>
+<li>create apps from templated blueprints in the dashboard (<a href="https://github.com/factorial-io/scotty/issues/1014">#1014</a>) (<a href="https://github.com/factorial-io/scotty/commit/50c92eb06ca6f165f03bc86d11c3d067221d62d9">50c92eb</a>)</li>
+<li><strong>loadbalancer:</strong> block configured path prefixes at the proxy (<a href="https://github.com/factorial-io/scotty/issues/1029">#1029</a>) (<a href="https://github.com/factorial-io/scotty/commit/6879c2252f97894293c8fce3b92ed6978528387a">6879c22</a>)</li>
+<li>name tasks by their operation and show task output in the log viewer (<a href="https://github.com/factorial-io/scotty/issues/1017">#1017</a>) (<a href="https://github.com/factorial-io/scotty/commit/ae3a7e08ef9bfb53a85a3a554fb2763fea7a4e34">ae3a7e0</a>)</li>
+<li>show app lifetime and remaining time in app:info and the dashboard (<a href="https://github.com/factorial-io/scotty/issues/1010">#1010</a>) (<a href="https://github.com/factorial-io/scotty/commit/077636dba2521a3a5839a19d70719abc8c8127fa">077636d</a>)</li>
+</ul>
+<h3 id="bug-fixes" tabindex="-1"><a class="header-anchor" href="#bug-fixes">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> Bug Fixes</h3>
+<ul>
+<li><strong>deps:</strong> migrate from chrono to jiff (<a href="https://github.com/factorial-io/scotty/issues/1001">#1001</a>) (<a href="https://github.com/factorial-io/scotty/commit/2863b181d051e47fbb9182016d9f27d2b8dbde34">2863b18</a>)</li>
+<li><strong>deps:</strong> update cookie to 0.18.3 (RUSTSEC-2026-0594) (<a href="https://github.com/factorial-io/scotty/commit/ab17fe35d47411a707fed9b9b0be97fef89eeec8">ab17fe3</a>)</li>
+<li><strong>deps:</strong> update rust crate jsonschema to 0.62.0 (<a href="https://github.com/factorial-io/scotty/issues/1006">#1006</a>) (<a href="https://github.com/factorial-io/scotty/commit/0e1f6e465ed26ac8887ff8080754d4efb69c46e2">0e1f6e4</a>)</li>
+<li><strong>deps:</strong> update rust crate jsonschema to 0.63.0 (<a href="https://github.com/factorial-io/scotty/issues/1018">#1018</a>) (<a href="https://github.com/factorial-io/scotty/commit/f24a001e7e187f4979f6273b8920fa47482af0ed">f24a001</a>)</li>
+<li>derive the OAuth redirect URL from the public base URL (<a href="https://github.com/factorial-io/scotty/issues/1009">#1009</a>) (<a href="https://github.com/factorial-io/scotty/commit/e02f4eedca59426683548af7456c2466e4495bcf">e02f4ee</a>), closes <a href="https://github.com/factorial-io/scotty/issues/562">#562</a></li>
+<li><strong>docker:</strong> upgrade runtime image packages for security fixes (<a href="https://github.com/factorial-io/scotty/commit/09546d7b6481479e67a17ca063ac3cb789b6145c">09546d7</a>)</li>
+<li><strong>frontend:</strong> use the design system link style for all text links (<a href="https://github.com/factorial-io/scotty/issues/1013">#1013</a>) (<a href="https://github.com/factorial-io/scotty/commit/ea3f4a24d68eb4026682dc38ba835e397ed466c2">ea3f4a2</a>)</li>
+<li>refresh expired sessions for WebSocket/app:cp and name the machine on device logins (<a href="https://github.com/factorial-io/scotty/issues/1004">#1004</a>) (<a href="https://github.com/factorial-io/scotty/commit/6d642d5f833304e129927809e9b7d24c353cccda">6d642d5</a>)</li>
+<li>send the blueprint key from the create page, plus review follow-ups (<a href="https://github.com/factorial-io/scotty/issues/1016">#1016</a>) (<a href="https://github.com/factorial-io/scotty/commit/52a673f6a6712c135f9f7279663c970155ab8ddc">52a673f</a>)</li>
+</ul>
+<h3 id="ci" tabindex="-1"><a class="header-anchor" href="#ci">
+        <span class="u-hiddenVisually">Jump to heading</span>
+        <span aria-hidden="true">#</span>
+      </a> CI</h3>
+<ul>
+<li>skip Claude code review on release-please PRs (<a href="https://github.com/factorial-io/scotty/commit/28f39b36b7f50252f70c26db63fc92d3d76a51f6">28f39b3</a>)</li>
+</ul>
 <h2 id="0.6.0-(2026-11-20)" tabindex="-1"><a class="header-anchor" href="#0.6.0-(2026-11-20)">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.5.0...v0.6.0">0.6.0</a> (2026-11-20)</h2>
-<h3 id="%E2%9A%A0-breaking-changes" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes">
+<h3 id="%E2%9A%A0-breaking-changes-1" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
 <ul>
 <li><strong>auth:</strong> model.conf is no longer read or shipped; delete your copy and keep config/casbin/policy.yaml. Scotty now refuses to start when an assignment names an undefined role or scope or a role lists an unknown permission; the error names the entry. Rights from matching entries now add up: a user gets everything granted to their own entry, to their domain and to the wildcard entry together. Before, a user's own entry replaced their domain's entry when creating apps, in listings and in admin checks, so users with both can now gain rights. An app in no scope and an assignment with empty scopes grant nothing. The admin API answers 400 or 409 for invalid policy changes and leaves the policy unchanged.</li>
 </ul>
-<h3 id="features" tabindex="-1"><a class="header-anchor" href="#features">
+<h3 id="features-1" tabindex="-1"><a class="header-anchor" href="#features-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -357,7 +406,7 @@
 <li><strong>mcp:</strong> summarize get_task output by default (<a href="https://github.com/factorial-io/scotty/issues/983">#983</a>) (<a href="https://github.com/factorial-io/scotty/commit/110b2bf2d0ddd982daabf6d58b40ac6e7df7e340">110b2bf</a>)</li>
 <li>one operation per app at a time, with live task progress (<a href="https://github.com/factorial-io/scotty/issues/987">#987</a>) (<a href="https://github.com/factorial-io/scotty/commit/db63b7f784420f9a77250aac47e26d4fb0eae51f">db63b7f</a>)</li>
 </ul>
-<h3 id="bug-fixes" tabindex="-1"><a class="header-anchor" href="#bug-fixes">
+<h3 id="bug-fixes-1" tabindex="-1"><a class="header-anchor" href="#bug-fixes-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -405,7 +454,7 @@
 <li><strong>auth:</strong> pin current permission decisions and listings (<a href="https://github.com/factorial-io/scotty/commit/465b07dcec3b9d4633e39c024c9697b7fa38f242">465b07d</a>)</li>
 <li><strong>auth:</strong> pin runtime policy changes and policy loading (<a href="https://github.com/factorial-io/scotty/commit/d99a6bb46942b1e645db4d61b74763cb817e51ae">d99a6bb</a>)</li>
 </ul>
-<h3 id="ci" tabindex="-1"><a class="header-anchor" href="#ci">
+<h3 id="ci-1" tabindex="-1"><a class="header-anchor" href="#ci-1">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -417,7 +466,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.4.0...v0.5.0">0.5.0</a> (2026-11-11)</h2>
-<h3 id="%E2%9A%A0-breaking-changes-1" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-1">
+<h3 id="%E2%9A%A0-breaking-changes-2" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
@@ -427,7 +476,7 @@
 <li><strong>oauth:</strong> api.jwt_secret needs at least 64 bytes.</li>
 <li><strong>oauth:</strong> provider access tokens are rejected by the API; users log in again. scottyctl login is restored by the following device-grant change.</li>
 </ul>
-<h3 id="features-1" tabindex="-1"><a class="header-anchor" href="#features-1">
+<h3 id="features-2" tabindex="-1"><a class="header-anchor" href="#features-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -440,7 +489,7 @@
 <li><strong>oauth:</strong> SQLite store for grantry (<a href="https://github.com/factorial-io/scotty/commit/4b75d92e0c0c1375b162f4237050273d6d9ee081">4b75d92</a>)</li>
 <li><strong>shell:</strong> support stdin without a tty in app:shell (<a href="https://github.com/factorial-io/scotty/commit/bf5cb803841eb6f5d78123c6512ed2b92dfc2601">bf5cb80</a>), closes <a href="https://github.com/factorial-io/scotty/issues/954">#954</a></li>
 </ul>
-<h3 id="bug-fixes-1" tabindex="-1"><a class="header-anchor" href="#bug-fixes-1">
+<h3 id="bug-fixes-2" tabindex="-1"><a class="header-anchor" href="#bug-fixes-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -465,14 +514,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.4...v0.4.0">0.4.0</a> (2026-11-07)</h2>
-<h3 id="features-2" tabindex="-1"><a class="header-anchor" href="#features-2">
+<h3 id="features-3" tabindex="-1"><a class="header-anchor" href="#features-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
 <ul>
 <li><strong>frontend:</strong> show next app-state update instead of last update (<a href="https://github.com/factorial-io/scotty/commit/e58ea3695d1e103e9c6cf9436cda0c5aeedb40da">e58ea36</a>)</li>
 </ul>
-<h3 id="bug-fixes-2" tabindex="-1"><a class="header-anchor" href="#bug-fixes-2">
+<h3 id="bug-fixes-3" tabindex="-1"><a class="header-anchor" href="#bug-fixes-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -542,7 +591,7 @@
 <li>add authorization matrix for REST and WebSocket operations (<a href="https://github.com/factorial-io/scotty/commit/34dde8ab33fd80351178d360badf60072f729e9c">34dde8a</a>)</li>
 <li><strong>frontend:</strong> add Vitest unit tests for stores and lib (<a href="https://github.com/factorial-io/scotty/commit/14f9f521113bfdb307e1e1fa3a703a1f8b10dbff">14f9f52</a>)</li>
 </ul>
-<h3 id="ci-1" tabindex="-1"><a class="header-anchor" href="#ci-1">
+<h3 id="ci-2" tabindex="-1"><a class="header-anchor" href="#ci-2">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -553,7 +602,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.3...v0.3.4">0.3.4</a> (2026-07-27)</h2>
-<h3 id="bug-fixes-3" tabindex="-1"><a class="header-anchor" href="#bug-fixes-3">
+<h3 id="bug-fixes-4" tabindex="-1"><a class="header-anchor" href="#bug-fixes-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -567,7 +616,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.2...v0.3.3">0.3.3</a> (2026-07-06)</h2>
-<h3 id="bug-fixes-4" tabindex="-1"><a class="header-anchor" href="#bug-fixes-4">
+<h3 id="bug-fixes-5" tabindex="-1"><a class="header-anchor" href="#bug-fixes-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -592,7 +641,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.1...v0.3.2">0.3.2</a> (2026-06-29)</h2>
-<h3 id="bug-fixes-5" tabindex="-1"><a class="header-anchor" href="#bug-fixes-5">
+<h3 id="bug-fixes-6" tabindex="-1"><a class="header-anchor" href="#bug-fixes-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -604,7 +653,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.3.0...v0.3.1">0.3.1</a> (2026-06-09)</h2>
-<h3 id="bug-fixes-6" tabindex="-1"><a class="header-anchor" href="#bug-fixes-6">
+<h3 id="bug-fixes-7" tabindex="-1"><a class="header-anchor" href="#bug-fixes-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -615,14 +664,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0">0.3.0</a> (2026-06-07)</h2>
-<h3 id="%E2%9A%A0-breaking-changes-2" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-2">
+<h3 id="%E2%9A%A0-breaking-changes-3" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
 <ul>
 <li><strong>deps:</strong> requires oauth2 5.x; minimum reqwest is now 0.12.</li>
 </ul>
-<h3 id="features-3" tabindex="-1"><a class="header-anchor" href="#features-3">
+<h3 id="features-4" tabindex="-1"><a class="header-anchor" href="#features-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -636,7 +685,7 @@
 <li>propose app-file-transfer openspec change (<a href="https://github.com/factorial-io/scotty/commit/f9c1e60d73a91e9a9bcdb63872118a8974101268">f9c1e60</a>)</li>
 <li><strong>scottyctl:</strong> add app:cp command for file transfer (<a href="https://github.com/factorial-io/scotty/commit/1e9747cb0811edea4e09dbb05b95831352e33191">1e9747c</a>)</li>
 </ul>
-<h3 id="bug-fixes-7" tabindex="-1"><a class="header-anchor" href="#bug-fixes-7">
+<h3 id="bug-fixes-8" tabindex="-1"><a class="header-anchor" href="#bug-fixes-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -722,7 +771,7 @@
 <li><strong>authorization:</strong> stop live-policy test from mutating committed policy.yaml (<a href="https://github.com/factorial-io/scotty/commit/49e20173ec44586b270632926ee377ffb42b3b23">49e2017</a>)</li>
 <li><strong>authz:</strong> use tracked casbin fixture instead of runtime config (<a href="https://github.com/factorial-io/scotty/commit/72f0d33e5c6dbdae9b3453c8bfb3daa77a0e13f8">72f0d33</a>)</li>
 </ul>
-<h3 id="ci-2" tabindex="-1"><a class="header-anchor" href="#ci-2">
+<h3 id="ci-3" tabindex="-1"><a class="header-anchor" href="#ci-3">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -738,14 +787,14 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> <a href="https://github.com/factorial-io/scotty/compare/v0.2.9...v0.3.0">0.3.0</a> (2026-06-05)</h2>
-<h3 id="%E2%9A%A0-breaking-changes-3" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-3">
+<h3 id="%E2%9A%A0-breaking-changes-4" tabindex="-1"><a class="header-anchor" href="#%E2%9A%A0-breaking-changes-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> ⚠ BREAKING CHANGES</h3>
 <ul>
 <li><strong>deps:</strong> requires oauth2 5.x; minimum reqwest is now 0.12.</li>
 </ul>
-<h3 id="features-4" tabindex="-1"><a class="header-anchor" href="#features-4">
+<h3 id="features-5" tabindex="-1"><a class="header-anchor" href="#features-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -759,7 +808,7 @@
 <li>propose app-file-transfer openspec change (<a href="https://github.com/factorial-io/scotty/commit/f9c1e60d73a91e9a9bcdb63872118a8974101268">f9c1e60</a>)</li>
 <li><strong>scottyctl:</strong> add app:cp command for file transfer (<a href="https://github.com/factorial-io/scotty/commit/1e9747cb0811edea4e09dbb05b95831352e33191">1e9747c</a>)</li>
 </ul>
-<h3 id="bug-fixes-8" tabindex="-1"><a class="header-anchor" href="#bug-fixes-8">
+<h3 id="bug-fixes-9" tabindex="-1"><a class="header-anchor" href="#bug-fixes-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -844,7 +893,7 @@
 <li><strong>authorization:</strong> stop live-policy test from mutating committed policy.yaml (<a href="https://github.com/factorial-io/scotty/commit/49e20173ec44586b270632926ee377ffb42b3b23">49e2017</a>)</li>
 <li><strong>authz:</strong> use tracked casbin fixture instead of runtime config (<a href="https://github.com/factorial-io/scotty/commit/72f0d33e5c6dbdae9b3453c8bfb3daa77a0e13f8">72f0d33</a>)</li>
 </ul>
-<h3 id="ci-3" tabindex="-1"><a class="header-anchor" href="#ci-3">
+<h3 id="ci-4" tabindex="-1"><a class="header-anchor" href="#ci-4">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -859,7 +908,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.9]</h2>
-<h3 id="bug-fixes-9" tabindex="-1"><a class="header-anchor" href="#bug-fixes-9">
+<h3 id="bug-fixes-10" tabindex="-1"><a class="header-anchor" href="#bug-fixes-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -870,7 +919,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.8]</h2>
-<h3 id="bug-fixes-10" tabindex="-1"><a class="header-anchor" href="#bug-fixes-10">
+<h3 id="bug-fixes-11" tabindex="-1"><a class="header-anchor" href="#bug-fixes-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -897,7 +946,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.7]</h2>
-<h3 id="bug-fixes-11" tabindex="-1"><a class="header-anchor" href="#bug-fixes-11">
+<h3 id="bug-fixes-12" tabindex="-1"><a class="header-anchor" href="#bug-fixes-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -984,7 +1033,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.6]</h2>
-<h3 id="bug-fixes-12" tabindex="-1"><a class="header-anchor" href="#bug-fixes-12">
+<h3 id="bug-fixes-13" tabindex="-1"><a class="header-anchor" href="#bug-fixes-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1006,7 +1055,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.5]</h2>
-<h3 id="bug-fixes-13" tabindex="-1"><a class="header-anchor" href="#bug-fixes-13">
+<h3 id="bug-fixes-14" tabindex="-1"><a class="header-anchor" href="#bug-fixes-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1036,7 +1085,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.4]</h2>
-<h3 id="bug-fixes-14" tabindex="-1"><a class="header-anchor" href="#bug-fixes-14">
+<h3 id="bug-fixes-15" tabindex="-1"><a class="header-anchor" href="#bug-fixes-15">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1087,7 +1136,7 @@
 <li>Update AGENTS.md to clarify both telemetry transports can be enabled ✔️</li>
 <li>Clarify that telemetry-grpc and telemetry-http can be enabled simultaneously ✔️</li>
 </ul>
-<h3 id="features-5" tabindex="-1"><a class="header-anchor" href="#features-5">
+<h3 id="features-6" tabindex="-1"><a class="header-anchor" href="#features-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1128,7 +1177,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.3]</h2>
-<h3 id="bug-fixes-15" tabindex="-1"><a class="header-anchor" href="#bug-fixes-15">
+<h3 id="bug-fixes-16" tabindex="-1"><a class="header-anchor" href="#bug-fixes-16">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1160,7 +1209,7 @@
 <li>Add comprehensive documentation for domain-based assignments ✔️</li>
 <li>Track documentation tasks for domain-based authorization ✔️</li>
 </ul>
-<h3 id="features-6" tabindex="-1"><a class="header-anchor" href="#features-6">
+<h3 id="features-7" tabindex="-1"><a class="header-anchor" href="#features-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1182,7 +1231,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.1]</h2>
-<h3 id="bug-fixes-16" tabindex="-1"><a class="header-anchor" href="#bug-fixes-16">
+<h3 id="bug-fixes-17" tabindex="-1"><a class="header-anchor" href="#bug-fixes-17">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1207,7 +1256,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.2.0]</h2>
-<h3 id="bug-fixes-17" tabindex="-1"><a class="header-anchor" href="#bug-fixes-17">
+<h3 id="bug-fixes-18" tabindex="-1"><a class="header-anchor" href="#bug-fixes-18">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1292,7 +1341,7 @@
 <li>Resolve TypeScript lint errors and improve type safety ✔️</li>
 <li>Resolve clippy warnings and format code ✔️</li>
 </ul>
-<h3 id="ci-4" tabindex="-1"><a class="header-anchor" href="#ci-4">
+<h3 id="ci-5" tabindex="-1"><a class="header-anchor" href="#ci-5">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -1359,7 +1408,7 @@
 <li>Fix CLI command format throughout documentation ✔️</li>
 <li>Add OAuth authentication documentation and update configuration ✔️</li>
 </ul>
-<h3 id="features-7" tabindex="-1"><a class="header-anchor" href="#features-7">
+<h3 id="features-8" tabindex="-1"><a class="header-anchor" href="#features-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1510,7 +1559,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0]</h2>
-<h3 id="bug-fixes-18" tabindex="-1"><a class="header-anchor" href="#bug-fixes-18">
+<h3 id="bug-fixes-19" tabindex="-1"><a class="header-anchor" href="#bug-fixes-19">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1520,7 +1569,7 @@
 <li>Improve error reporting and fix env vars in custom actions ✔️</li>
 <li>Restore custom actions dropdown functionality and divider visibility ✔️</li>
 </ul>
-<h3 id="ci-5" tabindex="-1"><a class="header-anchor" href="#ci-5">
+<h3 id="ci-6" tabindex="-1"><a class="header-anchor" href="#ci-6">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -1588,7 +1637,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.38]</h2>
-<h3 id="bug-fixes-19" tabindex="-1"><a class="header-anchor" href="#bug-fixes-19">
+<h3 id="bug-fixes-20" tabindex="-1"><a class="header-anchor" href="#bug-fixes-20">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1610,7 +1659,7 @@
 <li>Fix iteration and formatting issues in blueprint lifecycle actions ✔️</li>
 <li>Update usage of InspectContainerOptions for compatibility ✔️</li>
 </ul>
-<h3 id="ci-6" tabindex="-1"><a class="header-anchor" href="#ci-6">
+<h3 id="ci-7" tabindex="-1"><a class="header-anchor" href="#ci-7">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -1768,7 +1817,7 @@
 <li>Update CLI documentation with new installation instructions and options ✔️</li>
 <li>Update preferred CLI installation method ✔️</li>
 </ul>
-<h3 id="features-8" tabindex="-1"><a class="header-anchor" href="#features-8">
+<h3 id="features-9" tabindex="-1"><a class="header-anchor" href="#features-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1813,7 +1862,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.37]</h2>
-<h3 id="bug-fixes-20" tabindex="-1"><a class="header-anchor" href="#bug-fixes-20">
+<h3 id="bug-fixes-21" tabindex="-1"><a class="header-anchor" href="#bug-fixes-21">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1824,7 +1873,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.36]</h2>
-<h3 id="bug-fixes-21" tabindex="-1"><a class="header-anchor" href="#bug-fixes-21">
+<h3 id="bug-fixes-22" tabindex="-1"><a class="header-anchor" href="#bug-fixes-22">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1835,7 +1884,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.35]</h2>
-<h3 id="bug-fixes-22" tabindex="-1"><a class="header-anchor" href="#bug-fixes-22">
+<h3 id="bug-fixes-23" tabindex="-1"><a class="header-anchor" href="#bug-fixes-23">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1846,7 +1895,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.34]</h2>
-<h3 id="ci-7" tabindex="-1"><a class="header-anchor" href="#ci-7">
+<h3 id="ci-8" tabindex="-1"><a class="header-anchor" href="#ci-8">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -1865,7 +1914,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.33]</h2>
-<h3 id="bug-fixes-23" tabindex="-1"><a class="header-anchor" href="#bug-fixes-23">
+<h3 id="bug-fixes-24" tabindex="-1"><a class="header-anchor" href="#bug-fixes-24">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1887,7 +1936,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.32]</h2>
-<h3 id="bug-fixes-24" tabindex="-1"><a class="header-anchor" href="#bug-fixes-24">
+<h3 id="bug-fixes-25" tabindex="-1"><a class="header-anchor" href="#bug-fixes-25">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1897,7 +1946,7 @@
 <li>Add container readiness check and improve Drush commands ✔️</li>
 <li>Update rust dependencies auto-merge (patch) (#337) ✔️</li>
 </ul>
-<h3 id="ci-8" tabindex="-1"><a class="header-anchor" href="#ci-8">
+<h3 id="ci-9" tabindex="-1"><a class="header-anchor" href="#ci-9">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -1919,7 +1968,7 @@
 <ul>
 <li>Clarify install instructions ✔️</li>
 </ul>
-<h3 id="features-9" tabindex="-1"><a class="header-anchor" href="#features-9">
+<h3 id="features-10" tabindex="-1"><a class="header-anchor" href="#features-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1938,7 +1987,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.31]</h2>
-<h3 id="features-10" tabindex="-1"><a class="header-anchor" href="#features-10">
+<h3 id="features-11" tabindex="-1"><a class="header-anchor" href="#features-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -1949,7 +1998,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.30]</h2>
-<h3 id="bug-fixes-25" tabindex="-1"><a class="header-anchor" href="#bug-fixes-25">
+<h3 id="bug-fixes-26" tabindex="-1"><a class="header-anchor" href="#bug-fixes-26">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -1988,7 +2037,7 @@
 <li>Update dependency eslint-plugin-svelte to v3.6.0 ✔️</li>
 <li>Update npm dependencies auto-merge (patch) (#307) ✔️</li>
 </ul>
-<h3 id="features-11" tabindex="-1"><a class="header-anchor" href="#features-11">
+<h3 id="features-12" tabindex="-1"><a class="header-anchor" href="#features-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2008,7 +2057,7 @@
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.29]</h2>
-<h3 id="bug-fixes-26" tabindex="-1"><a class="header-anchor" href="#bug-fixes-26">
+<h3 id="bug-fixes-27" tabindex="-1"><a class="header-anchor" href="#bug-fixes-27">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2051,7 +2100,7 @@ stdout ❌</li>
 <ul>
 <li>Improve examples in AppData documentation ✔️</li>
 </ul>
-<h3 id="features-12" tabindex="-1"><a class="header-anchor" href="#features-12">
+<h3 id="features-13" tabindex="-1"><a class="header-anchor" href="#features-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2076,7 +2125,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.28]</h2>
-<h3 id="features-13" tabindex="-1"><a class="header-anchor" href="#features-13">
+<h3 id="features-14" tabindex="-1"><a class="header-anchor" href="#features-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2096,7 +2145,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.27]</h2>
-<h3 id="bug-fixes-27" tabindex="-1"><a class="header-anchor" href="#bug-fixes-27">
+<h3 id="bug-fixes-28" tabindex="-1"><a class="header-anchor" href="#bug-fixes-28">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2136,7 +2185,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.24]</h2>
-<h3 id="bug-fixes-28" tabindex="-1"><a class="header-anchor" href="#bug-fixes-28">
+<h3 id="bug-fixes-29" tabindex="-1"><a class="header-anchor" href="#bug-fixes-29">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2164,7 +2213,7 @@ stdout ❌</li>
 <ul>
 <li>Document bearer token authentication with utoipa ✔️</li>
 </ul>
-<h3 id="features-14" tabindex="-1"><a class="header-anchor" href="#features-14">
+<h3 id="features-15" tabindex="-1"><a class="header-anchor" href="#features-15">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2210,7 +2259,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.22]</h2>
-<h3 id="bug-fixes-29" tabindex="-1"><a class="header-anchor" href="#bug-fixes-29">
+<h3 id="bug-fixes-30" tabindex="-1"><a class="header-anchor" href="#bug-fixes-30">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2308,7 +2357,7 @@ stdout ❌</li>
 <ul>
 <li>Clarify usage, and prevent some frustration when trying to get things running ✔️</li>
 </ul>
-<h3 id="features-15" tabindex="-1"><a class="header-anchor" href="#features-15">
+<h3 id="features-16" tabindex="-1"><a class="header-anchor" href="#features-16">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2321,7 +2370,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.21]</h2>
-<h3 id="bug-fixes-30" tabindex="-1"><a class="header-anchor" href="#bug-fixes-30">
+<h3 id="bug-fixes-31" tabindex="-1"><a class="header-anchor" href="#bug-fixes-31">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2356,7 +2405,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.20]</h2>
-<h3 id="bug-fixes-31" tabindex="-1"><a class="header-anchor" href="#bug-fixes-31">
+<h3 id="bug-fixes-32" tabindex="-1"><a class="header-anchor" href="#bug-fixes-32">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2403,7 +2452,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.19]</h2>
-<h3 id="bug-fixes-32" tabindex="-1"><a class="header-anchor" href="#bug-fixes-32">
+<h3 id="bug-fixes-33" tabindex="-1"><a class="header-anchor" href="#bug-fixes-33">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2414,7 +2463,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.18]</h2>
-<h3 id="bug-fixes-33" tabindex="-1"><a class="header-anchor" href="#bug-fixes-33">
+<h3 id="bug-fixes-34" tabindex="-1"><a class="header-anchor" href="#bug-fixes-34">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2425,7 +2474,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.17]</h2>
-<h3 id="bug-fixes-34" tabindex="-1"><a class="header-anchor" href="#bug-fixes-34">
+<h3 id="bug-fixes-35" tabindex="-1"><a class="header-anchor" href="#bug-fixes-35">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2451,7 +2500,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.16]</h2>
-<h3 id="bug-fixes-35" tabindex="-1"><a class="header-anchor" href="#bug-fixes-35">
+<h3 id="bug-fixes-36" tabindex="-1"><a class="header-anchor" href="#bug-fixes-36">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2478,7 +2527,7 @@ stdout ❌</li>
 <li>Update the readme and remove redundancy ✔️</li>
 <li>Add documentation for shell autocompletion ✔️</li>
 </ul>
-<h3 id="features-16" tabindex="-1"><a class="header-anchor" href="#features-16">
+<h3 id="features-17" tabindex="-1"><a class="header-anchor" href="#features-17">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2501,7 +2550,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.14]</h2>
-<h3 id="bug-fixes-36" tabindex="-1"><a class="header-anchor" href="#bug-fixes-36">
+<h3 id="bug-fixes-37" tabindex="-1"><a class="header-anchor" href="#bug-fixes-37">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2535,7 +2584,7 @@ stdout ❌</li>
 <ul>
 <li>First version of the documentation ✔️</li>
 </ul>
-<h3 id="features-17" tabindex="-1"><a class="header-anchor" href="#features-17">
+<h3 id="features-18" tabindex="-1"><a class="header-anchor" href="#features-18">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2546,7 +2595,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.13]</h2>
-<h3 id="bug-fixes-37" tabindex="-1"><a class="header-anchor" href="#bug-fixes-37">
+<h3 id="bug-fixes-38" tabindex="-1"><a class="header-anchor" href="#bug-fixes-38">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2571,7 +2620,7 @@ stdout ❌</li>
 <li>Update dependency daisyui to v4.12.21 (#131) ✔️</li>
 <li>Update dependency @sveltejs/kit to v2.10.1 ✔️</li>
 </ul>
-<h3 id="features-18" tabindex="-1"><a class="header-anchor" href="#features-18">
+<h3 id="features-19" tabindex="-1"><a class="header-anchor" href="#features-19">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2588,7 +2637,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.12]</h2>
-<h3 id="bug-fixes-38" tabindex="-1"><a class="header-anchor" href="#bug-fixes-38">
+<h3 id="bug-fixes-39" tabindex="-1"><a class="header-anchor" href="#bug-fixes-39">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2612,7 +2661,7 @@ stdout ❌</li>
 <li>Update dependency prettier to v3.4.2 (#113) ✔️</li>
 <li>Update npm dependencies auto-merge (patch) (#110) ✔️</li>
 </ul>
-<h3 id="features-19" tabindex="-1"><a class="header-anchor" href="#features-19">
+<h3 id="features-20" tabindex="-1"><a class="header-anchor" href="#features-20">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2623,7 +2672,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.11]</h2>
-<h3 id="bug-fixes-39" tabindex="-1"><a class="header-anchor" href="#bug-fixes-39">
+<h3 id="bug-fixes-40" tabindex="-1"><a class="header-anchor" href="#bug-fixes-40">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2700,7 +2749,7 @@ stdout ❌</li>
 <ul>
 <li>Update readme and section about notifications ✔️</li>
 </ul>
-<h3 id="features-20" tabindex="-1"><a class="header-anchor" href="#features-20">
+<h3 id="features-21" tabindex="-1"><a class="header-anchor" href="#features-21">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2721,7 +2770,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.10]</h2>
-<h3 id="bug-fixes-40" tabindex="-1"><a class="header-anchor" href="#bug-fixes-40">
+<h3 id="bug-fixes-41" tabindex="-1"><a class="header-anchor" href="#bug-fixes-41">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2751,7 +2800,7 @@ stdout ❌</li>
 <li>Better help texts ✔️</li>
 <li>Add clarifying comment on how to map the apps folder into the docker-container ✔️</li>
 </ul>
-<h3 id="features-21" tabindex="-1"><a class="header-anchor" href="#features-21">
+<h3 id="features-22" tabindex="-1"><a class="header-anchor" href="#features-22">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2765,7 +2814,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.9]</h2>
-<h3 id="bug-fixes-41" tabindex="-1"><a class="header-anchor" href="#bug-fixes-41">
+<h3 id="bug-fixes-42" tabindex="-1"><a class="header-anchor" href="#bug-fixes-42">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2786,7 +2835,7 @@ stdout ❌</li>
 <li>Update dependency @sveltejs/kit to v2.7.3 ✔️</li>
 <li>Update dependency vite to v5.4.10 ✔️</li>
 </ul>
-<h3 id="features-22" tabindex="-1"><a class="header-anchor" href="#features-22">
+<h3 id="features-23" tabindex="-1"><a class="header-anchor" href="#features-23">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2799,7 +2848,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.8]</h2>
-<h3 id="ci-9" tabindex="-1"><a class="header-anchor" href="#ci-9">
+<h3 id="ci-10" tabindex="-1"><a class="header-anchor" href="#ci-10">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -2810,7 +2859,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.7]</h2>
-<h3 id="ci-10" tabindex="-1"><a class="header-anchor" href="#ci-10">
+<h3 id="ci-11" tabindex="-1"><a class="header-anchor" href="#ci-11">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -2821,7 +2870,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.6]</h2>
-<h3 id="bug-fixes-42" tabindex="-1"><a class="header-anchor" href="#bug-fixes-42">
+<h3 id="bug-fixes-43" tabindex="-1"><a class="header-anchor" href="#bug-fixes-43">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Bug Fixes</h3>
@@ -2833,7 +2882,7 @@ stdout ❌</li>
 <li>Update rust crate uuid to v1.11.0 ✔️</li>
 <li>Update rust dependencies auto-merge (patch) (#3) ✔️</li>
 </ul>
-<h3 id="ci-11" tabindex="-1"><a class="header-anchor" href="#ci-11">
+<h3 id="ci-12" tabindex="-1"><a class="header-anchor" href="#ci-12">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -2860,7 +2909,7 @@ stdout ❌</li>
 <li>Update actions/checkout action to v4 ✔️</li>
 <li>Update dependency typescript-eslint to v8.10.0 ✔️</li>
 </ul>
-<h3 id="features-23" tabindex="-1"><a class="header-anchor" href="#features-23">
+<h3 id="features-24" tabindex="-1"><a class="header-anchor" href="#features-24">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> Features</h3>
@@ -2871,7 +2920,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.5]</h2>
-<h3 id="ci-12" tabindex="-1"><a class="header-anchor" href="#ci-12">
+<h3 id="ci-13" tabindex="-1"><a class="header-anchor" href="#ci-13">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
@@ -2889,7 +2938,7 @@ stdout ❌</li>
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> [0.1.0-alpha.4]</h2>
-<h3 id="ci-13" tabindex="-1"><a class="header-anchor" href="#ci-13">
+<h3 id="ci-14" tabindex="-1"><a class="header-anchor" href="#ci-14">
         <span class="u-hiddenVisually">Jump to heading</span>
         <span aria-hidden="true">#</span>
       </a> CI</h3>
